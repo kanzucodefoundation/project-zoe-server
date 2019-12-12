@@ -1,6 +1,5 @@
 import mongoose from 'mongoose';
-import User, {CreateUserDto, IUser, UpdateUserDto} from './user.model';
-import Task from "../tasks/taskModel";
+import UserModel , {CreateUserDto, IUser, UpdateUserDto} from './users.model';
 import {createAsync, deleteAsync, updateAsync} from "../../utils/repository";
 
 const userData = {
@@ -10,7 +9,7 @@ const userData = {
     group: 'admin',
     useless: 'useless',
 }
-describe('User model', () => {
+describe('UserModel model', () => {
     beforeAll(async () => {
         await mongoose.connect(process.env.MONGO_URL, {
             useNewUrlParser: true,
@@ -34,14 +33,14 @@ describe('User model', () => {
     });
 
     it('Should throw validation errors', () => {
-        const user = new User();
+        const user = new UserModel();
         expect(user.validate).toThrow();
     });
 
     it('Should save a user', async () => {
         expect.assertions(3);
         const userDto = CreateUserDto.create(userData)
-        const user: IUser = new User(userDto);
+        const user: IUser = new UserModel(userDto);
         const spy = jest.spyOn(user, 'save');
         await user.save();
         expect(spy).toHaveBeenCalled();
@@ -58,16 +57,16 @@ describe('User model', () => {
     it('Should Update a user', async () => {
         //expect.assertions(2);
         const userDto = CreateUserDto.create(userData)
-        const user: IUser = await createAsync<IUser>(User, userDto);
+        const user: IUser = await createAsync<IUser>(UserModel, userDto);
         console.log(user.id)
         const update = UpdateUserDto.create(user)
         update.password = 'adminPassNew'
         update.group = 'admin'
-        const updated: any = await updateAsync<IUser>(User, update);
+        const updated: any = await updateAsync<IUser>(UserModel, update);
         expect(updated.username).toBe('test@example.com');
         expect(updated.password).toBe('adminPassNew');
 
-        const resp = await deleteAsync<IUser>(User, user.id)
+        const resp = await deleteAsync<IUser>(UserModel, user.id)
         console.log('Delete response', resp)
     });
 });

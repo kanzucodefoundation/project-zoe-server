@@ -1,8 +1,14 @@
 import {Document, Model} from "mongoose"
+import IBaseQuery from "../data/BaseQuery";
+
 
 export async function createAsync<T extends Document>(model: Model<T>, data: any): Promise<T> {
     const record = new model(data)
     return await record.save()
+}
+
+export async function searchAsync<T extends Document>(model: Model<T>, conditions: any, query: IBaseQuery): Promise<T[]> {
+    return model.find({...conditions}, null, {skip: query.skip, limit: query.limit});
 }
 
 export async function updateAsync<T extends Document>(model: Model<T>, {id, ...rest}: any): Promise<T> {
