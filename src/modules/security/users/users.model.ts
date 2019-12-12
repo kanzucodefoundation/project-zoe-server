@@ -1,6 +1,6 @@
 import {Document, model, Schema} from "mongoose";
 import {check} from "express-validator";
-import {configureId} from "../../utils/schemaUtils";
+import {configureId} from "../../../utils/schemaUtils";
 
 const userSchema = new Schema({
     username: {
@@ -36,11 +36,11 @@ const UserModel = model<IUser>('User', userSchema);
 export default UserModel
 
 export const createUserRules = [
-    check("username", "Name cannot be blank").not().isEmpty(),
+    check("username", "username cannot be blank").not().isEmpty(),
     check("contactId", "User must be attached to a contact").not().isEmpty(),
     check("password", "Password cannot be blank").not().isEmpty()
         .isLength({min: 6}),
-    check("group", "Password cannot be blank").not().isEmpty()
+    check("group", "User must be in a group").not().isEmpty()
 ]
 
 export const editUserRules = [

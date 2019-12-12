@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 import UserModel , {CreateUserDto, IUser, UpdateUserDto} from './users.model';
-import {createAsync, deleteAsync, updateAsync} from "../../utils/repository";
+import {createAsync, deleteAsync, updateAsync} from "../../../utils/repository";
 
 const userData = {
     username: 'test@example.com',
