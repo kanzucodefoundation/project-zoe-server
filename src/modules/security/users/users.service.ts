@@ -1,8 +1,9 @@
 import bcrypt from 'bcryptjs'
 import UserModel, {CreateUserDto, IUser, UpdateUserDto} from './users.model'
-import * as repo from "../../utils/repository";
-import {hasValue} from "../../utils/validation";
-import IBaseQuery from "../../data/BaseQuery";
+import * as repo from "../../../utils/repository";
+import * as groupService from "../usergroup/usergroup.service";
+import {hasValue} from "../../../utils/validation";
+import IBaseQuery from "../../../data/BaseQuery";
 
 // authentication will take approximately 13 seconds
 // https://pthree.org/wp-content/uploads/2016/06/bcrypt.png
@@ -10,6 +11,10 @@ const hashCost = 10;
 
 export const createAsync = async (data: any): Promise<IUser> => {
     const dt = CreateUserDto.create(data);
+    const isValidGroup = await groupService.exitsAsync(dt.group)
+    if (!isValidGroup) {
+        await Promise.reject(`Invalid group: ${dt.group}`)
+    }
     dt.password = await bcrypt.hash(dt.password, hashCost)
     return repo.createAsync<IUser>(UserModel, dt)
 };
@@ -24,7 +29,8 @@ export const searchAsync = async (q: IBaseQuery): Promise<IUser[]> => {
     if (hasValue(q.query)) {
         filter['username'] = new RegExp(`/${q.query}/i`)
     }
-    return repo.searchAsync<IUser>(UserModel, filter, q)
+    return UserModel.find(filter, '-password', {skip: q.skip, limit: q.limit});
+
 };
 
 export const updateAsync = async (data: any): Promise<IUser> => {

@@ -33,15 +33,17 @@ export const authorize = function (req: Request, res: Response, next: NextFuncti
 }
 
 export const handleErrors = function (error: Error, req: Request, res: Response) {
-    console.error(error);
-    if (isDupError(error)) {
-        res.status(400).send({
-            message: "Duplicate record",
-        });
-        return
+    if(error){
+        console.error(error);
+        if (isDupError(error)) {
+            res.status(400).send({
+                message: "Duplicate record",
+            });
+            return
+        }
+        const message = error.message || 'Oops, unknown error, please contact admin'
+        res.status(500)
+            .json({message});
     }
-    const message = error.message || 'Oops, unknown error, please contact admin'
-    res.status(500)
-        .json({message: error.message});
 }
 

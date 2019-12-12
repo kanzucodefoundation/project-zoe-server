@@ -1,4 +1,4 @@
-import * as service from "../modules/users/users.service";
+import * as service from "../modules/security/users/users.service";
 
 const userData = {
     username: 'test@example.com',

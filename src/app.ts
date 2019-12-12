@@ -3,13 +3,13 @@ import * as  path from 'path'
 import mongoose from "mongoose"
 import bluebird from "bluebird"
 import cors from "cors"
-import indexRouter from "./modules/index"
-import authRouter from "./modules/auth/auth.router"
-import usersRouter from "./modules/users/users.router"
+import authRouter from "./modules/security/auth/auth.router"
+import usersRouter from "./modules/security/users/users.router"
+import userGroupRouter from "./modules/security/usergroup/usergroup.router"
 import tasksRouter from "./modules/tasks/tasksRouter"
 import logger from "morgan"
 import passport from "passport";
-import './modules/auth/passport.setup'
+import './modules/security/auth/passport.setup'
 import {authorize, handleErrors} from './utils/middleware'
 import {seedDataAsync} from "./data/seed";
 
@@ -33,9 +33,10 @@ app.use(express.urlencoded({extended: false}))
 app.use(passport.initialize());
 app.use(express.static(path.join(__dirname, '../public')))
 
-app.use('/', indexRouter)
+
 app.use('/auth', authRouter)
 app.use('/users', authorize, usersRouter)
+app.use('/users-groups', authorize, userGroupRouter)
 app.use('/tasks', tasksRouter)
 
 //Global Error handling
