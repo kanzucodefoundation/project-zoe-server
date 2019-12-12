@@ -1,6 +1,7 @@
 import {validationResult} from "express-validator";
 import {Request, Response, NextFunction} from "express";
 import passport from "passport"
+import {isDupError} from "./dbUtils";
 
 export const validate = (req: Request, res: Response, next: NextFunction) => {
     const errors = validationResult(req)
@@ -30,3 +31,17 @@ export const authorize = function (req: Request, res: Response, next: NextFuncti
         }
     )(req, res);
 }
+
+export const handleErrors = function (error: Error, req: Request, res: Response) {
+    console.error(error);
+    if (isDupError(error)) {
+        res.status(400).send({
+            message: "Duplicate record",
+        });
+        return
+    }
+    const message = error.message || 'Oops, unknown error, please contact admin'
+    res.status(500)
+        .json({message: error.message});
+}
+

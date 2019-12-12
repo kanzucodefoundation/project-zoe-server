@@ -5,12 +5,13 @@ import bluebird from "bluebird"
 import cors from "cors"
 import indexRouter from "./modules/index"
 import authRouter from "./modules/auth/auth.router"
-import usersRouter from "./modules/auth/usersRouter"
+import usersRouter from "./modules/users/users.router"
 import tasksRouter from "./modules/tasks/tasksRouter"
 import logger from "morgan"
 import passport from "passport";
 import './modules/auth/passport.setup'
-import {authorize} from './utils/middleware'
+import {authorize, handleErrors} from './utils/middleware'
+import {seedDataAsync} from "./data/seed";
 
 const app = express();
 mongoose.Promise = bluebird;
@@ -19,7 +20,8 @@ if (mongoUrl.length === 0) {
     console.log(`Invalid mongo url: ${mongoUrl}`)
 }
 mongoose.connect(mongoUrl, {useNewUrlParser: true, useUnifiedTopology: true}).then(
-    () => { /** ready to use. The `mongoose.connect()` promise resolves to undefined. */
+    async () => {
+        await seedDataAsync()
     },
 ).catch(err => {
     console.log("MongoDB connection error. Please make sure MongoDB is running. " + err)
@@ -35,5 +37,8 @@ app.use('/', indexRouter)
 app.use('/auth', authRouter)
 app.use('/users', authorize, usersRouter)
 app.use('/tasks', tasksRouter)
+
+//Global Error handling
+app.use(handleErrors)
 
 export default app

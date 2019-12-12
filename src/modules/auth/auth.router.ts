@@ -1,26 +1,31 @@
 import {Request, Response, Router} from "express";
-import jwt from 'jsonwebtoken'
 import passport from 'passport'
-import {createJWT, jwtConstants} from "./jwtConstants";
+import {createJWT} from "./jwtConstants";
 
 const router = Router();
 
-router.post('/login', passport.authenticate('local', {session: false}), (req: Request, res: Response) => {
-    try {
-        const user: any = req.user;
-        const payload: any = {
-            username: user.username,
-            contactId: user.contactId
-        };
-        const token = createJWT(payload);
-        res.status(200)
-            .send({user, token});
-    } catch (error) {
-        console.error(error);
-        res.status(401).send({
-            message: "Oops failed to login",
-        });
-    }
+
+router.post('/login', function(req: Request, res: Response) {
+    passport.authenticate(
+        'local',
+        {session: false},
+        function (error, user, info) {
+            if (error) {
+                console.log('Auth Error',error)
+                res.status(401).json({message: error});
+            } else if (!user) {
+                res.status(401).json({message: 'invalid user', info});
+            } else {
+                const payload: any = {
+                    username: user.username,
+                    contactId: user.contactId
+                };
+                const token = createJWT(payload);
+                res.status(200)
+                    .send({user, token});
+            }
+        }
+    )(req, res);
 });
 
 export default router;

@@ -1,7 +1,7 @@
 import {Request, Response, Router} from "express";
 import {validationResult} from "express-validator";
 import Task, {updateValidation, validation} from './taskModel'
-import UserModel from "../auth/user.model";
+import UserModel from "../users/users.model";
 
 const router = Router();
 
