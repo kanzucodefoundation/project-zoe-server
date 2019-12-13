@@ -3,6 +3,7 @@ import UserGroupModel, {IUserGroup, UserGroupDto, userGroupRules} from './usergr
 import {validate} from "../../../utils/middleware";
 import * as repo from "../../../utils/repository";
 import {hasValue} from "../../../utils/validation";
+import {handleError} from "../../../utils/routerHelpers";
 
 const router = Router();
 
@@ -16,8 +17,8 @@ router.get('/', async (req: Request, res: Response) => {
         }
         const data = await UserGroupModel.find(filter, null, {skip: q.skip, limit: q.limit});
         res.send(data);
-    }catch (e) {
-        throw e
+    } catch (e) {
+        handleError(e, res)
     }
 
 });
@@ -27,27 +28,44 @@ router.post('/', userGroupRules, validate, async (req: Request, res: Response) =
     try {
         const data = await repo.createAsync<IUserGroup>(UserGroupModel, UserGroupDto.create(req.body))
         res.json(data);
-    }catch (error) {
-        const message = error.message || 'Oops, unknown error, please contact admin'
-        res.status(500)
-            .json({message});
+    } catch (e) {
+        handleError(e, res)
     }
 });
 
 /* Update user */
 router.put('/', userGroupRules, validate, async (req: Request, res: Response) => {
-    const data = await repo.updateAsync<IUserGroup>(UserGroupModel, UserGroupDto.create(req.body))
-    res.json(data);
+    try {
+        const model = UserGroupDto.create(req.body)
+        const data = await repo.updateAsync<IUserGroup>(UserGroupModel, model)
+        res.json(data);
+    } catch (e) {
+        handleError(e, res)
+    }
 });
 
+/* Get task by id. */
+router.get('/:id', async (req: Request, res: Response) => {
+    try {
+        const {id} = req.params;
+        const data = await repo.getByIdAsync(UserGroupModel, id);
+        res.json(data);
+    } catch (e) {
+        handleError(e, res)
+    }
+});
 
 /* Delete task by id. */
 router.delete('/:id', async (req: Request, res: Response) => {
-    const {id} = req.params;
-    await repo.deleteAsync(UserGroupModel, id);
-    res.json({
-        message: 'Operation succeeded'
-    });
+    try {
+        const {id} = req.params;
+        await repo.deleteAsync(UserGroupModel, id);
+        res.json({
+            message: 'Operation succeeded'
+        });
+    } catch (e) {
+        handleError(e, res)
+    }
 });
 
 export default router;

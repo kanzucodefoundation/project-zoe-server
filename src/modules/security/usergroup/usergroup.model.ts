@@ -1,6 +1,6 @@
 import {Document, model, Schema} from "mongoose";
 import {check} from "express-validator";
-import {configureId} from "../../../utils/schemaUtils";
+import {configureId} from "../../../utils/schemaHelpers";
 
 const schema = new Schema({
     name: {
@@ -32,14 +32,17 @@ export const userGroupRules = [
     check("name", "Name cannot be blank").not().isEmpty(),
     check("details", "User must be attached to a contact").not().isEmpty(),
     check("roles", "Groups require roles").isArray({min: 1})
-        .isLength({min: 6})
 ]
 
 export class UserGroupDto {
+    id?: string
     name: string
     details: string
     roles: string[]
-    static create({name, details, roles}: any): UserGroupDto {
-        return {name, details, roles}
+
+    static create({name, details, roles, id}: any): UserGroupDto {
+        return {name, details, roles, id}
     }
 }
+
+

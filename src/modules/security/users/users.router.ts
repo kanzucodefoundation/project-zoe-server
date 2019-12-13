@@ -1,8 +1,9 @@
 import {Request, Response, Router} from "express";
-import {createUserRules, editUserRules} from './users.model'
+import {cleanUpUser, createUserRules, editUserRules} from './users.model'
 import {validate} from "../../../utils/middleware";
 import * as service from './users.service'
-import {handleError} from "../../../utils/routerUtils";
+import * as groupService from '../usergroup/usergroup.service'
+import {handleError} from "../../../utils/routerHelpers";
 
 const router = Router();
 
@@ -14,7 +15,25 @@ router.get('/', async (req: Request, res: Response) => {
     } catch (error) {
         handleError(error, res)
     }
+});
 
+/* Get by id. */
+router.get('/:id', async (req: Request, res: Response) => {
+    try {
+        const {id} = req.params;
+        const _data = await service.getByIdAsync(id);
+        const data = _data.toObject({virtuals: true, versionKey: false});
+        cleanUpUser(data)
+        const group = await groupService.getByNameAsync(data.group)
+        if (!group) {
+            await Promise.reject(`Invalid user group: ${data.group}`)
+        } else {
+            data.roles = group.roles
+            res.json(data);
+        }
+    } catch (error) {
+        handleError(error, res)
+    }
 });
 
 /* Create user */
@@ -31,7 +50,15 @@ router.post('/', createUserRules, validate, async (req: Request, res: Response) 
 router.put('/', editUserRules, validate, async (req: Request, res: Response) => {
     try {
         const saved = await service.updateAsync(req.body)
-        res.json(saved);
+        const data = saved.toObject({virtuals: true, versionKey: false});
+        cleanUpUser(data)
+        const group = await groupService.getByNameAsync(data.group)
+        if (!group) {
+            await Promise.reject(`Invalid user group: ${data.group}`)
+        } else {
+            data.roles = group.roles
+            res.json(data);
+        }
     } catch (error) {
         handleError(error, res)
     }

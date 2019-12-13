@@ -1,6 +1,6 @@
 import {Document, model, Schema} from "mongoose";
 import {check} from "express-validator";
-import {configureId} from "../../../utils/schemaUtils";
+import {configureId} from "../../../utils/schemaHelpers";
 
 const userSchema = new Schema({
     username: {
@@ -15,13 +15,13 @@ const userSchema = new Schema({
     },
     password: {
         type: String,
-        required: true,
+        required: true
     },
     group: {
         type: String,
         required: true,
     }
-}, {});
+}, { });
 configureId(userSchema)
 
 export interface IUser extends Document {
@@ -29,6 +29,7 @@ export interface IUser extends Document {
     contactId: string
     password: string
     group: string
+    roles?: string[]
 }
 
 const UserModel = model<IUser>('User', userSchema);
@@ -38,15 +39,13 @@ export default UserModel
 export const createUserRules = [
     check("username", "username cannot be blank").not().isEmpty(),
     check("contactId", "User must be attached to a contact").not().isEmpty(),
-    check("password", "Password cannot be blank").not().isEmpty()
-        .isLength({min: 6}),
+    check("password", "Password cannot be blank").not().isEmpty(),
     check("group", "User must be in a group").not().isEmpty()
 ]
 
 export const editUserRules = [
     check("id", "Id is required").not().isEmpty(),
-    check("group", "User must be attached to a contact").not().isEmpty(),
-    check("password", "Password should be at least 6 characters").isLength({min: 6})
+    check("group", "User must be attached to a contact").not().isEmpty()
 ]
 
 export class CreateUserDto {
@@ -68,4 +67,10 @@ export class UpdateUserDto {
     static create({id, password, group}: any): UpdateUserDto {
         return {id, password, group}
     }
+}
+
+export const cleanUpUser=(user:any)=>{
+    delete user['password']
+    delete user['_id']
+    delete user['__v']
 }

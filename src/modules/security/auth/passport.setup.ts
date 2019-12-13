@@ -3,8 +3,9 @@ import passport from 'passport'
 import * as PassportLocal from 'passport-local'
 import * as PassportJWT from 'passport-jwt'
 import {ExtractJwt} from 'passport-jwt'
-import UserModel from '../users/users.model'
+import * as service from '../users/users.service'
 import {jwtConstants} from "./jwtConstants";
+import {cleanUpUser} from "../users/users.model";
 
 const LocalStrategy = PassportLocal.Strategy;
 const JWTStrategy = PassportJWT.Strategy;
@@ -17,14 +18,15 @@ passport.use(
         },
         async (username, password, done) => {
             try {
-                const userDocument = await UserModel.findOne({username: username}).exec();
-                if (!userDocument) {
+                const user = await service.findByUsername(username,true)
+                if (!user) {
                     console.warn('invalid username: ', username)
                     return done('Incorrect Username / Password');
                 }
-                const passwordsMatch = await bcrypt.compare(password, userDocument.password);
+                const passwordsMatch = await bcrypt.compare(password, user.password);
                 if (passwordsMatch) {
-                    return done(null, userDocument);
+                    cleanUpUser(user)
+                    return done(null, user);
                 } else {
                     console.warn('invalid password: ', username)
                     return done('Incorrect Username / Password');
