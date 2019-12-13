@@ -4,8 +4,7 @@ const userData = {
     username: 'test@example.com',
     contactId: 'admin',
     password: 'Xpass@123',
-    group: 'admin',
-    useless: 'useless',
+    group: 'Admins'
 }
 
 export async function seedDataAsync() {
