@@ -36,11 +36,11 @@ app.use(passport.initialize());
 app.use(express.static(path.join(__dirname, '../public')))
 
 
-app.use('/auth', authRouter)
-app.use('/users', authorize, usersRouter)
-app.use('/user-groups', authorize, userGroupRouter)
-app.use('/tasks', authorize, tasksRouter)
-app.use('/groups', authorize, groupRouter)
+app.use('/api/auth', authRouter)
+app.use('/api/users', authorize, usersRouter)
+app.use('/api/user-groups', authorize, userGroupRouter)
+app.use('/api/tasks', authorize, tasksRouter)
+app.use('/api/groups', authorize, groupRouter)
 
 //Global Error handling
 app.use(handleErrors)

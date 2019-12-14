@@ -26,10 +26,11 @@ export const authorize = function (req: Request, res: Response, next: NextFuncti
             } else if (!user) {
                 res.status(401).send({message: 'invalid user', info});
             } else {
-                next();
+                req.user = user
+                next()
             }
         }
-    )(req, res);
+    )(req, res, next);
 }
 
 export const handleErrors = function (error: any, req: Request, res: Response, next: NextFunction) {
