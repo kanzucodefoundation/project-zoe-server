@@ -34,9 +34,8 @@ export const updateAsync = async (childName: string, contactId: string, data: an
     const toUpdate = contact[childName][updateIndex]
     updateDocument(toUpdate, model)
     await contact.save()
-    return cleanUpId(toUpdate.toObject());
+    return toUpdate;
 }
-
 
 export const deleteAsync = async (childName: string, contactId: string, id: string): Promise<any> => {
     if (!hasValue(contactId)) {
