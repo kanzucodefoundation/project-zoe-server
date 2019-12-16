@@ -2,7 +2,8 @@ import {Request, Response, Router} from "express";
 
 import {badRequest, handleError} from "../../../utils/routerHelpers";
 import ContactModel from "../contacts/contact.model";
-import {createQuery, default as service} from "../contacts/contact.service";
+import {createQuery} from "../contacts/contact.service";
+import * as service from "../contacts/contact.service";
 import IBaseQuery from "../../../data/BaseQuery";
 import {parseNumber} from "../../../utils/numberHelpers";
 import {getPersonFullName} from "../types";
@@ -41,7 +42,7 @@ router.get('/', async (req: Request, res: Response) => {
 /* Create */
 router.post('/', createPersonRules, validate, async (req: Request, res: Response) => {
     try {
-        const saved = await service.createAsync(req.body)
+        const saved = await service.createPersonAsync(req.body)
         res.json(saved);
     } catch (error) {
         handleError(error, res)
