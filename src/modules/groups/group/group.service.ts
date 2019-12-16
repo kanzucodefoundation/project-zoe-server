@@ -1,10 +1,10 @@
 import GroupModel, {GroupDto, IGroup} from "./group.model";
-import IBaseQuery from "../../data/BaseQuery";
+import IBaseQuery from "../../../data/BaseQuery";
 
-import {hasValue} from "../../utils/validation";
+import {hasValue} from "../../../utils/validation";
 
-import * as repo from "../../utils/repository";
-import {parseNumber} from "../../utils/numberHelpers";
+import * as repo from "../../../utils/repository";
+import {parseNumber} from "../../../utils/numberHelpers";
 
 export const exitsAsync = async (name: string): Promise<boolean> => {
     return await GroupModel.exists({name})

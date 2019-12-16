@@ -18,7 +18,7 @@ export interface INewContact {
 }
 
 
-export const createContactRules = [
+export const createPersonRules = [
     check("firstName", "First Name cannot be blank").not().isEmpty(),
     check("lastName", "Last Name cannot be blank").not().isEmpty(),
     check("gender", "Gender cannot be blank").not().isEmpty(),

@@ -1,8 +1,8 @@
 import {Request, Response, Router} from "express";
 import {createGroupRules, editGroupRules} from './group.model'
-import {validate} from "../../utils/middleware";
+import {validate} from "../../../utils/middleware";
 import * as service from './group.service'
-import {handleError} from "../../utils/routerHelpers";
+import {handleError} from "../../../utils/routerHelpers";
 
 const router = Router();
 

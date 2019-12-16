@@ -1,7 +1,7 @@
 import {Document, model, Schema} from "mongoose";
 import {check} from "express-validator";
-import {configureId} from "../../utils/schemaHelpers";
-import {enumToArray} from "../../utils/enumHelpers";
+import {configureId} from "../../../utils/schemaHelpers";
+import {enumToArray} from "../../../utils/enumHelpers";
 
 export enum GroupPrivacy {
     Private = "Private",
