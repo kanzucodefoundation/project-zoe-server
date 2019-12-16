@@ -11,7 +11,7 @@ import authRouter from "./modules/security/auth/auth.router"
 import usersRouter from "./modules/security/users/users.router"
 import userGroupRouter from "./modules/security/usergroup/usergroup.router"
 import tasksRouter from "./modules/tasks/tasksRouter"
-import groupRouter from "./modules/groups/group.router"
+import groupRouter from "./modules/groups/group/group.router"
 import contactRouter from "./modules/crm/contacts/contact.router"
 import personRouter from "./modules/crm/routes/person.router"
 import phoneRouter from "./modules/crm/routes/phone.router"
@@ -49,11 +49,14 @@ app.use('/api/auth', authRouter)
 app.use('/api/users', authorize, usersRouter)
 app.use('/api/user-groups', authorize, userGroupRouter)
 app.use('/api/tasks', authorize, tasksRouter)
-app.use('/api/groups', authorize, groupRouter)
+
+
+app.use('/api/groups/group', authorize, groupRouter)
+app.use('/api/groups/member', authorize, groupRouter)
+
 app.use('/api/crm/contact', authorize, contactRouter)
 app.use('/api/crm/person', authorize, personRouter)
 app.use('/api/crm/phone', authorize, phoneRouter)
-
 app.use('/api/crm/address', authorize, addressRouter)
 app.use('/api/crm/email', authorize, emailRouter)
 app.use('/api/crm/identification', authorize, identificationRouter)

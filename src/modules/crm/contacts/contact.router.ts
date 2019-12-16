@@ -1,5 +1,5 @@
 import {Request, Response, Router} from "express";
-import {createContactRules} from './contact.dto'
+import {createPersonRules} from './contact.dto'
 import {validate} from "../../../utils/middleware";
 import * as service from './contact.service'
 import {handleError} from "../../../utils/routerHelpers";
@@ -27,8 +27,9 @@ router.get('/:id', async (req: Request, res: Response) => {
     }
 });
 
+// TODO Add validation
 /* Create */
-router.post('/', createContactRules, validate, async (req: Request, res: Response) => {
+router.post('/', async (req: Request, res: Response) => {
     try {
         const saved = await service.createAsync(req.body)
         res.json(saved);

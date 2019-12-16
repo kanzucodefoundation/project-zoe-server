@@ -12,10 +12,14 @@ export const exitsAsync = async (name: string): Promise<boolean> => {
     return await ContactModel.exists({name})
 };
 
-export const createAsync = async (data: any): Promise<IContact> => {
-    console.log("Contat data", data)
+export const createPersonAsync = async (data: any): Promise<IContact> => {
     const dt = dataToContact(data);
     return await repo.createAsync<IContact>(ContactModel, dt)
+};
+
+// TODO Add validation
+export const createAsync = async (data: any): Promise<IContact> => {
+    return await repo.createAsync<IContact>(ContactModel, data)
 };
 
 export const searchAsync = async (q: IBaseQuery): Promise<IContact[]> => {

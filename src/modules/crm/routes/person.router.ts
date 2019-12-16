@@ -2,7 +2,7 @@ import {Request, Response, Router} from "express";
 
 import {badRequest, handleError} from "../../../utils/routerHelpers";
 import ContactModel from "../contacts/contact.model";
-import {createQuery} from "../contacts/contact.service";
+import {createQuery, default as service} from "../contacts/contact.service";
 import IBaseQuery from "../../../data/BaseQuery";
 import {parseNumber} from "../../../utils/numberHelpers";
 import {getPersonFullName} from "../types";
@@ -10,6 +10,7 @@ import {check} from "express-validator";
 import {isValidDate} from "../../../utils/dateHelpers";
 import {validate} from "../../../utils/middleware";
 import {hasValue} from "../../../utils/validation";
+import {createPersonRules} from "../contacts/contact.dto";
 
 const router = Router();
 
@@ -36,6 +37,16 @@ router.get('/', async (req: Request, res: Response) => {
     }
 });
 
+
+/* Create */
+router.post('/', createPersonRules, validate, async (req: Request, res: Response) => {
+    try {
+        const saved = await service.createAsync(req.body)
+        res.json(saved);
+    } catch (error) {
+        handleError(error, res)
+    }
+});
 
 export const rules = [
     check("firstName", "First Name cannot be blank").not().isEmpty(),
