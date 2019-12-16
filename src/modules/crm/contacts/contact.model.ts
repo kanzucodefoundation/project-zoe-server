@@ -198,6 +198,13 @@ const schema = new Schema({
     metaData: {},
 });
 configureId(schema)
+configureId(emailSchema)
+configureId(phoneSchema)
+configureId(occasionSchema)
+configureId(addressSchema)
+configureId(identificationSchema)
+configureId(relationshipSchema)
+
 
 const ContactModel = model<IContact>('Contact', schema);
 export default ContactModel
