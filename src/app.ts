@@ -3,14 +3,24 @@ import * as  path from 'path'
 import mongoose from "mongoose"
 import bluebird from "bluebird"
 import cors from "cors"
+import logger from "morgan"
+import passport from "passport";
+import './modules/security/auth/passport.setup'
+
 import authRouter from "./modules/security/auth/auth.router"
 import usersRouter from "./modules/security/users/users.router"
 import userGroupRouter from "./modules/security/usergroup/usergroup.router"
 import tasksRouter from "./modules/tasks/tasksRouter"
 import groupRouter from "./modules/groups/group.router"
-import logger from "morgan"
-import passport from "passport";
-import './modules/security/auth/passport.setup'
+import contactRouter from "./modules/crm/contacts/contact.router"
+import personRouter from "./modules/crm/routes/person.router"
+import phoneRouter from "./modules/crm/routes/phone.router"
+import addressRouter from "./modules/crm/routes/address.router"
+import emailRouter from "./modules/crm/routes/email.router"
+import identificationRouter from "./modules/crm/routes/identification.router"
+import occasionRouter from "./modules/crm/routes/occasion.router"
+import relationshipRouter from "./modules/crm/routes/relationship.router"
+
 import {authorize, handleErrors} from './utils/middleware'
 import {seedDataAsync} from "./data/seed";
 
@@ -35,12 +45,20 @@ app.use(express.urlencoded({extended: false}))
 app.use(passport.initialize());
 app.use(express.static(path.join(__dirname, '../public')))
 
-
 app.use('/api/auth', authRouter)
 app.use('/api/users', authorize, usersRouter)
 app.use('/api/user-groups', authorize, userGroupRouter)
 app.use('/api/tasks', authorize, tasksRouter)
 app.use('/api/groups', authorize, groupRouter)
+app.use('/api/crm/contact', authorize, contactRouter)
+app.use('/api/crm/person', authorize, personRouter)
+app.use('/api/crm/phone', authorize, phoneRouter)
+
+app.use('/api/crm/address', authorize, addressRouter)
+app.use('/api/crm/email', authorize, emailRouter)
+app.use('/api/crm/identification', authorize, identificationRouter)
+app.use('/api/crm/occasion', authorize, occasionRouter)
+app.use('/api/crm/relationship', authorize, relationshipRouter)
 
 //Global Error handling
 app.use(handleErrors)

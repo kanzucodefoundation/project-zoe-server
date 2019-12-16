@@ -13,14 +13,13 @@ router.get('/', async (req: Request, res: Response) => {
         const q = req.query
         const filter: any = {}
         if (hasValue(q.query)) {
-            filter['name'] = new RegExp(`/${q.query}/i`)
+            filter['name'] = {$regex: new RegExp(q.query), $options: 'i'}
         }
         const data = await UserGroupModel.find(filter, null, {skip: q.skip, limit: q.limit});
         res.send(data);
     } catch (e) {
         handleError(e, res)
     }
-
 });
 
 /* Create user */

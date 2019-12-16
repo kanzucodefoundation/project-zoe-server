@@ -4,6 +4,7 @@ import IBaseQuery from "../../data/BaseQuery";
 import {hasValue} from "../../utils/validation";
 
 import * as repo from "../../utils/repository";
+import {parseNumber} from "../../utils/numberHelpers";
 
 export const exitsAsync = async (name: string): Promise<boolean> => {
     return await GroupModel.exists({name})
@@ -17,9 +18,9 @@ export const createAsync = async (data: any): Promise<IGroup> => {
 export const searchAsync = async (q: IBaseQuery): Promise<IGroup[]> => {
     const filter: any = {}
     if (hasValue(q.query)) {
-        filter['name'] = new RegExp(`/${q.query}/i`)
+        filter['name'] = {$regex: new RegExp(q.query), $options: 'i'}
     }
-    return GroupModel.find(filter, null, {skip: q.skip, limit: q.limit});
+    return GroupModel.find(filter, null, {skip: parseNumber(q.skip), limit: parseNumber(q.limit)});
 };
 
 export const updateAsync = async (data: any): Promise<IGroup> => {
