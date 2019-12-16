@@ -83,5 +83,6 @@ export const dataToContact = (
         occasions: [],
         metaData: {}
     }
+    console.log('Creating ',data)
     return {...data}
 }

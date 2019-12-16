@@ -185,7 +185,7 @@ const schema = new Schema({
         type: String,
         required: true,
         enum: enumToArray(ContactCategory),
-        default: GroupPrivacy.Public
+        default: ContactCategory.Person
     },
     person: personSchema,
     emails: [emailSchema],
