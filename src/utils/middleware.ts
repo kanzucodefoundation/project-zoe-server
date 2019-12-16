@@ -1,7 +1,7 @@
 import {validationResult} from "express-validator";
 import {Request, Response, NextFunction} from "express";
 import passport from "passport"
-import {isDupError} from "./errorHelpers";
+import {handleError} from "./routerHelpers";
 
 export const validate = (req: Request, res: Response, next: NextFunction) => {
     const errors = validationResult(req)
@@ -36,15 +36,7 @@ export const authorize = function (req: Request, res: Response, next: NextFuncti
 export const handleErrors = function (error: any, req: Request, res: Response, next: NextFunction) {
     console.error('Global error')
     if (error) {
-        console.error(error);
-        if (isDupError(error)) {
-            res.status(400).send({
-                message: "Duplicate record",
-            });
-            return
-        }
-        const message = error.message || 'Oops, unknown error, please contact admin'
-        res.json({message});
+        handleError(error, res)
     }
 }
 

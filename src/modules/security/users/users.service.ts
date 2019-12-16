@@ -41,7 +41,7 @@ export const findByUsername = async (username: string, full: boolean = false): P
 export const searchAsync = async (q: IBaseQuery): Promise<IUser[]> => {
     const filter: any = {}
     if (hasValue(q.query)) {
-        filter['username'] = new RegExp(`/${q.query}/i`)
+        filter['username'] = {$regex: new RegExp(q.query), $options: 'i'}
     }
     return UserModel.find(filter, '-password', {skip: q.skip, limit: q.limit});
 };
