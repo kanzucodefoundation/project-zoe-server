@@ -9,26 +9,30 @@ const userSchema = new Schema({
         unique: true,
         required: true,
     },
-    contactId: {
-        type: String,
+    contact: {
+        type: Schema.Types.ObjectId,
         required: true,
+        ref: 'Contact'
     },
     password: {
         type: String,
         required: true
     },
     group: {
-        type: String,
+        type: Schema.Types.ObjectId,
         required: true,
+        ref: 'UserGroup'
     }
-}, { });
+}, {});
 configureId(userSchema)
 
 export interface IUser extends Document {
     username: string
-    contactId: string
     password: string
-    group: string
+    contactId?: any
+    contact: any
+    groupId: any
+    group: any
     roles?: string[]
 }
 
@@ -38,7 +42,7 @@ export default UserModel
 
 export const createUserRules = [
     check("username", "username cannot be blank").not().isEmpty(),
-    check("contactId", "User must be attached to a contact").not().isEmpty(),
+    check("contact", "User must be attached to a contact").not().isEmpty(),
     check("password", "Password cannot be blank").not().isEmpty(),
     check("group", "User must be in a group").not().isEmpty()
 ]
@@ -50,12 +54,12 @@ export const editUserRules = [
 
 export class CreateUserDto {
     public username: string
-    public contactId: string
+    public contact: string
     public password: string
     public group: string
 
-    static create({username, contactId, password, group}: any): CreateUserDto {
-        return {username, contactId, password, group}
+    static create({username, contact, password, group}: any): CreateUserDto {
+        return {username, contact, password, group}
     }
 }
 
@@ -69,7 +73,7 @@ export class UpdateUserDto {
     }
 }
 
-export const cleanUpUser=(user:any)=>{
+export const cleanUpUser = (user: any) => {
     delete user['password']
     delete user['_id']
     delete user['__v']

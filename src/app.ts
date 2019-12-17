@@ -30,7 +30,7 @@ const mongoUrl: string = process.env.MONGO_URL || "mongodb://localhost:27017/ang
 if (mongoUrl.length === 0) {
     console.log(`Invalid mongo url: ${mongoUrl}`)
 }
-mongoose.set('debug', true);
+mongoose.set('debug', false);
 mongoose.connect(mongoUrl, {useNewUrlParser: true, useUnifiedTopology: true}).then(
     async () => {
         await seedDataAsync()

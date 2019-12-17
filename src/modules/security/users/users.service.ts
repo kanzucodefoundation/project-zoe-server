@@ -4,6 +4,7 @@ import * as repo from "../../../utils/repository";
 import * as groupService from "../usergroup/usergroup.service";
 import {hasValue, isValidPassword} from "../../../utils/validation";
 import IBaseQuery from "../../../data/BaseQuery";
+import {getPersonFullName} from "../../crm/types";
 
 // authentication will take approximately 13 seconds
 // https://pthree.org/wp-content/uploads/2016/06/bcrypt.png
@@ -23,27 +24,37 @@ export const createAsync = async (data: any): Promise<IUser> => {
 };
 
 
-export const findByUsername = async (username: string, full: boolean = false): Promise<IUser> => {
-    const user = await UserModel.findOne({username}).lean({virtuals: true});
-    if (!full) {
-        return user
-    }
-    const group = await groupService.getByNameAsync(user.group)
-    if (!group) {
-        await Promise.reject(`Invalid user group: ${user.group}`)
-    } else {
-        user.roles = group.roles
-        return user
-    }
+export const findByUsername = async (username: string, full: boolean = false): Promise<any> => {
+    const user = await UserModel
+        .findOne({username})
+        .populate('group')
+        .populate('contact', "person")
+
+    return user ? parseUser(user.toObject({virtuals: true})) : null
 };
 
 
-export const searchAsync = async (q: IBaseQuery): Promise<IUser[]> => {
+export const parseUser = ({id, username, password, contact, group}: any) => {
+    return {
+        id, username, password,
+        contactId: contact.id,
+        fullName: getPersonFullName(contact.person),
+        groupId: group.id,
+        group: group.name,
+        roles: group.roles
+    }
+}
+
+export const searchAsync = async (q: IBaseQuery): Promise<any[]> => {
     const filter: any = {}
     if (hasValue(q.query)) {
         filter['username'] = {$regex: new RegExp(q.query), $options: 'i'}
     }
-    return UserModel.find(filter, '-password', {skip: q.skip, limit: q.limit});
+    const data= await UserModel
+        .find(filter, '-password', {skip: q.skip, limit: q.limit})
+        .populate('group')
+        .populate('contact', "person");
+    return data.map(parseUser)
 };
 
 export const updateAsync = async (data: any): Promise<IUser> => {
