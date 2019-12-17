@@ -39,7 +39,6 @@ export class UserGroupDto {
     name: string
     details: string
     roles: string[]
-
     static create({name, details, roles, id}: any): UserGroupDto {
         return {name, details, roles, id}
     }
