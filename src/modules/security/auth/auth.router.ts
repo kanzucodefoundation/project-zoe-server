@@ -1,6 +1,6 @@
 import {Request, Response, Router} from "express";
 import passport from 'passport'
-import {createJWT} from "./jwtConstants";
+import {appRoles, createJWT} from "./auth.constants";
 import {authorize} from "../../../utils/middleware";
 
 const router = Router();
@@ -26,6 +26,10 @@ router.post('/login', function (req: Request, res: Response) {
 
 router.get('/profile', authorize, function (req: Request, res: Response) {
     res.json(req.user)
+});
+
+router.get('/roles', authorize, function (req: Request, res: Response) {
+    res.json(Object.values(appRoles))
 });
 
 export default router;

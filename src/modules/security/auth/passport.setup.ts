@@ -4,7 +4,7 @@ import * as PassportLocal from 'passport-local'
 import * as PassportJWT from 'passport-jwt'
 import {ExtractJwt} from 'passport-jwt'
 import * as service from '../users/users.service'
-import {jwtConstants} from "./jwtConstants";
+import {jwtConstants} from "./auth.constants";
 import {cleanUpUser} from "../users/users.model";
 
 const LocalStrategy = PassportLocal.Strategy;
