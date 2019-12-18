@@ -18,7 +18,7 @@ passport.use(
         },
         async (username, password, done) => {
             try {
-                const user = await service.findByUsername(username,true)
+                const user = await service.findByUsername(username)
                 if (!user) {
                     console.warn('invalid username: ', username)
                     return done('Incorrect Username / Password');

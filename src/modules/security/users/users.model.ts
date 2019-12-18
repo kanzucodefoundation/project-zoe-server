@@ -23,11 +23,12 @@ const userSchema = new Schema({
         required: true,
         ref: 'UserGroup'
     }
-}, {});
+});
 configureId(userSchema)
 
 export interface IUser extends Document {
     username: string
+    id?: string
     password: string
     contactId?: any
     contact: any
@@ -54,8 +55,8 @@ export const editUserRules = [
 
 export class CreateUserDto {
     public username: string
-    public contact: string
     public password: string
+    public contact: string
     public group: string
 
     static create({username, contact, password, group}: any): CreateUserDto {
@@ -65,11 +66,12 @@ export class CreateUserDto {
 
 export class UpdateUserDto {
     public id: string
+    public username: string
     public password: string
+    public contact: string
     public group: string
-
-    static create({id, password, group}: any): UpdateUserDto {
-        return {id, password, group}
+    static create({id, username, contact, password, group}: any): UpdateUserDto {
+        return {id, username, contact, password, group}
     }
 }
 

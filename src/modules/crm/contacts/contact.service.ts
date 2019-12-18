@@ -8,8 +8,8 @@ import {IContact} from "../types";
 import {dataToContact} from "./contact.dto";
 import {parseNumber} from "../../../utils/numberHelpers";
 
-export const exitsAsync = async (name: string): Promise<boolean> => {
-    return await ContactModel.exists({name})
+export const exitsAsync = async (id: string): Promise<boolean> => {
+    return repo.exitsAsync<IContact>(ContactModel, id)
 };
 
 export const createPersonAsync = async (data: any): Promise<IContact> => {
