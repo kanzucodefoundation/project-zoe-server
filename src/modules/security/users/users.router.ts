@@ -3,6 +3,7 @@ import {cleanUpUser, createUserRules, editUserRules} from './users.model'
 import {validate} from "../../../utils/middleware";
 import * as service from './users.service'
 import * as groupService from '../usergroup/usergroup.service'
+import * as contactsService from '../../crm/contacts/contact.service'
 import {handleError} from "../../../utils/routerHelpers";
 
 const router = Router();
@@ -21,16 +22,8 @@ router.get('/', async (req: Request, res: Response) => {
 router.get('/:id', async (req: Request, res: Response) => {
     try {
         const {id} = req.params;
-        const _data = await service.getByIdAsync(id);
-        const data = _data.toObject({virtuals: true, versionKey: false});
-        cleanUpUser(data)
-        const group = await groupService.getByNameAsync(data.group)
-        if (!group) {
-            await Promise.reject(`Invalid user group: ${data.group}`)
-        } else {
-            data.roles = group.roles
-            res.json(data);
-        }
+        const data = await service.getByIdAsync(id);
+        res.json(data)
     } catch (error) {
         handleError(error, res)
     }
@@ -40,7 +33,8 @@ router.get('/:id', async (req: Request, res: Response) => {
 router.post('/', createUserRules, validate, async (req: Request, res: Response) => {
     try {
         const saved = await service.createAsync(req.body)
-        res.json(saved);
+        const data = await service.getByIdAsync(saved.id)
+        res.json(data);
     } catch (error) {
         handleError(error, res)
     }
@@ -49,16 +43,10 @@ router.post('/', createUserRules, validate, async (req: Request, res: Response) 
 /* Update user */
 router.put('/', editUserRules, validate, async (req: Request, res: Response) => {
     try {
-        const saved = await service.updateAsync(req.body)
-        const data = saved.toObject({virtuals: true, versionKey: false});
-        cleanUpUser(data)
-        const group = await groupService.getByNameAsync(data.group)
-        if (!group) {
-            await Promise.reject(`Invalid user group: ${data.group}`)
-        } else {
-            data.roles = group.roles
-            res.json(data);
-        }
+        const model = req.body
+        await service.updateAsync(model)
+        const data = await service.getByIdAsync(model.id)
+        res.json(data);
     } catch (error) {
         handleError(error, res)
     }
