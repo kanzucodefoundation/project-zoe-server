@@ -3,7 +3,7 @@ import * as  path from 'path'
 import mongoose from "mongoose"
 import bluebird from "bluebird"
 import cors from "cors"
-import logger from "morgan"
+import loggerMiddleware from './utils/logging/loggerMiddleware'
 import passport from "passport";
 import './modules/security/auth/passport.setup'
 
@@ -21,8 +21,9 @@ import identificationRouter from "./modules/crm/routes/identification.router"
 import occasionRouter from "./modules/crm/routes/occasion.router"
 import relationshipRouter from "./modules/crm/routes/relationship.router"
 
-import {authorize, handleErrors} from './utils/middleware'
+import {authorize} from './utils/middleware'
 import {seedDataAsync} from "./data/seed";
+import {errorMiddleware} from "./utils/routerHelpers";
 
 const app = express();
 mongoose.Promise = bluebird;
@@ -39,7 +40,7 @@ mongoose.connect(mongoUrl, {useNewUrlParser: true, useUnifiedTopology: true}).th
     console.log("MongoDB connection error. Please make sure MongoDB is running. " + err)
 })
 app.use(cors())
-app.use(logger('dev'))
+app.use(loggerMiddleware)
 app.use(express.json())
 app.use(express.urlencoded({extended: false}))
 app.use(passport.initialize());
@@ -64,6 +65,6 @@ app.use('/api/crm/occasion', authorize, occasionRouter)
 app.use('/api/crm/relationship', authorize, relationshipRouter)
 
 //Global Error handling
-app.use(handleErrors)
+app.use(errorMiddleware)
 
 export default app

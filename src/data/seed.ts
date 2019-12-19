@@ -1,6 +1,7 @@
 import * as userService from "../modules/security/users/users.service";
 import * as contactService from "../modules/crm/contacts/contact.service";
 import * as userGroupService from "../modules/security/usergroup/usergroup.service";
+import logger from "../utils/logging/logger";
 
 const userGroupData = {
     name: "Admin",
@@ -37,26 +38,26 @@ export async function seedDataAsync() {
     try {
         let group = await userGroupService.getByNameAsync(userGroupData.name)
         if (group) {
-            console.log('Default user group already setup')
-            console.log('GroupId', {id: group.id, _id: group._id})
+            logger.info('Default user group already setup')
+            logger.info('GroupId', {id: group.id, _id: group._id})
         } else {
-            console.log('seeding default user group')
+            logger.info('seeding default user group')
             group = await userGroupService.createAsync(userGroupData);
         }
         for (const it of users) {
             await createUser(it, group.id)
         }
     } catch (e) {
-        console.error('Seeding error', e)
+        logger.error('Seeding error', e)
     }
 }
 
 async function createUser(data: any, groupId: any) {
     const user = await userService.findByUsername(data.email)
     if (user) {
-        console.log(`User ${data.email} already setup`)
+        logger.info(`User ${data.email} already setup`)
     } else {
-        console.log(`Seeding ${data.email}`)
+        logger.info(`Seeding ${data.email}`)
         const contact = await contactService.createPersonAsync(data)
         const userData = {
             username: data.email,

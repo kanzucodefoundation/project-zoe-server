@@ -1,7 +1,6 @@
 import {validationResult} from "express-validator";
-import {Request, Response, NextFunction} from "express";
+import {NextFunction, Request, Response} from "express";
 import passport from "passport"
-import {handleError} from "./routerHelpers";
 
 export const validate = (req: Request, res: Response, next: NextFunction) => {
     const errors = validationResult(req)
@@ -32,11 +31,3 @@ export const authorize = function (req: Request, res: Response, next: NextFuncti
         }
     )(req, res, next);
 }
-
-export const handleErrors = function (error: any, req: Request, res: Response, next: NextFunction) {
-    console.error('Global error')
-    if (error) {
-        handleError(error, res)
-    }
-}
-
