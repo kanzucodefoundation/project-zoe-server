@@ -1,4 +1,6 @@
 import {hasValue} from "./validation";
+import {NextFunction, Request, Response} from "express";
+import logger from "./logging/logger";
 
 
 const isDupError = (error: any) => {
@@ -17,8 +19,16 @@ export const badRequest = (msg: string) => {
     }
 }
 
+export const errorMiddleware = function (error: any, req: Request, res: Response, next: NextFunction) {
+    logger.log("Global error", error)
+    if (error) {
+        handleError(error, res)
+    }
+    next()
+}
+
 export const handleError = (error: any, res: any,) => {
-    console.log("Global Error", error)
+    logger.log("handling error", error)
     let message = 'Oops, unknown error, please contact admin'
     if (typeof error === 'string') {
         message = error
