@@ -15,11 +15,7 @@ const schema = new Schema({
         unique: true,
         required: true,
     },
-    description: {
-        type: String,
-        required: true
-    },
-    tag: {
+    details: {
         type: String,
         required: true
     },
@@ -29,48 +25,38 @@ const schema = new Schema({
         enum: enumToArray(GroupPrivacy),
         default: GroupPrivacy.Public
     },
-    parent: String
+    category: {
+        type: Schema.Types.ObjectId,
+        required: true,
+        ref: 'GroupCategory'
+    },
+    parent: {
+        type: Schema.Types.ObjectId,
+        ref: 'Group'
+    }
 });
 configureId(schema)
 
 export interface IGroup extends Document {
     id?: string
     name: string
-    tag: string
     privacy: GroupPrivacy
-    description?: string
+    details?: string
+    category: any
     parent: any | null
 }
-
 
 const GroupModel = model<IGroup>('Group', schema);
 
 export default GroupModel
 
 export const createGroupRules = [
-    check("name", "name cannot be blank").not().isEmpty(),
-    check("tag", "tag cannot be blank").not().isEmpty(),
-    check("privacy", "privacy cannot be blank").not().isEmpty()
+    check("name", "name is required").not().isEmpty(),
+    check("category", "category is required").not().isEmpty(),
+    check("privacy", "privacy is required").not().isEmpty()
 ]
 
 export const editGroupRules = [
-    check("id", "Id is required").not().isEmpty(),
-    check("name", "name cannot be blank").not().isEmpty(),
-    check("tag", "tag cannot be blank").not().isEmpty(),
-    check("privacy", "privacy cannot be blank").not().isEmpty()
+    check("id", "id is required").not().isEmpty(),
+    ...createGroupRules
 ]
-
-export class GroupDto {
-    id?: string
-    name: string
-    tag: string
-    privacy: GroupPrivacy
-    description?: string
-    parent: any | null
-
-    static create({id, name, tag, privacy, description, parent}: any): GroupDto {
-        return {id, name, tag, privacy, description, parent}
-    }
-}
-
-
