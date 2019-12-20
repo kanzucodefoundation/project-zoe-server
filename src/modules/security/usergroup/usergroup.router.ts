@@ -22,7 +22,7 @@ router.get('/', async (req: Request, res: Response) => {
     }
 });
 
-/* Create user */
+/* Create new */
 router.post('/', userGroupRules, validate, async (req: Request, res: Response) => {
     try {
         const data = await repo.createAsync<IUserGroup>(UserGroupModel, UserGroupDto.create(req.body))
@@ -32,7 +32,7 @@ router.post('/', userGroupRules, validate, async (req: Request, res: Response) =
     }
 });
 
-/* Update user */
+/* Update */
 router.put('/', userGroupRules, validate, async (req: Request, res: Response) => {
     try {
         const model = UserGroupDto.create(req.body)
@@ -43,7 +43,7 @@ router.put('/', userGroupRules, validate, async (req: Request, res: Response) =>
     }
 });
 
-/* Get task by id. */
+/* Get by id. */
 router.get('/:id', async (req: Request, res: Response) => {
     try {
         const {id} = req.params;

@@ -28,7 +28,7 @@ export const errorMiddleware = function (error: any, req: Request, res: Response
 }
 
 export const handleError = (error: any, res: any,) => {
-    logger.log("handling error", error)
+    logger.error("handling error", error)
     let message = 'Oops, unknown error, please contact admin'
     if (typeof error === 'string') {
         message = error

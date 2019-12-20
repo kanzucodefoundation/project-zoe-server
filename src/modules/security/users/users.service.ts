@@ -17,7 +17,6 @@ export const findByUsername = async (username: string): Promise<any> => {
         .findOne({username})
         .populate('group')
         .populate('contact', "person")
-
     return user ? parseUser(user.toObject({virtuals: true})) : null
 };
 
