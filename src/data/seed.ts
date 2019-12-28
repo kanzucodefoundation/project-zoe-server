@@ -5,7 +5,7 @@ import {seedUsersAsync} from "./seed.users";
 export async function seedDataAsync() {
     try {
         await seedUsersAsync()
-        await createGroupCategories()
+        //await createGroupCategories()
     } catch (e) {
         logger.error('Seeding error', e)
     }

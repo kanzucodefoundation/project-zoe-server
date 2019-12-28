@@ -4,8 +4,9 @@ import * as repo from "../../../utils/repository";
 import * as groupService from "../usergroup/usergroup.service";
 import {hasValue, isValidPassword} from "../../../utils/validation";
 import IBaseQuery from "../../../data/BaseQuery";
-import {getPersonFullName} from "../../crm/types";
 import * as contactsService from "../../crm/contacts/contact.service";
+import {getPersonFullName} from "../../crm/entities";
+
 
 // authentication will take approximately 13 seconds
 // https://pthree.org/wp-content/uploads/2016/06/bcrypt.png

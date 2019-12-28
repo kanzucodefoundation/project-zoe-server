@@ -145,14 +145,6 @@ export interface IContact extends Document {
     metaData: any
 }
 
-
-
-export interface IContactQuery {
-    name?: string
-    limit?: number
-    skip?: number
-}
-
 export const getPersonFullName = (person: IPerson): string => {
     const name = `${person.firstName || ''} ${person.middleName || ''} ${person.lastName || ''}`;
     return name.trim().replace(/\s+/g, ' ');
