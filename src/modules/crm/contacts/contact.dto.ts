@@ -1,16 +1,20 @@
-import {ContactCategory, IContact, IEmail, IPerson, IPhone} from "../types";
 import crypto from "crypto";
 import {hasValue} from "../../../utils/validation";
 import {check} from "express-validator";
 import {isValidDate} from "../../../utils/dateHelpers";
+import {Contact,} from "../entities/contact";
+import {Person} from "../entities/person";
+import {Phone} from "../entities/phone";
+import {Email} from "../entities/email";
+import {CivilStatus, ContactCategory, EmailCategory, Gender, PhoneCategory} from "../entities/enums";
 
 export interface INewContact {
     //Person
     firstName: string
     lastName: string
     middleName?: string
-    gender: string
-    civilStatus: string
+    gender: Gender
+    civilStatus: CivilStatus
     dateOfBirth: Date
     //Address
     phone?: string
@@ -45,43 +49,43 @@ export const dataToContact = (
         phone,
         email,
     }: INewContact
-): IContact => {
+): Contact => {
 
-    const person: IPerson = {
-        firstName: firstName,
-        middleName: middleName,
-        lastName: lastName,
-        civilStatus: civilStatus,
-        salutation: null,
-        dateOfBirth: dateOfBirth,
-        about: '',
-        avatar: createAvatar(email),
-        gender: gender
+    const person = new Person()
+    person.firstName = firstName
+    person.middleName = middleName
+    person.lastName = lastName
+    person.civilStatus = civilStatus
+    person.salutation = null
+    person.dateOfBirth = dateOfBirth
+    person.about = ''
+    person.avatar = createAvatar(email)
+    person.gender = gender
+
+    const phones: Phone[] = []
+    if (hasValue(phone)) {
+        const p = new Phone()
+        p.category = PhoneCategory.Mobile
+        p.isPrimary = true
+        p.value = phone
+        phones.push(p)
     }
 
-    const phones: IPhone[] = hasValue(phone) ? [
-        {
-            category: 'Mobile',
-            isPrimary: true,
-            value: phone
-        }
-    ] : []
-
-    const emails: IEmail[] = hasValue(email) ? [
-        {
-            category: 'Personal',
-            isPrimary: true,
-            value: email
-        }
-    ] : []
-
-    const data: any = {
-        category: ContactCategory.Person,
-        person, phones, emails,
-        addresses: [],
-        identifications: [],
-        occasions: [],
-        metaData: {}
+    const emails: Email[] = []
+    if (hasValue(email)) {
+        const e = new Email()
+        e.category = EmailCategory.Personal
+        e.isPrimary = true
+        e.value = email
+        emails.push(e)
     }
-    return {...data}
+    const contact = new Contact()
+    contact.category = ContactCategory.Person
+    contact.person = person
+    contact.phones = phones
+    contact.emails = emails
+    contact.addresses = []
+    contact.identifications = []
+    contact.occasions = []
+    return contact
 }

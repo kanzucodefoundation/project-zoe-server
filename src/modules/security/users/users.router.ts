@@ -22,7 +22,7 @@ router.get('/', async (req: Request, res: Response) => {
 router.get('/:id', async (req: Request, res: Response) => {
     try {
         const {id} = req.params;
-        const data = await service.getByIdAsync(id);
+        const data = await service.getByIdAsync(parseInt(id));
         res.json(data)
     } catch (error) {
         handleError(error, res)
@@ -56,7 +56,7 @@ router.put('/', editUserRules, validate, async (req: Request, res: Response) => 
 router.delete('/:id', async (req: Request, res: Response) => {
     try {
         const {id} = req.params;
-        await service.deleteAsync(id);
+        await service.deleteAsync(Number(id));
         res.json({
             message: 'Operation succeeded'
         });

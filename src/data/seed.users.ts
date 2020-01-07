@@ -3,11 +3,13 @@ import * as contactService from "../modules/crm/contacts/contact.service";
 import * as userGroupService from "../modules/security/usergroup/usergroup.service";
 import logger from "../utils/logging/logger";
 import {createGroupCategories} from "./seed.groups";
+import {SystemRole, UserGroup} from "../modules/security/usergroup/usergroup.entity";
+import {User} from "../modules/security/users/user.entity";
 
 const userGroupData = {
     name: "Admin",
     details: "admin users",
-    roles: ["ROLE_CREATE_CONTACT"]
+    roles: [SystemRole.VIEW_CONTACT]
 }
 
 const users: any[] = [
@@ -36,10 +38,10 @@ const users: any[] = [
 ]
 
 export async function seedUsersAsync() {
+    logger.info(`Seeding group ${userGroupData.name}`)
     let group = await userGroupService.getByNameAsync(userGroupData.name)
     if (group) {
-        logger.info('Default user group already setup')
-        logger.info('GroupId', {id: group.id, _id: group._id})
+        logger.info(`Default user group already setup id: ${group.id}`)
     } else {
         logger.info('seeding default user group')
         group = await userGroupService.createAsync(userGroupData);
@@ -49,19 +51,21 @@ export async function seedUsersAsync() {
     }
 }
 
-async function createUser(data: any, groupId: any) {
+async function createUser(data: any, groupId: number) {
+    logger.info(`Seeding user ${data.email}`)
     const user = await userService.findByUsername(data.email)
     if (user) {
         logger.info(`User ${data.email} already setup`)
     } else {
         logger.info(`Seeding ${data.email}`)
         const contact = await contactService.createPersonAsync(data)
-        const userData = {
-            username: data.email,
-            password: data.password,
-            contact: contact.id,
-            group: groupId,
-        }
-        const user = await userService.createAsync(userData);
+        logger.info(`created contact ${contact.id}`)
+        const userModel = new User()
+        userModel.username = data.email
+        userModel.password = data.password
+        userModel.contact = contact
+        userModel.group = UserGroup.ref(groupId)
+        const user = await userService.createAsync(userModel);
+        logger.info(`created user ${user.id}`)
     }
 }

@@ -1,4 +1,5 @@
-import {Column, Entity, PrimaryGeneratedColumn} from "typeorm";
+import {Column, Entity, JoinColumn, OneToOne, PrimaryGeneratedColumn} from "typeorm";
+import {Contact} from "./contact";
 
 @Entity()
 export class Company {
@@ -7,4 +8,8 @@ export class Company {
 
     @Column()
     name: string
+
+    @OneToOne(type => Contact, it => it.id)
+    @JoinColumn()
+    contact?: Contact
 }

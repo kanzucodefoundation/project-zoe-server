@@ -20,7 +20,7 @@ import relationshipRouter from "../modules/crm/routes/relationship.router";
 
 export default function configureRouter(app: Express) {
     app.use('/api/auth', authRouter)
-    app.use('/api/users', authorize, usersRouter)
+    app.use('/api/users', usersRouter)
     app.use('/api/user-groups', authorize, userGroupRouter)
     app.use('/api/tags', authorize, tagsRouter)
 
@@ -30,7 +30,7 @@ export default function configureRouter(app: Express) {
     app.use('/api/groups/group', authorize, groupRouter)
     app.use('/api/groups/member', authorize, groupMemberRouter)
 
-    app.use('/api/crm/contact', authorize, contactRouter)
+    app.use('/api/crm/contact',  contactRouter)
     app.use('/api/crm/person', authorize, personRouter)
     app.use('/api/crm/phone', authorize, phoneRouter)
     app.use('/api/crm/address', authorize, addressRouter)

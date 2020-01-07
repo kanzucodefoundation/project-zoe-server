@@ -12,6 +12,7 @@ schema
 
 
 export function hasValue(dt: string) {
+    if(typeof dt === "string" )
     return !!dt && dt.trim().length > 0
 }
 
