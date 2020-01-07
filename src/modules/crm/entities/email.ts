@@ -24,5 +24,5 @@ export class Email {
 
     @JoinColumn()
     @ManyToOne(type => Contact, it => it.emails, {nullable: false})
-    contact: Contact
+    contact?: Contact
 }

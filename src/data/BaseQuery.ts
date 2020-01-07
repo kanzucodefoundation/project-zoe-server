@@ -3,3 +3,10 @@ export default interface IBaseQuery {
     limit?: number
     skip?: number
 }
+
+
+
+export interface IContactQuery extends IBaseQuery{
+    phone?: string
+    email?: string
+}

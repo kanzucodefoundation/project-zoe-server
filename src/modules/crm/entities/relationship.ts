@@ -18,9 +18,9 @@ export class Relationship {
 
     @JoinColumn()
     @ManyToOne(type => Contact)
-    contact: Contact
+    contact?: Contact
 
     @JoinColumn()
     @ManyToOne(type => Contact, )
-    other: Contact
+    other?: Contact
 }

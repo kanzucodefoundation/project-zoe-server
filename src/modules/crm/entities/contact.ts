@@ -10,7 +10,7 @@ import {ContactCategory} from "./enums";
 
 @Entity()
 export class Contact {
-    @PrimaryGeneratedColumn()
+    @PrimaryGeneratedColumn({name:'id'})
     id: number
 
     @Column({
@@ -21,7 +21,9 @@ export class Contact {
     })
     category: ContactCategory
 
-    @OneToOne(type => Person)
+    @OneToOne(type => Person, it => it.contact, {
+        cascade: ["insert", "remove"]
+    })
     @JoinColumn()
     person?: Person
 
@@ -29,18 +31,28 @@ export class Contact {
     @JoinColumn()
     company?: Company
 
-    @OneToMany(type => Email, it => it.contact)
+    @OneToMany(type => Email, it => it.contact, {
+        cascade: ["insert", "remove"]
+    })
     emails: Email[]
 
-    @OneToMany(type => Phone, it => it.contact)
+    @OneToMany(type => Phone, it => it.contact, {
+        cascade: ["insert", "remove"]
+    })
     phones: Phone[]
 
-    @OneToMany(type => Occasion, it => it.contact)
+    @OneToMany(type => Occasion, it => it.contact, {
+        cascade: ["insert", "remove"]
+    })
     occasions: Occasion[]
 
-    @OneToMany(type => Address, it => it.contact)
+    @OneToMany(type => Address, it => it.contact, {
+        cascade: ["insert", "remove"]
+    })
     addresses: Address[]
 
-    @OneToMany(type => Identification, it => it.contact)
+    @OneToMany(type => Identification, it => it.contact, {
+        cascade: ["insert", "remove"]
+    })
     identifications: Identification[]
 }

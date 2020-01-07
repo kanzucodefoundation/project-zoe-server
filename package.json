@@ -54,6 +54,7 @@
     "password-validator": "^5.0.3",
     "reflect-metadata": "^0.1.13",
     "typeorm": "^0.2.22",
+    "typeorm-linq-repository": "^1.1.0",
     "winston": "^3.2.1"
   },
   "devDependencies": {

@@ -33,4 +33,10 @@ export class UserGroup {
         default: [SystemRole.VIEW_CONTACT]
     })
     roles: SystemRole[]
+
+    public static ref(id:number){
+        const g = new UserGroup()
+        g.id = id
+        return g
+    }
 }

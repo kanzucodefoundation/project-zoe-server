@@ -1,9 +1,11 @@
-import {Column, Entity, PrimaryGeneratedColumn} from "typeorm";
+import {Column, Entity, PrimaryGeneratedColumn, OneToOne, JoinColumn} from "typeorm";
 import {Length} from "class-validator";
 import {CivilStatus, Gender, Salutation} from "./enums";
+import {Contact} from "./contact";
 
 @Entity()
 export class Person {
+
     @PrimaryGeneratedColumn()
     id: number
 
@@ -48,4 +50,7 @@ export class Person {
 
     @Column()
     dateOfBirth: Date
+
+    @OneToOne(type => Contact, it => it.person)
+    contact?: Contact
 }
