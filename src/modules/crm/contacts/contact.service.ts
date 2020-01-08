@@ -13,7 +13,6 @@ import {parseNumber} from "../../../utils/numberHelpers";
 
 
 const repo = () => getRepository(Contact)
-
 const linqRepo = () => new LinqRepository(Contact)
 export const exitsAsync = async (id: number): Promise<boolean> => {
     const count = await repo().count({id})
@@ -49,24 +48,25 @@ export const createAsync = async (data: any): Promise<IContact> => {
 };
 
 export const searchAsync = async (q: IContactQuery): Promise<Contact[]> => {
+    const {skip = 0, limit = 10, query: sQuery}: IBaseQuery = q
     let query = linqRepo()
         .getAll()
     let wPerson = query
         .include(c => c.person)
-    if (hasValue(q.query)) {
+    if (hasValue(sQuery)) {
         query = wPerson
             .where(it => it.person.firstName)
-            .contains(q.query)
+            .contains(sQuery)
             .or(it => it.person.lastName)
-            .contains(q.query)
+            .contains(sQuery)
             .or(it => it.person.middleName)
-            .contains(q.query)
+            .contains(sQuery)
     }
     return query
         .include(u => u.phones)
         .include(u => u.emails)
-        .skip(parseNumber(q.skip))
-        .take(parseNumber(q.limit))
+        .skip(parseNumber(skip))
+        .take(parseNumber(limit))
         .toPromise();
 };
 
@@ -83,8 +83,17 @@ export const createQuery = (q: IBaseQuery) => {
     return filter
 }
 
-export const getByIdAsync = async (id: string): Promise<Contact> => {
-    return repo().findOne(parseInt(id))
+export const getByIdAsync = async (id: number): Promise<Contact> => {
+    return linqRepo()
+        .getById(id)
+        .include(u => u.person)
+        .include(u => u.company)
+        .include(u => u.phones)
+        .include(u => u.emails)
+        .include(u => u.identifications)
+        .include(u => u.occasions)
+        .include(u => u.addresses)
+        .toPromise()
 };
 
 export const deleteAsync = async (id: string): Promise<any> => {

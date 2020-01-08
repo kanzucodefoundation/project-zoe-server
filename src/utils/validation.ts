@@ -1,4 +1,5 @@
 import PasswordValidator from 'password-validator'
+import {parseNumber} from "./numberHelpers";
 
 const schema = new PasswordValidator();
 schema
@@ -11,9 +12,13 @@ schema
     .is().not().oneOf(['Passw0rd', 'Password123', 'password']); // Blacklist these values
 
 
-export function hasValue(dt: string) {
-    if(typeof dt === "string" )
-    return !!dt && dt.trim().length > 0
+export function hasValue(dt: any) {
+    if (typeof dt === "string")
+        return !!dt && `${dt}`.trim().length > 0
+    if (typeof dt === "number") {
+        const n = parseInt(`${dt}`)
+        return !isNaN(n)
+    }
 }
 
 export function arrayHasValues(dt?: any[]) {
