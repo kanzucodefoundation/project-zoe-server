@@ -1,56 +1,57 @@
 import {badRequest} from "../../../utils/routerHelpers";
-import ContactModel from "./contact.model";
 import {hasValue} from "../../../utils/validation";
-import {Types} from "mongoose";
-import {cleanUpId, inArray, updateDocument} from "../../../utils/mongoHelpers";
+import {getRepository, Repository} from "typeorm";
+import {Contact} from "../entities/contact";
+import {recordExists} from "../../../utils/orm/repoUtils";
 
-export const createAsync = async (childName: string, contactId: string, model: any): Promise<any> => {
-    if (!hasValue(contactId)) {
-        await Promise.reject(badRequest('Invalid contact'))
+const contactRepo = () => getRepository(Contact)
+
+export default class DependentService {
+    repo: () => Repository<any>
+    key: string
+
+    constructor(repo: () => Repository<any>, key: string) {
+        this.repo = repo
+        this.key = key
     }
-    const contact: any = await ContactModel.findById(contactId);
-    if (!contact) {
-        await Promise.reject(badRequest(`Invalid contact :${contactId}`))
+
+    createAsync = async (model: any): Promise<any> => {
+        if (!hasValue(model.contactId)) {
+            await Promise.reject(badRequest('Invalid contact'))
+        }
+        const exists = recordExists(contactRepo(), model.contactId)
+        if (!exists) {
+            await Promise.reject(badRequest(`Invalid contact :${model.contactId}`))
+        }
+        const isDup = await recordExists(this.repo(), model[this.key], this.key);
+        if (isDup) {
+            await Promise.reject(badRequest(`Duplicate record :${model[this.key]}`))
+        }
+        const toSave = {...model, contact: Contact.ref(model.contactId)}
+        const data = await this.repo().save(toSave)
+        return this.cleanId(data)
     }
-    if (inArray(contact[childName], model, 'value')) {
-        await Promise.reject(badRequest(`Duplicate record :${model.value}`))
+
+    updateAsync = async (model: any): Promise<any> => {
+        if (!hasValue(model.contactId)) {
+            await Promise.reject(badRequest('Invalid contact'))
+        }
+        const exists = recordExists(contactRepo(), model.contactId)
+        if (!exists) {
+            await Promise.reject(badRequest(`Invalid contact :${model.contactId}`))
+        }
+
+        const toUpdate = {...model, contact: Contact.ref(model.contactId)}
+        const data = await this.repo().save(toUpdate)
+        return this.cleanId(data)
     }
-    const newEntry = {_id: new Types.ObjectId(), ...model}
-    contact[childName].push(newEntry)
-    await contact.save()
-    return cleanUpId(newEntry);
+
+    cleanId({contact, ...rest}: any): any {
+        return {...rest, contactId: contact.id}
+    }
+
+    deleteAsync = async (id: string): Promise<any> => {
+        return await this.repo().delete(id)
+    }
 }
 
-export const updateAsync = async (childName: string, contactId: string, data: any): Promise<any> => {
-    if (!hasValue(contactId)) {
-        await Promise.reject(badRequest('Invalid contact'))
-    }
-    const contact: any = await ContactModel.findById(contactId);
-    if (!contact) {
-        await Promise.reject(badRequest(`Invalid contact :${contactId}`))
-    }
-    const {id, ...model} = data
-    const updateIndex = contact[childName].findIndex((it: any) => it._id.toHexString() === id)
-    const toUpdate = contact[childName][updateIndex]
-    updateDocument(toUpdate, model)
-    await contact.save()
-    return toUpdate;
-}
-
-export const deleteAsync = async (childName: string, contactId: string, id: string): Promise<any> => {
-    if (!hasValue(contactId)) {
-        await Promise.reject(badRequest('Invalid contact'))
-    }
-    if (!hasValue(id)) {
-        await Promise.reject(badRequest('Invalid record'))
-    }
-    const contact: any = await ContactModel.findById(contactId);
-    if (!contact) {
-        await Promise.reject(badRequest(`Invalid contact :${contactId}`))
-    }
-    const updateIndex = contact[childName].findIndex((it: any) => it._id.toHexString() === id)
-    const toRemove: any = contact[childName][updateIndex]
-    toRemove.remove()
-    await contact.save()
-    return {message: 'Operation successful'}
-}

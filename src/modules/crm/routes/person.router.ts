@@ -2,7 +2,6 @@ import {Request, Response, Router} from "express";
 
 import {badRequest, handleError} from "../../../utils/routerHelpers";
 import ContactModel from "../contacts/contact.model";
-import {createQuery} from "../contacts/contact.service";
 import * as service from "../contacts/contact.service";
 import IBaseQuery from "../../../data/BaseQuery";
 import {parseNumber} from "../../../utils/numberHelpers";
@@ -12,25 +11,36 @@ import {isValidDate} from "../../../utils/dateHelpers";
 import {validate} from "../../../utils/middleware";
 import {hasValue} from "../../../utils/validation";
 import {createPersonRules} from "../contacts/contact.dto";
+import {Contact} from "../entities/contact";
+import {LinqRepository} from "typeorm-linq-repository";
 
 const router = Router();
+const linqRepo = () => new LinqRepository(Contact)
 
 /* GET listing. */
 router.get('/', async (req: Request, res: Response) => {
     try {
-        const q: IBaseQuery = req.query
-        const filter: any = createQuery(q)
-        const p = {
-            "person.salutation": true,
-            "person.firstName": true,
-            "person.lastName": true,
-            "person.middleName": true,
-            "person.avatar": true
+        const {skip = 0, limit = 10, query: sQuery}: IBaseQuery = req.query
+        let query = linqRepo()
+            .getAll()
+        let wPerson = query
+            .include(c => c.person)
+        if (hasValue(sQuery)) {
+            query = wPerson
+                .where(it => it.person.firstName)
+                .contains(sQuery)
+                .or(it => it.person.lastName)
+                .contains(sQuery)
+                .or(it => it.person.middleName)
+                .contains(sQuery)
         }
-        const data = await ContactModel
-            .find(filter, p, {skip: parseNumber(q.skip), limit: parseNumber(q.limit)}).lean();
-        const fine = data.map(({_id, person}: any) => {
-            return {id: _id, avatar: person.avatar, name: getPersonFullName(person)}
+        const data = await query
+            .skip(parseNumber(skip))
+            .take(parseNumber(limit))
+            .toPromise();
+
+        const fine = data.map(({id, person}: any) => {
+            return {id, avatar: person.avatar, name: getPersonFullName(person)}
         })
         res.send(fine);
     } catch (error) {
@@ -70,7 +80,7 @@ router.put('/:id', rules, validate, async (req: Request, res: Response) => {
             await Promise.reject(badRequest(`Invalid contact :${id}`))
         }
         const old = contact.toObject().person
-        contact.person = {...old,...req.body}
+        contact.person = {...old, ...req.body}
         await contact.save()
         res.json(contact.person);
     } catch (error) {
