@@ -24,6 +24,7 @@
     "bcryptjs": "^2.4.3",
     "bluebird": "^3.5.5",
     "body-parser": "^1.19.0",
+    "class-validator": "^0.11.0",
     "compression": "^1.7.4",
     "connect-mongo": "^3.0.0",
     "cookie-parser": "~1.4.4",
@@ -45,11 +46,15 @@
     "mongoose-hidden": "^1.8.1",
     "mongoose-lean-virtuals": "^0.5.0",
     "morgan": "^1.9.1",
+    "mysql": "^2.17.1",
     "nodemailer": "^6.2.1",
     "passport": "^0.4.1",
     "passport-jwt": "^4.0.0",
     "passport-local": "^1.0.0",
     "password-validator": "^5.0.3",
+    "reflect-metadata": "^0.1.13",
+    "typeorm": "^0.2.22",
+    "typeorm-linq-repository": "^1.1.0",
     "winston": "^3.2.1"
   },
   "devDependencies": {

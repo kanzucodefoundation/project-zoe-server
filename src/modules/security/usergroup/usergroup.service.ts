@@ -1,20 +1,22 @@
-import UserGroupModel, {IUserGroup, UserGroupDto} from './usergroup.model'
-import * as repo from "../../../utils/repository";
+import {getRepository} from "typeorm";
+import {UserGroup} from "./usergroup.entity";
 
 
-export const exitsAsync = async (id: string): Promise<boolean> => {
-    return repo.exitsAsync(UserGroupModel, id)
+const repo = ()=>getRepository(UserGroup)
+
+export const exitsAsync = async (id: number): Promise<boolean> => {
+    const resp = await repo().count({where: {id}})
+    return resp >= 1
 };
 
-export const createAsync = async (data: any): Promise<IUserGroup> => {
-    const dt = UserGroupDto.create(data);
-    return await repo.createAsync<IUserGroup>(UserGroupModel, dt)
+export const createAsync = async (data: any): Promise<UserGroup> => {
+    return await repo().save(data)
 };
 
-export const getByIdAsync = async (id: string): Promise<IUserGroup> => {
-    return UserGroupModel.findById(id)
+export const getByIdAsync = async (id: number): Promise<UserGroup> => {
+    return repo().findOne(id)
 };
 
-export const getByNameAsync = async (name: string): Promise<IUserGroup> => {
-    return UserGroupModel.findOne({name})
+export const getByNameAsync = async (name: string): Promise<UserGroup> => {
+    return repo().findOne({where:{name}})
 };

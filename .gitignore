@@ -1,5 +1,9 @@
 .idea/
-dist/
+.vscode/
 node_modules/
+build/
+tmp/
+temp/
+dist/
 coverage/
 logs/
