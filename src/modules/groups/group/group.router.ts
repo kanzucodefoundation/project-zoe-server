@@ -1,62 +1,62 @@
 import {Request, Response, Router} from "express";
-import {createGroupRules, editGroupRules} from './group.model'
+import {createGroupRules, editGroupRules} from "./group.model";
 import {validate} from "../../../utils/middleware";
-import * as service from './group.service'
+import * as service from "./group.service";
 import {handleError} from "../../../utils/routerHelpers";
 
 const router = Router();
 
 /* GET listing. */
-router.get('/', async (req: Request, res: Response) => {
+router.get("/", async (req: Request, res: Response) => {
     try {
         const data = await service.searchAsync(req.query);
         res.send(data);
     } catch (error) {
-        handleError(error, res)
+        handleError(error, res);
     }
 });
 
 /* Get by id. */
-router.get('/:id', async (req: Request, res: Response) => {
+router.get("/:id", async (req: Request, res: Response) => {
     try {
         const {id} = req.params;
         const data = await service.getByIdAsync(id);
         res.json(data);
     } catch (error) {
-        handleError(error, res)
+        handleError(error, res);
     }
 });
 
 /* Create */
-router.post('/', createGroupRules, validate, async (req: Request, res: Response) => {
+router.post("/", createGroupRules, validate, async (req: Request, res: Response) => {
     try {
-        const saved = await service.createAsync(req.body)
+        const saved = await service.createAsync(req.body);
         res.json(saved);
     } catch (error) {
-        handleError(error, res)
+        handleError(error, res);
     }
 });
 
 /* Update */
-router.put('/', editGroupRules, validate, async (req: Request, res: Response) => {
+router.put("/", editGroupRules, validate, async (req: Request, res: Response) => {
     try {
-        const updated = await service.updateAsync(req.body)
+        const updated = await service.updateAsync(req.body);
         res.json(updated);
     } catch (error) {
-        handleError(error, res)
+        handleError(error, res);
     }
 });
 
 /* Delete by id. */
-router.delete('/:id', async (req: Request, res: Response) => {
+router.delete("/:id", async (req: Request, res: Response) => {
     try {
         const {id} = req.params;
         await service.deleteAsync(id);
         res.json({
-            message: 'Operation succeeded'
+            message: "Operation succeeded"
         });
     } catch (error) {
-        handleError(error, res)
+        handleError(error, res);
     }
 });
 

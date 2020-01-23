@@ -61,7 +61,7 @@ const emailSchema = new Schema({
         type: Boolean,
         required: true
     }
-})
+});
 
 const occasionSchema = new Schema({
     category: {
@@ -80,7 +80,7 @@ const occasionSchema = new Schema({
         required: true,
         default:false
     }
-})
+});
 
 const phoneSchema = new Schema({
     category: {
@@ -98,7 +98,7 @@ const phoneSchema = new Schema({
         required: true,
         default:false
     }
-})
+});
 
 const relationshipSchema = new Schema({
     category: {
@@ -115,7 +115,7 @@ const relationshipSchema = new Schema({
         type: String,
         required: true
     },
-})
+});
 
 const identificationSchema = new Schema({
     category: {
@@ -147,7 +147,7 @@ const identificationSchema = new Schema({
         type: Boolean,
         required: true
     }
-})
+});
 
 const addressSchema = new Schema({
     category: {
@@ -178,7 +178,7 @@ const addressSchema = new Schema({
         type: Boolean,
         required: true
     }
-})
+});
 
 const schema = new Schema({
     category: {
@@ -197,14 +197,14 @@ const schema = new Schema({
     tags: {type: [String], index: true},
     metaData: {},
 });
-configureId(schema)
-configureId(emailSchema)
-configureId(phoneSchema)
-configureId(occasionSchema)
-configureId(addressSchema)
-configureId(identificationSchema)
-configureId(relationshipSchema)
+configureId(schema);
+configureId(emailSchema);
+configureId(phoneSchema);
+configureId(occasionSchema);
+configureId(addressSchema);
+configureId(identificationSchema);
+configureId(relationshipSchema);
 
 
-const ContactModel = model<IContact>('Contact', schema);
-export default ContactModel
+const ContactModel = model<IContact>("Contact", schema);
+export default ContactModel;

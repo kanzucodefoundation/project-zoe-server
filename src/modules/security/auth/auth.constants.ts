@@ -1,9 +1,9 @@
-import jwt from 'jsonwebtoken'
+import jwt from "jsonwebtoken";
 
 export const jwtConstants = {
-    secret: 'zNh3JJdxfwVuZU7w3M8GCfqsXVvWm8xWRhRsG8xr'
+    secret: "zNh3JJdxfwVuZU7w3M8GCfqsXVvWm8xWRhRsG8xr"
 };
-const JWT_EXPIRATION_MS = 1000 * 60 * 60 * 24
+const JWT_EXPIRATION_MS = 1000 * 60 * 60 * 24;
 export const createJWT = (payload: any) => {
     return jwt.sign(
         JSON.stringify({
@@ -11,7 +11,7 @@ export const createJWT = (payload: any) => {
             expires: Date.now() + JWT_EXPIRATION_MS,
         }),
         jwtConstants.secret, {});
-}
+};
 
 export const appRoles = {
     roleCrmView: "CRM_VIEW",
@@ -28,4 +28,4 @@ export const appRoles = {
 
     roleGroupView: "GROUP_VIEW",
     roleGroupEdit: "GROUP_EDIT",
-}
+};

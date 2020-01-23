@@ -12,7 +12,7 @@ const userSchema = new Schema({
     contact: {
         type: Schema.Types.ObjectId,
         required: true,
-        ref: 'Contact'
+        ref: "Contact"
     },
     password: {
         type: String,
@@ -21,37 +21,37 @@ const userSchema = new Schema({
     group: {
         type: Schema.Types.ObjectId,
         required: true,
-        ref: 'UserGroup'
+        ref: "UserGroup"
     }
 });
-configureId(userSchema)
+configureId(userSchema);
 
 export interface IUser extends Document {
-    username: string
-    id?: string
-    password: string
-    contactId?: any
-    contact: any
-    groupId: any
-    group: any
-    roles?: string[]
+    username: string;
+    id?: string;
+    password: string;
+    contactId?: any;
+    contact: any;
+    groupId: any;
+    group: any;
+    roles?: string[];
 }
 
-const UserModel = model<IUser>('User', userSchema);
+const UserModel = model<IUser>("User", userSchema);
 
-export default UserModel
+export default UserModel;
 
 export const createUserRules = [
     check("username", "username cannot be blank").not().isEmpty(),
     check("contact", "User must be attached to a contact").not().isEmpty(),
     check("password", "Password cannot be blank").not().isEmpty(),
     check("group", "User must be in a group").not().isEmpty()
-]
+];
 
 export const editUserRules = [
     check("id", "Id is required").not().isEmpty(),
     check("group", "User must be attached to a contact").not().isEmpty()
-]
+];
 
 export class CreateUserDto {
     public username: string
@@ -60,7 +60,7 @@ export class CreateUserDto {
     public group: string
 
     static create({username, contact, password, group}: any): CreateUserDto {
-        return {username, contact, password, group}
+        return {username, contact, password, group};
     }
 }
 
@@ -71,12 +71,12 @@ export class UpdateUserDto {
     public contact: string
     public group: string
     static create({id, username, contact, password, group}: any): UpdateUserDto {
-        return {id, username, contact, password, group}
+        return {id, username, contact, password, group};
     }
 }
 
 export const cleanUpUser = (user: any) => {
-    delete user['password']
-    delete user['_id']
-    delete user['__v']
-}
+    delete user["password"];
+    delete user["_id"];
+    delete user["__v"];
+};

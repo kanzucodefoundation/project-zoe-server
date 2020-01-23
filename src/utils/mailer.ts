@@ -1,11 +1,11 @@
 import nodemailer from "nodemailer";
 
-const mailConfig = {}
+const mailConfig = {};
 
 export interface IEmail {
-    to: string
-    subject: string
-    text: string
+    to: string;
+    subject: string;
+    text: string;
 }
 
 export async function sendEmail(data: IEmail) {

@@ -12,12 +12,12 @@ const schema = new Schema({
     group: {
         type: Schema.Types.ObjectId,
         required: true,
-        ref: 'Group'
+        ref: "Group"
     },
     contact: {
         type: Schema.Types.ObjectId,
         required: true,
-        ref: 'Contact'
+        ref: "Contact"
     },
     role: {
         type: String,
@@ -26,26 +26,26 @@ const schema = new Schema({
         default: GroupRole.Member
     }
 });
-configureId(schema)
+configureId(schema);
 
 export interface IGroupMember extends Document {
-    id?: string
-    group: any
-    contact: string
-    role: GroupRole
+    id?: string;
+    group: any;
+    contact: string;
+    role: GroupRole;
 }
 
-const GroupMemberModel = model<IGroupMember>('GroupMember', schema);
+const GroupMemberModel = model<IGroupMember>("GroupMember", schema);
 
-export default GroupMemberModel
+export default GroupMemberModel;
 
 export const createMemberRules = [
     check("group", "group is required").not().isEmpty(),
     check("contact", "contact is required").not().isEmpty(),
     check("role", "role is required").not().isEmpty()
-]
+];
 
 export const editMemberRules = [
     check("id", "id is required").not().isEmpty(),
     ...createMemberRules
-]
+];

@@ -3,10 +3,10 @@ import {seedUsersAsync} from "./seed.users";
 
 export async function seedDataAsync() {
     try {
-        await seedUsersAsync()
+        await seedUsersAsync();
         //await createGroupCategories()
     } catch (e) {
-        logger.error(e)
+        logger.error(e);
     }
 }
 

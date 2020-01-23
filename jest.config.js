@@ -1,19 +1,19 @@
 module.exports = {
-    preset: '@shelf/jest-mongodb',
+    preset: "@shelf/jest-mongodb",
     globals: {
-        'ts-jest': {
-            tsConfigFile: 'tsconfig.json'
+        "ts-jest": {
+            tsConfigFile: "tsconfig.json"
         }
     },
     moduleFileExtensions: [
-        'ts',
-        'js'
+        "ts",
+        "js"
     ],
     transform: {
-        '^.+\\.(ts|tsx)$': './node_modules/ts-jest/preprocessor.js'
+        "^.+\\.(ts|tsx)$": "./node_modules/ts-jest/preprocessor.js"
     },
     testMatch: [
-        '**/test/**/*.test.(ts|js)',
-        '**/src/**/*.test.(ts|js)'
+        "**/test/**/*.test.(ts|js)",
+        "**/src/**/*.test.(ts|js)"
     ],
 };

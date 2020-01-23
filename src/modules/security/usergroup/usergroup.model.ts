@@ -16,23 +16,23 @@ const schema = new Schema({
     }
 }, {});
 
-configureId(schema)
+configureId(schema);
 
 export interface IUserGroup extends Document {
-    name: string
-    details: string
-    roles: string[]
+    name: string;
+    details: string;
+    roles: string[];
 }
 
-const UserGroupModel = model<IUserGroup>('UserGroup', schema);
+const UserGroupModel = model<IUserGroup>("UserGroup", schema);
 
-export default UserGroupModel
+export default UserGroupModel;
 
 export const userGroupRules = [
     check("name", "Name cannot be blank").not().isEmpty(),
     check("details", "User must be attached to a contact").not().isEmpty(),
     check("roles", "Groups require roles").isArray({min: 1})
-]
+];
 
 export class UserGroupDto {
     id?: string
@@ -40,7 +40,7 @@ export class UserGroupDto {
     details: string
     roles: string[]
     static create({name, details, roles, id}: any): UserGroupDto {
-        return {name, details, roles, id}
+        return {name, details, roles, id};
     }
 }
 

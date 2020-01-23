@@ -13,24 +13,24 @@ const schema = new Schema({
         required: true
     }
 });
-configureId(schema)
+configureId(schema);
 
 export interface IGroupCategory extends Document {
-    id?: string
-    name: string
-    details: string
+    id?: string;
+    name: string;
+    details: string;
 }
 
-const GroupCategoryModel = model<IGroupCategory>('GroupCategory', schema);
+const GroupCategoryModel = model<IGroupCategory>("GroupCategory", schema);
 
-export default GroupCategoryModel
+export default GroupCategoryModel;
 
 export const createGroupCategoryRules = [
     check("name", "group is required").not().isEmpty(),
     check("details", "contact is required").not().isEmpty()
-]
+];
 
 export const editGroupCategoryRules = [
     check("id", "id is required").not().isEmpty(),
     ...createGroupCategoryRules
-]
+];

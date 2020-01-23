@@ -28,35 +28,35 @@ const schema = new Schema({
     category: {
         type: Schema.Types.ObjectId,
         required: true,
-        ref: 'GroupCategory'
+        ref: "GroupCategory"
     },
     parent: {
         type: Schema.Types.ObjectId,
-        ref: 'Group'
+        ref: "Group"
     }
 });
-configureId(schema)
+configureId(schema);
 
 export interface IGroup extends Document {
-    id?: string
-    name: string
-    privacy: GroupPrivacy
-    details?: string
-    category: any
-    parent: any | null
+    id?: string;
+    name: string;
+    privacy: GroupPrivacy;
+    details?: string;
+    category: any;
+    parent: any | null;
 }
 
-const GroupModel = model<IGroup>('Group', schema);
+const GroupModel = model<IGroup>("Group", schema);
 
-export default GroupModel
+export default GroupModel;
 
 export const createGroupRules = [
     check("name", "name is required").not().isEmpty(),
     check("category", "category is required").not().isEmpty(),
     check("privacy", "privacy is required").not().isEmpty()
-]
+];
 
 export const editGroupRules = [
     check("id", "id is required").not().isEmpty(),
     ...createGroupRules
-]
+];
