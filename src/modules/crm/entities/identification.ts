@@ -5,22 +5,22 @@ import {Contact} from "./contact";
 @Entity()
 export class Identification {
     @PrimaryGeneratedColumn()
-    id: number
+    id: number;
 
     @Column()
-    value: string
+    value: string;
 
     @Column()
-    cardNumber?: string
+    cardNumber?: string;
 
     @Column()
-    issuingCountry: string
+    issuingCountry: string;
 
     @Column()
-    startDate: Date
+    startDate: Date;
 
     @Column()
-    expiryDate: Date
+    expiryDate: Date;
 
     @Column({
         type: "enum",
@@ -28,10 +28,10 @@ export class Identification {
         nullable: false,
         default: IdentificationCategory.Nin
     })
-    category: IdentificationCategory
+    category: IdentificationCategory;
 
     @Column()
-    isPrimary: boolean
+    isPrimary: boolean;
 
     @JoinColumn()
     @ManyToOne(type => Contact, it => it.identifications, {nullable: false})

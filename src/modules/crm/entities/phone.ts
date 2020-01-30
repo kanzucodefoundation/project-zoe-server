@@ -5,7 +5,7 @@ import {Contact} from "./contact";
 @Entity()
 export class Phone {
     @PrimaryGeneratedColumn()
-    id: number
+    id: number;
 
     @Column({
         type: "enum",
@@ -13,13 +13,13 @@ export class Phone {
         nullable: false,
         default: PhoneCategory.Mobile
     })
-    category: PhoneCategory
+    category: PhoneCategory;
 
     @Column()
-    value: string
+    value: string;
 
     @Column()
-    isPrimary: boolean
+    isPrimary: boolean;
 
     @JoinColumn()
     @ManyToOne(type => Contact, it => it.phones, {nullable: false})

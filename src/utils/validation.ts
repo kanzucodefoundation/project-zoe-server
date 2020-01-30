@@ -1,4 +1,4 @@
-import PasswordValidator from 'password-validator'
+import PasswordValidator from "password-validator";
 import {parseNumber} from "./numberHelpers";
 
 const schema = new PasswordValidator();
@@ -9,25 +9,25 @@ schema
     .has().lowercase()                              // Must have lowercase letters
     .has().digits()                                 // Must have digits
     .has().not().spaces()                           // Should not have spaces
-    .is().not().oneOf(['Passw0rd', 'Password123', 'password']); // Blacklist these values
+    .is().not().oneOf(["Passw0rd", "Password123", "password"]); // Blacklist these values
 
 
 export function hasValue(dt: any) {
     if (typeof dt === "string")
-        return !!dt && `${dt}`.trim().length > 0
+        return !!dt && `${dt}`.trim().length > 0;
     if (typeof dt === "number") {
-        const n = parseInt(`${dt}`)
-        return !isNaN(n)
+        const n = parseInt(`${dt}`);
+        return !isNaN(n);
     }
 }
 
 export function arrayHasValues(dt?: any[]) {
-    return dt && dt.length > 0
+    return dt && dt.length > 0;
 }
 
 
 export function isValidPassword(pass: string): boolean {
-    return !!schema.validate(pass)
+    return !!schema.validate(pass);
 }
 
 

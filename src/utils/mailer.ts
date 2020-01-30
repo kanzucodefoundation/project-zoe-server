@@ -1,14 +1,14 @@
 import nodemailer from "nodemailer";
 
-const mailConfig = {}
+const mailConfig = {};
 
-export interface IEmail {
-    to: string
-    subject: string
-    text: string
+export interface Email {
+    to: string;
+    subject: string;
+    text: string;
 }
 
-export async function sendEmail(data: IEmail) {
+export async function sendEmail(data: Email) {
     const transporter = nodemailer.createTransport({
         service: "SendGrid",
         auth: {

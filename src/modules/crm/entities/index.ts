@@ -9,9 +9,9 @@ import {Identification} from "./identification";
 
 
 export const getPersonFullName = (person: Person): string => {
-    const name = `${person.firstName || ''} ${person.middleName || ''} ${person.lastName || ''}`;
-    return name.trim().replace(/\s+/g, ' ');
-}
+    const name = `${person.firstName || ""} ${person.middleName || ""} ${person.lastName || ""}`;
+    return name.trim().replace(/\s+/g, " ");
+};
 
 
-export const crmEntities = [Contact, Person, Company, Email, Phone, Address, Occasion, Identification]
+export const crmEntities = [Contact, Person, Company, Email, Phone, Address, Occasion, Identification];

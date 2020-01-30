@@ -6,7 +6,7 @@ import {Contact} from "./contact";
 export class Email {
 
     @PrimaryGeneratedColumn()
-    id: number
+    id: number;
 
     @Column({
         type: "enum",
@@ -14,13 +14,13 @@ export class Email {
         nullable: false,
         default: EmailCategory.Personal
     })
-    category: EmailCategory
+    category: EmailCategory;
 
     @Column()
-    value: string
+    value: string;
 
     @Column()
-    isPrimary: boolean
+    isPrimary: boolean;
 
     @JoinColumn()
     @ManyToOne(type => Contact, it => it.emails, {nullable: false})

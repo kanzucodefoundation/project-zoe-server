@@ -5,13 +5,13 @@ import {Contact} from "./contact";
 @Entity()
 export class Occasion {
     @PrimaryGeneratedColumn()
-    id: number
+    id: number;
 
     @Column()
-    value: Date
+    value: Date;
 
     @Column()
-    details: string
+    details: string;
 
     @Column({
         type: "enum",
@@ -19,7 +19,7 @@ export class Occasion {
         nullable: false,
         default: OccasionCategory.Birthday
     })
-    category: OccasionCategory
+    category: OccasionCategory;
 
     @JoinColumn()
     @ManyToOne(type => Contact, it => it.occasions, {nullable: false})

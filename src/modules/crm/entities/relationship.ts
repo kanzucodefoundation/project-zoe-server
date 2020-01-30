@@ -1,12 +1,12 @@
 import {Column, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn} from "typeorm";
-import {EmailCategory, RelationshipCategory} from "./enums";
+import {RelationshipCategory} from "./enums";
 import {Contact} from "./contact";
 
 @Entity()
 export class Relationship {
 
     @PrimaryGeneratedColumn()
-    id: number
+    id: number;
 
     @Column({
         type: "enum",
@@ -14,11 +14,11 @@ export class Relationship {
         nullable: false,
         default: RelationshipCategory.Other
     })
-    category: RelationshipCategory
+    category: RelationshipCategory;
 
     @JoinColumn()
     @ManyToOne(type => Contact)
-    contact?: Contact
+    contact?: Contact;
 
     @JoinColumn()
     @ManyToOne(type => Contact, )

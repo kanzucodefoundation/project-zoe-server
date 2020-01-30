@@ -4,10 +4,10 @@ import {Contact} from "./contact";
 @Entity()
 export class Company {
     @PrimaryGeneratedColumn()
-    id: number
+    id: number;
 
     @Column()
-    name: string
+    name: string;
 
     @OneToOne(type => Contact, it => it.id)
     @JoinColumn()

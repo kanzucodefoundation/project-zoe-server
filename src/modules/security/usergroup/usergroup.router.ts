@@ -1,69 +1,89 @@
 import {Request, Response, Router} from "express";
-import UserGroupModel, {IUserGroup, UserGroupDto, userGroupRules} from './usergroup.model'
+
 import {validate} from "../../../utils/middleware";
-import * as repo from "../../../utils/repository";
 import {hasValue} from "../../../utils/validation";
 import {handleError} from "../../../utils/routerHelpers";
+import logger from "../../../utils/logging/logger";
+import BaseQuery from "../../../data/BaseQuery";
+import {parseNumber} from "../../../utils/numberHelpers";
+import {getRepository} from "typeorm";
+import {LinqRepository} from "typeorm-linq-repository";
+import {UserGroup} from "./usergroup.entity";
+import {userGroupRules} from "./rules";
 
 const router = Router();
-
-/* GET groups listing. */
-router.get('/', async (req: Request, res: Response) => {
+const repo = () => getRepository(UserGroup);
+const linqRepo = () => new LinqRepository(UserGroup);
+/* GET list. */
+router.get("/", async (req: Request, res: Response) => {
     try {
-        const q = req.query
-        const filter: any = {}
-        if (hasValue(q.query)) {
-            filter['name'] = {$regex: new RegExp(q.query), $options: 'i'}
+        const q = req.query;
+        logger.info("userGroup.search ", q);
+        const {skip = 0, limit = 10, query: sQuery}: BaseQuery = q;
+        let query = linqRepo()
+            .getAll();
+
+        if (hasValue(sQuery)) {
+            query = query
+                .where(it => it.name )
+                .contains(sQuery);
         }
-        const data = await UserGroupModel.find(filter, null, {skip: q.skip, limit: q.limit});
+         const data = query
+            .skip(parseNumber(skip))
+            .take(parseNumber(limit))
+            .toPromise();
         res.send(data);
     } catch (e) {
-        handleError(e, res)
+        handleError(e, res);
     }
 });
 
 /* Create new */
-router.post('/', userGroupRules, validate, async (req: Request, res: Response) => {
+router.post("/", userGroupRules, validate, async (req: Request, res: Response) => {
     try {
-        const data = await repo.createAsync<IUserGroup>(UserGroupModel, UserGroupDto.create(req.body))
+        logger.info("userGroup.create");
+        const data = await repo().save(req.body);
         res.json(data);
     } catch (e) {
-        handleError(e, res)
+        handleError(e, res);
     }
 });
 
-/* Update */
-router.put('/', userGroupRules, validate, async (req: Request, res: Response) => {
+/* Update new */
+router.put("/", userGroupRules, validate, async (req: Request, res: Response) => {
     try {
-        const model = UserGroupDto.create(req.body)
-        const data = await repo.updateAsync<IUserGroup>(UserGroupModel, model)
+        const model = req.body;
+        logger.info(`userGroup.edit ${model.id}`);
+        const data = await repo().save(model);
         res.json(data);
     } catch (e) {
-        handleError(e, res)
+        handleError(e, res);
     }
 });
 
 /* Get by id. */
-router.get('/:id', async (req: Request, res: Response) => {
+router.get("/:id", async (req: Request, res: Response) => {
     try {
         const {id} = req.params;
-        const data = await repo.getByIdAsync(UserGroupModel, id);
+        logger.info(`userGroup.getById ${id}`);
+        const data = await linqRepo().getById(id);
         res.json(data);
     } catch (e) {
-        handleError(e, res)
+        handleError(e, res);
     }
 });
 
-/* Delete task by id. */
-router.delete('/:id', async (req: Request, res: Response) => {
+/* Delete by id. */
+router.delete("/:id", async (req: Request, res: Response) => {
     try {
         const {id} = req.params;
-        await repo.deleteAsync(UserGroupModel, id);
+        logger.info(`userGroup.delete ${id}`);
+        await repo().delete(id);
         res.json({
-            message: 'Operation succeeded'
+            message: "Operation succeeded"
         });
     } catch (e) {
-        handleError(e, res)
+        handleError(e, res);
     }
 });
 

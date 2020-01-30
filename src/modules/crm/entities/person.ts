@@ -1,4 +1,4 @@
-import {Column, Entity, PrimaryGeneratedColumn, OneToOne, JoinColumn} from "typeorm";
+import {Column, Entity, PrimaryGeneratedColumn, OneToOne} from "typeorm";
 import {Length} from "class-validator";
 import {CivilStatus, Gender, Salutation} from "./enums";
 import {Contact} from "./contact";
@@ -7,49 +7,49 @@ import {Contact} from "./contact";
 export class Person {
 
     @PrimaryGeneratedColumn()
-    id: number
+    id: number;
 
     @Column({
         type: "enum",
         enum: Salutation,
         nullable: true
     })
-    salutation: Salutation
+    salutation: Salutation;
 
     @Column()
     @Length(4, 40)
-    firstName: string
+    firstName: string;
 
     @Column()
     @Length(4, 40)
-    lastName: string
+    lastName: string;
 
     @Column({nullable: true})
     @Length(4, 40)
-    middleName: string
+    middleName: string;
 
     @Column({nullable: true})
-    about: string
+    about: string;
 
     @Column({
         type: "enum",
         enum: Gender,
         nullable: false
     })
-    gender: Gender
+    gender: Gender;
 
     @Column({
         type: "enum",
         enum: CivilStatus,
         nullable: true
     })
-    civilStatus: CivilStatus
+    civilStatus: CivilStatus;
 
     @Column({nullable: true})
-    avatar: string
+    avatar: string;
 
     @Column()
-    dateOfBirth: Date
+    dateOfBirth: Date;
 
     @OneToOne(type => Contact, it => it.person)
     contact?: Contact

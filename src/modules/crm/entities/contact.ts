@@ -7,11 +7,12 @@ import {Occasion} from "./occasion";
 import {Address} from "./address";
 import {Identification} from "./identification";
 import {ContactCategory} from "./enums";
+import {GroupMember} from "../../groups/entities/GroupMember";
 
 @Entity()
 export class Contact {
-    @PrimaryGeneratedColumn({name: 'id'})
-    id: number
+    @PrimaryGeneratedColumn({name: "id"})
+    id: number;
 
     @Column({
         type: "enum",
@@ -19,46 +20,51 @@ export class Contact {
         nullable: false,
         default: ContactCategory.Person
     })
-    category: ContactCategory
+    category: ContactCategory;
 
     @OneToOne(type => Person, it => it.contact, {
         cascade: ["insert", "remove"]
     })
     @JoinColumn()
-    person?: Person
+    person?: Person;
 
     @OneToOne(type => Person)
     @JoinColumn()
-    company?: Company
+    company?: Company;
 
     @OneToMany(type => Email, it => it.contact, {
         cascade: ["insert", "remove"]
     })
-    emails: Email[]
+    emails: Email[];
 
     @OneToMany(type => Phone, it => it.contact, {
         cascade: ["insert", "remove"]
     })
-    phones: Phone[]
+    phones: Phone[];
 
     @OneToMany(type => Occasion, it => it.contact, {
         cascade: ["insert", "remove"]
     })
-    occasions: Occasion[]
+    occasions: Occasion[];
 
     @OneToMany(type => Address, it => it.contact, {
         cascade: ["insert", "remove"]
     })
-    addresses: Address[]
+    addresses: Address[];
 
     @OneToMany(type => Identification, it => it.contact, {
         cascade: ["insert", "remove"]
     })
-    identifications: Identification[]
+    identifications: Identification[];
 
-    static ref(id: any) {
-        const c = new Contact()
-        c.id = id
-        return c
+
+    @JoinColumn()
+    @OneToMany(type => GroupMember, it => it.contact)
+    groupMembers: GroupMember[];
+
+    static ref(id: number) {
+        const c = new Contact();
+        c.id = id;
+        return c;
     }
 }

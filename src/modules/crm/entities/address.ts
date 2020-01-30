@@ -5,7 +5,7 @@ import {Contact} from "./contact";
 @Entity()
 export class Address {
     @PrimaryGeneratedColumn()
-    id: number
+    id: number;
 
     @Column({
         type: "enum",
@@ -13,43 +13,43 @@ export class Address {
         nullable: false,
         default: AddressCategory.Home
     })
-    category: AddressCategory
+    category: AddressCategory;
 
     @Column()
-    isPrimary: boolean
+    isPrimary: boolean;
 
     @Column()
-    country: string
+    country: string;
 
     @Column()
-    district: string
+    district: string;
 
     @Column()
-    county: string
+    county: string;
 
     @Column()
-    subCounty?: string
+    subCounty?: string;
 
     @Column()
-    village?: string
+    village?: string;
 
     @Column()
-    parish?: string
+    parish?: string;
 
     @Column()
-    postalCode?: string
+    postalCode?: string;
 
     @Column()
-    street?: string
+    street?: string;
 
     @Column()
-    freeForm?: string
+    freeForm?: string;
 
     @Column()
-    latLon?: string
+    latLon?: string;
 
     @Column()
-    placeId?: string
+    placeId?: string;
 
     @JoinColumn()
     @ManyToOne(type => Contact, it => it.addresses, {nullable: false})

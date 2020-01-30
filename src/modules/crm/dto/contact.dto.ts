@@ -8,17 +8,17 @@ import {Phone} from "../entities/phone";
 import {Email} from "../entities/email";
 import {CivilStatus, ContactCategory, EmailCategory, Gender, PhoneCategory} from "../entities/enums";
 
-export interface INewContact {
+export interface NewContact {
     //Person
-    firstName: string
-    lastName: string
-    middleName?: string
-    gender: Gender
-    civilStatus: CivilStatus
-    dateOfBirth: Date
+    firstName: string;
+    lastName: string;
+    middleName?: string;
+    gender: Gender;
+    civilStatus: CivilStatus;
+    dateOfBirth: Date;
     //Address
-    phone?: string
-    email?: string
+    phone?: string;
+    email?: string;
 }
 
 
@@ -28,7 +28,7 @@ export const createPersonRules = [
     check("gender", "Gender cannot be blank").not().isEmpty(),
     check("dateOfBirth", "Date of birth cannot be blank").custom(isValidDate),
     check("email", "Should be a valid email").optional().isEmail(),
-]
+];
 
 const createAvatar = (email: string, size: number = 200) => {
     if (hasValue(email)) {
@@ -48,44 +48,44 @@ export const dataToContact = (
         dateOfBirth,
         phone,
         email,
-    }: INewContact
+    }: NewContact
 ): Contact => {
 
-    const person = new Person()
-    person.firstName = firstName
-    person.middleName = middleName
-    person.lastName = lastName
-    person.civilStatus = civilStatus
-    person.salutation = null
-    person.dateOfBirth = dateOfBirth
-    person.about = ''
-    person.avatar = createAvatar(email)
-    person.gender = gender
+    const person = new Person();
+    person.firstName = firstName;
+    person.middleName = middleName;
+    person.lastName = lastName;
+    person.civilStatus = civilStatus;
+    person.salutation = null;
+    person.dateOfBirth = dateOfBirth;
+    person.about = "";
+    person.avatar = createAvatar(email);
+    person.gender = gender;
 
-    const phones: Phone[] = []
+    const phones: Phone[] = [];
     if (hasValue(phone)) {
-        const p = new Phone()
-        p.category = PhoneCategory.Mobile
-        p.isPrimary = true
-        p.value = phone
-        phones.push(p)
+        const p = new Phone();
+        p.category = PhoneCategory.Mobile;
+        p.isPrimary = true;
+        p.value = phone;
+        phones.push(p);
     }
 
-    const emails: Email[] = []
+    const emails: Email[] = [];
     if (hasValue(email)) {
-        const e = new Email()
-        e.category = EmailCategory.Personal
-        e.isPrimary = true
-        e.value = email
-        emails.push(e)
+        const e = new Email();
+        e.category = EmailCategory.Personal;
+        e.isPrimary = true;
+        e.value = email;
+        emails.push(e);
     }
-    const contact = new Contact()
-    contact.category = ContactCategory.Person
-    contact.person = person
-    contact.phones = phones
-    contact.emails = emails
-    contact.addresses = []
-    contact.identifications = []
-    contact.occasions = []
-    return contact
-}
+    const contact = new Contact();
+    contact.category = ContactCategory.Person;
+    contact.person = person;
+    contact.phones = phones;
+    contact.emails = emails;
+    contact.addresses = [];
+    contact.identifications = [];
+    contact.occasions = [];
+    return contact;
+};
