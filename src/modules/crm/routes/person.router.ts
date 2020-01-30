@@ -15,16 +15,16 @@ import {Contact} from "../entities/contact";
 import {LinqRepository} from "typeorm-linq-repository";
 
 const router = Router();
-const linqRepo = () => new LinqRepository(Contact);
+const linqRepo = () => new LinqRepository(Contact)
 
 /* GET listing. */
-router.get("/", async (req: Request, res: Response) => {
+router.get('/', async (req: Request, res: Response) => {
     try {
-        const {skip = 0, limit = 10, query: sQuery}: IBaseQuery = req.query;
+        const {skip = 0, limit = 10, query: sQuery}: IBaseQuery = req.query
         let query = linqRepo()
-            .getAll();
-        const wPerson = query
-            .include(c => c.person);
+            .getAll()
+        let wPerson = query
+            .include(c => c.person)
         if (hasValue(sQuery)) {
             query = wPerson
                 .where(it => it.person.firstName)
@@ -32,7 +32,7 @@ router.get("/", async (req: Request, res: Response) => {
                 .or(it => it.person.lastName)
                 .contains(sQuery)
                 .or(it => it.person.middleName)
-                .contains(sQuery);
+                .contains(sQuery)
         }
         const data = await query
             .skip(parseNumber(skip))
@@ -40,22 +40,22 @@ router.get("/", async (req: Request, res: Response) => {
             .toPromise();
 
         const fine = data.map(({id, person}: any) => {
-            return {id, avatar: person.avatar, name: getPersonFullName(person)};
-        });
+            return {id, avatar: person.avatar, name: getPersonFullName(person)}
+        })
         res.send(fine);
     } catch (error) {
-        handleError(error, res);
+        handleError(error, res)
     }
 });
 
 
 /* Create */
-router.post("/", createPersonRules, validate, async (req: Request, res: Response) => {
+router.post('/', createPersonRules, validate, async (req: Request, res: Response) => {
     try {
-        const saved = await service.createPersonAsync(req.body);
+        const saved = await service.createPersonAsync(req.body)
         res.json(saved);
     } catch (error) {
-        handleError(error, res);
+        handleError(error, res)
     }
 });
 
@@ -66,25 +66,25 @@ export const rules = [
     check("civilStatus", "Gender cannot be blank").not().isEmpty(),
     check("avatar", "Gender cannot be blank").not().isEmpty(),
     check("dateOfBirth", "Date of birth cannot be blank").custom(isValidDate)
-];
+]
 
 /* Update by contactId. */
-router.put("/:id", rules, validate, async (req: Request, res: Response) => {
+router.put('/:id', rules, validate, async (req: Request, res: Response) => {
     try {
         const {id} = req.params;
         if (!hasValue(id)) {
-            await Promise.reject(badRequest("Invalid contact"));
+            await Promise.reject(badRequest('Invalid contact'))
         }
         const contact = await ContactModel.findById(id);
         if (!contact) {
-            await Promise.reject(badRequest(`Invalid contact :${id}`));
+            await Promise.reject(badRequest(`Invalid contact :${id}`))
         }
-        const old = contact.toObject().person;
-        contact.person = {...old, ...req.body};
-        await contact.save();
+        const old = contact.toObject().person
+        contact.person = {...old, ...req.body}
+        await contact.save()
         res.json(contact.person);
     } catch (error) {
-        handleError(error, res);
+        handleError(error, res)
     }
 });
 export default router;

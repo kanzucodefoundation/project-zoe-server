@@ -8,7 +8,7 @@ import {UserGroup} from "./modules/security/usergroup/usergroup.entity";
 import {crmEntities} from "./modules/crm/entities";
 import {seedDataAsync} from "./data/seed";
 
-logger.info("Creating connection");
+logger.info('Creating connection')
 createConnection({
     type: "mysql",
     host: "localhost",
@@ -23,12 +23,12 @@ createConnection({
     synchronize: true,
     logging: true
 }).then(async connection => {
-    logger.info(`SQL Server connected ${connection.isConnected}`);
-    await seedDataAsync();
-    const port = normalizePort(process.env.PORT || "3004");
-    app.set("port", port);
+    logger.info(`SQL Server connected ${connection.isConnected}`)
+    await seedDataAsync()
+    const port = normalizePort(process.env.PORT || '3004');
+    app.set('port', port);
     app.listen(port, () => {
-        logger.info("Express server listening on port " + port);
+        logger.info('Express server listening on port ' + port);
     });
 }).catch(error => console.log(error));
 

@@ -34,9 +34,9 @@ export class UserGroup {
     })
     roles: SystemRole[]
 
-    public static ref(id: number){
-        const g = new UserGroup();
-        g.id = id;
-        return g;
+    public static ref(id:number){
+        const g = new UserGroup()
+        g.id = id
+        return g
     }
 }

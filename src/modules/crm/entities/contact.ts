@@ -10,7 +10,7 @@ import {ContactCategory} from "./enums";
 
 @Entity()
 export class Contact {
-    @PrimaryGeneratedColumn({name: "id"})
+    @PrimaryGeneratedColumn({name: 'id'})
     id: number
 
     @Column({
@@ -57,8 +57,8 @@ export class Contact {
     identifications: Identification[]
 
     static ref(id: any) {
-        const c = new Contact();
-        c.id = id;
-        return c;
+        const c = new Contact()
+        c.id = id
+        return c
     }
 }

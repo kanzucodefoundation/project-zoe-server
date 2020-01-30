@@ -12,47 +12,47 @@ import {LinqRepository} from "typeorm-linq-repository";
 import {parseNumber} from "../../../utils/numberHelpers";
 
 
-const repo = () => getRepository(Contact);
-const linqRepo = () => new LinqRepository(Contact);
+const repo = () => getRepository(Contact)
+const linqRepo = () => new LinqRepository(Contact)
 export const exitsAsync = async (id: number): Promise<boolean> => {
-    const count = await repo().count({id});
-    return count >= 1;
+    const count = await repo().count({id})
+    return count >= 1
 };
 
 export const createPersonAsync = async (data: any): Promise<Contact> => {
-    logger.info("creating person");
+    logger.info(`creating person`)
     const dt = dataToContact(data);
     const model = new Contact();
-    model.category = ContactCategory.Person;
-    model.person = {...dt.person};
+    model.category = ContactCategory.Person
+    model.person = {...dt.person}
 
-    const contact = await getRepository(Contact).save(model);
-    logger.info(`creating phones for ${contact.id}`);
+    const contact = await getRepository(Contact).save(model)
+    logger.info(`creating phones for ${contact.id}`)
     const phones = dt.phones.map(it => {
-        return {...it, contact};
-    });
-    const savedPhones = await getRepository(Phone).save(phones);
-    logger.info(`creating emails for ${contact.id}`);
+        return {...it, contact}
+    })
+    const savedPhones = await getRepository(Phone).save(phones)
+    logger.info(`creating emails for ${contact.id}`)
     const emails = dt.emails.map(it => {
-        return {...it, contact};
-    });
-    const savedEmails = await getRepository(Email).save(emails);
-    contact.phones = savedPhones;
-    contact.emails = savedEmails;
-    return contact;
+        return {...it, contact}
+    })
+    const savedEmails = await getRepository(Email).save(emails)
+    contact.phones = savedPhones
+    contact.emails = savedEmails
+    return contact
 };
 
 // TODO Add validation
 export const createAsync = async (data: any): Promise<IContact> => {
-    return await repo().save(data);
+    return await repo().save(data)
 };
 
 export const searchAsync = async (q: IContactQuery): Promise<Contact[]> => {
-    const {skip = 0, limit = 10, query: sQuery}: IBaseQuery = q;
+    const {skip = 0, limit = 10, query: sQuery}: IBaseQuery = q
     let query = linqRepo()
-        .getAll();
-    const wPerson = query
-        .include(c => c.person);
+        .getAll()
+    let wPerson = query
+        .include(c => c.person)
     if (hasValue(sQuery)) {
         query = wPerson
             .where(it => it.person.firstName)
@@ -60,7 +60,7 @@ export const searchAsync = async (q: IContactQuery): Promise<Contact[]> => {
             .or(it => it.person.lastName)
             .contains(sQuery)
             .or(it => it.person.middleName)
-            .contains(sQuery);
+            .contains(sQuery)
     }
     return query
         .include(u => u.phones)
@@ -71,17 +71,17 @@ export const searchAsync = async (q: IContactQuery): Promise<Contact[]> => {
 };
 
 export const createQuery = (q: IBaseQuery) => {
-    const filter: any = {};
+    const filter: any = {}
     if (hasValue(q.query)) {
-        const regex = {$regex: new RegExp(q.query), $options: "i"};
-        filter["$or"] = [
-            {"person.firstName": regex},
-            {"person.lastName": regex},
-            {"person.middleName": regex}
-        ];
+        const regex = {$regex: new RegExp(q.query), $options: 'i'}
+        filter['$or'] = [
+            {'person.firstName': regex},
+            {'person.lastName': regex},
+            {'person.middleName': regex}
+        ]
     }
-    return filter;
-};
+    return filter
+}
 
 export const getByIdAsync = async (id: number): Promise<Contact> => {
     return linqRepo()
@@ -93,9 +93,9 @@ export const getByIdAsync = async (id: number): Promise<Contact> => {
         .include(u => u.identifications)
         .include(u => u.occasions)
         .include(u => u.addresses)
-        .toPromise();
+        .toPromise()
 };
 
 export const deleteAsync = async (id: string): Promise<any> => {
-    return repo().delete(parseInt(id));
+    return repo().delete(parseInt(id))
 };
