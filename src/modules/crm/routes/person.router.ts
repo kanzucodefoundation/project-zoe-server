@@ -14,7 +14,6 @@ import {createPersonRules} from "../dto/contact.dto";
 import {Contact} from "../entities/contact";
 import {LinqRepository} from "typeorm-linq-repository";
 import {getPersonFullName} from "../entities";
-import {getRepository} from "typeorm";
 import {Person} from "../entities/person";
 
 const router = Router();

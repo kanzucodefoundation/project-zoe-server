@@ -26,6 +26,7 @@ export const createPersonRules = [
     check("firstName", "First Name cannot be blank").not().isEmpty(),
     check("lastName", "Last Name cannot be blank").not().isEmpty(),
     check("gender", "Gender cannot be blank").not().isEmpty(),
+    check("phone", "Gender cannot be blank").not().isEmpty(),
     check("dateOfBirth", "Date of birth cannot be blank").custom(isValidDate),
     check("email", "Should be a valid email").optional().isEmail(),
 ];
@@ -58,7 +59,6 @@ export const dataToContact = (
     person.civilStatus = civilStatus;
     person.salutation = null;
     person.dateOfBirth = dateOfBirth;
-    person.about = "";
     person.avatar = createAvatar(email);
     person.gender = gender;
 

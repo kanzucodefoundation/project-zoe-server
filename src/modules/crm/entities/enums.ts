@@ -63,7 +63,7 @@ export enum EmailCategory {
 
 export enum AddressCategory {
     Work = "Work",
-    Home = "Personal",
+    Home = "Home",
     Other = "Other",
 }
 

@@ -1,7 +1,8 @@
-import {Column, Entity, PrimaryGeneratedColumn, OneToOne} from "typeorm";
+import {Column, Entity, PrimaryGeneratedColumn, OneToOne, OneToMany} from "typeorm";
 import {Length} from "class-validator";
 import {CivilStatus, Gender, Salutation} from "./enums";
 import {Contact} from "./contact";
+import {Group} from "../../groups/entities/Group";
 
 @Entity()
 export class Person {
@@ -29,7 +30,10 @@ export class Person {
     middleName: string;
 
     @Column({nullable: true})
-    about: string;
+    ageGroup: string;
+
+    @Column({nullable: true})
+    placeOfWork: string;
 
     @Column({
         type: "enum",
@@ -52,5 +56,13 @@ export class Person {
     dateOfBirth: Date;
 
     @OneToOne(type => Contact, it => it.person)
-    contact?: Contact
+    contact: Contact;
+
+    contactId: number;
+
+    @Column({nullable: true})
+    cellGroupId: number;
+
+    @Column({nullable: true})
+    churchLocationId: number;
 }

@@ -27,28 +27,28 @@ export class Address {
     @Column()
     county: string;
 
-    @Column()
+    @Column({nullable: true})
     subCounty?: string;
 
-    @Column()
+    @Column({nullable: true})
     village?: string;
 
-    @Column()
+    @Column({nullable: true})
     parish?: string;
 
-    @Column()
+    @Column({nullable: true})
     postalCode?: string;
 
-    @Column()
+    @Column({nullable: true})
     street?: string;
 
-    @Column()
+    @Column({nullable: true})
     freeForm?: string;
 
-    @Column()
+    @Column({nullable: true})
     latLon?: string;
 
-    @Column()
+    @Column({nullable: true})
     placeId?: string;
 
     @JoinColumn()

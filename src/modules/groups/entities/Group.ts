@@ -21,19 +21,23 @@ export class Group {
     @Length(1, 40)
     name: string;
 
-    @Column()
+    @Column({nullable: true})
     @Length(1, 200)
-    details: string;
+    details?: string;
 
     @ManyToOne(type => GroupCategory, it => it.groups)
-    category: GroupCategory;
+    category?: GroupCategory;
+
+    @Column()
+    categoryId: number;
 
     @ManyToOne(type => Group, it => it.children)
-    parent: Group;
+    parent?: Group;
+    @Column({nullable: true})
+    parentId?: number;
 
     @OneToMany(type => Group, it => it.parent)
     children: Group[];
-
 
     @JoinColumn()
     @OneToMany(type => GroupMember, it => it.group)

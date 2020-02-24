@@ -28,7 +28,7 @@ router.get("/", async (req: Request, res: Response) => {
                 .where(it => it.name )
                 .contains(sQuery);
         }
-         const data = query
+         const data = await query
             .skip(parseNumber(skip))
             .take(parseNumber(limit))
             .toPromise();

@@ -5,7 +5,7 @@ import loggerMiddleware from "./utils/logging/loggerMiddleware";
 import passport from "passport";
 import "./modules/security/auth/passport.setup";
 import {errorMiddleware} from "./utils/routerHelpers";
-import configureRouter from "./utils/routerConfig";
+import configureRouter from "./routerConfig";
 const app: Express = express();
 app.use(cors());
 app.use(loggerMiddleware);

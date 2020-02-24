@@ -2,7 +2,6 @@ import * as userService from "../modules/security/users/users.service";
 import * as contactService from "../modules/crm/services/contact.service";
 import * as userGroupService from "../modules/security/usergroup/usergroup.service";
 import logger from "../utils/logging/logger";
-import {createGroupCategories} from "./seed.groups";
 import {SystemRole, UserGroup} from "../modules/security/usergroup/usergroup.entity";
 import {User} from "../modules/security/users/user.entity";
 
