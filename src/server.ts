@@ -12,14 +12,14 @@ import {seedDataAsync} from "./data/seed";
 import {groupEntities} from "./modules/groups";
 import {Tag} from "./modules/tags/Tag";
 
-logger.info("Creating connection");
+logger.info("Creating database connection");
 
 const host: string = process.env.DB_HOST || "localhost";
 const username: string = process.env.DB_USERNAME || "localhost";
 const password: string = process.env.DB_PASSWORD || "root";
 const database: string = process.env.DB_DATABASE || "node-test";
 const dbPort: number = normalizePort(process.env.DB_PORT || "3006");
-console.log(`Paa____${password}___`);
+
 createConnection({
     type: "mysql",
     host,
