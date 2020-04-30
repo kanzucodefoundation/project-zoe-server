@@ -46,5 +46,5 @@ export class RegisterUserDto {
   @IsDate()
   @ApiProperty()
   dateOfBirth: Date;
-
+    
 }

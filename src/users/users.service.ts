@@ -13,8 +13,7 @@ export class UsersService {
     @InjectRepository(User)
     private readonly repository: Repository<User>,
     private readonly contactsService: ContactsService,
-  ) {
-  }
+  ) {}
 
   async findAll(req: SearchDto): Promise<User[]> {
     return await this.repository.find({
