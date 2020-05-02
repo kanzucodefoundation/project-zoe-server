@@ -6,7 +6,7 @@ import { GroupSearchDto } from '../dto/group-search.dto';
 
 @ApiTags('Groups Combo')
 @Controller('api/groups/combo')
-export class GroupsComboController {
+export class GroupComboController {
   constructor(private readonly service: GroupsService) {
   }
 
