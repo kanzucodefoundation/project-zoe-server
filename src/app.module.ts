@@ -6,10 +6,13 @@ import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from './auth/auth.module';
 import { CrmModule } from './crm/crm.module';
+import { ServicesModule } from './services/services.module';
+import { ServicescalendarModule } from './teamleadcalendar/servicescalendar.module';
 import { GroupsModule } from './groups/groups.module';
 import config from './config';
 import { groupEntities } from './groups/groups.helpers';
 import { crmEntities } from './crm/crm.helpers';
+import { Teamlead } from './services/entities/teamlead.entity';
 import { usersEntities } from './users/users.helpers';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
@@ -27,12 +30,13 @@ console.log('Database', config.database);
     TypeOrmModule.forRoot({
       type: 'mysql', ...config.database,
       entities: [
-        ...usersEntities, ...crmEntities, ...groupEntities,
+        ...usersEntities, ...crmEntities, Teamlead, ...groupEntities,
       ], logging: true,
     }),
     UsersModule,
     AuthModule,
     CrmModule,
+    ServicesModule,
     GroupsModule,
     SeedModule
   ],
