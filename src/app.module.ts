@@ -18,8 +18,6 @@ import { join } from 'path';
 import { SeedModule } from './seed/seed.module';
 import { SeedService } from './seed/seed.service';
 
-console.log('Database', config.database);
-
 @Module({
   imports: [
     ServeStaticModule.forRoot({
