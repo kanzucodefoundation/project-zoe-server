@@ -27,20 +27,19 @@ export class SeedService {
 
   async createGroupCategories() {
     for (const rec of seedGroupCategories) {
-      const exists = await this.groupCategoriesService.exits(rec.name);
+      const exists = await this.groupCategoriesService.exits(rec.id);
       if (exists) {
-        Logger.log(`Group Cat: ${rec.name} already exists`);
+        Logger.debug(`Group Cat: ${rec.id} already exists`);
       } else{
         await this.groupCategoriesService.create(rec);
       }
     }
   }
 
-
   async createGroups() {
     const count = await this.groupsService.count();
     if (count> 0) {
-      Logger.log(`Groups : ${count} already exists`);
+      Logger.debug(`Groups : ${count} already exists`);
     } else{
       for (const rec of seedGroups) {
         await this.groupsService.create(rec);

@@ -4,10 +4,10 @@ import Group from './group.entity';
 export default class GroupCategory {
 
   @PrimaryColumn({length:40})
-  name: string;
+  id: string;
 
   @Column({length:200})
-  details: string;
+  name: string;
 
   @OneToMany(type => Group, it => it.category, {
     cascade: ["insert", "remove"]

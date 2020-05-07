@@ -41,13 +41,14 @@ import { SeedService } from './seed/seed.service';
   providers: [AppService],
 })
 export class AppModule {
-  constructor(private readonly seedService:SeedService) {
-  }
-  async onModuleInit(): Promise<void> {
-    Logger.log('#########Initialized application############');
-    await this.seedService.createUsers();
-    await this.seedService.createGroupCategories();
-    await this.seedService.createGroups();
-    Logger.log('#########Initialization complete############');
-  }
+    constructor(private readonly seedService: SeedService) {
+    }
+
+    async onModuleInit(): Promise<void> {
+        Logger.log('#########Initialized application############');
+        await this.seedService.createUsers();
+        await this.seedService.createGroupCategories();
+        await this.seedService.createGroups();
+        Logger.log('#########Initialization complete############');
+    }
 }
