@@ -7,9 +7,11 @@ import GroupMembership from '../entities/groupMembership.entity';
 import GroupMembershipDto from '../dto/membership/group-membership.dto';
 import { getPersonFullName } from '../../crm/crm.helpers';
 import GroupMembershipSearchDto from '../dto/membership/group-membership-search.dto';
-import { CreateGroupMembershipDto } from '../dto/membership/create-group-membership.dto';
-import UpdateGroupMembershipDto from '../dto/membership/update-group-membership.dto';
+
 import ClientFriendlyException from '../../shared/exceptions/client-friendly.exception';
+import UpdateGroupMembershipDto from '../dto/membership/update-group-membership.dto';
+import BatchGroupMembershipDto from '../dto/membership/batch-group-membership.dto';
+import { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
 
 @Injectable()
 export class GroupsMembershipService {
@@ -29,7 +31,7 @@ export class GroupsMembershipService {
       filter.groupId = req.groupId;
     }
     if (hasNoValue(filter))
-      throw  new ClientFriendlyException('Invalid query');
+      throw  new ClientFriendlyException('Please groupID or contactId');
     const data = await this.repository.find({
       relations: ['group', 'contact', 'contact.person'],
       skip: req.skip,
@@ -48,14 +50,19 @@ export class GroupsMembershipService {
     };
   }
 
-  async create(data: CreateGroupMembershipDto): Promise<GroupMembershipDto> {
-    const membership = new GroupMembership();
-    const { groupId, contactId, role } = data;
-    membership.groupId = groupId;
-    membership.contactId = contactId;
-    membership.role = role;
-    const created = await this.repository.save(membership);
-    return await this.findOne(created.id);
+  async create(data: BatchGroupMembershipDto): Promise<number> {
+    const { groupId, members, role } = data;
+    const toInsert :QueryDeepPartialEntity<GroupMembership>[]=[]
+    members.forEach(contactId=>{
+      toInsert.push({groupId,contactId,role})
+    })
+    await this.repository
+      .createQueryBuilder()
+      .insert()
+      .into(GroupMembership)
+      .values(toInsert)
+      .execute();
+    return members.length;
   }
 
   async findOne(id: number): Promise<GroupMembershipDto> {
