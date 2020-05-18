@@ -58,10 +58,12 @@ export class TasksService {
         return this.repository.findOne(id);
     }
 
-    async update(data: Task): Promise<Task> {
-        return await this.repository.save(data);
+    //async update(data: Task): Promise<Task> {
+        //return await this.repository.save(data);
+    //}
+    async update(task: Task): Promise<Task> {
+        return await this.repository.save(task);
     }
-
     async remove(id: number): Promise<void> {
         await this.repository.delete(id);
     }
