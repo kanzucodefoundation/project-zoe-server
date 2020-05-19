@@ -1,62 +1,57 @@
-import { GroupPrivacy } from '../../groups/enums/groupPrivacy';
-import Group from '../../groups/entities/group.entity';
+import {GroupPrivacy} from '../../groups/enums/groupPrivacy';
 import GroupCategory from '../../groups/entities/groupCategory.entity';
+import CreateGroupDto from "../../groups/dto/create-group.dto";
 
-const createLocation = ({name, details}: { name: string; details?: string }): Group => {
+const createLocation = ({name, details}: { name: string; details?: string }): CreateGroupDto => {
   return {
-    id: 0,
-    parent: null,
+    parentId: null,
     privacy: GroupPrivacy.Public,
     details: details,
     name: name,
-    categoryId: "Location",
-    members: [],
-    children: []
+    categoryId: "Location"
+
   };
 };
 
-const createMc = ({name, details}: { name: string; details?: string }): Group => {
+const createMc = ({name, details}: { name: string; details?: string }): CreateGroupDto => {
   return {
-    id: 0,
-    parent: null,
+    parentId: null,
     privacy: GroupPrivacy.Public,
     details: details,
     name: name,
-    categoryId: "MC",
-    members: [],
-    children: []
+    categoryId: "MC"
   };
 };
 
 export const seedGroupCategories: GroupCategory[] = [
   {
-    name: "Location",
-    details: "Church Location",
+    id: "Location",
+    name: "Church Location",
     groups: []
   },
   {
-    name: "Cohort",
-    details: "Group of Mcs",
+    id: "Cohort",
+    name: "Group of Mcs",
     groups: []
   },
   {
-    name: "MC",
-    details: "Missional Community",
+    id: "MC",
+    name: "Missional Community",
     groups: []
   },
   {
+    id: "Huddle",
     name: "Huddle",
-    details: "Huddle",
     groups: []
   },
   {
+    id: "GarageTeam",
     name: "GarageTeam",
-    details: "GarageTeam",
     groups: []
   }
 ];
 
-const locations: Group[] = [
+const locations: CreateGroupDto[] = [
   createLocation({
     name: "WHNalya"
   }),

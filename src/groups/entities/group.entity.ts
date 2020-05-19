@@ -23,6 +23,7 @@ export default class Group {
   details?: string;
 
   @ManyToOne(type => GroupCategory, it => it.groups)
+  @JoinColumn()
   category?: GroupCategory;
 
   @Column()
@@ -30,6 +31,7 @@ export default class Group {
 
   @ManyToOne(type => Group, it => it.children)
   parent?: Group;
+
   @Column({nullable: true})
   parentId?: number;
 

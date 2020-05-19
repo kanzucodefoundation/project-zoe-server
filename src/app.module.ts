@@ -6,10 +6,12 @@ import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from './auth/auth.module';
 import { CrmModule } from './crm/crm.module';
+import { ServicesModule } from './services/services.module';
 import { GroupsModule } from './groups/groups.module';
 import config from './config';
 import { groupEntities } from './groups/groups.helpers';
 import { crmEntities } from './crm/crm.helpers';
+import { Volunteer } from './services/entities/volunteer.entity';
 import { usersEntities } from './users/users.helpers';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
@@ -19,7 +21,6 @@ import { Task } from './tasks/task.entity';
 import { TasksModule } from './tasks/tasks.module';
 import { tasksEntities } from './tasks/tasks.helpers';
 console.log('Database', config.database);
-
 @Module({
   imports: [
     ServeStaticModule.forRoot({
@@ -29,12 +30,13 @@ console.log('Database', config.database);
     TypeOrmModule.forRoot({
       type: 'mysql', ...config.database,
       entities: [
-        ...usersEntities, ...tasksEntities, ...crmEntities, ...groupEntities,
+        ...usersEntities, ...tasksEntities, Volunteer, ...crmEntities, ...groupEntities,   
       ], logging: true,
     }),
     UsersModule,
     AuthModule,
     CrmModule,
+    ServicesModule,
     GroupsModule,
     SeedModule,
     TasksModule,
@@ -43,14 +45,15 @@ console.log('Database', config.database);
   providers: [AppService],
 })
 export class AppModule {
-  constructor(private readonly seedService:SeedService) {
-  }
-  async onModuleInit(): Promise<void> {
-    Logger.log('#########Initialized application############');
-    await this.seedService.createUsers();
-    await this.seedService.createGroupCategories();
-    await this.seedService.createGroups();
-    Logger.log('#########Initialization complete############');
-  }
+    constructor(private readonly seedService: SeedService) {
+    }
+
+    async onModuleInit(): Promise<void> {
+        Logger.log('#########Initialized application############');
+        await this.seedService.createUsers();
+        await this.seedService.createGroupCategories();
+        await this.seedService.createGroups();
+        Logger.log('#########Initialization complete############');
+    }
 }
 
