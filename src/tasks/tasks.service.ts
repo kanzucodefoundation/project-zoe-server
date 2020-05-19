@@ -61,19 +61,20 @@ export class TasksService {
     //async update(data: Task): Promise<Task> {
         //return await this.repository.save(data);
     //}
-    async update(task: Task): Promise<Task> {
-        return await this.repository.save(task);
+    async update(id: Task): Promise<Task> {
+        return await this.repository.save(id);
     }
+    
     async remove(id: number): Promise<void> {
         await this.repository.delete(id);
     }
 
-    async findByName(taskName: string): Promise<Task | undefined> {
-        return this.repository.findOne(taskName);
+    async findByName(ministry: string): Promise<Task | undefined> {
+        return this.repository.findOne(ministry);
     }
 
-    async exits(taskName: string): Promise<boolean> {
-        const count = await this.repository.count({ where: { taskName } });
+    async exits(Ministry: string): Promise<boolean> {
+        const count = await this.repository.count({ where: { Ministry } });
         return count > 0;
     }
 }

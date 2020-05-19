@@ -28,7 +28,8 @@ import { TasksService } from '../tasks.service';
 import SearchDto from '../../shared/dto/search.dto';
 import { Task } from '../task.entity';
 import { ApiTags } from '@nestjs/swagger';
-
+import { TaskDto } from 'src/auth/dto/task.dto';
+import { CreateTaskDto } from 'src/auth/dto/create-task.dto';
 @ApiTags("Tasks")
 @Controller('api/tasks')
 export class TasksController {
@@ -49,12 +50,11 @@ export class TasksController {
         return await this.service.update(data);
     }
     */
-    @Put(':id/update')
-    async update(@Param('id') id, @Body() taskData: Task): Promise<any> {
-        taskData.id = Number(id);
-        //console.log('Update #' + taskData.id)
-        return this.service.update(taskData);
-    }  
+    @Put(':id')
+    update(@Body() updateTaskDto: CreateTaskDto, @Param('id') id):string{
+        return `Update ${id} - Ministry: ${updateTaskDto.ministry}`;
+    }
+    
     @Get(":id")
     async findOne(@Param('id') id: number): Promise<Task> {
         return await this.service.findOne(id);
