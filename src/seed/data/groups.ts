@@ -9,7 +9,6 @@ const createLocation = ({name, details}: { name: string; details?: string }): Cr
     details: details,
     name: name,
     categoryId: "Location"
-
   };
 };
 
@@ -20,6 +19,16 @@ const createMc = ({name, details}: { name: string; details?: string }): CreateGr
     details: details,
     name: name,
     categoryId: "MC"
+  };
+};
+
+const createM = ({name, details}: { name: string; details?: string }): CreateGroupDto => {
+  return {
+    parentId: null,
+    privacy: GroupPrivacy.Public,
+    details: details,
+    name: name,
+    categoryId: "M"
   };
 };
 
@@ -47,6 +56,11 @@ export const seedGroupCategories: GroupCategory[] = [
   {
     id: "GarageTeam",
     name: "GarageTeam",
+    groups: []
+  },
+  {
+    id: "M",
+    name: "Ministry",
     groups: []
   }
 ];
@@ -99,5 +113,10 @@ const mcNames = [
   "Eye Openers MC","The Rock MC","Blessed Ones MC","Soweto MC","WHKibuye Music Team MC",
   "WHKibuye Harvest Kids (Facilitators) MC","Iganga MC","Knights Watch MC","Incredibles MC"];
 
+const ministryNames = [
+  "Music","Guest Experience","Media","Kids"];
+
 const mcList = mcNames.map(name=>createMc({name}));
-export const seedGroups = [...locations,...mcList];
+const ministryList = ministryNames.map(name=>createM({name}));
+
+export const seedGroups = [...locations,...mcList,...ministryList];

@@ -1,21 +1,39 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { Volunteer } from './entities/volunteer.entity';
+import { Like, Repository } from 'typeorm';
+import Person from '../crm/entities/person.entity';
+import Contact from '../crm/entities/contact.entity';
 
 @Injectable()
 export class VolunteersService {
   constructor(
-    @InjectRepository(Volunteer)
-    private readonly volunteerRepository: Repository<Volunteer>,
+    @InjectRepository(Person)
+    private readonly personRepository: Repository<Person>,
+    @InjectRepository(Contact)
+    private readonly contactRepository: Repository<Contact>,
   ) {
   }
 
-  async findAll(): Promise<Volunteer[]> {
-    return await this.volunteerRepository.find();
-  }
+  async findAll(): Promise<Person[]> {
+    const getCategory = await this.contactRepository
+    .find({
+      select: ['id'],
+      where: [
+        {
+          category: Like("Volunteer"),
+        },
+      ],
+    });
 
-  async create(data: Volunteer): Promise<Volunteer> {
-    return await this.volunteerRepository.save(data);
+    const resp = await this.personRepository
+      .find({
+        select: ['firstName', 'lastName', 'profession'],
+        where: [
+          {
+            contactId: Like(getCategory),
+          },
+        ],
+      });
+    return resp;
   }
 }
