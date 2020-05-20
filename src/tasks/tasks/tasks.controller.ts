@@ -22,7 +22,7 @@ export class TasksController {
     }
 
     @Put(':id')
-    update(@Body() updateTaskDto: CreateTaskDto, @Param('id') id):string{
+    update(@Body() updateTaskDto: CreateTaskDto, @Param('Ministry') id):string{
         return `Update ${id} - Ministry: ${updateTaskDto.ministry}`;
     }
     
