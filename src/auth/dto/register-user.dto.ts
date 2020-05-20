@@ -1,8 +1,11 @@
 import {CivilStatus} from '../../crm/enums/civilStatus';
 import {Gender} from '../../crm/enums/gender';
+import { MinistryCategories } from '../../services/enums/ministryCategories';
 import {IsDate, IsEmail, IsEnum, IsNotEmpty} from 'class-validator';
 
 export class RegisterUserDto {
+
+  category: string;
 
   @IsNotEmpty()
   @IsEmail()
@@ -32,5 +35,7 @@ export class RegisterUserDto {
 
   @IsDate()
   dateOfBirth: Date;
-    
+  ministry: MinistryCategories;
+
+  profession: string;
 }

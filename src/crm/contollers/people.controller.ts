@@ -92,3 +92,4 @@ export class PeopleController {
     return await this.personRepository.save(data);
   }
 }
+

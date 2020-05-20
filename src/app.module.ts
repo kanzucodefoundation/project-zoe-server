@@ -11,7 +11,6 @@ import { GroupsModule } from './groups/groups.module';
 import config from './config';
 import { groupEntities } from './groups/groups.helpers';
 import { crmEntities } from './crm/crm.helpers';
-import { Volunteer } from './services/entities/volunteer.entity';
 import { usersEntities } from './users/users.helpers';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
