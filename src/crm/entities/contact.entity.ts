@@ -1,5 +1,6 @@
 import { Column, Entity, JoinColumn, OneToMany, OneToOne, PrimaryGeneratedColumn } from 'typeorm';
 import Person from './person.entity';
+import { User } from '../../users/user.entity';
 import Company from './company.entity';
 import Email from './email.entity';
 import Request from './request.entity';
@@ -10,6 +11,7 @@ import Identification from './identification.entity';
 import { ContactCategory } from '../enums/contactCategory';
 import GroupMembership from '../../groups/entities/groupMembership.entity';
 import Relationship from './relationship.entity';
+
 
 @Entity()
 export default class Contact {
@@ -26,6 +28,9 @@ export default class Contact {
 
   @OneToOne(type => Person, it => it.contact)
   person?: Person;
+
+  @OneToOne(type => User, it => it.contact)
+  user?: User;
 
   @OneToOne(type => Person, it => it.contact)
   company?: Company;
