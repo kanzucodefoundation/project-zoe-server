@@ -16,6 +16,9 @@ import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 import { SeedModule } from './seed/seed.module';
 import { SeedService } from './seed/seed.service';
+import { TasksModule } from './tasks/tasks.module';
+import { tasksEntities } from './tasks/tasks.helpers';
+console.log('Database', config.database);
 
 @Module({
   imports: [
@@ -26,7 +29,7 @@ import { SeedService } from './seed/seed.service';
     TypeOrmModule.forRoot({
       type: 'mysql', ...config.database,
       entities: [
-        ...usersEntities, ...crmEntities, ...groupEntities,
+        ...usersEntities, ...tasksEntities, ...crmEntities, ...groupEntities,
       ], logging: true,
     }),
     UsersModule,
@@ -34,7 +37,8 @@ import { SeedService } from './seed/seed.service';
     CrmModule,
     ServicesModule,
     GroupsModule,
-    SeedModule
+    SeedModule,
+    TasksModule,
   ],
   controllers: [AppController],
   providers: [AppService],
