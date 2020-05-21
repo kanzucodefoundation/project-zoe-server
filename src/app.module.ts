@@ -18,9 +18,10 @@ import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 import { SeedModule } from './seed/seed.module';
 import { SeedService } from './seed/seed.service';
-
+import { Task } from './tasks/task.entity';
+import { TasksModule } from './tasks/tasks.module';
+import { tasksEntities } from './tasks/tasks.helpers';
 console.log('Database', config.database);
-
 @Module({
   imports: [
     ServeStaticModule.forRoot({
@@ -30,7 +31,9 @@ console.log('Database', config.database);
     TypeOrmModule.forRoot({
       type: 'mysql', ...config.database,
       entities: [
-        ...usersEntities, ...crmEntities, Day, ...groupEntities,
+
+        ...usersEntities, ...tasksEntities, Day, ...crmEntities, ...groupEntities,   
+
       ], logging: true,
     }),
     UsersModule,
@@ -38,12 +41,14 @@ console.log('Database', config.database);
     CrmModule,
     DayModule,
     GroupsModule,
-    SeedModule
+    SeedModule,
+    TasksModule,
   ],
   controllers: [AppController],
   providers: [AppService],
 })
 export class AppModule {
+
   constructor(private readonly seedService:SeedService) {
   }
   async onModuleInit(): Promise<void> {
@@ -54,3 +59,5 @@ export class AppModule {
     Logger.log('#########Initialization complete############');
   }
 }
+
+
