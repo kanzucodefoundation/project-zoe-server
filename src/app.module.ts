@@ -6,7 +6,7 @@ import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from './auth/auth.module';
 import { CrmModule } from './crm/crm.module';
-import { ServicesModule } from './day/services.module';
+import { DayModule } from './day/day.module';
 // import { ServicescalendarModule } from './teamleadcalendar/servicescalendar.module';
 import { GroupsModule } from './groups/groups.module';
 import config from './config';
@@ -36,7 +36,7 @@ console.log('Database', config.database);
     UsersModule,
     AuthModule,
     CrmModule,
-    ServicesModule,
+    DayModule,
     GroupsModule,
     SeedModule
   ],

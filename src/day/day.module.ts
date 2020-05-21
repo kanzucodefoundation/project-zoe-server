@@ -12,5 +12,5 @@ import { Day } from './entities/day.entity';
   ],
   exports: [DayService],
 })
-export class ServicesModule {
+export class DayModule {
 }
