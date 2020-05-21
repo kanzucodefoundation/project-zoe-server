@@ -49,8 +49,23 @@ export class PeopleController {
 
   @Get('combo')
   async findCombo(@Query() req: ContactSearchDto): Promise<PersonListDto[]> {
+    let q: FindConditions<Person>[] = [];
+    if (hasValue(req.query)) {
+      q = [
+        {
+          firstName: Like(`${req.query}%`),
+        },
+        {
+          middleName: Like(`${req.query}%`),
+        },
+        {
+          lastName: Like(`${req.query}%`),
+        },
+      ];
+    }
     const data = await this.personRepository.find({
       select: ['id', 'firstName', 'lastName', 'middleName', 'avatar'],
+      where: q,
       skip: req.skip,
       take: req.limit,
     });
@@ -77,3 +92,4 @@ export class PeopleController {
     return await this.personRepository.save(data);
   }
 }
+

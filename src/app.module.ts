@@ -6,8 +6,11 @@ import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from './auth/auth.module';
 import { CrmModule } from './crm/crm.module';
-import { ServicesModule } from './day/services.module';
-// import { ServicescalendarModule } from './teamleadcalendar/servicescalendar.module';
+
+import { DayModule } from './day/services.module';
+
+import { ServicesModule } from './services/services.module';
+
 import { GroupsModule } from './groups/groups.module';
 import config from './config';
 import { groupEntities } from './groups/groups.helpers';
@@ -18,9 +21,10 @@ import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 import { SeedModule } from './seed/seed.module';
 import { SeedService } from './seed/seed.service';
-
+import { Task } from './tasks/task.entity';
+import { TasksModule } from './tasks/tasks.module';
+import { tasksEntities } from './tasks/tasks.helpers';
 console.log('Database', config.database);
-
 @Module({
   imports: [
     ServeStaticModule.forRoot({
@@ -30,20 +34,25 @@ console.log('Database', config.database);
     TypeOrmModule.forRoot({
       type: 'mysql', ...config.database,
       entities: [
-        ...usersEntities, ...crmEntities, Day, ...groupEntities,
+
+        ...usersEntities, ...tasksEntities, Volunteer, Day, ...crmEntities, ...groupEntities,   
+
       ], logging: true,
     }),
     UsersModule,
     AuthModule,
     CrmModule,
     ServicesModule,
+    DayModule,
     GroupsModule,
-    SeedModule
+    SeedModule,
+    TasksModule,
   ],
   controllers: [AppController],
   providers: [AppService],
 })
 export class AppModule {
+
   constructor(private readonly seedService:SeedService) {
   }
   async onModuleInit(): Promise<void> {
@@ -54,3 +63,5 @@ export class AppModule {
     Logger.log('#########Initialization complete############');
   }
 }
+
+

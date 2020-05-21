@@ -11,6 +11,7 @@ import * as crypto from 'crypto';
 import Relationship from './entities/relationship.entity';
 import Request from './entities/request.entity';
 import Group from '../groups/entities/group.entity';
+import { User } from 'src/users/user.entity';
 
 export const getPersonFullName = (person: Person): string => {
   if (hasNoValue(person)) {
@@ -31,6 +32,7 @@ export const crmEntities = [
   Identification,
   Relationship,
   Request,
+  User
 ];
 
 export const createAvatar = (email: string, size = 200) => {

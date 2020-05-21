@@ -1,62 +1,71 @@
-import { GroupPrivacy } from '../../groups/enums/groupPrivacy';
-import Group from '../../groups/entities/group.entity';
+import {GroupPrivacy} from '../../groups/enums/groupPrivacy';
 import GroupCategory from '../../groups/entities/groupCategory.entity';
+import CreateGroupDto from "../../groups/dto/create-group.dto";
 
-const createLocation = ({name, details}: { name: string; details?: string }): Group => {
+const createLocation = ({name, details}: { name: string; details?: string }): CreateGroupDto => {
   return {
-    id: 0,
-    parent: null,
+    parentId: null,
     privacy: GroupPrivacy.Public,
     details: details,
     name: name,
-    categoryId: "Location",
-    members: [],
-    children: []
+    categoryId: "Location"
   };
 };
 
-const createMc = ({name, details}: { name: string; details?: string }): Group => {
+const createMc = ({name, details}: { name: string; details?: string }): CreateGroupDto => {
   return {
-    id: 0,
-    parent: null,
+    parentId: null,
     privacy: GroupPrivacy.Public,
     details: details,
     name: name,
-    categoryId: "MC",
-    members: [],
-    children: []
+    categoryId: "MC"
+  };
+};
+
+const createM = ({name, details}: { name: string; details?: string }): CreateGroupDto => {
+  return {
+    parentId: null,
+    privacy: GroupPrivacy.Public,
+    details: details,
+    name: name,
+    categoryId: "M"
   };
 };
 
 export const seedGroupCategories: GroupCategory[] = [
   {
-    name: "Location",
-    details: "Church Location",
+    id: "Location",
+    name: "Church Location",
     groups: []
   },
   {
-    name: "Cohort",
-    details: "Group of Mcs",
+    id: "Cohort",
+    name: "Group of Mcs",
     groups: []
   },
   {
-    name: "MC",
-    details: "Missional Community",
+    id: "MC",
+    name: "Missional Community",
     groups: []
   },
   {
+    id: "Huddle",
     name: "Huddle",
-    details: "Huddle",
     groups: []
   },
   {
+    id: "GarageTeam",
     name: "GarageTeam",
-    details: "GarageTeam",
+    groups: []
+  },
+  {
+    id: "M",
+    name: "Ministry",
     groups: []
   }
 ];
 
-const locations: Group[] = [
+const locations: CreateGroupDto[] = [
   createLocation({
     name: "WHNalya"
   }),
@@ -104,5 +113,10 @@ const mcNames = [
   "Eye Openers MC","The Rock MC","Blessed Ones MC","Soweto MC","WHKibuye Music Team MC",
   "WHKibuye Harvest Kids (Facilitators) MC","Iganga MC","Knights Watch MC","Incredibles MC"];
 
+const ministryNames = [
+  "Music","Guest Experience","Media","Kids"];
+
 const mcList = mcNames.map(name=>createMc({name}));
-export const seedGroups = [...locations,...mcList];
+const ministryList = ministryNames.map(name=>createM({name}));
+
+export const seedGroups = [...locations,...mcList,...ministryList];
