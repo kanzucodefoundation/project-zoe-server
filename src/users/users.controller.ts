@@ -1,12 +1,14 @@
-import {Body, Controller, Delete, Get, Param, Post, Put, Query} from '@nestjs/common';
-import {UsersService} from './users.service';
+import { Body, Controller, Delete, Get, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
+import { UsersService } from './users.service';
 import SearchDto from '../shared/dto/search.dto';
-import {User} from './user.entity';
-import {ApiTags} from '@nestjs/swagger';
-import {CreateUserDto} from "./dto/create-user.dto";
-import {UpdateUserDto} from "./dto/update-user.dto";
-import {UserListDto} from "./dto/user-list.dto";
+import { User } from './user.entity';
+import { ApiTags } from '@nestjs/swagger';
+import { CreateUserDto } from './dto/create-user.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
+import { UserListDto } from './dto/user-list.dto';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
+@UseGuards(JwtAuthGuard)
 @ApiTags("Users")
 @Controller('api/users')
 export class UsersController {

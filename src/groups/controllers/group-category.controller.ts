@@ -1,9 +1,11 @@
-import { Controller, Delete, Get, Param, Post, Put, Query } from '@nestjs/common';
+import { Controller, Delete, Get, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { GroupCategoriesService } from '../services/group-categories.service';
 import GroupCategory from '../entities/groupCategory.entity';
 import SearchDto from '../../shared/dto/search.dto';
 import { ApiTags } from '@nestjs/swagger';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 
+@UseGuards(JwtAuthGuard)
 @ApiTags('Group Categories')
 @Controller('api/groups/category')
 export class GroupCategoryController {

@@ -1,10 +1,13 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { InjectRepository } from '@nestjs/typeorm';
 import Request from '../entities/request.entity';
 import { Repository } from 'typeorm';
 import SearchDto from '../../shared/dto/search.dto';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 
+
+@UseGuards(JwtAuthGuard)
 @ApiTags('Crm Requests')
 @Controller('api/crm/requests')
 export class RequestsController {

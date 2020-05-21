@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Put, Query } from '@nestjs/common';
+import { Body, Controller, Get, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { ContactsService } from '../contacts.service';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -13,8 +13,9 @@ import { FindConditions } from 'typeorm/find-options/FindConditions';
 import { CreateCompanyDto } from '../dto/create-company.dto';
 import Company from '../entities/company.entity';
 import CompanyListDto from '../dto/company-list.dto';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 
-
+@UseGuards(JwtAuthGuard)
 @ApiTags('Crm Companies')
 @Controller('api/crm/companies')
 export class CompaniesController {

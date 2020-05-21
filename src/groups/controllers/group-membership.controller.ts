@@ -1,11 +1,13 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import GroupMembershipSearchDto from '../dto/membership/group-membership-search.dto';
 import { GroupsMembershipService } from '../services/group-membership.service';
 import GroupMembershipDto from '../dto/membership/group-membership.dto';
 import UpdateGroupMembershipDto from '../dto/membership/update-group-membership.dto';
 import BatchGroupMembershipDto from '../dto/membership/batch-group-membership.dto';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 
+@UseGuards(JwtAuthGuard)
 @ApiTags('Groups Membership')
 @Controller('api/groups/member')
 export class GroupMembershipController {
