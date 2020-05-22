@@ -13,7 +13,7 @@ export class TasksController {
     }
 
     @Get()
-    async findAll(@Query() req: SearchDto): Promise<Task[]> {
+    async findAll(@Query() req): Promise<Task[]> {
         return this.service.findAll(req);
     }
     @Post()

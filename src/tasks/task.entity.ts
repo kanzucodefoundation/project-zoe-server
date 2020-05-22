@@ -4,7 +4,7 @@ import { MinistryCategories } from '../tasks/ministryCategories';
 
 @Entity()
 export class Task {
-    //[x: string]: any;
+    [x: string]: any;
     @PrimaryGeneratedColumn()
     id: number;
 
