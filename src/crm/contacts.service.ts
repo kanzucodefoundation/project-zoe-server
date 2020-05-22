@@ -21,6 +21,7 @@ import { GroupRole } from '../groups/enums/groupRole';
 import ContactListDto from './dto/contact-list.dto';
 import { FindConditions } from 'typeorm/find-options/FindConditions';
 import Group from '../groups/entities/group.entity';
+import { User } from 'src/users/user.entity';
 
 @Injectable()
 export class ContactsService {
@@ -41,6 +42,8 @@ export class ContactsService {
     private readonly membershipRepository: Repository<GroupMembership>,
     @InjectRepository(Group)
     private readonly groupRepository: Repository<Group>,
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
   ) {
   }
 
@@ -174,6 +177,7 @@ export class ContactsService {
     person.avatar = createAvatar(personDto.email);
     person.gender = personDto.gender;
     person.placeOfWork = personDto.placeOfWork;
+    person.profession = personDto.profession;
     person.ageGroup = personDto.ageGroup;
 
     const phones: Phone[] = [];
@@ -222,9 +226,24 @@ export class ContactsService {
     }
 
     const model = new Contact();
-    model.category = ContactCategory.Person;
+    if (personDto.category == 'Volunteer') {
+      model.category = ContactCategory.Volunteer;
+    } else {
+      model.category = ContactCategory.Person;
+    }
+
     const contact = await this.repository.save(model);
     const contactRef = Contact.ref(contact.id);
+    
+    if (personDto.category == 'Volunteer') {
+      // Saving to the User table
+      const user = new User();
+      user.username = personDto.email;
+      user.password = personDto.password;
+      user.hashPassword();
+      contact.user = await this.userRepository.save({ ...user, contact: contactRef });
+    }
+
     contact.person = await this.personRepository.save({ ...person, contact: contactRef });
     contact.phones = await this.phoneRepository.save(phones.map(it => ({ ...it, contact: contactRef })));
     contact.emails = await this.emailRepository.save(emails.map(it => ({ ...it, contact: contactRef })));

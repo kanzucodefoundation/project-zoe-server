@@ -1,16 +1,14 @@
 import {GroupPrivacy} from "../enums/groupPrivacy";
-import {IsNotEmpty} from "class-validator";
+import ComboDto from "../../shared/dto/combo.dto";
 
-export default class CreateGroupDto {
-    @IsNotEmpty()
+
+export default class GroupListDto {
+    id: number;
     privacy: GroupPrivacy;
-    @IsNotEmpty()
     name: string;
-    @IsNotEmpty()
     details: string;
-    @IsNotEmpty()
     categoryId: string;
+    category: ComboDto;
     parentId?: number;
+    parent?: ComboDto;
 }
-
-
