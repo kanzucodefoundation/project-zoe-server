@@ -2,6 +2,8 @@ import {GroupPrivacy} from "../enums/groupPrivacy";
 import {IsNotEmpty} from "class-validator";
 
 export default class CreateGroupDto {
+
+    id?: number;
     @IsNotEmpty()
     privacy: GroupPrivacy;
     @IsNotEmpty()
@@ -11,6 +13,7 @@ export default class CreateGroupDto {
     @IsNotEmpty()
     categoryId: string;
     parentId?: number;
+    metaData?: string;
 }
 
 

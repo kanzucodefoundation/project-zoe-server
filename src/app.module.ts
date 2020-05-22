@@ -44,7 +44,7 @@ export class AppModule {
     }
 
     async onModuleInit(): Promise<void> {
-        Logger.log('#########Initialized application############');
+        Logger.log('#########Initializing application############');
         await this.seedService.createUsers();
         await this.seedService.createGroupCategories();
         await this.seedService.createGroups();

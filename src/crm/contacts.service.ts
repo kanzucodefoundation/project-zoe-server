@@ -21,6 +21,8 @@ import { GroupRole } from '../groups/enums/groupRole';
 import ContactListDto from './dto/contact-list.dto';
 import { FindConditions } from 'typeorm/find-options/FindConditions';
 import Group from '../groups/entities/group.entity';
+import { createMc } from '../seed/data/groups';
+import { GroupPrivacy } from '../groups/enums/groupPrivacy';
 
 @Injectable()
 export class ContactsService {
@@ -217,6 +219,18 @@ export class ContactsService {
     if (isValidNumber(personDto.cellGroupId)) {
       const membership = new GroupMembership();
       membership.groupId = personDto.cellGroupId;
+      membership.role = GroupRole.Member;
+      groupMemberships.push(membership);
+    } else if (typeof personDto.cellGroupId === 'string') {
+      const group = new Group();
+      group.name = personDto.cellGroupId;
+      group.parentId = personDto.churchLocationId;
+      group.privacy = GroupPrivacy.Public;
+      group.categoryId = 'MC';
+      group.details = '--pending--';
+      await this.groupRepository.save(group);
+      const membership = new GroupMembership();
+      membership.groupId = group.id;
       membership.role = GroupRole.Member;
       groupMemberships.push(membership);
     }
