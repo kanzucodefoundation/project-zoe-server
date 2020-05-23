@@ -3,7 +3,6 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import SearchDto from '../../shared/dto/search.dto';
 import GroupCategory from '../entities/groupCategory.entity';
-import CreateGroupCategoryDto from '../dto/create-group-category.dto';
 
 @Injectable()
 export class GroupCategoriesService {
@@ -19,9 +18,7 @@ export class GroupCategoriesService {
     });
   }
 
-
-
-  async create(data: CreateGroupCategoryDto): Promise<GroupCategory> {
+  async create(data: GroupCategory): Promise<GroupCategory> {
     return await this.repository.save(data);
   }
 
@@ -38,7 +35,7 @@ export class GroupCategoriesService {
   }
 
   async exits(name: string): Promise<boolean> {
-    const count = await this.repository.count({ where: { name } });
+    const count = await this.repository.count({ where: { id: name } });
     return count > 0;
   }
 }

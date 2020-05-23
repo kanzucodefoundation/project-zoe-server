@@ -6,8 +6,11 @@ import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from './auth/auth.module';
 import { CrmModule } from './crm/crm.module';
+import { ServicesModule } from './services/services.module';
 import { GroupsModule } from './groups/groups.module';
 import config from './config';
+import { Day } from './day/entities/day.entity';
+import { DayModule } from './day/day.module';
 import { groupEntities } from './groups/groups.helpers';
 import { crmEntities } from './crm/crm.helpers';
 import { usersEntities } from './users/users.helpers';
@@ -28,28 +31,30 @@ console.log('Database', config.database);
     TypeOrmModule.forRoot({
       type: 'mysql', ...config.database,
       entities: [
-        ...usersEntities, ...tasksEntities, ...crmEntities, ...groupEntities,
+        ...usersEntities, ...tasksEntities, Day, ...crmEntities, ...groupEntities,
       ], logging: true,
     }),
     UsersModule,
     AuthModule,
     CrmModule,
+    ServicesModule,
     GroupsModule,
     SeedModule,
     TasksModule,
+    DayModule,
   ],
   controllers: [AppController],
   providers: [AppService],
 })
 export class AppModule {
-  constructor(private readonly seedService:SeedService) {
-  }
-  async onModuleInit(): Promise<void> {
-    Logger.log('#########Initialized application############');
-    await this.seedService.createUsers();
-    await this.seedService.createGroupCategories();
-    await this.seedService.createGroups();
-    Logger.log('#########Initialization complete############');
-  }
-}
+    constructor(private readonly seedService: SeedService) {
+    }
 
+    async onModuleInit(): Promise<void> {
+        Logger.log('#########Initialized application############');
+        await this.seedService.createUsers();
+        await this.seedService.createGroupCategories();
+        await this.seedService.createGroups();
+        Logger.log('#########Initialization complete############');
+    }
+}

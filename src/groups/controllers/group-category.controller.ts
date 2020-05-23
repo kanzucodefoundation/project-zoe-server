@@ -2,12 +2,11 @@ import { Controller, Delete, Get, Param, Post, Put, Query } from '@nestjs/common
 import { GroupCategoriesService } from '../services/group-categories.service';
 import GroupCategory from '../entities/groupCategory.entity';
 import SearchDto from '../../shared/dto/search.dto';
-import CreateGroupCategoryDto from '../dto/create-group-category.dto';
 import { ApiTags } from '@nestjs/swagger';
 
 @ApiTags('Group Categories')
-@Controller('api/groups/categories')
-export class GroupCategoriesController {
+@Controller('api/groups/category')
+export class GroupCategoryController {
   constructor(private readonly service: GroupCategoriesService) {
   }
 
@@ -17,7 +16,7 @@ export class GroupCategoriesController {
   }
 
   @Post()
-  async create(data: CreateGroupCategoryDto): Promise<GroupCategory> {
+  async create(data: GroupCategory): Promise<GroupCategory> {
     return await this.service.create(data);
   }
 
