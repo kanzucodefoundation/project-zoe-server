@@ -13,9 +13,10 @@ import { AddressesController } from './contollers/addresses.controller';
 import { RelationshipsController } from './contollers/relationships.controller';
 import { RequestsController } from './contollers/requests.controller';
 import { groupEntities } from '../groups/groups.helpers';
+import { usersEntities } from '../users/users.helpers';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([...crmEntities, ...groupEntities])],
+  imports: [TypeOrmModule.forFeature([...crmEntities, ...groupEntities,...usersEntities])],
   providers: [ContactsService],
   controllers: [
     ContactsController, PeopleController, CompaniesController,

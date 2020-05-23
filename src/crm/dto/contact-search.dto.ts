@@ -6,4 +6,5 @@ export class ContactSearchDto extends SearchDto {
   cellGroups?: number[];
   ageGroups?: number[];
   churchLocations?: number[];
+  skipUsers?: boolean;
 }

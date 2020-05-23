@@ -30,6 +30,7 @@ export class UsersController {
     const email = await this.emailRepository.findOne({ where: { contactId: data.contactId } });
     const toSave = new User();
     toSave.username = email.value;
+    toSave.contactId = data.contactId ;
     toSave.password = data.password;
     toSave.roles = data.roles;
     toSave.hashPassword();

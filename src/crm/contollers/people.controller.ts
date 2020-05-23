@@ -13,6 +13,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import PersonListDto from '../dto/person-list.dto';
 import Contact from '../entities/contact.entity';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { User } from '../../users/user.entity';
 
 
 @ApiTags('Crm People')
@@ -22,6 +23,8 @@ export class PeopleController {
     private readonly service: ContactsService,
     @InjectRepository(Person)
     private readonly personRepository: Repository<Person>,
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
   ) {
   }
 
@@ -66,14 +69,23 @@ export class PeopleController {
         },
       ];
     }
-    const data = await this.personRepository.find({
-      select: ['id', 'firstName', 'lastName', 'middleName', 'avatar'],
+    let data = await this.personRepository.find({
+      select: ['id', 'firstName', 'lastName', 'middleName', 'avatar', 'contactId'],
       where: q,
       skip: req.skip,
       take: req.limit,
     });
+
+    if (req.skipUsers) {
+      const users = await this.userRepository.find({
+        where: {},
+        select: ['contactId'],
+      });
+      const idList = users.map(it => it.contactId);
+      data = data.filter(it => idList.indexOf(it.contactId) < 0);
+    }
     return data.map(it => ({
-      id: it.id,
+      id: it.contactId,
       name: getPersonFullName(it),
       avatar: it.avatar,
     }));
@@ -86,7 +98,7 @@ export class PeopleController {
   }
 
   @UseGuards(JwtAuthGuard)
-  @Post("upload")
+  @Post('upload')
   @UseInterceptors(FileInterceptor('file'))
   async upload(@UploadedFile() file) {
     console.log(file);

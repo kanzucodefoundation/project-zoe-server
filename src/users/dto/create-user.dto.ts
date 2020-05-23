@@ -4,7 +4,7 @@ export class CreateUserDto {
   @IsNotEmpty()
   @IsNumber()
   contactId: number;
-  @IsNotEmpty()
+
   username: string;
   @IsNotEmpty()
   password: string;
