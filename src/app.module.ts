@@ -9,6 +9,8 @@ import { CrmModule } from './crm/crm.module';
 import { ServicesModule } from './services/services.module';
 import { GroupsModule } from './groups/groups.module';
 import config from './config';
+import { Day } from './day/entities/day.entity';
+import { DayModule } from './day/day.module';
 import { groupEntities } from './groups/groups.helpers';
 import { crmEntities } from './crm/crm.helpers';
 import { usersEntities } from './users/users.helpers';
@@ -29,7 +31,7 @@ console.log('Database', config.database);
     TypeOrmModule.forRoot({
       type: 'mysql', ...config.database,
       entities: [
-        ...usersEntities, ...tasksEntities, ...crmEntities, ...groupEntities,
+        ...usersEntities, ...tasksEntities, Day, ...crmEntities, ...groupEntities,
       ], logging: true,
     }),
     UsersModule,
@@ -39,6 +41,7 @@ console.log('Database', config.database);
     GroupsModule,
     SeedModule,
     TasksModule,
+    DayModule,
   ],
   controllers: [AppController],
   providers: [AppService],
