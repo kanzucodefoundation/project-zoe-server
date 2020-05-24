@@ -35,7 +35,15 @@ export class RegisterUserDto {
 
   @IsDate()
   dateOfBirth: Date;
+<<<<<<< HEAD
   ministry: MinistryCategories;
 
   profession: string;
+=======
+
+  ministry: MinistryCategories;
+
+  profession: string;
+
+>>>>>>> e3eb90f5f4fdcdf37a4e122172df32585e9c99e3
 }
