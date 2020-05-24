@@ -36,6 +36,5 @@ export class RegisterUserDto {
   @IsDate()
   dateOfBirth: Date;
   ministry: MinistryCategories;
-
   profession: string;
 }

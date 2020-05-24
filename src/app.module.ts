@@ -21,7 +21,6 @@ import { SeedService } from './seed/seed.service';
 import { TasksModule } from './tasks/tasks.module';
 import { tasksEntities } from './tasks/tasks.helpers';
 console.log('Database', config.database);
-
 @Module({
   imports: [
     ServeStaticModule.forRoot({
