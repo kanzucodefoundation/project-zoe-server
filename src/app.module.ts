@@ -11,13 +11,15 @@ import { GroupsModule } from './groups/groups.module';
 import config from './config';
 import { groupEntities } from './groups/groups.helpers';
 import { crmEntities } from './crm/crm.helpers';
-import { Volunteer } from './services/entities/volunteer.entity';
 import { usersEntities } from './users/users.helpers';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 import { SeedModule } from './seed/seed.module';
 import { SeedService } from './seed/seed.service';
-
+import { Task } from './tasks/task.entity';
+import { TasksModule } from './tasks/tasks.module';
+import { tasksEntities } from './tasks/tasks.helpers';
+console.log('Database', config.database);
 @Module({
   imports: [
     ServeStaticModule.forRoot({
@@ -27,7 +29,7 @@ import { SeedService } from './seed/seed.service';
     TypeOrmModule.forRoot({
       type: 'mysql', ...config.database,
       entities: [
-        ...usersEntities, ...crmEntities, Volunteer, ...groupEntities,
+        ...usersEntities, ...tasksEntities, Volunteer, ...crmEntities, ...groupEntities,   
       ], logging: true,
     }),
     UsersModule,
@@ -35,7 +37,8 @@ import { SeedService } from './seed/seed.service';
     CrmModule,
     ServicesModule,
     GroupsModule,
-    SeedModule
+    SeedModule,
+    TasksModule,
   ],
   controllers: [AppController],
   providers: [AppService],
@@ -52,3 +55,4 @@ export class AppModule {
         Logger.log('#########Initialization complete############');
     }
 }
+
