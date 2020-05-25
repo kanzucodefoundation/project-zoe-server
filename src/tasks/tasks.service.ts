@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { Task } from './task.entity';
 import { RegisterTaskDto } from '../auth/dto/register-task.dto';
 import SearchDto from '../shared/dto/search.dto';
+
 @Injectable()
 export class TasksService {
     constructor(
@@ -12,7 +13,8 @@ export class TasksService {
     ) { }
 
     async findAll(req: SearchDto): Promise<Task[]> {
-        return await this.repository.find({
+        return await this.repository.find(
+            {
             skip: req.skip,
             take: req.limit,
         });
