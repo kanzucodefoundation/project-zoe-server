@@ -241,6 +241,7 @@ export class ContactsService {
       user.username = personDto.email;
       user.password = personDto.password;
       user.hashPassword();
+      user.roles = ['Member'];
       contact.user = await this.userRepository.save({ ...user, contact: contactRef });
     }
 

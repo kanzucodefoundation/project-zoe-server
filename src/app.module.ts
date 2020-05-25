@@ -29,7 +29,7 @@ console.log('Database', config.database);
     TypeOrmModule.forRoot({
       type: 'mysql', ...config.database,
       entities: [
-        ...usersEntities, ...tasksEntities, Volunteer, ...crmEntities, ...groupEntities,   
+        ...usersEntities, ...tasksEntities, ...crmEntities, ...groupEntities,   
       ], logging: true,
     }),
     UsersModule,
