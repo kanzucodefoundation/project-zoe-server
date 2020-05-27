@@ -15,8 +15,8 @@ export class TasksService {
     async findAll(req: SearchDto): Promise<Task[]> {
         return await this.repository.find(
             {
-            skip: req.skip,
-            take: req.limit,
+            // skip: req.skip,
+            // take: req.limit,
         });
     }
 

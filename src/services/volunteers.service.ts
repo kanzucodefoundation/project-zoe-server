@@ -15,24 +15,24 @@ export class VolunteersService {
   }
 
   async findAll(): Promise<Person[]> {
-    const getCategory = await this.contactRepository
-    .find({
-      select: ['id'],
-      where: [
-        {
-          category: Like("Volunteer"),
-        },
-      ],
-    });
+    // const getCategory = await this.contactRepository
+    // .find({
+    //   select: ['id'],
+    //   where: [
+    //     {
+    //       category: Like("Volunteer"),
+    //     },
+    //   ],
+    // });
 
     const resp = await this.personRepository
       .find({
-        select: ['firstName', 'lastName', 'profession'],
-        where: [
-          {
-            contactId: Like(getCategory),
-          },
-        ],
+        select: ['contactId', 'firstName', 'lastName'],
+        // where: [
+        //   {
+        //     contactId: Like(getCategory),
+        //   },
+        // ],
       });
     return resp;
   }
