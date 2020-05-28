@@ -3,5 +3,4 @@ export enum MinistryCategories {
     GuestExperience = 'Guest Experience',
     Media = 'Media',
     Kids = 'Kids',
-    Unspecified = 'Unspecified',
   }

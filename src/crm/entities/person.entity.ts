@@ -33,9 +33,6 @@ export default class Person {
   @Column({ nullable: true })
   placeOfWork: string;
 
-  @Column({ nullable: true })
-  profession: string;
-
   @Column({
     type: 'enum',
     enum: Gender,
