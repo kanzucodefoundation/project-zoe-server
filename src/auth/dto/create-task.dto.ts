@@ -9,4 +9,6 @@ export class CreateTaskDto {
     taskname: string;
     @ApiProperty()
     taskdescription: string;
+    @ApiProperty()
+    status: boolean;
 }
