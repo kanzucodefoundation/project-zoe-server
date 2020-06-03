@@ -33,6 +33,13 @@ export class GroupController {
     return await this.service.findOne(id);
   }
 
+  // Added by Daniel
+  // @Get(':categoryId')
+  // async findAllMinistries(@Param('categoryId') categoryId: string): Promise<GroupListDto[]> {
+  //   return await this.service.findAllMinistries(categoryId);
+  // }
+  // END
+
   @Delete(':id')
   async remove(@Param('id') id: number): Promise<void> {
     await this.service.remove(id);
