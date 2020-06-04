@@ -6,7 +6,6 @@ import { MinistryCategories } from 'src/services/enums/ministryCategories';
 
 export class CreatePersonDto {
 
-  @IsNotEmpty()
   category: string;
   
   password: string;
@@ -42,11 +41,5 @@ export class CreatePersonDto {
   cellGroupId?: number;
   churchLocationId?: number;
 
-  @IsEnum(MinistryCategories)
-  ministry: MinistryCategories;
-
-  profession: string;
-
+  ministry?: MinistryCategories;
 }
-
-

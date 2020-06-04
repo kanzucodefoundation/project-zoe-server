@@ -177,7 +177,6 @@ export class ContactsService {
     person.avatar = createAvatar(personDto.email);
     person.gender = personDto.gender;
     person.placeOfWork = personDto.placeOfWork;
-    person.profession = personDto.profession;
     person.ageGroup = personDto.ageGroup;
 
     const phones: Phone[] = [];
@@ -226,11 +225,6 @@ export class ContactsService {
     }
 
     const model = new Contact();
-    if (personDto.category == 'Volunteer') {
-      model.category = ContactCategory.Volunteer;
-    } else {
-      model.category = ContactCategory.Person;
-    }
 
     const contact = await this.repository.save(model);
     const contactRef = Contact.ref(contact.id);
