@@ -1,9 +1,10 @@
 import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+// import  Person  from '../../crm/entities/person.entity'
 
 
 
 @Entity()
-export class Day {
+export class Appointments {
   @PrimaryGeneratedColumn()
   id: number;
 

@@ -9,8 +9,8 @@ import { CrmModule } from './crm/crm.module';
 import { ServicesModule } from './services/services.module';
 import { GroupsModule } from './groups/groups.module';
 import config from './config';
-import { Day } from './day/entities/day.entity';
-import { DayModule } from './day/day.module';
+import { Appointments } from './assignments/entities/appointments.entity';
+import { AppointmentModule } from './assignments/appointments.module';
 import { groupEntities } from './groups/groups.helpers';
 import { crmEntities } from './crm/crm.helpers';
 import { usersEntities } from './users/users.helpers';
@@ -33,7 +33,7 @@ console.log('Database', config.database);
       entities: [
         ...usersEntities,
         ...tasksEntities,
-        Day,
+        Appointments,
         ...crmEntities,
         ...groupEntities,
       ],
@@ -46,7 +46,7 @@ console.log('Database', config.database);
     GroupsModule,
     SeedModule,
     TasksModule,
-    DayModule,
+    AppointmentModule,
   ],
   controllers: [AppController],
   providers: [AppService],
