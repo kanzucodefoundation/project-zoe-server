@@ -4,25 +4,20 @@ import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
 
 
 @Entity()
-export class Appointments {
+export class Appointment {
   @PrimaryGeneratedColumn()
-  id: number;
-
- 
-
-  @Column({ length: 40 })
-  taskId: string;
+  id: number; 
+  
 
   @Column()
-  start_date: Date;
+  startDate: Date;
 
   @Column()
-  end_date: Date;
+  endDate: Date;
 
   @Column()
-  task_info: string;
+  taskInfo: string;
 
-  @Column()
-  assigned_to: string;
+  
 
 }

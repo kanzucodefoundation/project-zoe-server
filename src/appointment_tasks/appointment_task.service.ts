@@ -1,18 +1,18 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { UserTask } from './entities/user_task.entity';
+import { AppointmentTask } from './entities/appointment_task.entity';
 import { RegisterTaskDto } from '../auth/dto/register-task.dto';
 import SearchDto from '../shared/dto/search.dto';
 
 @Injectable()
-export class UserTaskService {
+export class AppointmentTaskService {
     constructor(
-        @InjectRepository(UserTask)
-        private readonly repository: Repository<UserTask>,
+        @InjectRepository(AppointmentTask)
+        private readonly repository: Repository<AppointmentTask>,
     ) { }
 
-    async findAll(req: SearchDto): Promise<UserTask[]> {
+    async findAll(req: SearchDto): Promise<AppointmentTask[]> {
         return await this.repository.find(
             {
             // skip: req.skip,
@@ -20,7 +20,7 @@ export class UserTaskService {
         });
     }
 
-    async create(data: UserTask): Promise<UserTask> {
+    async create(data: AppointmentTask): Promise<AppointmentTask> {
         return await this.repository.save(data);
     }
 
@@ -54,4 +54,5 @@ export class UserTaskService {
     //     return count > 0;
     // }
 }
+
 

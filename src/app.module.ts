@@ -9,8 +9,8 @@ import { CrmModule } from './crm/crm.module';
 import { ServicesModule } from './services/services.module';
 import { GroupsModule } from './groups/groups.module';
 import config from './config';
-import { Appointments } from './assignments/entities/appointments.entity';
-import { AppointmentModule } from './assignments/appointments.module';
+import { Appointment } from './appointment/entities/appointment.entity';
+import { AppointmentModule } from './appointment/appointments.module';
 import { groupEntities } from './groups/groups.helpers';
 import { crmEntities } from './crm/crm.helpers';
 import { usersEntities } from './users/users.helpers';
@@ -20,6 +20,10 @@ import { SeedModule } from './seed/seed.module';
 import { SeedService } from './seed/seed.service';
 import { TasksModule } from './tasks/tasks.module';
 import { tasksEntities } from './tasks/tasks.helpers';
+import { UserTaskModule } from './user_tasks/user_task.module';
+import { AppointmentTaskModule } from'./appointment_tasks/appointment_task.module';
+import { AppointmentTask } from './appointment_tasks/entities/appointment_task.entity';
+import { UserTask } from './user_tasks/entities/user_task.entity';
 console.log('Database', config.database);
 @Module({
   imports: [
@@ -33,7 +37,9 @@ console.log('Database', config.database);
       entities: [
         ...usersEntities,
         ...tasksEntities,
-        Appointments,
+        Appointment,
+        AppointmentTask,
+        UserTask,
         ...crmEntities,
         ...groupEntities,
       ],
@@ -47,6 +53,8 @@ console.log('Database', config.database);
     SeedModule,
     TasksModule,
     AppointmentModule,
+    AppointmentTaskModule,
+    UserTaskModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -4,7 +4,7 @@ import { CrmModule } from '../crm/crm.module';
 import { ServicesModule } from '../services/services.module';
 import { UsersModule } from '../users/users.module';
 import { GroupsModule } from '../groups/groups.module';
-import { AppointmentModule } from '../assignments/appointments.module';
+import { AppointmentModule } from '../appointment/appointments.module';
 
 @Module({
   imports: [CrmModule, AppointmentModule, ServicesModule, UsersModule,GroupsModule],
