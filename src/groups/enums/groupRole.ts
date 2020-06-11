@@ -1,4 +1,5 @@
 export enum GroupRole {
     Member = "Member",
-    Leader = "Leader"
+    Leader = "Leader",
+    Volunteer = "Volunteer"
 }

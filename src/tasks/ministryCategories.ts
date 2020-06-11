@@ -1,6 +1,6 @@
 export enum MinistryCategories {
     Music = 'Music',
-    Marrieds = 'Marrieds',
-    Outreach = 'Outreach',
-    Children = 'Children',
+    GuestExperience = "GuestExperience",
+    Media = "Media",
+    Kids= "Kids" 
 }
