@@ -21,6 +21,7 @@ export class UsersController {
     @Post()
     async create(@Body()data: CreateUserDto): Promise<User> {
         const toSave = new User();
+        toSave.contactId = data.contactId
         toSave.username = data.username
         toSave.password = data.password
         toSave.roles = data.roles
