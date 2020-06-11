@@ -1,4 +1,5 @@
-import { Column, Entity, PrimaryGeneratedColumn, OneToOne, JoinColumn } from 'typeorm';
+import { Column, Entity, PrimaryGeneratedColumn, OneToOne, JoinColumn, ManyToOne } from 'typeorm';
+import { Task } from 'src/tasks/task.entity';
 
 @Entity()
 export class AppointmentTask {
@@ -8,13 +9,13 @@ export class AppointmentTask {
 	@Column()
 	appointmentId: number;
 
-	// @Column()
-	// label: string;
-
-	// @Column()
-	// value: number;
-
 	@Column()
 	taskId: number;
+
+	 @ManyToOne(
+    type => Task,
+    task => task.appointments,
+    )
+  task: Task;
 	
 }
