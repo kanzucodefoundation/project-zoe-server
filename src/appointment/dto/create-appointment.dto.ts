@@ -1,7 +1,7 @@
 import { IsDateString, IsEnum, IsNotEmpty } from 'class-validator';
 import ComboDto from '../../shared/dto/combo.dto';
 
-export class CreateDayDto {
+export class CreateAppointmentDto {
   
 
   @IsNotEmpty()
