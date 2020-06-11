@@ -1,4 +1,5 @@
-import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, Entity, PrimaryGeneratedColumn, OneToOne, JoinColumn, ManyToOne } from 'typeorm';
+import { Task } from 'src/tasks/task.entity';
 // import  Person  from '../../crm/entities/person.entity'
 
 
@@ -18,6 +19,10 @@ export class Appointment {
   @Column()
   taskInfo: string;
 
-  
+  @ManyToOne(
+    type => Task,
+    task => task.appointments,
+    )
+  task: Task;
 
 }

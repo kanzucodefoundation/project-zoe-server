@@ -1,5 +1,6 @@
-import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, Entity, PrimaryGeneratedColumn, OneToOne, JoinColumn, OneToMany } from 'typeorm';
 import { MinistryCategories } from '../tasks/ministryCategories';
+import { Appointment } from 'src/appointment/entities/appointment.entity';
 
 
 @Entity()
@@ -21,5 +22,10 @@ export class Task {
     @Column({ length: 40 })
     taskDescription: string;
 
+    @OneToMany(
+        type => Appointment,
+        appointment => appointment.task,
+        )
+    appointments: Appointment[];
     
 }

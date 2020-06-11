@@ -3,6 +3,8 @@ import { ApiTags } from '@nestjs/swagger';
 import { AppointmentService } from '../appointments.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Appointment } from '../entities/appointment.entity';
+import { getRepository } from 'typeorm';
+import { Task } from 'src/tasks/task.entity';
 
 
 
@@ -14,6 +16,23 @@ export class AppointmentsController {
       
   ) {
   }
+
+
+  @Get('assignedTasks')
+  async findTheAssignedTasks() {
+
+    const assignedTasks = await getRepository(Task)
+      .createQueryBuilder("task")
+      .leftJoinAndSelect("task.appointments", "appointment")
+      // .innerJoinAndMapOne("person.groupMembership", GroupMembership, "groupMembership", "person.contactId = groupMembership.contactId")
+      // .innerJoinAndMapMany("person.group", Group, "group", "groupMembership.groupId = group.id")
+      // .where("groupMembership.role = :role", { role: "Volunteer" })
+      .getMany();
+
+      return assignedTasks;
+  }
+
+
 
 
   @Get()

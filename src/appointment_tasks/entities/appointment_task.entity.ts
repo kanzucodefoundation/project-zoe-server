@@ -8,6 +8,12 @@ export class AppointmentTask {
 	@Column()
 	appointmentId: number;
 
+	// @Column()
+	// label: string;
+
+	// @Column()
+	// value: number;
+
 	@Column()
 	taskId: number;
 	
