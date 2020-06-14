@@ -25,9 +25,10 @@ export class Task {
 
     @OneToMany(
         type => AppointmentTask,
-        appointment => appointment.task,
+        appointmentTask => appointmentTask.task,
         )
     appointments: AppointmentTask[];
+
     @Column({
         type: 'enum',
         enum: StatusCategories,

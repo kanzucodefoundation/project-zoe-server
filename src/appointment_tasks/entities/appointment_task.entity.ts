@@ -1,5 +1,6 @@
 import { Column, Entity, PrimaryGeneratedColumn, OneToOne, JoinColumn, ManyToOne } from 'typeorm';
 import { Task } from 'src/tasks/task.entity';
+import { Appointment } from 'src/appointment/entities/appointment.entity';
 
 @Entity()
 export class AppointmentTask {
@@ -17,5 +18,11 @@ export class AppointmentTask {
     task => task.appointments,
     )
   task: Task;
+
+	// @ManyToOne(
+	// type => Appointment,
+	// appointment => appointment.appointmentTasks,
+	// )
+	// appointment: Appointment;
 	
 }
