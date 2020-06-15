@@ -1,4 +1,5 @@
-import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, Entity, PrimaryGeneratedColumn, OneToMany } from 'typeorm';
+import { AppointmentTask } from 'src/appointment_tasks/entities/appointment_task.entity';
 
 @Entity()
 export class UserTask {
@@ -10,4 +11,10 @@ export class UserTask {
 
 	@Column()
 	userId: number;
+
+	@OneToMany(
+        type => AppointmentTask,
+        appointmentTask => appointmentTask.task,
+        )
+    appointments: AppointmentTask[];
 }
