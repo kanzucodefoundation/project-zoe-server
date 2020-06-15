@@ -43,6 +43,7 @@ export class AppointmentTaskController {
 
     const assignedTasks = await getRepository(AppointmentTask)
     .createQueryBuilder("appointmentTask")
+    .innerJoinAndSelect("AppointmentTask.appointmentTasks" , "appointmentTask", "appointmentTask.appointmentTaskId = appointmentTask.id")
     //.leftJoinAndSelect("appointmentTasks", "appointmentTask", "appointmentTask.appointmentTaskId = appointmentTask.id")
     // .leftJoinAndSelect("appointmentTask.appointments", "appointment")
     // .innerJoinAndMapOne("task.appointmentTask", AppointmentTask, "appointmentTask", "task.id = appointmentTask.taskId")

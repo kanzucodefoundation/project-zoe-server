@@ -1,4 +1,4 @@
-import { Column, Entity, PrimaryGeneratedColumn, OneToMany } from 'typeorm';
+import { Column, Entity, PrimaryGeneratedColumn, OneToMany, ManyToOne, JoinColumn } from 'typeorm';
 import { AppointmentTask } from 'src/appointment_tasks/entities/appointment_task.entity';
 
 @Entity()
@@ -12,9 +12,12 @@ export class UserTask {
 	@Column()
 	userId: number;
 
-	@OneToMany(
-        type => AppointmentTask,
-        appointmentTask => appointmentTask.task,
-        )
-    appointments: AppointmentTask[];
+	@ManyToOne(
+		type => AppointmentTask,
+		userTask => userTask.appointmentId,
+		)
+		userTask: AppointmentTask;
+
+		@JoinColumn()
+		appointmentTask: AppointmentTask;
 }
