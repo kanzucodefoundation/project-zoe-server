@@ -1,8 +1,8 @@
 import { Body, Controller, Get, Post, Query } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { AppointmentService } from '../appointments.service';
-import { InjectRepository } from '@nestjs/typeorm';
 import { Appointment } from '../entities/appointment.entity';
+
 
 
 
@@ -14,7 +14,6 @@ export class AppointmentsController {
       
   ) {
   }
-
 
   @Get()
   index(): Promise<Appointment[]> {

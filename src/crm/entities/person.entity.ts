@@ -1,10 +1,11 @@
-import { Column, Entity, JoinColumn, OneToOne, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, Entity, JoinColumn, OneToOne, PrimaryGeneratedColumn, OneToMany } from 'typeorm';
 import { Exclude } from 'class-transformer';
 import { Salutation } from '../enums/salutation';
 import Contact from './contact.entity';
 
 import { Gender } from '../enums/gender';
 import { CivilStatus } from '../enums/civilStatus';
+import GroupMembership from 'src/groups/entities/groupMembership.entity';
 
 
 @Entity()
@@ -65,5 +66,10 @@ export default class Person {
 
   @Column()
   contactId: number;
+
+  // Added by Daniel
+  @OneToMany(type => GroupMembership, ministry => ministry.person)
+  ministries: GroupMembership[];
+  // END
 
 }

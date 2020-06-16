@@ -1,6 +1,7 @@
-import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, Entity, PrimaryGeneratedColumn, OneToOne, JoinColumn, OneToMany } from 'typeorm';
 import { MinistryCategories } from '../tasks/ministryCategories';
-import { StatusCategories } from './tasks/statusCategories';
+import { AppointmentTask } from 'src/appointment_tasks/entities/appointment_task.entity';
+import { StatusCategories } from '../tasks/statusCategories';
 
 
 @Entity()
@@ -21,6 +22,12 @@ export class Task {
 
     @Column({ length: 40 })
     taskDescription: string;
+
+    @OneToMany(
+        type => AppointmentTask,
+        appointmentTask => appointmentTask.task,
+        )
+    appointments: AppointmentTask[];
 
     @Column({
         type: 'enum',

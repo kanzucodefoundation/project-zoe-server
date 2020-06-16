@@ -2,8 +2,13 @@
 import { Controller, Delete, Get, Param, Post, Put, Query, Body } from '@nestjs/common';
 import { UserTaskService } from '../user_task.service';
 import SearchDto from '../../shared/dto/search.dto';
+import Person from 'src/crm/entities/person.entity';
 import { UserTask } from '../entities/user_task.entity';
 import { ApiTags } from '@nestjs/swagger';
+import { getRepository } from 'typeorm';
+import { AppointmentTask } from 'src/appointment_tasks/entities/appointment_task.entity';
+import { User } from 'src/users/user.entity';
+
 // import { TaskDto } from 'src/auth/dto/task.dto';
 // import { CreateTaskDto } from 'src/auth/dto/create-task.dto';
 @ApiTags("UserTask")
@@ -35,5 +40,20 @@ export class UserTaskController {
     // async remove(@Param('id') id: number): Promise<void> {
     //     await this.service.remove(id);
     // }
+
+    @Get('userTasks')
+    async findTheUserTasks() {
+  
+    const userTasks = await getRepository(UserTask)
+    .createQueryBuilder("userTask")
+    // .leftJoinAndSelect("appointmentTask.appointments", "appointment")
+    // .innerJoinAndMapOne("task.appointmentTask", AppointmentTask, "appointmentTask", "task.id = appointmentTask.taskId")
+    .innerJoinAndMapMany("userTask.appTask", AppointmentTask, "appTask", "userTask.appointmentTaskId = appTask.id")
+    .innerJoinAndMapMany("userTask.user", Person, "user", "userTask.userId = user.id")
+    .getMany();
+
+    return userTasks;
+    }
+
 }
 
