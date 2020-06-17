@@ -39,20 +39,19 @@ export class AppointmentTaskController {
     //   .getMany();
 
       
-
+    var response = []
 
     const assignedTasks = await getRepository(AppointmentTask)
     .createQueryBuilder("appointmentTask")
-    .innerJoinAndSelect("AppointmentTask.appointmentTasks" , "appointmentTask", "appointmentTask.appointmentTaskId = appointmentTask.id")
-    //.leftJoinAndSelect("appointmentTasks", "appointmentTask", "appointmentTask.appointmentTaskId = appointmentTask.id")
-    // .leftJoinAndSelect("appointmentTask.appointments", "appointment")
-    // .innerJoinAndMapOne("task.appointmentTask", AppointmentTask, "appointmentTask", "task.id = appointmentTask.taskId")
-    //.innerJoinAndMapMany("appointmentTask.user", Person, "user", "appointmentTask.userId = user.id")
-    //.innerJoinAndMapMany("appointmentTask.appTask", AppointmentTask, "appTask", "appointmentTask.appointmentTaskId = appTask.id")
-    .innerJoinAndMapMany("appointmentTask.app", Appointment, "app", "appointmentTask.appointmentId = app.id")
-    .innerJoinAndMapMany("appointmentTask.task", Task, "task", "appointmentTask.taskId = task.id")
+
+    // .innerJoinAndMapOne("appointmentTask.app", Appointment, "app", "appointmentTask.appointmentId = app.id")
+    // .innerJoinAndMapOne("appointmentTask.task", Task, "task", "appointmentTask.taskId = task.id")
     .getMany();
-  
+       // [{appontment:id,taskid:1,task:{},app:{},users:[{firstname:''}]}]
+    //  for (let index = 0; index < assignedTasks.length; index++) {
+    //    const element = assignedTasks[index];
+       
+    //  }
      
 
       return assignedTasks;
