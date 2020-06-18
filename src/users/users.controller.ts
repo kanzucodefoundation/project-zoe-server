@@ -25,7 +25,6 @@ export class UsersController {
         toSave.username = data.username
         toSave.password = data.password
         toSave.roles = data.roles
-        toSave.hashPassword()
         return await this.service.create(toSave);
     }
 
