@@ -24,6 +24,8 @@ import { UserTaskModule } from './user_tasks/user_task.module';
 import { AppointmentTaskModule } from'./appointment_tasks/appointment_task.module';
 import { AppointmentTask } from './appointment_tasks/entities/appointment_task.entity';
 import { UserTask } from './user_tasks/entities/user_task.entity';
+import { BlockedDate } from './blocked_dates/entities/blocked_date.entity';
+
 console.log('Database', config.database);
 @Module({
   imports: [
@@ -40,6 +42,7 @@ console.log('Database', config.database);
         Appointment,
         AppointmentTask,
         UserTask,
+        BlockedDate,
         ...crmEntities,
         ...groupEntities,
       ],
