@@ -6,11 +6,12 @@ import { BlockedDate } from '../entities/blocked_date.entity';
 import { ApiTags } from '@nestjs/swagger';
 import { getRepository } from 'typeorm';
 import { AppointmentTask } from 'src/appointment_tasks/entities/appointment_task.entity';
-import { User } from 'src/users/user.entity';
+import { User } from 'src/users/user.entity'
 
 // import { TaskDto } from 'src/auth/dto/task.dto';
 // import { CreateTaskDto } from 'src/auth/dto/create-task.dto';
-@ApiTags("BlockedDate")
+
+@ApiTags("Blocked Date")
 @Controller('api/blocked-date')
 export class BlockedDateController {
     constructor(private readonly service: BlockedDateService) {

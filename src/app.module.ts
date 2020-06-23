@@ -25,6 +25,7 @@ import { AppointmentTaskModule } from'./appointment_tasks/appointment_task.modul
 import { AppointmentTask } from './appointment_tasks/entities/appointment_task.entity';
 import { UserTask } from './user_tasks/entities/user_task.entity';
 import { BlockedDate } from './blocked_dates/entities/blocked_date.entity';
+import { BlockedDateModule } from './blocked_dates/blocked_date.module';
 
 console.log('Database', config.database);
 @Module({
@@ -58,6 +59,7 @@ console.log('Database', config.database);
     AppointmentModule,
     AppointmentTaskModule,
     UserTaskModule,
+    BlockedDateModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -28,5 +28,5 @@ export class BlockedDate {
 
 	// 	@JoinColumn()
 	// 	appointmentTask: AppointmentTask;
-}
+};
 
