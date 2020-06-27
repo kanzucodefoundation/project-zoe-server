@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Put, Query, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { Body, Controller, Get, Post, Put, Query, UploadedFile, UseInterceptors, Param } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { ContactsService } from '../contacts.service';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -12,7 +12,6 @@ import { FindConditions } from 'typeorm/find-options/FindConditions';
 import { FileInterceptor } from '@nestjs/platform-express';
 import PersonListDto from '../dto/person-list.dto';
 import Contact from '../entities/contact.entity';
-import { User } from 'src/users/user.entity';
 import GroupMembership from 'src/groups/entities/groupMembership.entity';
 import Group from 'src/groups/entities/group.entity';
 
@@ -82,15 +81,6 @@ export class PeopleController {
   // Added by Daniel
   @Get('volunteers')
   async findTheVolunteers() {
-    // const volunteers = await getRepository(GroupMembership)
-    //   .createQueryBuilder("groupMembership")
-    //   .leftJoinAndSelect("groupMembership.group", "group")
-    //   .innerJoinAndMapOne("groupMembership.person", Person, "person", "person.contactId = groupMembership.contactId")
-    //   .where("groupMembership.role = :role", { role: "Volunteer" })
-    //   .getMany();
-
-    //   return volunteers;
-    
     const volunteers = await getRepository(Person)
       .createQueryBuilder("person")
       .leftJoinAndSelect("person.ministries", "ministry")
@@ -100,6 +90,20 @@ export class PeopleController {
       .getMany();
 
       return volunteers;
+  }
+  
+  @Get(':id')
+  async findOne(@Param('id') id: number) {
+    const resp = await this.personRepository
+      .find({
+        select: ['contactId', 'firstName', 'lastName'],
+        where: [
+          {
+            id: Like(id),
+          },
+        ],
+      });
+    return resp;
   }
   // END
 
