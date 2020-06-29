@@ -20,9 +20,6 @@ export class AppointmentTask {
 	)
 	task: Task;
 
-
-
-
 	@OneToMany(
 		type => UserTask,
 		userTask => userTask.appointmentTaskId,
