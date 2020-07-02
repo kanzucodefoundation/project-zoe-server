@@ -1,9 +1,14 @@
 import { CivilStatus } from '../enums/civilStatus';
 import { Gender } from '../enums/gender';
 import { IsDateString, IsEmail, IsEnum, IsNotEmpty } from 'class-validator';
+import { MinistryCategories } from 'src/services/enums/ministryCategories';
 
 
 export class CreatePersonDto {
+
+  category: string;
+  
+  password: string;
 
   @IsNotEmpty()
   @IsEmail()
@@ -36,6 +41,5 @@ export class CreatePersonDto {
   cellGroupId?: number;
   churchLocationId?: number;
 
+  ministry?: MinistryCategories;
 }
-
-

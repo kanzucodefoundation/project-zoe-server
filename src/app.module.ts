@@ -9,17 +9,18 @@ import { CrmModule } from './crm/crm.module';
 import { ServicesModule } from './services/services.module';
 import { GroupsModule } from './groups/groups.module';
 import config from './config';
+import { Day } from './day/entities/day.entity';
+import { DayModule } from './day/day.module';
 import { groupEntities } from './groups/groups.helpers';
 import { crmEntities } from './crm/crm.helpers';
-import { Volunteer } from './services/entities/volunteer.entity';
 import { usersEntities } from './users/users.helpers';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 import { SeedModule } from './seed/seed.module';
 import { SeedService } from './seed/seed.service';
-
+import { TasksModule } from './tasks/tasks.module';
+import { tasksEntities } from './tasks/tasks.helpers';
 console.log('Database', config.database);
-
 @Module({
   imports: [
     ServeStaticModule.forRoot({
@@ -29,7 +30,7 @@ console.log('Database', config.database);
     TypeOrmModule.forRoot({
       type: 'mysql', ...config.database,
       entities: [
-        ...usersEntities, ...crmEntities, Volunteer, ...groupEntities,
+        ...usersEntities, ...tasksEntities, Day, ...crmEntities, ...groupEntities,
       ], logging: true,
     }),
     UsersModule,
@@ -37,19 +38,22 @@ console.log('Database', config.database);
     CrmModule,
     ServicesModule,
     GroupsModule,
-    SeedModule
+    SeedModule,
+    TasksModule,
+    DayModule,
   ],
   controllers: [AppController],
   providers: [AppService],
 })
 export class AppModule {
-  constructor(private readonly seedService:SeedService) {
-  }
-  async onModuleInit(): Promise<void> {
-    Logger.log('#########Initialized application############');
-    await this.seedService.createUsers();
-    await this.seedService.createGroupCategories();
-    await this.seedService.createGroups();
-    Logger.log('#########Initialization complete############');
-  }
+    constructor(private readonly seedService: SeedService) {
+    }
+
+    async onModuleInit(): Promise<void> {
+        Logger.log('#########Initialized application############');
+        await this.seedService.createUsers();
+        await this.seedService.createGroupCategories();
+        await this.seedService.createGroups();
+        Logger.log('#########Initialization complete############');
+    }
 }
