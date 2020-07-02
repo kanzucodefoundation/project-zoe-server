@@ -1,17 +1,17 @@
 import { Module } from '@nestjs/common';
-import { VolunteersController } from './controllers/volunteers.controller';
-import { VolunteersService } from './volunteers.service';
+import { VolunteeringController } from './controllers/volunteering.controller';
+import { VolunteeringService } from './volunteering.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import Person from '../crm/entities/person.entity';
 import Contact from '../crm/entities/contact.entity';
 
 @Module({
   imports: [TypeOrmModule.forFeature([Person, Contact])],
-  providers: [VolunteersService],
+  providers: [VolunteeringService],
   controllers: [
-    VolunteersController,
+    VolunteeringController,
   ],
-  exports: [VolunteersService],
+  exports: [VolunteeringService],
 })
 export class ServicesModule {
 }

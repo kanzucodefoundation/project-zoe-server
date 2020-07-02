@@ -83,13 +83,37 @@ export class PeopleController {
   async findTheVolunteers() {
     const volunteers = await getRepository(Person)
       .createQueryBuilder("person")
-      .leftJoinAndSelect("person.ministries", "ministry")
+      // .leftJoinAndSelect("person.ministries", "ministry")
       .innerJoinAndMapOne("person.groupMembership", GroupMembership, "groupMembership", "person.contactId = groupMembership.contactId")
       .innerJoinAndMapMany("person.group", Group, "group", "groupMembership.groupId = group.id")
       .where("groupMembership.role = :role", { role: "Volunteer" })
       .getMany();
 
       return volunteers;
+  }
+  
+  @Get('volunteers/:id')
+  async findTheVolunteer(@Param('id') id: number) {
+    const volunteer = await getRepository(Person)
+      .createQueryBuilder("person")
+      .innerJoinAndMapOne("person.groupMembership", GroupMembership, "groupMembership", "person.contactId = groupMembership.contactId")
+      .innerJoinAndMapMany("person.group", Group, "group", "groupMembership.groupId = group.id")
+      .where("groupMembership.contactId = :contactId", { contactId: id })
+      .andWhere("groupMembership.role = :role", { role: "Volunteer" })
+      .getMany();
+
+      return volunteer;
+  }
+  
+  @Get('personsAndTheirGroups')
+  async findPersonsAndTheirGroups() {
+    const personsAndTheirGroups = await getRepository(Person)
+      .createQueryBuilder("person")
+      .innerJoinAndMapOne("person.groupMembership", GroupMembership, "groupMembership", "person.contactId = groupMembership.contactId")
+      .innerJoinAndMapMany("person.group", Group, "group", "groupMembership.groupId = group.id")
+      .getMany();
+
+      return personsAndTheirGroups;
   }
   
   @Get(':id')
