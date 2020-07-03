@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Put, Param } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Connection, Repository } from 'typeorm';
 import { FindConditions } from 'typeorm/find-options/FindConditions';
@@ -69,6 +69,7 @@ export class GroupsMembershipService {
     const update = await this.connection.createQueryBuilder()
       .update(GroupMembership)
       .set({
+        groupId: dto.groupId,
         role: dto.role,
       })
       .where('id = :id', { id: dto.id })
