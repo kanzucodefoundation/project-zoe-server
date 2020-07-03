@@ -9,8 +9,8 @@ import { CrmModule } from './crm/crm.module';
 import { ServicesModule } from './services/services.module';
 import { GroupsModule } from './groups/groups.module';
 import config from './config';
-import { Day } from './day/entities/day.entity';
-import { DayModule } from './day/day.module';
+import { Appointment } from './appointment/entities/appointment.entity';
+import { AppointmentModule } from './appointment/appointments.module';
 import { groupEntities } from './groups/groups.helpers';
 import { crmEntities } from './crm/crm.helpers';
 import { usersEntities } from './users/users.helpers';
@@ -20,6 +20,10 @@ import { SeedModule } from './seed/seed.module';
 import { SeedService } from './seed/seed.service';
 import { TasksModule } from './tasks/tasks.module';
 import { tasksEntities } from './tasks/tasks.helpers';
+import { UserTaskModule } from './user_tasks/user_task.module';
+import { AppointmentTaskModule } from'./appointment_tasks/appointment_task.module';
+import { AppointmentTask } from './appointment_tasks/entities/appointment_task.entity';
+import { UserTask } from './user_tasks/entities/user_task.entity';
 console.log('Database', config.database);
 @Module({
   imports: [
@@ -28,10 +32,18 @@ console.log('Database', config.database);
     }),
     ConfigModule.forRoot(),
     TypeOrmModule.forRoot({
-      type: 'mysql', ...config.database,
+      type: 'mysql',
+      ...config.database,
       entities: [
-        ...usersEntities, ...tasksEntities, Day, ...crmEntities, ...groupEntities,
-      ], logging: true,
+        ...usersEntities,
+        ...tasksEntities,
+        Appointment,
+        AppointmentTask,
+        UserTask,
+        ...crmEntities,
+        ...groupEntities,
+      ],
+      logging: true,
     }),
     UsersModule,
     AuthModule,
@@ -40,20 +52,21 @@ console.log('Database', config.database);
     GroupsModule,
     SeedModule,
     TasksModule,
-    DayModule,
+    AppointmentModule,
+    AppointmentTaskModule,
+    UserTaskModule,
   ],
   controllers: [AppController],
   providers: [AppService],
 })
 export class AppModule {
-    constructor(private readonly seedService: SeedService) {
-    }
+  constructor(private readonly seedService: SeedService) {}
 
-    async onModuleInit(): Promise<void> {
-        Logger.log('#########Initialized application############');
-        await this.seedService.createUsers();
-        await this.seedService.createGroupCategories();
-        await this.seedService.createGroups();
-        Logger.log('#########Initialization complete############');
-    }
+  async onModuleInit(): Promise<void> {
+    Logger.log('#########Initialized application############');
+    await this.seedService.createUsers();
+    await this.seedService.createGroupCategories();
+    await this.seedService.createGroups();
+    Logger.log('#########Initialization complete############');
+  }
 }

@@ -229,6 +229,8 @@ export class ContactsService {
     const contact = await this.repository.save(model);
     const contactRef = Contact.ref(contact.id);
     
+
+
     // if (personDto.category == 'Volunteer') {
     //   // Saving to the User table
     //   const user = new User();
@@ -237,6 +239,7 @@ export class ContactsService {
     //   user.hashPassword();
     //   contact.user = await this.userRepository.save({ ...user, contact: contactRef });
     // }
+
 
     contact.person = await this.personRepository.save({ ...person, contact: contactRef });
     contact.phones = await this.phoneRepository.save(phones.map(it => ({ ...it, contact: contactRef })));

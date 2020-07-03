@@ -3,6 +3,7 @@ import Group from './group.entity';
 
 import { GroupRole } from '../enums/groupRole';
 import Contact from '../../crm/entities/contact.entity';
+import Person from 'src/crm/entities/person.entity';
 
 @Entity()
 export default class GroupMembership {
@@ -28,4 +29,7 @@ export default class GroupMembership {
     nullable: true,
   })
   role: GroupRole;
+
+  @ManyToOne(type => Person, person => person.ministries)
+  person: Person;
 }
