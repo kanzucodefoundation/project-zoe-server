@@ -15,8 +15,8 @@ export class CreateAppointmentDto {
   @IsDateString()
   end_date: Date;
 
-  @IsNotEmpty()
-  task_info: string;
+  // @IsNotEmpty()
+  // taskDescription: string;
   
   @IsNotEmpty()
   assigned_to: string;

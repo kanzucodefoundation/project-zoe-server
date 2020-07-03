@@ -1,4 +1,3 @@
-
 import { Controller, Delete, Get, Param, Post, Put, Query, Body } from '@nestjs/common';
 import { AppointmentTaskService } from '../appointment_task.service';
 import SearchDto from '../../shared/dto/search.dto';
@@ -58,5 +57,3 @@ export class AppointmentTaskController {
   }
 
 }
-
-
