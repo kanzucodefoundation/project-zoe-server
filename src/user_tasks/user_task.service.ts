@@ -33,17 +33,17 @@ export class UserTaskService {
     //     return await this.repository.save(task);
     // }
 
-    // findOne(id: number): Promise<Task> {
-    //     return this.repository.findOne(id);
-    // }
+    findOne(id: number): Promise<UserTask> {
+        return this.repository.findOne(id);
+    }
 
-    // async update(id: Task): Promise<Task> {
-    //     return await this.repository.save(id);
-    // }
+    async update(id: UserTask): Promise<UserTask> {
+        return await this.repository.save(id);
+    }
     
-    // async remove(id: number): Promise<void> {
-    //     await this.repository.delete(id);
-    // }
+    async remove(id: number): Promise<void> {
+        await this.repository.delete(id);
+    }
 
     // async findByName(ministry: string): Promise<Task | undefined> {
     //     return this.repository.findOne(ministry);

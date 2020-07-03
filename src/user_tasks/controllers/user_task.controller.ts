@@ -19,8 +19,8 @@ export class UserTaskController {
     }
 
     @Get()
-    async findAll(@Query() req): Promise<UserTask[]> {
-        return this.service.findAll(req);
+        async findAll(@Query() req): Promise<UserTask[]> {
+            return this.service.findAll(req);
     }
     @Post()
     async create(@Body() data: UserTask): Promise<UserTask> {
@@ -28,17 +28,30 @@ export class UserTaskController {
     }
 
     @Get('userTasks')
-    async findTheUserTasks() {
-  
-    const userTasks = await getRepository(UserTask)
-    .createQueryBuilder("userTask")
-    .innerJoinAndMapOne("userTask.appTask", AppointmentTask, "appTask", "userTask.appointmentTaskId = appTask.id")
-    .innerJoinAndMapOne("appTask.app", Appointment, "app", "appTask.appointmentId = app.id")
-    .innerJoinAndMapOne("appTask.task", Task, "task", "appTask.taskId = task.id")
-    .innerJoinAndMapOne("userTask.user", Person, "user", "userTask.userId = user.id")
-    .getMany();
+    async findTheUserTasks() {  
+        const userTasks = await getRepository(UserTask)
+            .createQueryBuilder("userTask")
+            .innerJoinAndMapOne("userTask.appTask", AppointmentTask, "appTask", "userTask.appointmentTaskId = appTask.id")
+            .innerJoinAndMapOne("appTask.app", Appointment, "app", "appTask.appointmentId = app.id")
+            .innerJoinAndMapOne("appTask.task", Task, "task", "appTask.taskId = task.id")
+            .innerJoinAndMapOne("userTask.user", Person, "user", "userTask.userId = user.id")
+            .getMany();
 
-    return userTasks;
+            return userTasks;
     }
+
+    @Get(':id')
+    async findAUserTask(@Param('id') id: number) {  
+        const aUserTask = await getRepository(UserTask)
+                .createQueryBuilder("userTask")
+                .innerJoinAndMapOne("userTask.appTask", AppointmentTask, "appTask", "userTask.appointmentTaskId = appTask.id")
+                .innerJoinAndMapOne("appTask.app", Appointment, "app", "appTask.appointmentId = app.id")
+                .innerJoinAndMapOne("appTask.task", Task, "task", "appTask.taskId = task.id")
+                .innerJoinAndMapOne("userTask.user", Person, "user", "userTask.userId = user.id")
+                .where("userTask.userId = :userId", { userId: id }) 
+                .getOne();
+
+                return aUserTask;
+    }  
 
 }

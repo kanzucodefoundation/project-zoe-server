@@ -16,8 +16,8 @@ export class Appointment {
   @Column()
   endDate: Date;
 
-  @Column()
-  taskInfo: string;
+  // @Column()
+  // taskDescription: string;
 
   // @OneToMany(
   //   type => AppointmentTask,

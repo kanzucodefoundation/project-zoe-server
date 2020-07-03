@@ -41,19 +41,19 @@ export class BlockedDateController {
     //     await this.service.remove(id);
     // }
 
-    @Get('blockedDates')
-    async findTheBlockedDates() {
+    // @Get('blockedDates')
+    // async findTheBlockedDates() {
   
-    const blockDates = await getRepository(BlockedDate)
-    .createQueryBuilder("blockedDates")
-    // .leftJoinAndSelect("appointmentTask.appointments", "appointment")
-    // .innerJoinAndMapOne("task.appointmentTask", AppointmentTask, "appointmentTask", "task.id = appointmentTask.taskId")
-    .innerJoinAndMapMany("blockDates.appTask", AppointmentTask, "appTask", "blockDates.appointmentTaskId = appTask.id")
-    .innerJoinAndMapMany("blockDates.user", Person, "user", "blockDates.userId = user.id")
-    .getMany();
+    // const blockDates = await getRepository(BlockedDate)
+    // .createQueryBuilder("blockedDates")
+    // // .leftJoinAndSelect("appointmentTask.appointments", "appointment")
+    // // .innerJoinAndMapOne("task.appointmentTask", AppointmentTask, "appointmentTask", "task.id = appointmentTask.taskId")
+    // .innerJoinAndMapMany("blockDates.appTask", AppointmentTask, "appTask", "blockDates.appointmentTaskId = appTask.id")
+    // .innerJoinAndMapMany("blockDates.user", Person, "user", "blockDates.userId = user.id")
+    // .getMany();
 
-    return blockDates;
-    }
+    // return blockDates;
+    // }
 
 }
 
