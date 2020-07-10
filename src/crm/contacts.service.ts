@@ -21,7 +21,6 @@ import { GroupRole } from '../groups/enums/groupRole';
 import ContactListDto from './dto/contact-list.dto';
 import { FindConditions } from 'typeorm/find-options/FindConditions';
 import Group from '../groups/entities/group.entity';
-import { createMc } from '../seed/data/groups';
 import { GroupPrivacy } from '../groups/enums/groupPrivacy';
 
 @Injectable()
@@ -137,7 +136,7 @@ export class ContactsService {
     }
   }
 
-  private static toListDto(it: Contact): ContactListDto {
+  public static toListDto(it: Contact): ContactListDto {
     const cellGroup = getCellGroup(it);
     const location = getLocation(it);
     return {
@@ -249,12 +248,16 @@ export class ContactsService {
     })));
     contact.identifications = [];
     contact.occasions = [];
-    return contact;
+    return await this.findOne(contact.id);
   }
 
   async findOne(id: number): Promise<Contact> {
     return await this.repository.findOne(id, {
-      relations: ['person', 'emails', 'phones', 'addresses', 'identifications', 'requests', 'relationships'],
+      relations: [
+        'person', 'emails',
+        'phones', 'addresses',
+        'identifications', 'requests',
+        'relationships', 'groupMemberships', 'groupMemberships.group'],
     });
   }
 

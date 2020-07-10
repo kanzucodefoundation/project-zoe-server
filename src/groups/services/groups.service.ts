@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Like, Repository } from 'typeorm';
 import Group from '../entities/group.entity';
@@ -71,12 +71,23 @@ export class GroupsService {
   }
 
   async update(dto: UpdateGroupDto): Promise<GroupListDto> {
-    const group: Group = {
-      ...dto,
-      children: [],
-      members: [],
-    };
-    await this.repository.save(group);
+    Logger.log(`Updating groupID:${dto.id}`);
+    const result = await this.repository
+      .createQueryBuilder()
+      .update(Group)
+      .set({
+        name: dto.name,
+        parentId: dto.parentId,
+        details: dto.details,
+        privacy: dto.privacy,
+        categoryId: dto.categoryId,
+        placeId: dto.placeId,
+        latLon: dto.latLon,
+        freeForm: dto.freeForm,
+      })
+      .where('id = :id', { id: dto.id })
+      .execute();
+    Logger.log(`Update complete groupID:${dto.id} result:${JSON.stringify(result)}`);
     return await this.findOne(dto.id);
   }
 

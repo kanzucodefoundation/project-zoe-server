@@ -6,14 +6,13 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Like, Repository } from 'typeorm';
 import { ContactSearchDto } from '../dto/contact-search.dto';
 
-import Contact from '../entities/contact.entity';
-
 import { hasValue } from '../../utils/basicHelpers';
 import { FindConditions } from 'typeorm/find-options/FindConditions';
 import { CreateCompanyDto } from '../dto/create-company.dto';
 import Company from '../entities/company.entity';
 import CompanyListDto from '../dto/company-list.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import ContactListDto from '../dto/contact-list.dto';
 
 @UseGuards(JwtAuthGuard)
 @ApiTags('Crm Companies')
@@ -57,8 +56,9 @@ export class CompaniesController {
   }
 
   @Post()
-  async create(@Body()data: CreateCompanyDto): Promise<Contact> {
-    return await this.service.createCompany(data);
+  async create(@Body()data: CreateCompanyDto): Promise<ContactListDto> {
+    const contact = await this.service.createCompany(data);
+    return ContactsService.toListDto(contact);
   }
 
   @Put()

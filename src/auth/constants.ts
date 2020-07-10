@@ -3,6 +3,7 @@ export const jwtConstants = {
 };
 
 export const appRoles = {
+    roleDashboard: "DASHBOARD",
     roleCrmView: "CRM_VIEW",
     roleCrmEdit: "CRM_EDIT",
 

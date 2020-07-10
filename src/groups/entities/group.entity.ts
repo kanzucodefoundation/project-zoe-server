@@ -39,6 +39,15 @@ export default class Group {
   @Column({ nullable: true })
   parentId?: number;
 
+  @Column({nullable: true})
+  freeForm?: string;
+
+  @Column({nullable: true})
+  latLon?: string;
+
+  @Column({nullable: true})
+  placeId?: string;
+
   @OneToMany(type => Group, it => it.parent)
   children: Group[];
 

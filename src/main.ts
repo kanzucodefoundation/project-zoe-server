@@ -21,7 +21,9 @@ async function bootstrap() {
     }),
   );
   app.useGlobalFilters(new HttpExceptionFilter());
-  app.useGlobalPipes(new ValidationPipe());
+  app.useGlobalPipes(new ValidationPipe(
+    // {whitelist: true}
+  ));
   const options = new DocumentBuilder()
     .setTitle('Angie API')
     .setDescription('API for ANGIE frontend systems')

@@ -14,6 +14,7 @@ import PersonListDto from '../dto/person-list.dto';
 import Contact from '../entities/contact.entity';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { User } from '../../users/user.entity';
+import ContactListDto from '../dto/contact-list.dto';
 
 
 @ApiTags('Crm People')
@@ -93,8 +94,9 @@ export class PeopleController {
 
 
   @Post()
-  async create(@Body()data: CreatePersonDto): Promise<Contact> {
-    return await this.service.createPerson(data);
+  async create(@Body()data: CreatePersonDto): Promise<ContactListDto> {
+    const contact =  await this.service.createPerson(data);
+    return ContactsService.toListDto(contact);
   }
 
   @UseGuards(JwtAuthGuard)

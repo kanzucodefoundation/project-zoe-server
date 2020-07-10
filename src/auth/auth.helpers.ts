@@ -6,7 +6,6 @@ export const cleanUpUser = (user: User) => {
   delete user['password'];
 };
 
-
 export const createUserDto = (user: User): UserDto => {
   return {
     contactId: user.contact.id,
@@ -14,6 +13,6 @@ export const createUserDto = (user: User): UserDto => {
     username: user.username,
     fullName: getPersonFullName(user.contact.person),
     id: user.id,
-    roles: [],
+    roles: user.roles,
   };
 };

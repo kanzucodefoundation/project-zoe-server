@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Connection, Repository } from 'typeorm';
 import { FindConditions } from 'typeorm/find-options/FindConditions';
@@ -33,7 +33,7 @@ export class GroupsMembershipService {
     if (hasNoValue(filter))
       throw  new ClientFriendlyException('Please groupID or contactId');
     const data = await this.repository.find({
-      relations: ['group', 'contact', 'contact.person'],
+      relations: ['contact', 'contact.person'],
       skip: req.skip,
       take: req.limit,
       where: filter,
@@ -45,17 +45,17 @@ export class GroupsMembershipService {
     const { group, contact, ...rest } = membership;
     return {
       ...rest,
-      group: { name: group.name, id: group.id },
+      group: group ? { name: group.name, id: group.id } : null,
       contact: { name: getPersonFullName(contact.person), id: contact.id },
     };
   }
 
   async create(data: BatchGroupMembershipDto): Promise<number> {
     const { groupId, members, role } = data;
-    const toInsert :QueryDeepPartialEntity<GroupMembership>[]=[]
-    members.forEach(contactId=>{
-      toInsert.push({groupId,contactId,role})
-    })
+    const toInsert: QueryDeepPartialEntity<GroupMembership>[] = [];
+    members.forEach(contactId => {
+      toInsert.push({ groupId, contactId, role });
+    });
     await this.repository
       .createQueryBuilder()
       .insert()
@@ -80,9 +80,8 @@ export class GroupsMembershipService {
       })
       .where('id = :id', { id: dto.id })
       .execute();
-    if (update.affected >= 1)
-      return await this.findOne(dto.id);
-    throw  new ClientFriendlyException('Update failed');
+    Logger.log(`Updated data ${update.affected} ${JSON.stringify(update.raw)}`)
+    return await this.findOne(dto.id);
   }
 
   async remove(id: number): Promise<void> {
