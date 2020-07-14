@@ -9,14 +9,20 @@ import { hasValue } from '../../utils/basicHelpers';
 import GroupListDto from '../dto/group-list.dto';
 import CreateGroupDto from '../dto/create-group.dto';
 import UpdateGroupDto from '../dto/update-group.dto';
+import { GroupDetailDto } from '../dto/group-detail.dto';
+import GooglePlaceDto from '../../vendor/google-place.dto';
+import { GoogleService } from '../../vendor/google.service';
+import ClientFriendlyException from '../../shared/exceptions/client-friendly.exception';
 
 @Injectable()
 export class GroupsService {
   constructor(
     @InjectRepository(Group)
     private readonly repository: Repository<Group>,
+    private googleService: GoogleService,
   ) {
   }
+
 
   async findAll(req: SearchDto): Promise<GroupListDto[]> {
     const data = await this.repository.find({
@@ -31,6 +37,19 @@ export class GroupsService {
     const { parent, category, id, categoryId, name, details, parentId, privacy } = group;
     return {
       id, categoryId, name, details, parentId, privacy,
+      category: { name: category.name, id: category.id },
+      parent: parent ? { name: parent.name, id: parent.id } : null,
+    };
+  }
+
+  toDetailView(group: Group): GroupDetailDto {
+    const {
+      parent, category, id, categoryId, name, details, parentId, privacy,
+      geoCoordinates, latitude, longitude, freeForm, placeId,
+    } = group;
+    return {
+      id, categoryId, name, details, parentId, privacy,
+      geoCoordinates, latitude, longitude, freeForm, placeId,
       category: { name: category.name, id: category.id },
       parent: parent ? { name: parent.name, id: parent.id } : null,
     };
@@ -53,25 +72,56 @@ export class GroupsService {
     });
   }
 
-  async create(data: CreateGroupDto): Promise<GroupListDto> {
-    const group: Group = {
-      id: 0, ...data,
-      children: [],
-      members: [],
-    };
-    const created = await this.repository.save(group);
-    return this.findOne(created.id);
+  async create(data: CreateGroupDto): Promise<GroupListDto | GroupDetailDto> {
+    Logger.log(`Create.Group starting ${data.name}`);
+    let place: GooglePlaceDto = null;
+    if (data.placeId) {
+      place = await this.googleService.getPlaceDetails(data.placeId);
+    }
+
+    const result = await this.repository.createQueryBuilder()
+      .insert().values({
+        id: 0, ...data,
+        freeForm: place?.name,
+        longitude: place?.latitude,
+        latitude: place?.longitude,
+        geoCoordinates: () => place ? `ST_GeomFromText('POINT(${place.longitude} ${place.latitude})')` : null,
+        children: [],
+        members: [],
+      }).execute();
+    const insertedId = result.identifiers[0]['id'];
+    Logger.log(`Create.Group success name: ${data.name} id:${insertedId}`);
+
+    return this.findOne(insertedId, false);
   }
 
-  async findOne(id: number): Promise<GroupListDto> {
+  async findOne(id: number, full = true): Promise<GroupListDto | GroupDetailDto> {
     const data = await this.repository.findOne(id, {
       relations: ['category', 'parent'],
     });
-    return this.toListView(data);
+    return full ? this.toDetailView(data) : this.toListView(data);
   }
 
-  async update(dto: UpdateGroupDto): Promise<GroupListDto> {
-    Logger.log(`Updating groupID:${dto.id}`);
+  async update(dto: UpdateGroupDto): Promise<GroupListDto | GroupDetailDto> {
+    Logger.log(`Update.Group groupID:${dto.id} starting`);
+    const currGroup = await this.repository
+      .createQueryBuilder()
+      .where('id = :id', { id: dto.id })
+      .getOne();
+
+    if (!currGroup)
+      throw new ClientFriendlyException(`Invalid group ID:${dto.id}`);
+    let place: GooglePlaceDto = null;
+    if (dto.placeId && dto.placeId !== currGroup.placeId) {
+      Logger.log(`Update.Group groupID:${dto.id} fetching coordinates`);
+      place = await this.googleService.getPlaceDetails(dto.placeId);
+    } else {
+      Logger.log(`Update.Group groupID:${dto.id} using old coordinates`);
+      const { placeId, freeForm, longitude, latitude } = currGroup;
+      place = {
+        placeId, name: freeForm, longitude, latitude, vicinity: '',
+      };
+    }
     const result = await this.repository
       .createQueryBuilder()
       .update(Group)
@@ -82,13 +132,16 @@ export class GroupsService {
         privacy: dto.privacy,
         categoryId: dto.categoryId,
         placeId: dto.placeId,
-        latLon: dto.latLon,
-        freeForm: dto.freeForm,
+        freeForm: place?.name,
+        longitude: place?.latitude,
+        latitude: place?.longitude,
+        geoCoordinates: () => place ? `ST_GeomFromText('POINT(${place.longitude} ${place.latitude})')` : null,
+
       })
       .where('id = :id', { id: dto.id })
       .execute();
-    Logger.log(`Update complete groupID:${dto.id} result:${JSON.stringify(result)}`);
-    return await this.findOne(dto.id);
+    Logger.log(`Update.Group groupID:${dto.id} complete`);
+    return await this.findOne(dto.id, false);
   }
 
   async remove(id: number): Promise<void> {

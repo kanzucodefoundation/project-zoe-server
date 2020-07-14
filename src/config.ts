@@ -1,4 +1,5 @@
 require('dotenv').config();
+
 export function normalizePort(val: any) {
   const port = parseInt(val, 10);
   if (isNaN(port)) {
@@ -13,8 +14,8 @@ export function normalizePort(val: any) {
 }
 
 export default {
-  app:{
-    port:normalizePort(process.env.PORT)
+  app: {
+    port: normalizePort(process.env.PORT),
   },
   database: {
     host: process.env.DB_HOST,
@@ -23,7 +24,8 @@ export default {
     password: process.env.DB_PASSWORD,
     database: process.env.DB_DATABASE,
     synchronize: process.env.DB_SYNCHRONIZE === 'true',
-    cache:true,
+    legacySpatialSupport: false,
+    cache: true,
     //logging: true
   },
 };

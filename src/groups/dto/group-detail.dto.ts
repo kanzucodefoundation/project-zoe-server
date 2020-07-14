@@ -1,8 +1,7 @@
 import { GroupPrivacy } from '../enums/groupPrivacy';
 import ComboDto from '../../shared/dto/combo.dto';
 
-
-export default class GroupListDto {
+export class GroupDetailDto {
   id: number;
   privacy: GroupPrivacy;
   name: string;
@@ -11,5 +10,10 @@ export default class GroupListDto {
   category: ComboDto;
   parentId?: number;
   parent?: ComboDto;
+  metaData?: string;
+  freeForm?: string;
+  latitude?: number;
+  longitude?: number;
+  geoCoordinates?: string;
+  placeId?: string;
 }
-

@@ -39,13 +39,19 @@ export default class Group {
   @Column({ nullable: true })
   parentId?: number;
 
-  @Column({nullable: true})
+  @Column({ nullable: true })
   freeForm?: string;
 
-  @Column({nullable: true})
-  latLon?: string;
+  @Column({ type:'float',nullable: true })
+  latitude?: number;
 
-  @Column({nullable: true})
+  @Column({ type:'float',nullable: true })
+  longitude?: number;
+
+  @Column({ type: 'point', nullable: true })
+  geoCoordinates?: string;
+
+  @Column({ nullable: true })
   placeId?: string;
 
   @OneToMany(type => Group, it => it.parent)
