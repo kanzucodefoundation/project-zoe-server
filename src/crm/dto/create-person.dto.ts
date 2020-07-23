@@ -31,8 +31,8 @@ export class CreatePersonDto {
   @IsEnum(CivilStatus)
   civilStatus: CivilStatus;
 
-  @IsDateString()
-  dateOfBirth: Date;
+  // @IsDateString() // Commented out to allow for if the value is null supposing someone gives no dob
+  dateOfBirth?: Date | null;
   ageGroup?: string;
 
   placeOfWork?: string;

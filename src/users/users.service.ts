@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, getRepository } from 'typeorm';
 import { User } from './user.entity';
 import { RegisterUserDto } from '../auth/dto/register-user.dto';
 import SearchDto from '../shared/dto/search.dto';
@@ -68,6 +68,20 @@ export class UsersService {
     return this.toListModel(data);
   }
 
+  // Added by Daniel
+  async findVolunteerUser(contactId: number) {
+    const volunteerUser = await getRepository(User)
+    .createQueryBuilder("volunteerUser")
+    .select("volunteerUser.username")
+    .addSelect("volunteerUser.contactId")
+    .where("volunteerUser.contactId = :contactId", { contactId: contactId })
+    .andWhere("volunteerUser.roles = :roles", { roles: "VOLUNTEER" })
+    .getOne();
+
+    return volunteerUser;
+  }
+  // END
+
   async update(data: UpdateUserDto): Promise<UserListDto> {
     const update: QueryDeepPartialEntity<User> = {
       roles: data.roles,
@@ -105,91 +119,3 @@ export class UsersService {
     return count > 0;
   }
 }
-//     constructor(
-//         @InjectRepository(User)
-//         private readonly repository: Repository<User>,
-//         private readonly contactsService: ContactsService,
-//     ) {
-//     }
-
-//     async findAll(req: SearchDto): Promise<UserListDto[]> {
-//         const data = await this.repository.find({
-//             relations: ['contact', 'contact.person'],
-//             skip: req.skip,
-//             take: req.limit,
-//         });
-//         return data.map(this.toListModel)
-//     }
-
-//     toListModel(user: User): UserListDto {
-//         const fullName = getPersonFullName(user.contact.person);
-//         return {
-//             avatar: user.contact.person.avatar,
-//             contact: {
-//                 id: user.contactId,
-//                 name: fullName
-//             },
-//             id: user.id,
-//             roles: user.roles,
-//             username: user.username,
-//             contactId: user.contactId,
-//             fullName
-//         }
-//     }
-
-//     async create(data: User): Promise<User> {
-//         data.hashPassword();
-//         return await this.repository.save(data);
-//     }
-
-//     async register(dto: RegisterUserDto): Promise<User> {
-//         const contact = await this.contactsService.createPerson(dto);
-//         const user = new User();
-//         user.username = dto.email;
-//         user.password = dto.password;
-//         user.contact = Contact.ref(contact.id);
-//         user.roles = dto.roles
-//         user.hashPassword();
-//         return await this.repository.save(user);
-//     }
-
-//     async findOne(id: number): Promise<UserListDto> {
-//         const data = await this.repository.findOne(id, {
-//             relations: ['contact', 'contact.person']
-//         });
-//         return this.toListModel(data)
-//     }
-
-//     async update(data: UpdateUserDto): Promise<UserListDto> {
-//         const update: QueryDeepPartialEntity<User> = {
-//             roles: data.roles
-//         }
-
-//         if (hasValue(data.password)) {
-//             const user = new User()
-//             user.password = data.password;
-//             user.hashPassword()
-//             update.password = user.password;
-//         }
-
-//         await this.repository.createQueryBuilder()
-//             .update()
-//             .set(update)
-//             .where("id = :id", {id: data.id})
-//             .execute()
-//         return await this.findOne(data.id);
-//     }
-
-//     async remove(id: number): Promise<void> {
-//         await this.repository.delete(id);
-//     }
-
-//     async findByName(username: string): Promise<User | undefined> {
-//         return this.repository.findOne({where: {username}, relations: ['contact', 'contact.person']});
-//     }
-
-//     async exits(username: string): Promise<boolean> {
-//         const count = await this.repository.count({where: {username}});
-//         return count > 0;
-//     }
-// }

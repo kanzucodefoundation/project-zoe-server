@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Put, Query, Patch } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import GroupMembershipSearchDto from '../dto/membership/group-membership-search.dto';
 import { GroupsMembershipService } from '../services/group-membership.service';
@@ -25,6 +25,11 @@ export class GroupMembershipController {
   @Put()
   async update(@Body()data: UpdateGroupMembershipDto): Promise<GroupMembershipDto> {
     return await this.service.update(data);
+  }
+
+  @Patch()
+  async updateIsActive(@Body()data: UpdateGroupMembershipDto): Promise<GroupMembershipDto> {
+    return await this.service.updateIsActive(data);
   }
 
   @Get(":id")

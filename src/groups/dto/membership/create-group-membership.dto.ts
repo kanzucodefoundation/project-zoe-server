@@ -10,4 +10,5 @@ export  class CreateGroupMembershipDto {
     @IsNotEmpty()
     @IsEnum(GroupRole)
     role: GroupRole;
+    isActive: boolean;
 }

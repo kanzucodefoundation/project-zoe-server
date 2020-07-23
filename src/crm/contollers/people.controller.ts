@@ -83,15 +83,17 @@ export class PeopleController {
   async findTheVolunteers() {
     const volunteers = await getRepository(Person)
       .createQueryBuilder("person")
-      // .leftJoinAndSelect("person.ministries", "ministry")
-      .innerJoinAndMapOne("person.groupMembership", GroupMembership, "groupMembership", "person.contactId = groupMembership.contactId")
+      .innerJoinAndMapMany("person.groupMembership", GroupMembership, "groupMembership", "person.contactId = groupMembership.contactId")
       .innerJoinAndMapMany("person.group", Group, "group", "groupMembership.groupId = group.id")
       .where("groupMembership.role = :role", { role: "Volunteer" })
+      .andWhere("groupMembership.isActive = :isActive", { isActive: 1 })
+      .orderBy('person.firstName', 'ASC')
       .getMany();
 
       return volunteers;
   }
   
+  // Fetches one person who is active volunteer in their particular ministries
   @Get('volunteers/:id')
   async findTheVolunteer(@Param('id') id: number) {
     const volunteer = await getRepository(Person)
@@ -100,17 +102,21 @@ export class PeopleController {
       .innerJoinAndMapMany("person.group", Group, "group", "groupMembership.groupId = group.id")
       .where("groupMembership.contactId = :contactId", { contactId: id })
       .andWhere("groupMembership.role = :role", { role: "Volunteer" })
+      .andWhere("groupMembership.isActive = :isActive", { isActive: 1 })
       .getMany();
 
       return volunteer;
   }
   
+  // Fetches persons and all the groups they are part of and active in i.e. ministries and other community groups (Used in the Add volunteer form)
   @Get('personsAndTheirGroups')
   async findPersonsAndTheirGroups() {
     const personsAndTheirGroups = await getRepository(Person)
       .createQueryBuilder("person")
       .innerJoinAndMapOne("person.groupMembership", GroupMembership, "groupMembership", "person.contactId = groupMembership.contactId")
       .innerJoinAndMapMany("person.group", Group, "group", "groupMembership.groupId = group.id")
+      .where("groupMembership.isActive = :isActive", { isActive: 1 })
+      .orderBy('person.firstName', 'ASC')
       .getMany();
 
       return personsAndTheirGroups;

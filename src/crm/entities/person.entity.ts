@@ -51,7 +51,7 @@ export default class Person {
   @Column({ nullable: true })
   avatar: string;
 
-  @Column()
+  @Column({ nullable: true })
   dateOfBirth: Date;
 
 
