@@ -33,12 +33,12 @@ export default class GroupMembership {
   @Column({ default: 1 })
   isActive: boolean;
 
+  @ManyToOne(type => Person, person => person.ministries)
+  person: Person;
+
   @CreateDateColumn({ type: 'timestamp' })
   dateAdded: Date;
 
   @UpdateDateColumn({ type: 'timestamp' })
   lastUpdated: Date;
-
-  @ManyToOne(type => Person, person => person.ministries)
-  person: Person;
 }

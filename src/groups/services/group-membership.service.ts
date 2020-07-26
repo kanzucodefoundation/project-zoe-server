@@ -10,6 +10,7 @@ import GroupMembershipSearchDto from '../dto/membership/group-membership-search.
 import { CreateGroupMembershipDto } from '../dto/membership/create-group-membership.dto';
 import UpdateGroupMembershipDto from '../dto/membership/update-group-membership.dto';
 import ClientFriendlyException from '../../shared/exceptions/client-friendly.exception';
+import { User } from 'src/users/user.entity';
 
 @Injectable()
 export class GroupsMembershipService {
@@ -134,13 +135,26 @@ export class GroupsMembershipService {
           },
         ],
       });
-    console.log("RESP----------------->", resp);
-    // for (let i = 0; i < resp.length; i++) {
-    //   if (resp[i].isActive === false) {
-
-    //   }
-    // }
-    // if (resp.length > 0) {
+    let numberOfInactives = 0; // Number of ministries the volunteer is not active in
+    for (let i = 0; i < resp.length; i++) {
+      if (resp[i].isActive === false) {
+        numberOfInactives++;
+      }
+    }
+    if (numberOfInactives === resp.length) {
+      // It means the volunteer is not active in any ministry, and therefore the isActive status for the volunteer in the User table to be 0
+      const update = await this.connection.createQueryBuilder()
+      .update(User)
+      .set({
+        isActive: false,
+      })
+      .where('contactId = :contactId', { contactId: contactId })
+      .execute();
+      if (update.affected === 1) {
+        return await this.findOne(contactId);
+      }
+      throw  new ClientFriendlyException('Update failed');
+    }
   }
 
   async remove(id: number): Promise<void> {

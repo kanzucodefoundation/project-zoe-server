@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, getRepository } from 'typeorm';
+import { Connection, Repository, getRepository } from 'typeorm';
 import { User } from './user.entity';
 import { RegisterUserDto } from '../auth/dto/register-user.dto';
 import SearchDto from '../shared/dto/search.dto';
@@ -11,12 +11,14 @@ import { UserListDto } from './dto/user-list.dto';
 import { getPersonFullName } from '../crm/crm.helpers';
 import { hasValue } from '../utils/basicHelpers';
 import { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
+import ClientFriendlyException from 'src/shared/exceptions/client-friendly.exception';
 
 @Injectable()
 export class UsersService {
   constructor(
     @InjectRepository(User)
     private readonly repository: Repository<User>,
+    private connection: Connection,
     private readonly contactsService: ContactsService,
   ) {}
 
@@ -46,8 +48,33 @@ export class UsersService {
   }
 
   async create(data: User): Promise<User> {
-    data.hashPassword();
-    return await this.repository.save(data);
+    // Check if person is simply an inactive volunteer or if they are new. If they are new, add them to the User table. This check is meant to help the Add volunteer feature.
+    // Query that checks whether volunteer already exists.
+    const resp = await this.repository.find({
+      select: ['id', 'username', 'isActive'],
+      where: [
+          {
+            contactId: data.contactId,
+          },
+      ],
+    });
+    if (resp.length === 1) {
+      // If found person is inactive as a volunteer, then update their status to active
+      const update = await this.connection.createQueryBuilder()
+        .update(User)
+        .set({
+          isActive: true,
+        })
+        .where('contactId = :contactId', { contactId: data.contactId })
+        .execute();
+      if (update.affected !== 1) {
+        throw  new ClientFriendlyException('Update failed');
+      }
+    } else {
+      // If person doesn't exist in the table
+      data.hashPassword();
+      return await this.repository.save(data);
+    }
   }
 
   async register(dto: RegisterUserDto): Promise<User> {

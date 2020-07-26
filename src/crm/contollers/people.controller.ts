@@ -14,6 +14,7 @@ import PersonListDto from '../dto/person-list.dto';
 import Contact from '../entities/contact.entity';
 import GroupMembership from 'src/groups/entities/groupMembership.entity';
 import Group from 'src/groups/entities/group.entity';
+import Email from '../entities/email.entity';
 
 
 @ApiTags('Crm People')
@@ -85,6 +86,7 @@ export class PeopleController {
       .createQueryBuilder("person")
       .innerJoinAndMapMany("person.groupMembership", GroupMembership, "groupMembership", "person.contactId = groupMembership.contactId")
       .innerJoinAndMapMany("person.group", Group, "group", "groupMembership.groupId = group.id")
+      .innerJoinAndMapOne("person.email", Email, "email", "person.contactId = email.contactId")
       .where("groupMembership.role = :role", { role: "Volunteer" })
       .andWhere("groupMembership.isActive = :isActive", { isActive: 1 })
       .orderBy('person.firstName', 'ASC')
@@ -100,6 +102,7 @@ export class PeopleController {
       .createQueryBuilder("person")
       .innerJoinAndMapOne("person.groupMembership", GroupMembership, "groupMembership", "person.contactId = groupMembership.contactId")
       .innerJoinAndMapMany("person.group", Group, "group", "groupMembership.groupId = group.id")
+      .innerJoinAndMapOne("person.email", Email, "email", "person.contactId = email.contactId")
       .where("groupMembership.contactId = :contactId", { contactId: id })
       .andWhere("groupMembership.role = :role", { role: "Volunteer" })
       .andWhere("groupMembership.isActive = :isActive", { isActive: 1 })
