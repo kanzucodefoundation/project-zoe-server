@@ -1,6 +1,6 @@
-import { Injectable, Put, Param } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Connection, Repository, Like } from 'typeorm';
+import { Connection, Repository } from 'typeorm';
 import { FindConditions } from 'typeorm/find-options/FindConditions';
 import { hasNoValue, hasValue } from '../../utils/basicHelpers';
 import GroupMembership from '../entities/groupMembership.entity';
@@ -68,6 +68,7 @@ export class GroupsMembershipService {
       const update = await this.connection.createQueryBuilder()
         .update(GroupMembership)
         .set({
+          role: role,
           isActive: true,
         })
         .where('groupId = :groupId', { groupId: groupId })
@@ -131,7 +132,7 @@ export class GroupsMembershipService {
         where: [
           {
             contactId: contactId,
-            role: 'Volunteer',
+            role: 'Volunteer' || 'Team Lead',
           },
         ],
       });

@@ -87,7 +87,7 @@ export class PeopleController {
       .innerJoinAndMapMany("person.groupMembership", GroupMembership, "groupMembership", "person.contactId = groupMembership.contactId")
       .innerJoinAndMapMany("person.group", Group, "group", "groupMembership.groupId = group.id")
       .innerJoinAndMapOne("person.email", Email, "email", "person.contactId = email.contactId")
-      .where("groupMembership.role = :role", { role: "Volunteer" })
+      .where("groupMembership.role IN (:...role)", { role: ["Volunteer", "Team Lead"] })
       .andWhere("groupMembership.isActive = :isActive", { isActive: 1 })
       .orderBy('person.firstName', 'ASC')
       .getMany();
@@ -104,7 +104,7 @@ export class PeopleController {
       .innerJoinAndMapMany("person.group", Group, "group", "groupMembership.groupId = group.id")
       .innerJoinAndMapOne("person.email", Email, "email", "person.contactId = email.contactId")
       .where("groupMembership.contactId = :contactId", { contactId: id })
-      .andWhere("groupMembership.role = :role", { role: "Volunteer" })
+      .andWhere("groupMembership.role IN (:...role)", { role: ["Volunteer", "Team Lead"] })
       .andWhere("groupMembership.isActive = :isActive", { isActive: 1 })
       .getMany();
 
