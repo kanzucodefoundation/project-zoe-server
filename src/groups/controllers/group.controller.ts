@@ -1,12 +1,13 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { GroupsService } from '../services/groups.service';
-import Group from '../entities/group.entity';
 import SearchDto from '../../shared/dto/search.dto';
 import { ApiTags } from '@nestjs/swagger';
 import GroupListDto from '../dto/group-list.dto';
 import CreateGroupDto from '../dto/create-group.dto';
 import UpdateGroupDto from '../dto/update-group.dto';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 
+@UseGuards(JwtAuthGuard)
 @ApiTags('Groups')
 @Controller('api/groups/group')
 export class GroupController {

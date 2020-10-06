@@ -21,6 +21,7 @@ import { GroupRole } from '../groups/enums/groupRole';
 import ContactListDto from './dto/contact-list.dto';
 import { FindConditions } from 'typeorm/find-options/FindConditions';
 import Group from '../groups/entities/group.entity';
+import { GroupPrivacy } from '../groups/enums/groupPrivacy';
 
 @Injectable()
 export class ContactsService {
@@ -135,7 +136,7 @@ export class ContactsService {
     }
   }
 
-  private static toListDto(it: Contact): ContactListDto {
+  public static toListDto(it: Contact): ContactListDto {
     const cellGroup = getCellGroup(it);
     const location = getLocation(it);
     return {
@@ -219,6 +220,18 @@ export class ContactsService {
       membership.groupId = personDto.cellGroupId;
       membership.role = GroupRole.Member;
       groupMemberships.push(membership);
+    } else if (typeof personDto.cellGroupId === 'string') {
+      const group = new Group();
+      group.name = personDto.cellGroupId;
+      group.parentId = personDto.churchLocationId;
+      group.privacy = GroupPrivacy.Public;
+      group.categoryId = 'MC';
+      group.details = '--pending--';
+      await this.groupRepository.save(group);
+      const membership = new GroupMembership();
+      membership.groupId = group.id;
+      membership.role = GroupRole.Member;
+      groupMemberships.push(membership);
     }
 
     const model = new Contact();
@@ -235,12 +248,16 @@ export class ContactsService {
     })));
     contact.identifications = [];
     contact.occasions = [];
-    return contact;
+    return await this.findOne(contact.id);
   }
 
   async findOne(id: number): Promise<Contact> {
     return await this.repository.findOne(id, {
-      relations: ['person', 'emails', 'phones', 'addresses', 'identifications', 'requests', 'relationships'],
+      relations: [
+        'person', 'emails',
+        'phones', 'addresses',
+        'identifications', 'requests',
+        'relationships', 'groupMemberships', 'groupMemberships.group'],
     });
   }
 

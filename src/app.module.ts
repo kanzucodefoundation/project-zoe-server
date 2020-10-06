@@ -1,4 +1,4 @@
-import {Logger, Module} from '@nestjs/common';
+import { HttpModule, Logger, Module } from '@nestjs/common';
 import {AppController} from './app.controller';
 import {AppService} from './app.service';
 import {UsersModule} from './users/users.module';
@@ -15,14 +15,18 @@ import {ServeStaticModule} from '@nestjs/serve-static';
 import {join} from 'path';
 import {SeedModule} from './seed/seed.module';
 import {SeedService} from './seed/seed.service';
+import { VendorModule } from './vendor/vendor.module';
 
 
 @Module({
     imports: [
+        HttpModule,
         ServeStaticModule.forRoot({
             rootPath: join(__dirname, '..', 'public'),
         }),
-        ConfigModule.forRoot(),
+        ConfigModule.forRoot({
+            isGlobal: true,
+        }),
         TypeOrmModule.forRoot({
             type: 'mysql', ...config.database,
             entities: [
@@ -34,7 +38,8 @@ import {SeedService} from './seed/seed.service';
         AuthModule,
         CrmModule,
         GroupsModule,
-        SeedModule
+        SeedModule,
+        VendorModule
     ],
     controllers: [AppController],
     providers: [AppService],
@@ -44,7 +49,7 @@ export class AppModule {
     }
 
     async onModuleInit(): Promise<void> {
-        Logger.log('#########Initialized application############');
+        Logger.log('#########Initializing application############');
         await this.seedService.createUsers();
         await this.seedService.createGroupCategories();
         await this.seedService.createGroups();

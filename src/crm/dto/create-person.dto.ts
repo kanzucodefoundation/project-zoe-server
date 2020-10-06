@@ -33,7 +33,7 @@ export class CreatePersonDto {
   placeOfWork?: string;
   residence?: string;
 
-  cellGroupId?: number;
+  cellGroupId?: any;
   churchLocationId?: number;
 
 }

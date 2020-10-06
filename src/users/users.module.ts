@@ -4,9 +4,10 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { usersEntities } from './users.helpers';
 import { UsersController } from './users.controller';
 import { CrmModule } from '../crm/crm.module';
+import { crmEntities } from '../crm/crm.helpers';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([...usersEntities]), CrmModule],
+  imports: [TypeOrmModule.forFeature([...usersEntities,...crmEntities]), CrmModule],
   providers: [UsersService],
   exports: [UsersService],
   controllers: [UsersController],

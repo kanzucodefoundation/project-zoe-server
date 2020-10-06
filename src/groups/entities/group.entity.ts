@@ -10,17 +10,21 @@ export default class Group {
   id: number;
 
   @Column({
-    type: "enum",
+    type: 'enum',
     enum: GroupPrivacy,
-    nullable: true
+    nullable: true,
   })
   privacy: GroupPrivacy;
 
-  @Column({ length: 50 })
+  @Column({ length: 100 })
   name: string;
 
-  @Column({nullable: true,length:200})
+  @Column({ nullable: true, length: 500 })
   details?: string;
+
+  //TODO USE JSON fields, or normalize
+  @Column({ nullable: true, length: 500 })
+  metaData?: string;
 
   @ManyToOne(type => GroupCategory, it => it.groups)
   @JoinColumn()
@@ -32,8 +36,23 @@ export default class Group {
   @ManyToOne(type => Group, it => it.children)
   parent?: Group;
 
-  @Column({nullable: true})
+  @Column({ nullable: true })
   parentId?: number;
+
+  @Column({ nullable: true })
+  freeForm?: string;
+
+  @Column({ type:'float',nullable: true })
+  latitude?: number;
+
+  @Column({ type:'float',nullable: true })
+  longitude?: number;
+
+  @Column({ type: 'point', nullable: true })
+  geoCoordinates?: string;
+
+  @Column({ nullable: true })
+  placeId?: string;
 
   @OneToMany(type => Group, it => it.parent)
   children: Group[];

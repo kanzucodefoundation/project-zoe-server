@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Connection, Repository } from 'typeorm';
 import { FindConditions } from 'typeorm/find-options/FindConditions';
@@ -7,9 +7,11 @@ import GroupMembership from '../entities/groupMembership.entity';
 import GroupMembershipDto from '../dto/membership/group-membership.dto';
 import { getPersonFullName } from '../../crm/crm.helpers';
 import GroupMembershipSearchDto from '../dto/membership/group-membership-search.dto';
-import { CreateGroupMembershipDto } from '../dto/membership/create-group-membership.dto';
-import UpdateGroupMembershipDto from '../dto/membership/update-group-membership.dto';
+
 import ClientFriendlyException from '../../shared/exceptions/client-friendly.exception';
+import UpdateGroupMembershipDto from '../dto/membership/update-group-membership.dto';
+import BatchGroupMembershipDto from '../dto/membership/batch-group-membership.dto';
+import { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
 
 @Injectable()
 export class GroupsMembershipService {
@@ -29,9 +31,9 @@ export class GroupsMembershipService {
       filter.groupId = req.groupId;
     }
     if (hasNoValue(filter))
-      throw  new ClientFriendlyException('Invalid query');
+      throw  new ClientFriendlyException('Please groupID or contactId');
     const data = await this.repository.find({
-      relations: ['group', 'contact', 'contact.person'],
+      relations: ['contact', 'contact.person'],
       skip: req.skip,
       take: req.limit,
       where: filter,
@@ -43,19 +45,24 @@ export class GroupsMembershipService {
     const { group, contact, ...rest } = membership;
     return {
       ...rest,
-      group: { name: group.name, id: group.id },
+      group: group ? { name: group.name, id: group.id } : null,
       contact: { name: getPersonFullName(contact.person), id: contact.id },
     };
   }
 
-  async create(data: CreateGroupMembershipDto): Promise<GroupMembershipDto> {
-    const membership = new GroupMembership();
-    const { groupId, contactId, role } = data;
-    membership.groupId = groupId;
-    membership.contactId = contactId;
-    membership.role = role;
-    const created = await this.repository.save(membership);
-    return await this.findOne(created.id);
+  async create(data: BatchGroupMembershipDto): Promise<number> {
+    const { groupId, members, role } = data;
+    const toInsert: QueryDeepPartialEntity<GroupMembership>[] = [];
+    members.forEach(contactId => {
+      toInsert.push({ groupId, contactId, role });
+    });
+    await this.repository
+      .createQueryBuilder()
+      .insert()
+      .into(GroupMembership)
+      .values(toInsert)
+      .execute();
+    return members.length;
   }
 
   async findOne(id: number): Promise<GroupMembershipDto> {
@@ -73,9 +80,8 @@ export class GroupsMembershipService {
       })
       .where('id = :id', { id: dto.id })
       .execute();
-    if (update.affected >= 1)
-      return await this.findOne(dto.id);
-    throw  new ClientFriendlyException('Update failed');
+    Logger.log(`Updated data ${update.affected} ${JSON.stringify(update.raw)}`)
+    return await this.findOne(dto.id);
   }
 
   async remove(id: number): Promise<void> {
