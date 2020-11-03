@@ -24,7 +24,7 @@ export default class Address {
     @Column()
     district: string;
 
-    @Column()
+    @Column({nullable: true})
     county: string;
 
     @Column({nullable: true})

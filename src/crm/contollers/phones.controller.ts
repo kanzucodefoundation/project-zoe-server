@@ -5,6 +5,7 @@ import Phone from '../entities/phone.entity';
 import { Repository } from 'typeorm';
 import SearchDto from '../../shared/dto/search.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import {PhoneDto} from "../dto/phone.dto";
 
 @UseGuards(JwtAuthGuard)
 @ApiTags('Crm Phones')
@@ -22,12 +23,12 @@ export class PhonesController {
   }
 
   @Post()
-  async create(@Body()data: Phone): Promise<Phone> {
+  async create(@Body()data: PhoneDto): Promise<Phone> {
     return await this.repository.save(data);
   }
 
   @Put()
-  async update(@Body()data: Phone): Promise<Phone> {
+  async update(@Body()data: PhoneDto): Promise<Phone> {
     return await this.repository.save(data);
   }
 

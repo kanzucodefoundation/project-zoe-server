@@ -14,6 +14,7 @@ import { RelationshipsController } from './contollers/relationships.controller';
 import { RequestsController } from './contollers/requests.controller';
 import { groupEntities } from '../groups/groups.helpers';
 import { usersEntities } from '../users/users.helpers';
+import {RegisterController} from "./contollers/register.controller";
 
 @Module({
   imports: [TypeOrmModule.forFeature([...crmEntities, ...groupEntities,...usersEntities])],
@@ -26,7 +27,7 @@ import { usersEntities } from '../users/users.helpers';
     OccasionsController,
     AddressesController,
     RelationshipsController,
-    RequestsController,
+    RequestsController,RegisterController
   ],
   exports: [ContactsService],
 })
