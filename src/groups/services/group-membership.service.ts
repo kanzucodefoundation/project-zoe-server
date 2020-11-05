@@ -10,6 +10,7 @@ import GroupMembershipSearchDto from '../dto/membership/group-membership-search.
 import { CreateGroupMembershipDto } from '../dto/membership/create-group-membership.dto';
 import UpdateGroupMembershipDto from '../dto/membership/update-group-membership.dto';
 import ClientFriendlyException from '../../shared/exceptions/client-friendly.exception';
+import { User } from 'src/users/user.entity';
 
 @Injectable()
 export class GroupsMembershipService {
@@ -50,12 +51,41 @@ export class GroupsMembershipService {
 
   async create(data: CreateGroupMembershipDto): Promise<GroupMembershipDto> {
     const membership = new GroupMembership();
-    const { groupId, contactId, role } = data;
-    membership.groupId = groupId;
-    membership.contactId = contactId;
-    membership.role = role;
-    const created = await this.repository.save(membership);
-    return await this.findOne(created.id);
+    const { groupId, contactId, role, isActive } = data;
+    // query that selects where membership.groupId = groupId and membership.contactId = contactId
+    const resp = await this.repository
+      .find({
+        select: ['id', 'isActive'],
+        where: [
+          {
+            groupId: groupId,
+            contactId: contactId,
+          },
+        ],
+      });
+    if (resp.length > 0) {
+      // If volunteer is currently inactive in the selected ministry, update their status to active ie. from 0 to 1
+      const update = await this.connection.createQueryBuilder()
+        .update(GroupMembership)
+        .set({
+          role: role,
+          isActive: true,
+        })
+        .where('groupId = :groupId', { groupId: groupId })
+        .andWhere('contactId = :contactId', { contactId: contactId })
+        .execute();
+      if (update.affected >= 1)
+        return await this.findOne(resp[0].id);
+      throw  new ClientFriendlyException('Update failed');
+    } else {
+      // Never been in the selected ministry, therefore add this new entry to the table
+      membership.groupId = groupId;
+      membership.contactId = contactId;
+      membership.role = role;
+      membership.isActive = isActive;
+      const created = await this.repository.save(membership);
+      return await this.findOne(created.id);
+    }
   }
 
   async findOne(id: number): Promise<GroupMembershipDto> {
@@ -69,6 +99,7 @@ export class GroupsMembershipService {
     const update = await this.connection.createQueryBuilder()
       .update(GroupMembership)
       .set({
+        // groupId: dto.groupId,
         role: dto.role,
       })
       .where('id = :id', { id: dto.id })
@@ -76,6 +107,55 @@ export class GroupsMembershipService {
     if (update.affected >= 1)
       return await this.findOne(dto.id);
     throw  new ClientFriendlyException('Update failed');
+  }
+
+  async updateIsActive(dto: UpdateGroupMembershipDto): Promise<GroupMembershipDto> {
+    const update = await this.connection.createQueryBuilder()
+      .update(GroupMembership)
+      .set({
+        isActive: dto.isActive,
+      })
+      .where('id = :id', { id: dto.id })
+      .execute();
+    if (update.affected >= 1) {
+      this.updateVolunteerStatus(dto.contactId)
+      return await this.findOne(dto.id);
+    }
+    throw  new ClientFriendlyException('Update failed');
+  }
+
+  // Update the User table to make a volunteer inactive if they are inactive in all ministries within Group Membership and active when they active in all ministries
+  async updateVolunteerStatus(contactId: number) {
+    const resp = await this.repository
+      .find({
+        select: ['isActive'],
+        where: [
+          {
+            contactId: contactId,
+            role: 'Volunteer' || 'Team Lead',
+          },
+        ],
+      });
+    let numberOfInactives = 0; // Number of ministries the volunteer is not active in
+    for (let i = 0; i < resp.length; i++) {
+      if (resp[i].isActive === false) {
+        numberOfInactives++;
+      }
+    }
+    if (numberOfInactives === resp.length) {
+      // It means the volunteer is not active in any ministry, and therefore the isActive status for the volunteer in the User table to be 0
+      const update = await this.connection.createQueryBuilder()
+      .update(User)
+      .set({
+        isActive: false,
+      })
+      .where('contactId = :contactId', { contactId: contactId })
+      .execute();
+      if (update.affected === 1) {
+        return await this.findOne(contactId);
+      }
+      throw  new ClientFriendlyException('Update failed');
+    }
   }
 
   async remove(id: number): Promise<void> {

@@ -4,6 +4,12 @@ export default class UpdateGroupMembershipDto {
     @IsNotEmpty()
     @IsNumber()
     id: number;
+    
+    @IsNumber()
+    contactId: number;
+
+    isActive: boolean;
+    
     @IsNotEmpty()
     @IsEnum(GroupRole)
     role: GroupRole;

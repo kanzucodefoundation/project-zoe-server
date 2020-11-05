@@ -1,4 +1,4 @@
-import { Column, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn } from 'typeorm';
 import Group from './group.entity';
 
 import { GroupRole } from '../enums/groupRole';
@@ -30,6 +30,15 @@ export default class GroupMembership {
   })
   role: GroupRole;
 
+  @Column({ default: 1 })
+  isActive: boolean;
+
   @ManyToOne(type => Person, person => person.ministries)
   person: Person;
+
+  @CreateDateColumn({ type: 'timestamp' })
+  dateAdded: Date;
+
+  @UpdateDateColumn({ type: 'timestamp' })
+  lastUpdated: Date;
 }

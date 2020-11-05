@@ -1,18 +1,19 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { UserTask } from './entities/user_task.entity';
-import { RegisterTaskDto } from '../auth/dto/register-task.dto';
+import { BlockedDate } from './entities/blocked_date.entity';
+// import { RegisterTaskDto } from '../auth/dto/register-task.dto';
+
 import SearchDto from '../shared/dto/search.dto';
 
 @Injectable()
-export class UserTaskService {
+export class BlockedDateService {
     constructor(
-        @InjectRepository(UserTask)
-        private readonly repository: Repository<UserTask>,
+        @InjectRepository(BlockedDate)
+        private readonly repository: Repository<BlockedDate>,
     ) { }
 
-    async findAll(req: SearchDto): Promise<UserTask[]> {
+    async findAll(req: SearchDto): Promise<BlockedDate[]> {
         return await this.repository.find(
             {
             // skip: req.skip,
@@ -20,7 +21,7 @@ export class UserTaskService {
         });
     }
 
-    async create(data: UserTask): Promise<UserTask> {
+    async create(data: BlockedDate): Promise<BlockedDate> {
         return await this.repository.save(data);
     }
 
@@ -33,17 +34,17 @@ export class UserTaskService {
     //     return await this.repository.save(task);
     // }
 
-    findOne(id: number): Promise<UserTask> {
-        return this.repository.findOne(id);
-    }
+    // findOne(id: number): Promise<Task> {
+    //     return this.repository.findOne(id);
+    // }
 
-    async update(id: UserTask): Promise<UserTask> {
-        return await this.repository.save(id);
-    }
+    // async update(id: Task): Promise<Task> {
+    //     return await this.repository.save(id);
+    // }
     
-    async remove(id: number): Promise<void> {
-        await this.repository.delete(id);
-    }
+    // async remove(id: number): Promise<void> {
+    //     await this.repository.delete(id);
+    // }
 
     // async findByName(ministry: string): Promise<Task | undefined> {
     //     return this.repository.findOne(ministry);
@@ -54,4 +55,5 @@ export class UserTaskService {
     //     return count > 0;
     // }
 }
+
 

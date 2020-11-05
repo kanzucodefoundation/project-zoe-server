@@ -29,6 +29,9 @@ export class User {
     @Column("simple-array",{nullable: false})
     roles: string[];
 
+    @Column({ default: 1 })
+    isActive: boolean;
+
     hashPassword() {
         if (hasValue(this.password)) {
             this.password = bcrypt.hashSync(this.password, hashCost);

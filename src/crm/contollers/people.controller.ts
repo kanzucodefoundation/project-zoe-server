@@ -14,6 +14,7 @@ import PersonListDto from '../dto/person-list.dto';
 import Contact from '../entities/contact.entity';
 import GroupMembership from 'src/groups/entities/groupMembership.entity';
 import Group from 'src/groups/entities/group.entity';
+import Email from '../entities/email.entity';
 
 
 @ApiTags('Crm People')
@@ -83,13 +84,45 @@ export class PeopleController {
   async findTheVolunteers() {
     const volunteers = await getRepository(Person)
       .createQueryBuilder("person")
-      .leftJoinAndSelect("person.ministries", "ministry")
-      .innerJoinAndMapOne("person.groupMembership", GroupMembership, "groupMembership", "person.contactId = groupMembership.contactId")
+      .innerJoinAndMapMany("person.groupMembership", GroupMembership, "groupMembership", "person.contactId = groupMembership.contactId")
       .innerJoinAndMapMany("person.group", Group, "group", "groupMembership.groupId = group.id")
-      .where("groupMembership.role = :role", { role: "Volunteer" })
+      .innerJoinAndMapOne("person.email", Email, "email", "person.contactId = email.contactId")
+      .where("groupMembership.role IN (:...role)", { role: ["Volunteer", "Team Lead"] })
+      .andWhere("groupMembership.isActive = :isActive", { isActive: 1 })
+      .orderBy('person.firstName', 'ASC')
       .getMany();
 
       return volunteers;
+  }
+  
+  // Fetches one person who is active volunteer in their particular ministries
+  @Get('volunteers/:id')
+  async findTheVolunteer(@Param('id') id: number) {
+    const volunteer = await getRepository(Person)
+      .createQueryBuilder("person")
+      .innerJoinAndMapOne("person.groupMembership", GroupMembership, "groupMembership", "person.contactId = groupMembership.contactId")
+      .innerJoinAndMapMany("person.group", Group, "group", "groupMembership.groupId = group.id")
+      .innerJoinAndMapOne("person.email", Email, "email", "person.contactId = email.contactId")
+      .where("groupMembership.contactId = :contactId", { contactId: id })
+      .andWhere("groupMembership.role IN (:...role)", { role: ["Volunteer", "Team Lead"] })
+      .andWhere("groupMembership.isActive = :isActive", { isActive: 1 })
+      .getMany();
+
+      return volunteer;
+  }
+  
+  // Fetches persons and all the groups they are part of and active in i.e. ministries and other community groups (Used in the Add volunteer form)
+  @Get('personsAndTheirGroups')
+  async findPersonsAndTheirGroups() {
+    const personsAndTheirGroups = await getRepository(Person)
+      .createQueryBuilder("person")
+      .innerJoinAndMapOne("person.groupMembership", GroupMembership, "groupMembership", "person.contactId = groupMembership.contactId")
+      .innerJoinAndMapMany("person.group", Group, "group", "groupMembership.groupId = group.id")
+      .where("groupMembership.isActive = :isActive", { isActive: 1 })
+      .orderBy('person.firstName', 'ASC')
+      .getMany();
+
+      return personsAndTheirGroups;
   }
   
   @Get(':id')

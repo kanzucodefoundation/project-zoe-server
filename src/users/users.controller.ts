@@ -38,6 +38,13 @@ export class UsersController {
         return await this.service.findOne(id);
     }
 
+    // Added by Daniel
+    @Get('volunteer/:contactId')
+    async findVolunteerUser(@Param('contactId') contactId: number) {
+        return await this.service.findVolunteerUser(contactId);
+    }
+    // END
+
     @Delete(":id")
     async remove(@Param('id') id: number): Promise<void> {
         await this.service.remove(id);

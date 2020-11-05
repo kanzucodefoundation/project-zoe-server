@@ -66,19 +66,6 @@ export class GroupsService {
         return this.toListView(data)
     }
 
-    // Added by Daniel
-    async findAllMinistries(categoryId: string): Promise<GroupListDto[]> {
-        const resp = await this.repository
-        .find({
-        select: ['name'],
-        where: {
-            contactId: categoryId,
-          },
-        });
-        return resp.map(this.toListView);
-    }
-    // END
-
     async update(dto: UpdateGroupDto): Promise<GroupListDto> {
         const group: Group = {
             ...dto,
