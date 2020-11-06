@@ -35,6 +35,7 @@ This repo works with the server at https://github.com/kanzucode/angie-client so 
 **Solution:** Run `npm install -g eslint` then `eslint --init`
 If that fails, other alternatives here https://github.com/eslint/eslint/issues/10192
 
-
+## Contributing
+Before making any contribution to this codebase, please read through this [contributing guide](contributing.md).
 
 
