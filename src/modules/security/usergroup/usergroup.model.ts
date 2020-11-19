@@ -19,6 +19,7 @@ const schema = new Schema({
 configureId(schema)
 
 export interface IUserGroup extends Document {
+    [x: string]:any;
     name: string
     details: string
     roles: string[]
