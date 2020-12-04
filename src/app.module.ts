@@ -16,7 +16,8 @@ import {join} from 'path';
 import {SeedModule} from './seed/seed.module';
 import {SeedService} from './seed/seed.service';
 import { VendorModule } from './vendor/vendor.module';
-
+import { VisitorsModule } from './visitors/visitors.module';
+import { visitorsEntities } from './visitors/visitors.helpers';
 
 @Module({
     imports: [
@@ -30,7 +31,7 @@ import { VendorModule } from './vendor/vendor.module';
         TypeOrmModule.forRoot({
             type: 'mysql', ...config.database,
             entities: [
-                ...usersEntities, ...crmEntities, ...groupEntities
+                ...usersEntities, ...crmEntities, ...groupEntities,...visitorsEntities,
             ],
             //logging: true
         }),
@@ -39,7 +40,8 @@ import { VendorModule } from './vendor/vendor.module';
         CrmModule,
         GroupsModule,
         SeedModule,
-        VendorModule
+        VendorModule,
+        VisitorsModule
     ],
     controllers: [AppController],
     providers: [AppService],

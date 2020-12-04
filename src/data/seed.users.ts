@@ -35,20 +35,6 @@ const users: any[] = [
     }
 ]
 
-export async function seedUsersAsync() {
-    let group = await userGroupService.getByNameAsync(userGroupData.name)
-    if (group) {
-        logger.info('Default user group already setup')
-        logger.info('GroupId', {id: group.id, _id: group._id})
-    } else {
-        logger.info('seeding default user group')
-        group = await userGroupService.createAsync(userGroupData);
-    }
-    for (const it of users) {
-        await createUser(it, group.id)
-    }
-}
-
 async function createUser(data: any, groupId: any) {
     const user = await userService.findByUsername(data.email)
     if (user) {
@@ -63,5 +49,19 @@ async function createUser(data: any, groupId: any) {
             group: groupId,
         }
         const user = await userService.createAsync(userData);
+    }
+}
+
+export async function seedUsersAsync() {
+    let group = await userGroupService.getByNameAsync(userGroupData.name)
+    if (group) {
+        logger.info('Default user group already setup')
+        logger.info('GroupId', {id: group.id, _id: group._id})
+    } else {
+        logger.info('seeding default user group')
+        group = await userGroupService.createAsync(userGroupData);
+    }
+    for (const it of users) {
+        await createUser(it, group.id)
     }
 }
