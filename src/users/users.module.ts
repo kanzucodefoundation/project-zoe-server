@@ -6,8 +6,12 @@ import { UsersController } from './users.controller';
 import { CrmModule } from '../crm/crm.module';
 import { crmEntities } from '../crm/crm.helpers';
 
+
 @Module({
-  imports: [TypeOrmModule.forFeature([...usersEntities,...crmEntities]), CrmModule],
+  imports: [
+    TypeOrmModule.forFeature([...usersEntities,...crmEntities]), 
+    CrmModule,
+  ],
   providers: [UsersService],
   exports: [UsersService],
   controllers: [UsersController],
