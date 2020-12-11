@@ -1,4 +1,4 @@
-import {Injectable} from '@nestjs/common';
+import {HttpException, Injectable} from '@nestjs/common';
 import {InjectRepository} from '@nestjs/typeorm';
 import {Repository} from 'typeorm';
 import {User} from './user.entity';
@@ -7,6 +7,7 @@ import SearchDto from '../shared/dto/search.dto';
 import {ContactsService} from '../crm/contacts.service';
 import Contact from '../crm/entities/contact.entity';
 import {UpdateUserDto} from "./dto/update-user.dto";
+import {UserProfileDto} from "./dto/user-profile.dto";
 import {UserListDto} from "./dto/user-list.dto";
 import {getPersonFullName} from "../crm/crm.helpers";
 import {hasValue} from "../utils/basicHelpers";
@@ -43,6 +44,24 @@ export class UsersService {
             username: user.username,
             contactId: user.contactId,
             fullName
+        }
+    }
+
+    async getProfile(id: number): Promise<UserProfileDto> {
+        const user = await this.repository.findOne(id, {relations: ['contact', 'contact.person']});
+        if(!user) {
+            throw new HttpException("User Doesn't Exist", 404);
+        }
+        return {
+            id: user.id,
+            avatar: user.contact.person.avatar,
+            fullName: getPersonFullName(user.contact.person),
+            username: user.username,
+            bio: user.contact.person.salutation,
+            placeOfWork: user.contact.person.placeOfWork,
+            dateOfBirth: user.contact.person.dateOfBirth,
+            gender: user.contact.person.gender,
+            civilStatus: user.contact.person.civilStatus
         }
     }
 
@@ -102,3 +121,6 @@ export class UsersService {
         return count > 0;
     }
 }
+
+
+

@@ -6,6 +6,7 @@ import { ApiTags } from '@nestjs/swagger';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UserListDto } from './dto/user-list.dto';
+import { UserProfileDto } from "./dto/user-profile.dto";
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { InjectRepository } from '@nestjs/typeorm';
 import Email from '../crm/entities/email.entity';
@@ -42,9 +43,9 @@ export class UsersController {
     return await this.service.update(data);
   }
 
-  @Get(':id')
-  async findOne(@Param('id') id: number): Promise<UserListDto> {
-    return await this.service.findOne(id);
+  @Get('viewProfile/:id')
+  async viewProfile(@Param('id') id: number): Promise<UserProfileDto> {
+    return await this.service.getProfile(id);
   }
 
   @Delete(':id')
@@ -52,4 +53,7 @@ export class UsersController {
     await this.service.remove(id);
   }
 }
+
+
+
 

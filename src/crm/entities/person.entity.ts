@@ -53,6 +53,8 @@ export default class Person {
   @Column()
   dateOfBirth: Date;
 
+  @Column({nullable: true, length: 150})
+  bio: string;
 
   @OneToOne(
     type => Contact,
