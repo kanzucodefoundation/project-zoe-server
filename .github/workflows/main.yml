@@ -42,4 +42,4 @@ jobs:
           KEY: ${{ secrets.SSHKEY }}
         with:
           source: "./dist"
-          target: "/opt/app"
+          target: "/opt/angie-server"
