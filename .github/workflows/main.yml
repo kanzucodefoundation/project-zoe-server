@@ -1,6 +1,6 @@
 # This is a basic workflow to help you get started with Actions
 
-name: Deploy to Digital ocean
+name: Deploy to Digital ocean.
 
 # Controls when the action will run. 
 on:
