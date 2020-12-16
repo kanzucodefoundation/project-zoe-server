@@ -1,4 +1,4 @@
-import {Injectable} from '@nestjs/common';
+import {Injectable, HttpException} from '@nestjs/common';
 import {InjectRepository} from '@nestjs/typeorm';
 import {Repository} from 'typeorm';
 import {User} from './user.entity';
@@ -101,4 +101,11 @@ export class UsersService {
         const count = await this.repository.count({where: {username}});
         return count > 0;
     }
+
 }
+
+
+
+
+
+
