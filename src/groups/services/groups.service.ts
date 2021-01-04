@@ -29,6 +29,11 @@ export class GroupsService {
         if (req.category) {
             filter.categoryId = req.category;
         }
+
+        if (hasValue(req.query)) {
+            filter.name = Like(`%${req.query}%`);
+        }
+
         const data = await this.repository.find({
             where: filter,
             relations: ['category', 'parent'],
@@ -127,7 +132,8 @@ export class GroupsService {
                 placeId, name: freeForm, longitude, latitude, vicinity: '',
             };
         }
-        const result = await this.repository
+
+        await this.repository
             .createQueryBuilder()
             .update(Group)
             .set({

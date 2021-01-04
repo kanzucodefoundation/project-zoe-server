@@ -1,6 +1,5 @@
 import {GroupPrivacy} from "../enums/groupPrivacy";
-import { IsNotEmpty, IsOptional } from 'class-validator';
-import { Column } from 'typeorm';
+import {IsNotEmpty, IsOptional} from 'class-validator';
 
 export default class CreateGroupDto {
     @IsOptional()
@@ -16,7 +15,7 @@ export default class CreateGroupDto {
     @IsOptional()
     parentId?: number;
     @IsOptional()
-    metaData?: string;
+    metaData?: any;
 
     @IsOptional()
     freeForm?: string;
