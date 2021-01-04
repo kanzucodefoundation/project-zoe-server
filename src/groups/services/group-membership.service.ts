@@ -33,7 +33,7 @@ export class GroupsMembershipService {
     if (hasNoValue(filter))
       throw  new ClientFriendlyException('Please groupID or contactId');
     const data = await this.repository.find({
-      relations: ['contact', 'contact.person'],
+      relations: ['contact', 'contact.person','group'],
       skip: req.skip,
       take: req.limit,
       where: filter,
@@ -88,3 +88,8 @@ export class GroupsMembershipService {
     await this.repository.delete(id);
   }
 }
+
+
+
+
+

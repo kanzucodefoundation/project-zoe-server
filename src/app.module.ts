@@ -1,5 +1,5 @@
 import { HttpModule, Logger, Module } from '@nestjs/common';
-import {AppController} from './app.controller';
+import {AuthController} from './auth/auth.controller';
 import {AppService} from './app.service';
 import {UsersModule} from './users/users.module';
 import {ConfigModule} from '@nestjs/config';
@@ -41,7 +41,7 @@ import { VendorModule } from './vendor/vendor.module';
         SeedModule,
         VendorModule
     ],
-    controllers: [AppController],
+    controllers: [AuthController],
     providers: [AppService],
 })
 export class AppModule {
@@ -56,3 +56,5 @@ export class AppModule {
         Logger.log('#########Initialization complete############');
     }
 }
+
+
