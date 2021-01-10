@@ -7,7 +7,6 @@ import GroupMembership from '../entities/groupMembership.entity';
 import GroupMembershipDto from '../dto/membership/group-membership.dto';
 import { getPersonFullName } from '../../crm/crm.helpers';
 import GroupMembershipSearchDto from '../dto/membership/group-membership-search.dto';
-
 import ClientFriendlyException from '../../shared/exceptions/client-friendly.exception';
 import UpdateGroupMembershipDto from '../dto/membership/update-group-membership.dto';
 import BatchGroupMembershipDto from '../dto/membership/batch-group-membership.dto';
@@ -33,7 +32,7 @@ export class GroupsMembershipService {
     if (hasNoValue(filter))
       throw  new ClientFriendlyException('Please groupID or contactId');
     const data = await this.repository.find({
-      relations: ['contact', 'contact.person'],
+      relations: ['contact', 'contact.person', 'group'],
       skip: req.skip,
       take: req.limit,
       where: filter,
@@ -46,6 +45,7 @@ export class GroupsMembershipService {
     return {
       ...rest,
       group: group ? { name: group.name, id: group.id } : null,
+      groupDetails: group.details,
       contact: { name: getPersonFullName(contact.person), id: contact.id },
     };
   }
