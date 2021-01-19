@@ -5,7 +5,7 @@ import Group from '../entities/group.entity';
 import SearchDto from '../../shared/dto/search.dto';
 import { GroupSearchDto } from '../dto/group-search.dto';
 import { FindConditions } from 'typeorm/find-options/FindConditions';
-import { hasValue } from '../../utils/basicHelpers';
+import { hasNoValue, hasValue } from '../../utils/basicHelpers';
 import GroupListDto from '../dto/group-list.dto';
 import CreateGroupDto from '../dto/create-group.dto';
 import UpdateGroupDto from '../dto/update-group.dto';
@@ -118,9 +118,17 @@ export class GroupsService {
     } else {
       Logger.log(`Update.Group groupID:${dto.id} using old coordinates`);
       const { placeId, freeForm, longitude, latitude } = currGroup;
-      place = {
-        placeId, name: freeForm, longitude, latitude, vicinity: '',
-      };
+      if (hasNoValue(currGroup.longitude) && hasNoValue(currGroup.latitude)) {
+        place = null;
+      } else {
+        place = {
+          placeId, 
+          name: freeForm, 
+          longitude, 
+          latitude, 
+          vicinity: '',
+        }	   
+      }
     }
     const result = await this.repository
       .createQueryBuilder()
