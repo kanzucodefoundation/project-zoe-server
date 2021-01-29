@@ -16,12 +16,13 @@ export class UsersController {
     private readonly service: UsersService) {
   }
 
+  
   @Get()
   async findAll(@Query() req: SearchDto): Promise<UserListDto[]> {
     return this.service.findAll(req);
   }
 
-  @Post('create-user')
+  @Post()
   async create(@Body() data: CreateUserDto): Promise<CreateUserResponseDto> {
     return await this.service.createUser(data);
   }

@@ -13,4 +13,6 @@ export class UserDto {
   fullName: string;
   @ApiProperty()
   roles: string[];
+  @ApiProperty()
+  isActive: boolean;
 }

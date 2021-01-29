@@ -10,4 +10,6 @@ export class CreateUserDto {
   password: string;
   @IsNotEmpty()
   roles: string[];
+  @IsNotEmpty()
+  isActive: boolean;
 }

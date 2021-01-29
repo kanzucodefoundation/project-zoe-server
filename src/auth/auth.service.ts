@@ -24,6 +24,12 @@ export class AuthService {
       Logger.warn('invalid username: ', username);
       return null;
     }
+
+    if(!user.isActive) {
+      Logger.warn('User Inactive', username);
+      return null;
+    }
+
     const valid = await user.validatePassword(pass);
     if (valid) {
       cleanUpUser(user);
@@ -78,7 +84,8 @@ export class AuthService {
     const data: UpdateUserDto = {
       id: decodedToken.id,
       password: newPassword,
-      roles: (await this.usersService.findOne(decodedToken.userId)).roles
+      roles: (await this.usersService.findOne(decodedToken.userId)).roles,
+      isActive: (await this.usersService.findOne(decodedToken.userId)).isActive,
     }
     const user = await this.usersService.update(data);
     if(!user) {

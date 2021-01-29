@@ -14,5 +14,6 @@ export const createUserDto = (user: User): UserDto => {
     fullName: getPersonFullName(user.contact.person),
     id: user.id,
     roles: user.roles,
+    isActive: user.isActive,
   };
 };
