@@ -7,6 +7,6 @@ export class UpdateUserDto {
 
     @IsNotEmpty()
     roles: string[];
-
     password?: string;
+    isActive?: boolean;
 }

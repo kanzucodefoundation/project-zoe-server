@@ -1,4 +1,4 @@
-import {Injectable, HttpException} from '@nestjs/common';
+import {Injectable, HttpException, Logger} from '@nestjs/common';
 import {InjectRepository} from '@nestjs/typeorm';
 import {Repository} from 'typeorm';
 import {User} from './user.entity';
@@ -51,6 +51,7 @@ export class UsersService {
             },
             id: user.id,
             roles: user.roles,
+            isActive: user.isActive,
             username: user.username,
             contactId: user.contactId,
             fullName
@@ -78,6 +79,7 @@ export class UsersService {
         toSave.contactId = data.contactId;
         toSave.password = data.password;
         toSave.roles = data.roles;
+        toSave.isActive = data.isActive;
         toSave.hashPassword();
 
         const saveUser = await this.create(toSave);
@@ -99,7 +101,8 @@ export class UsersService {
                 username: user.username,
                 email: user.username,
                 fullName: user.fullName,
-                roles: user.roles
+                roles: user.roles,
+                isActive: user.isActive,
             })
         ).token;
 
@@ -126,7 +129,8 @@ export class UsersService {
         user.username = dto.email;
         user.password = dto.password;
         user.contact = Contact.ref(contact.id);
-        user.roles = dto.roles
+        user.roles = dto.roles;
+        user.isActive = true;
         user.hashPassword();
         return await this.repository.save(user);
     }
@@ -140,7 +144,8 @@ export class UsersService {
 
     async update(data: UpdateUserDto): Promise<UserListDto> {
         const update: QueryDeepPartialEntity<User> = {
-            roles: data.roles
+            roles: data.roles,
+            isActive: data.isActive
         }
 
         if (hasValue(data.password)) {

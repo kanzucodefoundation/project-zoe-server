@@ -6,4 +6,5 @@ export class UserListDto {
     contact: any
     avatar: string
     roles: string[]
+    isActive: boolean
 }
