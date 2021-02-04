@@ -21,7 +21,7 @@ export class UsersController {
     return this.service.findAll(req);
   }
 
-  @Post('create-user')
+  @Post()
   async create(@Body() data: CreateUserDto): Promise<CreateUserResponseDto> {
     return await this.service.createUser(data);
   }
