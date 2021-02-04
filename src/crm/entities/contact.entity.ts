@@ -10,6 +10,7 @@ import Identification from './identification.entity';
 import { ContactCategory } from '../enums/contactCategory';
 import GroupMembership from '../../groups/entities/groupMembership.entity';
 import Relationship from './relationship.entity';
+import GroupMembershipRequest from 'src/groups/entities/groupMembershipRequest.entity';
 
 @Entity()
 export default class Contact {
@@ -54,6 +55,10 @@ export default class Contact {
   @JoinColumn()
   @OneToMany(type => GroupMembership, it => it.contact)
   groupMemberships: GroupMembership[];
+
+  @JoinColumn()
+  @OneToMany(type => GroupMembershipRequest, it => it.contact)
+  groupMembershipRequests: GroupMembershipRequest[];
 
   static ref(id: number) {
     const c = new Contact();

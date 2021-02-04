@@ -83,8 +83,8 @@ export class GroupsService {
       .insert().values({
         id: 0, ...data,
         freeForm: place?.name,
-        longitude: place?.latitude,
-        latitude: place?.longitude,
+        longitude: place?.longitude,
+        latitude: place?.latitude,
         geoCoordinates: () => place ? `ST_GeomFromText('POINT(${place.longitude} ${place.latitude})')` : null,
         children: [],
         members: [],
@@ -133,8 +133,8 @@ export class GroupsService {
         categoryId: dto.categoryId,
         placeId: dto.placeId,
         freeForm: place?.name,
-        longitude: place?.latitude,
-        latitude: place?.longitude,
+        longitude: place?.longitude,
+        latitude: place?.latitude,
         geoCoordinates: () => place ? `ST_GeomFromText('POINT(${place.longitude} ${place.latitude})')` : null,
 
       })
