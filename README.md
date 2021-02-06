@@ -9,24 +9,39 @@ This repo holds the Angie church relationship management system (RMS) server.
 ## Getting started
 
 Clone the repository:
-`git clone git@github.com:kanzucode/angie-client.git`
+`git clone git@github.com:kanzucode/angie-server.git`
 
-Install the dependencies:
+Install the dependencies
+
 `npm install`
 
 **PS:** If you don't have `npm` installed, check out this guide https://www.npmjs.com/get-npm
 
-For your development environment, add some "dummy" (seed) data:
+
+Set up the environment variables and update them as necessary
 
 ```
-cd src/data
-node seed.ts
+cp .env.sample .env
 ```
+
+
+Install mysql server locally
+In case you need run a development instance of mysql server, you can find the instruction here
+
+https://dev.mysql.com/doc/refman/8.0/en/installing.html
+
+
+
 
 Finally, start the party:
 `npm start`
 
-This repo works with the server at https://github.com/kanzucode/angie-client so be sure to set that up too.
+Open the api at http://localhost:4002
+
+To start in watch mode
+`npm run start:dev`
+
+This repo works with the client at https://github.com/kanzucode/angie-client so be sure to set that up too.
 
 
 ### Installation errors
@@ -35,6 +50,7 @@ This repo works with the server at https://github.com/kanzucode/angie-client so 
 **Solution:** Run `npm install -g eslint` then `eslint --init`
 If that fails, other alternatives here https://github.com/eslint/eslint/issues/10192
 
-
+## Contributing
+Before making any contribution to this codebase, please read through this [contributing guide](contributing.md).
 
 

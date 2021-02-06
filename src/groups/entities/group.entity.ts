@@ -22,9 +22,9 @@ export default class Group {
   @Column({ nullable: true, length: 500 })
   details?: string;
 
-  //TODO USE JSON fields, or normalize
-  @Column({ nullable: true, length: 500 })
-  metaData?: string;
+
+  @Column({ nullable: true, type:'json' })
+  metaData?: any;
 
   @ManyToOne(type => GroupCategory, it => it.groups)
   @JoinColumn()

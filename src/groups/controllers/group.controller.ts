@@ -6,6 +6,7 @@ import GroupListDto from '../dto/group-list.dto';
 import CreateGroupDto from '../dto/create-group.dto';
 import UpdateGroupDto from '../dto/update-group.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import {GroupDetailDto} from "../dto/group-detail.dto";
 
 @UseGuards(JwtAuthGuard)
 @ApiTags('Groups')
@@ -30,8 +31,8 @@ export class GroupController {
   }
 
   @Get(':id')
-  async findOne(@Param('id') id: number): Promise<GroupListDto> {
-    return await this.service.findOne(id);
+  async findOne(@Param('id') id: number): Promise<GroupDetailDto> {
+    return await this.service.findOne(id,true);
   }
 
   @Delete(':id')
