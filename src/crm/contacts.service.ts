@@ -26,6 +26,8 @@ import { GoogleService } from 'src/vendor/google.service';
 import GooglePlaceDto from 'src/vendor/google-place.dto';
 import { getPreciseDistance } from 'geolib';
 import GroupMembershipRequest from 'src/groups/entities/groupMembershipRequest.entity';
+import { TransformOperationExecutor } from 'class-transformer/TransformOperationExecutor';
+import { IEmail, sendEmail } from 'src/utils/mailerTest';
 
 @Injectable()
 export class ContactsService {
@@ -301,7 +303,8 @@ export class ContactsService {
 
         //notify cell group leader of cell group with shortest distance to the person's residence
         var closestCellData = JSON.parse(closestCellGroupMetadata)
-        /*
+        
+        const mailerData:IEmail = {
           to: `${closestCellData.email}`,
           subject: "Join MC Request",
           html: 
@@ -313,7 +316,8 @@ export class ContactsService {
           You can reach ${personDto.firstName} on ${personDto.phone} or ${personDto.email}.</p></br>
           <p>Cheers!</p>
           `
-        */
+        }
+        await sendEmail(mailerData);       
       }
     }
         
