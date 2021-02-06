@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { HttpModule, Module } from '@nestjs/common';
 import { ContactsService } from './contacts.service';
 import { ContactsController } from './contollers/contacts.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -15,10 +15,11 @@ import { RequestsController } from './contollers/requests.controller';
 import { groupEntities } from '../groups/groups.helpers';
 import { usersEntities } from '../users/users.helpers';
 import {RegisterController} from "./contollers/register.controller";
+import { GoogleService } from 'src/vendor/google.service';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([...crmEntities, ...groupEntities,...usersEntities])],
-  providers: [ContactsService],
+  imports: [HttpModule,TypeOrmModule.forFeature([...crmEntities, ...groupEntities,...usersEntities])],
+  providers: [ContactsService,GoogleService],
   controllers: [
     ContactsController, PeopleController, CompaniesController,
     EmailsController,

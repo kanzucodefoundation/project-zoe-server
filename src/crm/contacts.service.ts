@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Like, Repository } from 'typeorm';
+import { getRepository, In, Like, Repository } from 'typeorm';
 import Contact from './entities/contact.entity';
 import { CreatePersonDto } from './dto/create-person.dto';
 import { createAvatar, getCellGroup, getEmail, getLocation, getPersonFullName, getPhone } from './crm.helpers';
@@ -22,6 +22,10 @@ import ContactListDto from './dto/contact-list.dto';
 import { FindConditions } from 'typeorm/find-options/FindConditions';
 import Group from '../groups/entities/group.entity';
 import { GroupPrivacy } from '../groups/enums/groupPrivacy';
+import { GoogleService } from 'src/vendor/google.service';
+import GooglePlaceDto from 'src/vendor/google-place.dto';
+import { getPreciseDistance } from 'geolib';
+import GroupMembershipRequest from 'src/groups/entities/groupMembershipRequest.entity';
 
 @Injectable()
 export class ContactsService {
@@ -42,6 +46,9 @@ export class ContactsService {
     private readonly membershipRepository: Repository<GroupMembership>,
     @InjectRepository(Group)
     private readonly groupRepository: Repository<Group>,
+    @InjectRepository(GroupMembershipRequest)
+    private readonly gmRequestRepository: Repository<GroupMembershipRequest>,
+    private googleService: GoogleService,
   ) {
   }
 
@@ -203,7 +210,17 @@ export class ContactsService {
       address.country = 'Uganda';
       address.district = 'Kampala';
       address.county = 'Kawempe';
-      address.freeForm = personDto.residence;
+      address.freeForm = personDto.residence.description;
+      address.placeId = personDto.residence.place_id;
+      //Make a call to the Google API to get coordinates
+      let place: GooglePlaceDto = null;
+      if (address.placeId) {
+        place = await this.googleService.getPlaceDetails(address.placeId);
+      }
+      address.longitude = place.longitude;
+      address.latitude = place.latitude;
+      //uncomment this when fixed :D 
+      //address.geoCoordinates = `ST_GeomFromText('POINT(${place.longitude} ${place.latitude})')`;
       addresses.push(address);
     }
 
@@ -214,26 +231,92 @@ export class ContactsService {
       membership.role = GroupRole.Member;
       groupMemberships.push(membership);
     }
+    const groupMembershipRequests: GroupMembershipRequest[] = [];
+    if (personDto.inCell==='Yes'){
+      if (isValidNumber(personDto.cellGroupId)) {
+        const membership = new GroupMembership();
+        membership.groupId = personDto.cellGroupId;
+        membership.role = GroupRole.Member;
+        groupMemberships.push(membership);
+      } else if (typeof personDto.cellGroupId === 'string') {
+        const group = new Group();
+        group.name = personDto.cellGroupId;
+        group.parentId = personDto.churchLocationId;
+        group.privacy = GroupPrivacy.Public;
+        group.categoryId = 'MC';
+        group.details = '--pending--';
+        await this.groupRepository.save(group);
+        const membership = new GroupMembership();
+        membership.groupId = group.id;
+        membership.role = GroupRole.Member;
+        groupMemberships.push(membership);
+      }
+    } else{      
+      const groupRequest = new GroupMembershipRequest(); 
+      if (personDto.joinCell === 'Yes'){     
+        //Get coordinates for residence
+        const residencePlaceId = personDto.residence.place_id
+        //Make a call to Google API to get coordinates
+        let place: GooglePlaceDto = null;
+        if (residencePlaceId) {
+          place = await this.googleService.getPlaceDetails(residencePlaceId);
+        }
+        //Visitor's church location
+        const userChurchLocation = personDto.churchLocationId
 
-    if (isValidNumber(personDto.cellGroupId)) {
-      const membership = new GroupMembership();
-      membership.groupId = personDto.cellGroupId;
-      membership.role = GroupRole.Member;
-      groupMemberships.push(membership);
-    } else if (typeof personDto.cellGroupId === 'string') {
-      const group = new Group();
-      group.name = personDto.cellGroupId;
-      group.parentId = personDto.churchLocationId;
-      group.privacy = GroupPrivacy.Public;
-      group.categoryId = 'MC';
-      group.details = '--pending--';
-      await this.groupRepository.save(group);
-      const membership = new GroupMembership();
-      membership.groupId = group.id;
-      membership.role = GroupRole.Member;
-      groupMemberships.push(membership);
+        //Find all cell groups under user's church location
+        const locationCellGroups = await getRepository(Group)
+          .createQueryBuilder("group")
+          .where ("group.parentId = :churchLocationId", {churchLocationId:userChurchLocation})
+          .getMany();
+
+        //Variable to store closest cell group
+        var closestCellGroupid = locationCellGroups[0].id
+        var closestCellGroupname = locationCellGroups[0].name
+        var closestCellGroupMetadata = locationCellGroups[0].metaData
+        //Initialise variable to store least distance 
+        var leastDistance = getPreciseDistance(
+          { latitude:place.latitude, longitude:place.longitude },
+          { latitude:locationCellGroups[0].latitude, longitude:locationCellGroups[0].longitude },
+          1
+        );
+        
+        //Calculate closest distance
+        for (var i = 1; i < locationCellGroups.length; i++) {
+          var distanceToCellGroup = getPreciseDistance(
+            { latitude:place.latitude, longitude:place.longitude },
+            { latitude:locationCellGroups[i].latitude, longitude:locationCellGroups[i].longitude },1);
+          if (distanceToCellGroup < leastDistance) { 
+            leastDistance = distanceToCellGroup
+            closestCellGroupid = locationCellGroups[i].id
+            closestCellGroupname = locationCellGroups[i].name
+            closestCellGroupMetadata = locationCellGroups[i].metaData
+          } 
+        }  
+
+        groupRequest.parentId = userChurchLocation;
+        groupRequest.closestCellGroupId = closestCellGroupid; 
+        groupRequest.distanceKm = (leastDistance/1000);
+        groupMembershipRequests.push(groupRequest);
+
+        //notify cell group leader of cell group with shortest distance to the person's residence
+        var closestCellData = JSON.parse(closestCellGroupMetadata)
+        /*
+          to: `${closestCellData.email}`,
+          subject: "Join MC Request",
+          html: 
+          `
+          <h3>Hello ${closestCellData.leaders},</h3></br>
+          <h4>I hope all is well on your end.<h4></br>
+          <p>${personDto.firstName} ${personDto.lastName} who lives in ${personDto.residence.description},
+          would like to join your Missional Community ${closestCellGroupname}.</br>
+          You can reach ${personDto.firstName} on ${personDto.phone} or ${personDto.email}.</p></br>
+          <p>Cheers!</p>
+          `
+        */
+      }
     }
-
+        
     const model = new Contact();
     model.category = ContactCategory.Person;
     const contact = await this.repository.save(model);
@@ -243,6 +326,10 @@ export class ContactsService {
     contact.emails = await this.emailRepository.save(emails.map(it => ({ ...it, contact: contactRef })));
     contact.addresses = await this.addressRepository.save(addresses.map(it => ({ ...it, contact: contactRef })));
     contact.groupMemberships = await this.membershipRepository.save(groupMemberships.map(it => ({
+      ...it,
+      contact: contactRef,
+    })));
+    contact.groupMembershipRequests = await this.gmRequestRepository.save(groupMembershipRequests.map(it=> ({
       ...it,
       contact: contactRef,
     })));

@@ -45,8 +45,14 @@ export default class Address {
     @Column({nullable: true})
     freeForm?: string;
 
-    @Column({nullable: true})
-    latLon?: string;
+    @Column({ type:'float',nullable: true })
+    latitude?: number;
+
+    @Column({ type:'float',nullable: true })
+    longitude?: number;
+
+    @Column({ type: 'point', nullable: true })
+    geoCoordinates?: string;
 
     @Column({nullable: true})
     placeId?: string;
