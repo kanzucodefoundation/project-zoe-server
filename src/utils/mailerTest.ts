@@ -1,4 +1,5 @@
 const nodemailer = require("nodemailer");
+const sendGridTransport = require("nodemailer-sendgrid-transport");
 
 export interface IEmail {
     to: string
@@ -7,19 +8,13 @@ export interface IEmail {
 }
 
 export async function sendEmail(data: IEmail): Promise<string> {
-    const testAccount = await nodemailer.createTestAccount();
-
-    const transporter = nodemailer.createTransport({
-        host: "smtp.ethereal.email",
-        port: 587,
-        secure: false,
-        auth: {
-            user: testAccount.user,
-            pass: testAccount.pass
+    const transporter = nodemailer.createTransport(sendGridTransport({
+        auth:{
+            api_key:process.env.SENDGRID_API
         }
-    });
+        }));
     const mailOptions = {
-        from: testAccount.user,
+        from: process.env.EMAIL_SENDER,
         to: data.to,
         subject: data.subject,
         html: data.html
