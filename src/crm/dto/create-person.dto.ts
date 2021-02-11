@@ -1,7 +1,6 @@
 import { CivilStatus } from '../enums/civilStatus';
 import { Gender } from '../enums/gender';
 import { IsDateString, IsEmail, IsEnum, IsNotEmpty } from 'class-validator';
-import { UserResponse } from '../enums/responseCategory';
 
 
 export class CreatePersonDto {
@@ -37,8 +36,7 @@ export class CreatePersonDto {
   cellGroupId?: any;
   churchLocationId?: number;
 
-  @IsEnum(UserResponse)
-  inCell?: UserResponse;
+  inCell?: any;
 
   joinCell?: any;
 }
