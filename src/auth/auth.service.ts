@@ -56,15 +56,15 @@ export class AuthService {
     if (!userExists) {
         throw new HttpException("User Not Found", 404);
     }
-    
+
     const user = (await this.usersService.findOne(userExists.id));
     const token = (await this.generateToken(user)).token;
-    const resetLink = `http://localhost:3000/#/reset-password/${token}`;
+    const resetLink = `${process.env.APP_URL}/#/reset-password/${token}`;
 
     const mailerData: IEmail = {
         to: `${(await user).username}`,
         subject: "Reset Password",
-        html: 
+        html:
         `
             <h3>Hello ${user.fullName}</h3></br>
             <h4>Here is a link to reset your Password!<h4></br>
@@ -100,7 +100,7 @@ export class AuthService {
           <h3>Hello ${(await user).fullName},</h3></br>
           <h4>Your Password has been changed successfully!<h4></br>
       `
-    } 
+    }
     const mailURL = await sendEmail(mailerData);
     if (mailURL) {
       const message = "Password Change Successful"

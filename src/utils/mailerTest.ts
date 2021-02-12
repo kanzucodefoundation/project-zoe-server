@@ -1,5 +1,5 @@
-const nodemailer = require("nodemailer");
-const sendGridTransport = require("nodemailer-sendgrid-transport");
+import sendGridTransport from "nodemailer-sendgrid-transport";
+import nodemailer from "nodemailer";
 
 export interface IEmail {
     to: string
@@ -10,7 +10,7 @@ export interface IEmail {
 export async function sendEmail(data: IEmail): Promise<string> {
     const transporter = nodemailer.createTransport(sendGridTransport({
         auth:{
-            api_key:process.env.SENDGRID_API
+            'api_key':process.env.SENDGRID_API
         }
         }));
     const mailOptions = {
