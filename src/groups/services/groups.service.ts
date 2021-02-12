@@ -58,7 +58,7 @@ export class GroupsService {
   async combo(req: GroupSearchDto): Promise<Group[]> {
     const findOps: FindConditions<Group> = {};
     if (hasValue(req.categories)) {
-      findOps.categoryId = In(req.categories);
+      findOps.categoryId = String(In(req.categories));
     }
     if (hasValue(req.query)) {
       findOps.name = Like(`%${req.query}%`);

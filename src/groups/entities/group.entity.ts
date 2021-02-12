@@ -2,6 +2,7 @@ import { Column, Entity, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColum
 import { GroupPrivacy } from '../enums/groupPrivacy';
 import GroupCategory from './groupCategory.entity';
 import GroupMembership from './groupMembership.entity';
+import GroupMembershipRequest from './groupMembershipRequest.entity';
 
 @Entity()
 export default class Group {
@@ -60,4 +61,8 @@ export default class Group {
   @JoinColumn()
   @OneToMany(type => GroupMembership, it => it.group)
   members: GroupMembership[];
+
+  @JoinColumn()
+  @OneToMany(type => GroupMembershipRequest, it => it.group)
+  groupMembershipRequests: GroupMembershipRequest[];
 }

@@ -1,5 +1,6 @@
 import Contact from "src/crm/entities/contact.entity";
 import { PrimaryGeneratedColumn, Column, Entity, JoinColumn, ManyToOne } from "typeorm";
+import Group from "./group.entity";
 
 @Entity()
 export default class GroupMembershipRequest{
@@ -16,11 +17,15 @@ export default class GroupMembershipRequest{
     @Column({ nullable: true })
     parentId?: number;
 
-    @Column()
-    closestCellGroupId: number;
+    @JoinColumn()
+    @ManyToOne(type => Group, it => it.groupMembershipRequests)
+    group: Group;
 
     @Column()
-    distanceKm: number;
+    groupId: number;
+    
+    @Column()
+    distanceKm?: number | null;
 
 }
 
