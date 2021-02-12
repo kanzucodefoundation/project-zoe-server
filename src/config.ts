@@ -26,6 +26,6 @@ export default {
     synchronize: process.env.DB_SYNCHRONIZE === 'true',
     legacySpatialSupport: false,
     cache: true,
-    //logging: true
+    // logging: true
   },
 };

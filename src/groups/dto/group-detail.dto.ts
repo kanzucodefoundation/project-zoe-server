@@ -16,4 +16,5 @@ export class GroupDetailDto {
   longitude?: number;
   geoCoordinates?: string;
   placeId?: string;
+  leaders?: number[];
 }
