@@ -1,5 +1,5 @@
-import sendGridTransport from "nodemailer-sendgrid-transport";
-import nodemailer from "nodemailer";
+const sendGridTransport = require("nodemailer-sendgrid-transport")
+const nodemailer = require('nodemailer');
 
 export interface IEmail {
     to: string

@@ -6,11 +6,11 @@ import GroupMembershipRequestSearchDto from "../dto/membershipRequest/search-req
 import GroupMembershipRequest from "../entities/groupMembershipRequest.entity";
 import { hasValue } from '../../utils/basicHelpers';
 import GroupMembershipRequestDto from "../dto/membershipRequest/group-membership-request.dto";
-import NewRequestDto from "../dto/membershipRequest/new-request.dto";
+import { NewRequestDto } from "../dto/membershipRequest/new-request.dto";
 import { getPersonFullName } from "src/crm/crm.helpers";
 import { ContactsService } from "src/crm/contacts.service";
-import CreateRequestDto from "src/crm/dto/create-request.dto";
 import Contact from "src/crm/entities/contact.entity";
+import { IEmail, sendEmail } from "src/utils/mailerTest";
 
 @Injectable()
 export class GroupMembershipRequestService {
@@ -68,17 +68,37 @@ export class GroupMembershipRequestService {
             throw new HttpException("User already has a pending request", 400)
         }
 
-        const info: CreateRequestDto = {
-            firstName: user.person.firstName,
-            lastName: user.person.lastName,
-            email: data.phone,
-            phone: data.email,
-            churchLocation: data.churchLocation,
-            residencePlaceId: data.residencePlaceId,
-            residenceDescription: data.residenceDescription
+        const groupDetails = {
+            placeId: data.residencePlaceId,
+            churchLocation: data.churchLocation
         }
 
-        await this.contactService.createRequest(info);
+        const info = await this.contactService.getClosestGroup(groupDetails);
+
+        const result = await this.repository.createQueryBuilder()
+            .insert().values({
+                contactId: data.contactId,
+                parentId: data.churchLocation,
+                groupId: info.groupId,
+                distanceKm: (info.distance /1000)
+            })
+            .execute()
+        
+        const closestCellData = JSON.parse(info.groupMeta)
+        const mailerData:IEmail = {
+            to: `${closestCellData.email}`,
+            subject: "Join MC Request",
+            html:
+            `
+            <h3>Hello ${closestCellData.leaders},</h3></br>
+            <h4>I hope all is well on your end.<h4></br>
+            <p>${user.person.firstName} ${user.person.lastName} who lives in ${data.residenceDescription},
+            would like to join your Missional Community ${info.groupName}.</br>
+            You can reach ${user.person.firstName} on ${data.phone} or ${data.email}.</p></br>
+            <p>Cheers!</p>
+            `
+        }
+        await sendEmail(mailerData);
 
         return (await this.repository.find({
             where: {contactId: data.contactId},
