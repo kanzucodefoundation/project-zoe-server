@@ -1,5 +1,5 @@
-import sendGridTransport from "nodemailer-sendgrid-transport";
-import nodemailer from "nodemailer";
+import * as sendGridTransport from "nodemailer-sendgrid-transport";
+import * as nodemailer from "nodemailer";
 
 export interface IEmail {
     to: string
