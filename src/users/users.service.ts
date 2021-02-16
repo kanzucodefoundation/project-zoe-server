@@ -106,7 +106,7 @@ export class UsersService {
             })
         ).token;
 
-        const resetLink = `http://localhost:4002/resetPassword/`;
+        const resetLink = `${process.env.APP_URL}/#/reset-password/${token}`;
         const mailerData: IEmail = {
             to: `${(await user).username}`,
             subject: "Account Activated!",

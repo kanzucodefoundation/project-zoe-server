@@ -1,7 +1,4 @@
-import { IsNotEmpty, IsNumber } from "class-validator";
-
-
-export default class NewRequestDto {
+export class NewRequestDto {
 
     contactId: number;
     email: string;
@@ -9,7 +6,18 @@ export default class NewRequestDto {
     churchLocation: number;
     residencePlaceId: string;
     residenceDescription: string;
+}
 
+export class GetClosestGroupDto {
+    placeId: string;
+    churchLocation: number;
+}
+
+export class GetGroupResponseDto {
+    groupId: number;
+    groupName: string;
+    groupMeta: string;
+    distance: number;
 }
 
 

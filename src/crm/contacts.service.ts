@@ -26,9 +26,8 @@ import { GoogleService } from 'src/vendor/google.service';
 import GooglePlaceDto from 'src/vendor/google-place.dto';
 import { getPreciseDistance } from 'geolib';
 import GroupMembershipRequest from 'src/groups/entities/groupMembershipRequest.entity';
-import { TransformOperationExecutor } from 'class-transformer/TransformOperationExecutor';
 import { IEmail, sendEmail } from 'src/utils/mailerTest';
-import CreateRequestDto from './dto/create-request.dto';
+import { GetClosestGroupDto, GetGroupResponseDto } from 'src/groups/dto/membershipRequest/new-request.dto';
 
 @Injectable()
 export class ContactsService {
@@ -258,17 +257,36 @@ export class ContactsService {
 
       if (personDto.joinCell === 'Yes') {
 
-        const request: CreateRequestDto = {
-          firstName: personDto.firstName,
-          lastName: personDto.lastName,
-          email: personDto.email,
-          phone: personDto.phone,
-          churchLocation: personDto.churchLocationId,
-          residencePlaceId: personDto.residence.place_id,
-          residenceDescription: personDto.residence.description,
+        const groupRequest = new GroupMembershipRequest();
+
+        const details = {
+          placeId: personDto.residence.place_id,
+          churchLocation: personDto.churchLocationId
         }
 
-        groupMembershipRequests = await this.createRequest(request);
+        const closestGroup = await this.getClosestGroup(details);
+
+        groupRequest.parentId = details.churchLocation;
+        groupRequest.groupId = closestGroup.groupId;
+        groupRequest.distanceKm = (closestGroup.distance/1000);
+        groupMembershipRequests.push(groupRequest);
+
+        //notify cell group leader of cell group with shortest distance to the person's residence
+        const closestCellData = JSON.parse(closestGroup.groupMeta)
+        const mailerData:IEmail = {
+          to: `${closestCellData.email}`,
+          subject: "Join MC Request",
+          html:
+          `
+          <h3>Hello ${closestCellData.leaders},</h3></br>
+          <h4>I hope all is well on your end.<h4></br>
+          <p>${personDto.firstName} ${personDto.lastName} who lives in ${personDto.residence.description},
+          would like to join your Missional Community ${closestGroup.groupName}.</br>
+          You can reach ${personDto.firstName} on ${personDto.phone} or ${personDto.email}.</p></br>
+          <p>Cheers!</p>
+          `
+        }
+        await sendEmail(mailerData);
       }
     }
 
@@ -294,84 +312,56 @@ export class ContactsService {
   }
 
 
-  async createRequest (data: CreateRequestDto) {
+  async getClosestGroup(data: GetClosestGroupDto): Promise<any | GetGroupResponseDto> {
     try {
-
-      const groupMembershipRequests: GroupMembershipRequest[] = [];
-      const groupRequest = new GroupMembershipRequest();
+      const {placeId, churchLocation} = data
 
       let place: GooglePlaceDto = null;
-      if (data.residencePlaceId) {
-        place = await this.googleService.getPlaceDetails(data.residencePlaceId);
+      if(placeId) {
+        place = await this.googleService.getPlaceDetails(placeId)
       }
 
-      //Find all cell groups under user's church location
-      // TODO this query will bring more that just MCs
-      const locationCellGroupsRaw = await getRepository(Group)
-        .createQueryBuilder("group")
-        .where ("group.parentId = :churchLocationId", {churchLocationId:data.churchLocation})
+      const groupsAtLocation = await getRepository(Group)
+        .createQueryBuilder('group')
+        .where ("group.parentId = :churchLocationId", {churchLocationId: churchLocation})
           .andWhere("group.categoryId = 'MC'")
         .getMany();
-
-      // Some groups
-      const locationCellGroups = locationCellGroupsRaw.filter(it=>hasValue(it.latitude)&&hasValue(it.longitude))
-      if(locationCellGroups.length===0){
-        // There are no valid MCs
-        Logger.warn("There are no Groups in the person's vicinity")
+        
+      if (groupsAtLocation.length === 0) {
+        Logger.warn("There are no groups in the person's vicinity")
         return [];
       }
 
       //Variable to store closest cell group
-      let closestCellGroupid = locationCellGroups[0].id
-      let closestCellGroupname = locationCellGroups[0].name
-      let closestCellGroupMetadata = locationCellGroups[0].metaData
+      let closestCellGroupid = groupsAtLocation[0].id
+      let closestCellGroupname = groupsAtLocation[0].name
+      let closestCellGroupMetadata = groupsAtLocation[0].metaData
       //Initialise variable to store least distance
       let leastDistance = getPreciseDistance(
         { latitude:place.latitude, longitude:place.longitude },
-        { latitude:locationCellGroups[0].latitude, longitude:locationCellGroups[0].longitude },
+        { latitude:groupsAtLocation[0].latitude, longitude:groupsAtLocation[0].longitude },
         1
       );
-      console.log(">>>>>>>>>>>>>>>>>>1")
+
       //Calculate closest distance
-      for (let i = 1; i < locationCellGroups.length; i++) {
+      for (let i = 1; i < groupsAtLocation.length; i++) {
         const distanceToCellGroup = getPreciseDistance(
           { latitude:place.latitude, longitude:place.longitude },
-          { latitude:locationCellGroups[i].latitude, longitude:locationCellGroups[i].longitude },1);
+          { latitude:groupsAtLocation[i].latitude, longitude:groupsAtLocation[i].longitude },1);
         if (distanceToCellGroup < leastDistance) {
           leastDistance = distanceToCellGroup
-          closestCellGroupid = locationCellGroups[i].id
-          closestCellGroupname = locationCellGroups[i].name
-          closestCellGroupMetadata = locationCellGroups[i].metaData
+          closestCellGroupid = groupsAtLocation[i].id
+          closestCellGroupname = groupsAtLocation[i].name
+          closestCellGroupMetadata = groupsAtLocation[i].metaData
         }
       }
-      console.log(">>>>>>>>>>>>>>>>>>2")
-      //call create to add to database
-      groupRequest.parentId = data.churchLocation;
-      groupRequest.groupId = closestCellGroupid;
-      groupRequest.distanceKm = (leastDistance/1000);
-      groupMembershipRequests.push(groupRequest);
-
-      //notify cell group leader of cell group with shortest distance to the person's residence
-      const closestCellData = JSON.parse(closestCellGroupMetadata)
-      console.log(">>>>>>>>>>>>>>>>>>3")
-      const mailerData:IEmail = {
-        to: `${closestCellData.email}`,
-        subject: "Join MC Request",
-        html:
-        `
-        <h3>Hello ${closestCellData.leaders},</h3></br>
-        <h4>I hope all is well on your end.<h4></br>
-        <p>${data.firstName} ${data.lastName} who lives in ${data.residenceDescription},
-        would like to join your Missional Community ${closestCellGroupname}.</br>
-        You can reach ${data.firstName} on ${data.phone} or ${data.email}.</p></br>
-        <p>Cheers!</p>
-        `
+      return {
+        groupId: closestCellGroupid, 
+        groupName: closestCellGroupname, 
+        groupMeta: closestCellGroupMetadata, 
+        distance: leastDistance
       }
-      console.log(">>>>>>>>>>>>>>>>>>4")
-      await sendEmail(mailerData);
-
-      return groupMembershipRequests;
-    }catch (e) {
+    } catch (e) {
       Logger.error("Failed to create member request",e)
       return []
     }

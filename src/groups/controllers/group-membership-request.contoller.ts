@@ -2,7 +2,7 @@ import { Body, Controller, Delete, Get, Param, Post, Put, Query, UseGuards } fro
 import {ApiTags} from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import GroupMembershipRequestDto from '../dto/membershipRequest/group-membership-request.dto';
-import NewRequestDto from '../dto/membershipRequest/new-request.dto';
+import {NewRequestDto} from '../dto/membershipRequest/new-request.dto';
 import GroupMembershipRequestSearchDto from '../dto/membershipRequest/search-request.dto';
 import { GroupMembershipRequestService } from '../services/group-membership-request.service';
 
