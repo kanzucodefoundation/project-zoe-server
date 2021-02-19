@@ -2,9 +2,7 @@ import { CivilStatus } from '../enums/civilStatus';
 import { Gender } from '../enums/gender';
 import { IsDateString, IsEmail, IsEnum, IsNotEmpty } from 'class-validator';
 
-
 export class CreatePersonDto {
-
   @IsNotEmpty()
   @IsEmail()
   email: string;
@@ -40,5 +38,3 @@ export class CreatePersonDto {
 
   joinCell?: any;
 }
-
-

@@ -1,14 +1,13 @@
-import {PhoneCategory} from "../enums/phoneCategory";
+import { PhoneCategory } from '../enums/phoneCategory';
 
 export class PhoneDto {
+  id: number;
 
-    id: number;
+  category: PhoneCategory;
 
-    category: PhoneCategory;
+  value: string;
 
-    value: string;
+  isPrimary: boolean;
 
-    isPrimary: boolean;
-
-    contactId: number;
+  contactId: number;
 }

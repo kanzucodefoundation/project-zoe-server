@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Like, Repository } from 'typeorm';
+import { In, Like, Repository, ILike } from 'typeorm';
 import Group from '../entities/group.entity';
 import SearchDto from '../../shared/dto/search.dto';
 import { GroupSearchDto } from '../dto/group-search.dto';
@@ -73,7 +73,7 @@ export class GroupsService {
       findOps.categoryId = In(req.categories);
     }
     if (hasValue(req.query)) {
-      findOps.name = Like(`%${req.query}%`);
+      findOps.name = ILike(`%${req.query}%`);
     }
     return await this.repository.find({
       select: ['id', 'name', 'categoryId'],

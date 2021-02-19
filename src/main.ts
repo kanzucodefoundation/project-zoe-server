@@ -7,16 +7,16 @@ import * as compression from 'compression';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import config from './config';
 import { ValidationPipe } from '@nestjs/common';
-import {HttpExceptionFilter} from "./auth/http-exception.filter";
+import { HttpExceptionFilter } from './auth/http-exception.filter';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.use(helmet());
   app.enableCors({
-    "origin": "*",
-    "methods": "GET,HEAD,PUT,PATCH,POST,DELETE",
-    "preflightContinue": false,
-    "optionsSuccessStatus": 204
+    origin: '*',
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+    preflightContinue: false,
+    optionsSuccessStatus: 204,
   });
   app.use(compression());
   app.use(
@@ -26,9 +26,13 @@ async function bootstrap() {
     }),
   );
   app.useGlobalFilters(new HttpExceptionFilter());
-  app.useGlobalPipes(new ValidationPipe(
-    // {whitelist: true}
-  ));
+  app.useGlobalPipes(
+    new ValidationPipe({
+      //validation of all properties that are missing in the validating object
+      //skipMissingProperties: true, TODO re-add this after API is cleaned up
+      transform: true,
+    }),
+  );
   const options = new DocumentBuilder()
     .setTitle('Angie API')
     .setDescription('API for ANGIE frontend systems')

@@ -34,6 +34,4 @@ const config = {
   database: database,
 };
 
-console.log('App.Configuration >>>>', config);
-
 export default config;
