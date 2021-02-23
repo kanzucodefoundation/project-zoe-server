@@ -16,6 +16,9 @@ import { join } from 'path';
 import { SeedModule } from './seed/seed.module';
 import { SeedService } from './seed/seed.service';
 import { VendorModule } from './vendor/vendor.module';
+import { ReportsModule } from './reports/reports.module';
+import { EventsModule } from './events/events.module';
+import { eventEntities } from './events/events.helpers';
 
 console.log('App.Configuration >>>>', config);
 
@@ -30,7 +33,12 @@ console.log('App.Configuration >>>>', config);
     }),
     TypeOrmModule.forRoot({
       ...config.database,
-      entities: [...usersEntities, ...crmEntities, ...groupEntities],
+      entities: [
+        ...usersEntities,
+        ...crmEntities,
+        ...groupEntities,
+        ...eventEntities,
+      ],
     }),
     UsersModule,
     AuthModule,
@@ -38,6 +46,8 @@ console.log('App.Configuration >>>>', config);
     GroupsModule,
     SeedModule,
     VendorModule,
+    ReportsModule,
+    EventsModule,
   ],
   controllers: [AuthController],
   providers: [AppService],

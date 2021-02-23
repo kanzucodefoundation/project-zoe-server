@@ -72,6 +72,10 @@ function handleQueryFailedError(
     message = 'Duplicate entry, please check input';
     status = HttpStatus.BAD_REQUEST;
   }
+  if (exception['code'] === '23503') {
+    message = 'Data integrity error, please check input';
+    status = HttpStatus.BAD_REQUEST;
+  }
   response.status(status).json({
     statusCode: status,
     timestamp: new Date().toISOString(),

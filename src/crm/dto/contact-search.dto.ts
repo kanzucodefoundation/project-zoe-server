@@ -1,5 +1,5 @@
 import SearchDto from '../../shared/dto/search.dto';
-import { IsArray, IsNumber } from 'class-validator';
+import { IsArray, IsNumber, IsOptional } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class ContactSearchDto extends SearchDto {
@@ -9,11 +9,13 @@ export class ContactSearchDto extends SearchDto {
   @Type(() => Number)
   @IsArray()
   @IsNumber({}, { each: true })
+  @IsOptional()
   cellGroups?: number[];
 
   @Type(() => Number)
   @IsArray()
   @IsNumber({}, { each: true })
+  @IsOptional()
   ageGroups?: number[];
   churchLocations?: number[];
   skipUsers?: boolean;

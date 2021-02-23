@@ -1,4 +1,11 @@
-import { Column, Entity, JoinColumn, OneToMany, OneToOne, PrimaryGeneratedColumn } from 'typeorm';
+import {
+  Column,
+  Entity,
+  JoinColumn,
+  OneToMany,
+  OneToOne,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
 import Person from './person.entity';
 import Company from './company.entity';
 import Email from './email.entity';
@@ -11,6 +18,7 @@ import { ContactCategory } from '../enums/contactCategory';
 import GroupMembership from '../../groups/entities/groupMembership.entity';
 import Relationship from './relationship.entity';
 import GroupMembershipRequest from 'src/groups/entities/groupMembershipRequest.entity';
+import EventAttendance from '../../events/entities/eventAttendance.entity';
 
 @Entity()
 export default class Contact {
@@ -25,40 +33,79 @@ export default class Contact {
   })
   category: ContactCategory;
 
-  @OneToOne(type => Person, it => it.contact)
+  @OneToOne(
+    type => Person,
+    it => it.contact,
+  )
   person?: Person;
 
-  @OneToOne(type => Person, it => it.contact)
+  @OneToOne(
+    type => Person,
+    it => it.contact,
+  )
   company?: Company;
 
-  @OneToMany(type => Email, it => it.contact)
+  @OneToMany(
+    type => Email,
+    it => it.contact,
+  )
   emails: Email[];
 
-  @OneToMany(type => Phone, it => it.contact)
+  @OneToMany(
+    type => Phone,
+    it => it.contact,
+  )
   phones: Phone[];
 
-  @OneToMany(type => Occasion, it => it.contact)
+  @OneToMany(
+    type => Occasion,
+    it => it.contact,
+  )
   occasions: Occasion[];
 
-  @OneToMany(type => Address, it => it.contact)
+  @OneToMany(
+    type => Address,
+    it => it.contact,
+  )
   addresses: Address[];
 
-  @OneToMany(type => Identification, it => it.contact)
+  @OneToMany(
+    type => Identification,
+    it => it.contact,
+  )
   identifications: Identification[];
 
-  @OneToMany(type => Relationship, it => it.contact)
+  @OneToMany(
+    type => Relationship,
+    it => it.contact,
+  )
   relationships: Relationship[];
 
-  @OneToMany(type => Request, it => it.contact)
+  @OneToMany(
+    type => Request,
+    it => it.contact,
+  )
   requests: Request[];
 
   @JoinColumn()
-  @OneToMany(type => GroupMembership, it => it.contact)
+  @OneToMany(
+    type => GroupMembership,
+    it => it.contact,
+  )
   groupMemberships: GroupMembership[];
 
   @JoinColumn()
-  @OneToMany(type => GroupMembershipRequest, it => it.contact)
+  @OneToMany(
+    type => GroupMembershipRequest,
+    it => it.contact,
+  )
   groupMembershipRequests: GroupMembershipRequest[];
+
+  @OneToMany(
+    type => EventAttendance,
+    it => it.contact,
+  )
+  attendance: EventAttendance[];
 
   static ref(id: number) {
     const c = new Contact();

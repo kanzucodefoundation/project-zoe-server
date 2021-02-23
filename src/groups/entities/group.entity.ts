@@ -10,6 +10,7 @@ import { GroupPrivacy } from '../enums/groupPrivacy';
 import GroupCategory from './groupCategory.entity';
 import GroupMembership from './groupMembership.entity';
 import GroupMembershipRequest from './groupMembershipRequest.entity';
+import GroupEvent from '../../events/entities/event.entity';
 import { Point } from '../../utils/locationHelpers';
 
 @Entity()
@@ -75,6 +76,12 @@ export default class Group {
     it => it.parent,
   )
   children: Group[];
+
+  @OneToMany(
+    type => GroupEvent,
+    it => it.group,
+  )
+  events: GroupEvent[];
 
   @JoinColumn()
   @OneToMany(
