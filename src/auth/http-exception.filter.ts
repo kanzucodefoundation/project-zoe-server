@@ -6,7 +6,6 @@ import {
   HttpException,
   HttpStatus,
   Logger,
-  ValidationError,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
 import ClientFriendlyException from '../shared/exceptions/client-friendly.exception';
@@ -15,10 +14,9 @@ import { QueryFailedError } from 'typeorm';
 function parseValidationErrors(exception: any) {
   try {
     if (exception instanceof BadRequestException) {
-      const msg: ValidationError[] = exception.message.message;
       return {
         message: 'Validation Error',
-        errors: msg.map(it => Object.values(it.constraints)[0]),
+        errors: exception.message,
       };
     }
   } catch (ex) {
@@ -73,6 +71,7 @@ function handleQueryFailedError(
     status = HttpStatus.BAD_REQUEST;
   }
   if (exception['code'] === '23503') {
+    // pg only
     message = 'Data integrity error, please check input';
     status = HttpStatus.BAD_REQUEST;
   }

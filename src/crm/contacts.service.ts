@@ -250,7 +250,7 @@ export class ContactsService {
 
       address.county = '-NA-';
       address.freeForm = personDto.residence.description;
-      address.placeId = personDto.residence.place_id;
+      address.placeId = personDto.residence.placeId;
       //Make a call to the Google API to get coordinates
       let place: GooglePlaceDto = null;
       if (address.placeId) {
