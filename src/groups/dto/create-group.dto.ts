@@ -1,5 +1,6 @@
 import { GroupPrivacy } from '../enums/groupPrivacy';
 import { IsNotEmpty, IsOptional } from 'class-validator';
+import InternalAddress from '../../shared/entity/InternalAddress';
 
 export default class CreateGroupDto {
   @IsOptional()
@@ -18,11 +19,5 @@ export default class CreateGroupDto {
   metaData?: any;
 
   @IsOptional()
-  freeForm?: string;
-
-  @IsOptional()
-  latLon?: string;
-
-  @IsOptional()
-  placeId?: string;
+  address?: InternalAddress;
 }

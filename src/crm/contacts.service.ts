@@ -39,6 +39,7 @@ import {
   GetClosestGroupDto,
   GetGroupResponseDto,
 } from 'src/groups/dto/membershipRequest/new-request.dto';
+import { PrismaService } from '../shared/prisma.service';
 
 @Injectable()
 export class ContactsService {
@@ -62,6 +63,7 @@ export class ContactsService {
     @InjectRepository(GroupMembershipRequest)
     private readonly gmRequestRepository: Repository<GroupMembershipRequest>,
     private googleService: GoogleService,
+    private prisma: PrismaService,
   ) {}
 
   async findAll(req: ContactSearchDto): Promise<ContactListDto[]> {
@@ -247,8 +249,6 @@ export class ContactsService {
       const address = new Address();
       address.category = AddressCategory.Home;
       address.isPrimary = true;
-
-      address.county = '-NA-';
       address.freeForm = personDto.residence.description;
       address.placeId = personDto.residence.placeId;
       //Make a call to the Google API to get coordinates
@@ -259,6 +259,7 @@ export class ContactsService {
         address.latitude = place.latitude;
         address.country = place.country;
         address.district = place.district;
+        console.log('Address', address);
       }
       addresses.push(address);
     }
@@ -292,35 +293,27 @@ export class ContactsService {
       }
     } else {
       if (personDto.joinCell === 'Yes') {
+        Logger.log(`Attempt to add person to mc`);
         const groupRequest = new GroupMembershipRequest();
 
         const details = {
-          placeId: personDto.residence.place_id,
+          placeId: personDto.residence.placeId,
           churchLocation: personDto.churchLocationId,
         };
 
-        const closestGroup = await this.getClosestGroup(details);
-
-        groupRequest.parentId = details.churchLocation;
-        groupRequest.groupId = closestGroup.groupId;
-        groupRequest.distanceKm = closestGroup.distance / 1000;
-        groupMembershipRequests.push(groupRequest);
-
-        //notify cell group leader of cell group with shortest distance to the person's residence
-        const closestCellData = JSON.parse(closestGroup.groupMeta);
-        const mailerData: IEmail = {
-          to: `${closestCellData.email}`,
-          subject: 'Join MC Request',
-          html: `
-          <h3>Hello ${closestCellData.leaders},</h3></br>
-          <h4>I hope all is well on your end.<h4></br>
-          <p>${personDto.firstName} ${personDto.lastName} who lives in ${personDto.residence.description},
-          would like to join your Missional Community ${closestGroup.groupName}.</br>
-          You can reach ${personDto.firstName} on ${personDto.phone} or ${personDto.email}.</p></br>
-          <p>Cheers!</p>
-          `,
-        };
-        await sendEmail(mailerData);
+        const closestGroup = await this.getClosestGroups(details);
+        Logger.log(
+          `Got closest group:${closestGroup.id}>>${
+            closestGroup.name
+          } ${JSON.stringify(closestGroup)}`,
+        );
+        if (hasValue(closestGroup)) {
+          groupRequest.parentId = details.churchLocation;
+          groupRequest.groupId = closestGroup.groupId;
+          groupRequest.distanceKm = closestGroup.distance / 1000;
+          groupMembershipRequests.push(groupRequest);
+          await this.notifyLeader(closestGroup, personDto);
+        }
       }
     }
 
@@ -358,7 +351,7 @@ export class ContactsService {
     return await this.findOne(contact.id);
   }
 
-  async getClosestGroup(
+  async getClosestGroups(
     data: GetClosestGroupDto,
   ): Promise<any | GetGroupResponseDto> {
     try {
@@ -388,10 +381,10 @@ export class ContactsService {
       let closestCellGroupMetadata = groupsAtLocation[0].metaData;
       //Initialise variable to store least distance
       let leastDistance = getPreciseDistance(
-        { latitude: place.latitude, longitude: place.longitude },
+        { latitude: place?.latitude, longitude: place?.longitude },
         {
-          latitude: groupsAtLocation[0].latitude,
-          longitude: groupsAtLocation[0].longitude,
+          latitude: groupsAtLocation[0]?.address?.latitude,
+          longitude: groupsAtLocation[0]?.address?.longitude,
         },
         1,
       );
@@ -401,8 +394,8 @@ export class ContactsService {
         const distanceToCellGroup = getPreciseDistance(
           { latitude: place.latitude, longitude: place.longitude },
           {
-            latitude: groupsAtLocation[i].latitude,
-            longitude: groupsAtLocation[i].longitude,
+            latitude: groupsAtLocation[i]?.address?.latitude,
+            longitude: groupsAtLocation[i]?.address?.longitude,
           },
           1,
         );
@@ -420,8 +413,50 @@ export class ContactsService {
         distance: leastDistance,
       };
     } catch (e) {
+      console.log(e);
       Logger.error('Failed to create member request', e);
       return [];
+    }
+  }
+
+  async notifyLeader(closestGroup: any, personDto: CreatePersonDto) {
+    try {
+      if (!hasValue(closestGroup)) {
+        Logger.log(`Invalid group data`);
+      }
+      const leader = await this.prisma.group_membership.findFirst({
+        where: { groupId: closestGroup.id, role: GroupRole.Leader },
+        include: {
+          contact: {
+            include: {
+              person: { select: { firstName: true } },
+              email: true,
+            },
+          },
+        },
+      });
+      if (leader) {
+        Logger.log(
+          `There are no leaders in  for this group:${closestGroup.id}`,
+        );
+      }
+      //notify cell group leader of cell group with shortest distance to the person's residence
+      const closestCellData = JSON.parse(closestGroup.groupMeta);
+      const mailerData: IEmail = {
+        to: `${closestCellData.email}`,
+        subject: 'Join MC Request',
+        html: `
+          <h3>Hello ${closestCellData.leaders},</h3></br>
+          <h4>I hope all is well on your end.<h4></br>
+          <p>${personDto.firstName} ${personDto.lastName} who lives in ${personDto.residence.description},
+          would like to join your Missional Community ${closestGroup.groupName}.</br>
+          You can reach ${personDto.firstName} on ${personDto.phone} or ${personDto.email}.</p></br>
+          <p>Cheers!</p>
+          `,
+      };
+      await sendEmail(mailerData);
+    } catch (e) {
+      Logger.error('Failed to notify leader');
     }
   }
 

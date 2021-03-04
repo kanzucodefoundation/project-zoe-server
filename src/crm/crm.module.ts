@@ -14,23 +14,33 @@ import { RelationshipsController } from './contollers/relationships.controller';
 import { RequestsController } from './contollers/requests.controller';
 import { groupEntities } from '../groups/groups.helpers';
 import { usersEntities } from '../users/users.helpers';
-import {RegisterController} from "./contollers/register.controller";
+import { RegisterController } from './contollers/register.controller';
 import { GoogleService } from 'src/vendor/google.service';
+import { PrismaService } from '../shared/prisma.service';
 
 @Module({
-  imports: [HttpModule,TypeOrmModule.forFeature([...crmEntities, ...groupEntities,...usersEntities])],
-  providers: [ContactsService,GoogleService],
+  imports: [
+    HttpModule,
+    TypeOrmModule.forFeature([
+      ...crmEntities,
+      ...groupEntities,
+      ...usersEntities,
+    ]),
+  ],
+  providers: [ContactsService, GoogleService, PrismaService],
   controllers: [
-    ContactsController, PeopleController, CompaniesController,
+    ContactsController,
+    PeopleController,
+    CompaniesController,
     EmailsController,
     PhonesController,
     IdentificationsController,
     OccasionsController,
     AddressesController,
     RelationshipsController,
-    RequestsController,RegisterController
+    RequestsController,
+    RegisterController,
   ],
   exports: [ContactsService],
 })
-export class CrmModule {
-}
+export class CrmModule {}

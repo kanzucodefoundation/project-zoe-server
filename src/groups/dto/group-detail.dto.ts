@@ -11,10 +11,6 @@ export class GroupDetailDto {
   parentId?: number;
   parent?: ComboDto;
   metaData?: string;
-  freeForm?: string;
-  latitude?: number;
-  longitude?: number;
-  geoCoordinates?: string;
-  placeId?: string;
+  address?: any;
   leaders?: number[];
 }

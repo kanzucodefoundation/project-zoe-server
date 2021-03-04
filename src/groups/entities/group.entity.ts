@@ -13,6 +13,7 @@ import GroupMembership from './groupMembership.entity';
 import GroupMembershipRequest from './groupMembershipRequest.entity';
 import GroupEvent from '../../events/entities/event.entity';
 import { Point } from '../../utils/locationHelpers';
+import InternalAddress from '../../shared/entity/InternalAddress';
 
 @Entity()
 export default class Group {
@@ -57,20 +58,11 @@ export default class Group {
   @Column({ nullable: true })
   parentId?: number;
 
-  @Column({ nullable: true })
-  freeForm?: string;
-
-  @Column({ type: 'float', nullable: true })
-  latitude?: number;
-
-  @Column({ type: 'float', nullable: true })
-  longitude?: number;
-
-  @Column({ type: 'point', nullable: true })
-  geoCoordinates?: Point | string;
-
-  @Column({ nullable: true })
-  placeId?: string;
+  @Column({
+    nullable: true,
+    type: 'jsonb',
+  })
+  address?: InternalAddress;
 
   @OneToMany(
     type => Group,

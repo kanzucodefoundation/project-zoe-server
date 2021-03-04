@@ -13,15 +13,31 @@ import { GroupMembershipReqeustController } from './controllers/group-membership
 import { GroupMembershipRequestService } from './services/group-membership-request.service';
 import { ContactsService } from 'src/crm/contacts.service';
 import { crmEntities } from 'src/crm/crm.helpers';
+import { GoogleService } from '../vendor/google.service';
+import { PrismaService } from '../shared/prisma.service';
 
 @Module({
   imports: [
-    VendorModule,HttpModule,
-    TypeOrmModule.forFeature([...groupEntities, ...crmEntities])
+    VendorModule,
+    HttpModule,
+    TypeOrmModule.forFeature([...groupEntities, ...crmEntities]),
   ],
-  providers: [GroupsService, GroupCategoriesService, GroupsMembershipService, GroupMembershipRequestService, ContactsService],
-  controllers: [GroupController, GroupCategoryController, GroupComboController, GroupMembershipController, GroupMembershipReqeustController],
+  providers: [
+    GroupsService,
+    GroupCategoriesService,
+    GroupsMembershipService,
+    GroupMembershipRequestService,
+    ContactsService,
+    GoogleService,
+    PrismaService,
+  ],
+  controllers: [
+    GroupController,
+    GroupCategoryController,
+    GroupComboController,
+    GroupMembershipController,
+    GroupMembershipReqeustController,
+  ],
   exports: [GroupsService, GroupCategoriesService],
 })
-export class GroupsModule {
-}
+export class GroupsModule {}

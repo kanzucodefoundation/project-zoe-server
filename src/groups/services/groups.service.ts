@@ -87,8 +87,8 @@ export class GroupsService {
   async create(data: CreateGroupDto): Promise<GroupListDto | GroupDetailDto> {
     Logger.log(`Create.Group starting ${data.name}`);
     let place: GooglePlaceDto = null;
-    if (data.placeId) {
-      place = await this.googleService.getPlaceDetails(data.placeId);
+    if (data.address?.placeId) {
+      place = await this.googleService.getPlaceDetails(data.address.placeId);
     }
 
     const result = await this.repository
@@ -97,10 +97,7 @@ export class GroupsService {
       .values({
         id: 0,
         ...data,
-        freeForm: place?.name,
-        longitude: place?.longitude,
-        latitude: place?.latitude,
-        geoCoordinates: place ? `${place.longitude},${place.latitude}` : null,
+        address: place,
         children: [],
         members: [],
       })
@@ -142,20 +139,11 @@ export class GroupsService {
     if (!currGroup)
       throw new ClientFriendlyException(`Invalid group ID:${dto.id}`);
     let place: GooglePlaceDto = null;
-    if (dto.placeId && dto.placeId !== currGroup.placeId) {
+    if (dto.address && dto.address.placeId !== currGroup.address?.placeId) {
       Logger.log(`Update.Group groupID:${dto.id} fetching coordinates`);
-      place = await this.googleService.getPlaceDetails(dto.placeId);
+      place = await this.googleService.getPlaceDetails(dto.address.placeId);
     } else {
-      const { placeId, freeForm, longitude, latitude } = currGroup;
-      place = {
-        placeId,
-        name: freeForm,
-        longitude,
-        latitude,
-        vicinity: '',
-        country: '',
-        district: '',
-      };
+      place = currGroup.address;
       Logger.log(`Update.Group groupID:${dto.id} using old coordinates`);
     }
     const result = await this.repository
@@ -167,11 +155,7 @@ export class GroupsService {
         details: dto.details,
         privacy: dto.privacy,
         categoryId: dto.categoryId,
-        placeId: dto.placeId,
-        freeForm: place?.name,
-        longitude: place?.longitude,
-        latitude: place?.latitude,
-        geoCoordinates: place ? `${place.longitude},${place.latitude}` : null,
+        address: place,
       })
       .where('id = :id', { id: dto.id })
       .execute();
