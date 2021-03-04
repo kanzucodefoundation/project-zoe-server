@@ -53,9 +53,9 @@ export default class GroupEvent {
     it => it.events,
   )
   @JoinColumn()
-  category?: EventCategory;
+  category: EventCategory;
 
-  @Column()
+  @Column({ length: 40 })
   categoryId: string;
 
   @ManyToOne(
@@ -78,4 +78,25 @@ export default class GroupEvent {
     type: 'jsonb',
   })
   metaData?: any;
+  /**
+   *
+   * {
+   *   noOfSalvations:7
+   *   peopleToFollowUp:4
+   *   challenges:"The people could not speak english" ,
+   *   peopleWhoGotSaved:[""]
+   * }
+   *
+   * [
+   * {
+   *   name:'noOfSalvations', label:"No. Of Salvations", type:'number'
+   * },
+   * {
+   *   name:'challenges', label:"Challenges", type:'text'
+   *  }
+   * ]
+   *
+   *
+   *
+   */
 }

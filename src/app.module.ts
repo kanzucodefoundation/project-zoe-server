@@ -19,12 +19,14 @@ import { VendorModule } from './vendor/vendor.module';
 import { ReportsModule } from './reports/reports.module';
 import { EventsModule } from './events/events.module';
 import { eventEntities } from './events/events.helpers';
+import { PrismaService } from './shared/prisma.service';
 
 console.log('App.Configuration >>>>', config);
 
 @Module({
   imports: [
     HttpModule,
+
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', 'public'),
     }),

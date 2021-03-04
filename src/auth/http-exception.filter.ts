@@ -86,6 +86,7 @@ function handleQueryFailedError(
 @Catch(Error)
 export class HttpExceptionFilter implements ExceptionFilter {
   catch(exception: Error, host: ArgumentsHost) {
+    console.log(exception);
     Logger.error('Internal error', JSON.stringify(exception));
     if (exception instanceof HttpException) {
       return handleHttpException(exception, host);

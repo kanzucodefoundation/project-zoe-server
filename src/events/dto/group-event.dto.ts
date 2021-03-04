@@ -24,7 +24,5 @@ export default class GroupEventDto {
   categoryId: string;
   groupId?: number;
 
-  attendance: EventAttendanceDto[];
-
   metaData?: any;
 }

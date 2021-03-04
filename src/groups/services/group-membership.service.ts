@@ -18,8 +18,7 @@ export class GroupsMembershipService {
     @InjectRepository(GroupMembership)
     private readonly repository: Repository<GroupMembership>,
     private connection: Connection,
-  ) {
-  }
+  ) {}
 
   async findAll(req: GroupMembershipSearchDto): Promise<GroupMembershipDto[]> {
     const filter: FindConditions<GroupMembership> = {};
@@ -30,7 +29,7 @@ export class GroupsMembershipService {
       filter.groupId = req.groupId;
     }
     if (hasNoValue(filter))
-      throw  new ClientFriendlyException('Please groupID or contactId');
+      throw new ClientFriendlyException('Please groupID or contactId');
     const data = await this.repository.find({
       relations: ['contact', 'contact.person', 'group'],
       skip: req.skip,
@@ -45,7 +44,6 @@ export class GroupsMembershipService {
     return {
       ...rest,
       group: group ? { name: group.name, id: group.id } : null,
-      groupDetails: group.details,
       contact: { name: getPersonFullName(contact.person), id: contact.id },
     };
   }
@@ -73,14 +71,15 @@ export class GroupsMembershipService {
   }
 
   async update(dto: UpdateGroupMembershipDto): Promise<GroupMembershipDto> {
-    const update = await this.connection.createQueryBuilder()
+    const update = await this.connection
+      .createQueryBuilder()
       .update(GroupMembership)
       .set({
         role: dto.role,
       })
       .where('id = :id', { id: dto.id })
       .execute();
-    Logger.log(`Updated data ${update.affected} ${JSON.stringify(update.raw)}`)
+    Logger.log(`Updated data ${update.affected} ${JSON.stringify(update.raw)}`);
     return await this.findOne(dto.id);
   }
 
@@ -88,8 +87,3 @@ export class GroupsMembershipService {
     await this.repository.delete(id);
   }
 }
-
-
-
-
-

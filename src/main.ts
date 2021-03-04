@@ -6,7 +6,7 @@ import * as rateLimit from 'express-rate-limit';
 import * as compression from 'compression';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import config from './config';
-import { ValidationPipe } from '@nestjs/common';
+import { ParseIntPipe, ValidationPipe } from '@nestjs/common';
 import { HttpExceptionFilter } from './auth/http-exception.filter';
 
 async function bootstrap() {
@@ -22,7 +22,7 @@ async function bootstrap() {
   app.use(
     rateLimit({
       windowMs: 15 * 60 * 1000, // 15 minutes
-      max: 100, // limit each IP to 100 requests per windowMs
+      max: 10000, // limit each IP to 100 requests per windowMs
     }),
   );
   app.useGlobalFilters(new HttpExceptionFilter());

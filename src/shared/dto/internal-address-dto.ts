@@ -11,12 +11,14 @@ export default class InternalAddressDto {
   placeId: string;
 
   @IsNotEmpty()
-  freeForm: string;
+  name: string;
 
   @IsNotEmpty()
   latitude: number;
 
   longitude: number;
+
+  vicinity: string;
 
   geoCoordinates?: Point | string;
 }

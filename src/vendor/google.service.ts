@@ -25,7 +25,7 @@ export class GoogleService {
     Logger.log(`Google.PlaceDetails placeId: ${placeId} got response`);
     const {
       geometry: { location },
-      name: name,
+      name,
       formatted_address: addressParts,
       vicinity,
     } = response.result;

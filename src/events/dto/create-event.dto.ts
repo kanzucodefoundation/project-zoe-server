@@ -11,18 +11,12 @@ export default class CreateEventDto {
 
   endDate?: Date;
 
-  submittedAt?: Date;
-
-  submittedBy?: string;
-
   details: string;
 
   venue?: InternalAddressDto;
 
   categoryId: string;
   groupId?: number;
-
-  attendance: EventAttendanceDto[];
 
   metaData?: any;
 }

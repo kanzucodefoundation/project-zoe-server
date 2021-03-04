@@ -12,7 +12,7 @@ export default class InternalAddress {
   placeId: string;
 
   @Column({ nullable: true })
-  freeForm: string;
+  name: string;
 
   @Column({ type: 'float', nullable: true })
   latitude: number;
@@ -22,4 +22,7 @@ export default class InternalAddress {
 
   @Column({ type: 'point', nullable: true })
   geoCoordinates?: Point | string;
+
+  @Column({ nullable: true })
+  vicinity: string;
 }

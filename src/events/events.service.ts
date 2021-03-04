@@ -66,8 +66,9 @@ export class EventsService {
   }
 
   async findOne(id: number, full = true): Promise<GroupEventDto> {
+    // TODO optimise this query, we do not need the entire group
     const data = await this.repository.findOne(id, {
-      relations: ['category'],
+      relations: ['category', 'group'],
     });
     Logger.log(`Read.Event success id:${id}`);
     if (full) {
@@ -88,11 +89,10 @@ export class EventsService {
     if (!currGroup)
       throw new ClientFriendlyException(`Invalid group ID:${dto.id}`);
     let place: InternalAddress;
-    if (dto.venue.placeId && dto.venue.placeId !== currGroup.venue.placeId) {
+    if (dto.venue && dto.venue.placeId !== currGroup.venue?.placeId) {
       Logger.log(`Update.Event eventId:${dto.id} fetching coordinates`);
       place = {
         ...(await this.googleService.getPlaceDetails(dto.venue.placeId)),
-        freeForm: dto.venue.freeForm,
       };
     } else {
       place = {

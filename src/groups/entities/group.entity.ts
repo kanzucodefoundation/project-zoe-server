@@ -4,6 +4,7 @@ import {
   JoinColumn,
   ManyToOne,
   OneToMany,
+  PrimaryColumn,
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import { GroupPrivacy } from '../enums/groupPrivacy';
@@ -44,7 +45,7 @@ export default class Group {
   @JoinColumn()
   category?: GroupCategory;
 
-  @Column()
+  @Column({ length: 40 })
   categoryId: string;
 
   @ManyToOne(

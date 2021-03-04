@@ -24,6 +24,7 @@ export class EventsController {
 
   @Get()
   async findAll(@Query() req: SearchDto): Promise<GroupEventDto[]> {
+    console.log('Data>>>', req);
     return this.service.findAll(req);
   }
 

@@ -1,11 +1,16 @@
-/* eslint-disable @typescript-eslint/no-inferrable-types */
-
-import { IsNumber } from 'class-validator';
+import { IsArray, IsNumber, Min } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export default class SearchDto {
   query?: string;
-  @IsNumber({}, { each: true })
+
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
   limit: number = 100;
-  @IsNumber({}, { each: true })
+
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
   skip: number = 0;
 }

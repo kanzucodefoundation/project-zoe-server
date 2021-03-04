@@ -16,7 +16,7 @@ import { Repository } from 'typeorm';
 
 @UseGuards(JwtAuthGuard)
 @ApiTags('Events Categories')
-@Controller('api/events/categories')
+@Controller('api/events/category')
 export class EventsCategoriesController {
   constructor(
     @InjectRepository(EventCategory)
