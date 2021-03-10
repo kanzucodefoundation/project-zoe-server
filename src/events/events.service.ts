@@ -68,7 +68,7 @@ export class EventsService {
   async findOne(id: number, full = true): Promise<GroupEventDto> {
     // TODO optimise this query, we do not need the entire group
     const data = await this.repository.findOne(id, {
-      relations: ['category', 'group'],
+      relations: ['category', 'group', 'category.fields'],
     });
     Logger.log(`Read.Event success id:${id}`);
     if (full) {
