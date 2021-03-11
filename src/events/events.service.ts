@@ -10,6 +10,7 @@ import EventCategory from './entities/eventCategory.entity';
 import GroupEventDto from './dto/group-event.dto';
 import CreateEventDto from './dto/create-event.dto';
 import InternalAddress from '../shared/entity/InternalAddress';
+import GroupEventSearchDto from './dto/group-event-search.dto';
 
 @Injectable()
 export class EventsService {
@@ -21,9 +22,44 @@ export class EventsService {
     private googleService: GoogleService,
   ) {}
 
-  async findAll(req: SearchDto): Promise<GroupEventDto[]> {
+  async findAll(req: GroupEventSearchDto,): Promise<GroupEventDto[]> {
+    /*
+    const filter: FindConditions<GroupEvent> = {};
+
+    if (hasValue(req.parentId)) filter.parentId = req.parentId;
+    if (hasValue(req.groupId)) filter.groupId = req.groupId;
+
     const data = await this.repository.find({
-      relations: ['category'],
+      relations: ['category','group'],
+      skip: req.skip,
+      take: req.limit,
+      where: filter,
+    });
+    return data.map(this.toDto);
+  }
+
+  toDto(data: GroupMembershipRequest): GroupMembershipRequestDto {
+    const { group, contact, ...rest } = data;
+    return {
+      ...rest,
+      group: {
+        id: group.id,
+        name: group.name,
+        parentId: group.parentId,
+      },
+      contact: {
+        id: contact.id,
+        fullName: getPersonFullName(contact.person),
+        avatar: contact.person.avatar,
+      },
+    };
+  }
+
+
+    */
+    
+    const data = await this.repository.find({
+      relations: ['category','group'],
       skip: req.skip,
       take: req.limit,
     });
