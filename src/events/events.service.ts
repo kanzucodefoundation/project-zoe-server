@@ -1,8 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { FindConditions, Repository } from 'typeorm';
 import { GoogleService } from '../vendor/google.service';
-import SearchDto from '../shared/dto/search.dto';
 import GooglePlaceDto from '../vendor/google-place.dto';
 import ClientFriendlyException from '../shared/exceptions/client-friendly.exception';
 import GroupEvent from './entities/event.entity';
@@ -11,6 +10,7 @@ import GroupEventDto from './dto/group-event.dto';
 import CreateEventDto from './dto/create-event.dto';
 import InternalAddress from '../shared/entity/InternalAddress';
 import GroupEventSearchDto from './dto/group-event-search.dto';
+import { hasValue } from 'src/utils/basicHelpers';
 
 @Injectable()
 export class EventsService {
@@ -23,11 +23,12 @@ export class EventsService {
   ) {}
 
   async findAll(req: GroupEventSearchDto,): Promise<GroupEventDto[]> {
-    /*
+    
     const filter: FindConditions<GroupEvent> = {};
 
     if (hasValue(req.parentId)) filter.parentId = req.parentId;
     if (hasValue(req.groupId)) filter.groupId = req.groupId;
+    if (hasValue(req.categoryId)) filter.categoryId = req.categoryId;
 
     const data = await this.repository.find({
       relations: ['category','group'],
@@ -38,8 +39,8 @@ export class EventsService {
     return data.map(this.toDto);
   }
 
-  toDto(data: GroupMembershipRequest): GroupMembershipRequestDto {
-    const { group, contact, ...rest } = data;
+  toDto(data: GroupEvent): GroupEventDto {
+    const { group, ...rest } = data;
     return {
       ...rest,
       group: {
@@ -47,23 +48,7 @@ export class EventsService {
         name: group.name,
         parentId: group.parentId,
       },
-      contact: {
-        id: contact.id,
-        fullName: getPersonFullName(contact.person),
-        avatar: contact.person.avatar,
-      },
     };
-  }
-
-
-    */
-    
-    const data = await this.repository.find({
-      relations: ['category','group'],
-      skip: req.skip,
-      take: req.limit,
-    });
-    return data.map(this.toListView);
   }
 
   toListView(event: GroupEvent): GroupEventDto {
