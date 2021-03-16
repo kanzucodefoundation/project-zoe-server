@@ -31,7 +31,8 @@ export class EventsService {
     if (hasValue(req.categoryId)) filter.categoryId = req.categoryId;
 
     const data = await this.repository.find({
-      relations: ['category','group'],
+      relations: ['category', 'group', 'group.members', 'attendance'],
+
       skip: req.skip,
       take: req.limit,
       where: filter,
