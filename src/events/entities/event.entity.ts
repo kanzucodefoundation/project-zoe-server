@@ -62,10 +62,13 @@ export default class GroupEvent {
     type => Group,
     it => it.children,
   )
-  group?: Group;
+  group: Group;
 
   @Column({ nullable: true })
-  groupId?: number;
+  groupId: number;
+
+  @Column({ nullable: true })
+  parentId: number;
 
   @OneToMany(
     type => EventAttendance,

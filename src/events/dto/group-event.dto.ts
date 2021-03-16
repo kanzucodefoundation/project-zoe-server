@@ -22,7 +22,14 @@ export default class GroupEventDto {
   venue?: InternalAddressDto;
 
   categoryId: string;
-  groupId?: number;
+  parentId?: number;
+  groupId: number;
+
+  group: {
+    id: number;
+    name: string;
+    parentId?: number;
+  };
 
   metaData?: any;
 }

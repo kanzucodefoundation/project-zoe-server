@@ -15,6 +15,7 @@ import { ApiTags } from '@nestjs/swagger';
 import { EventsService } from './events.service';
 import GroupEventDto from './dto/group-event.dto';
 import CreateEventDto from './dto/create-event.dto';
+import GroupEventSearchDto from './dto/group-event-search.dto';
 
 @UseGuards(JwtAuthGuard)
 @ApiTags('Events')
@@ -23,7 +24,7 @@ export class EventsController {
   constructor(private readonly service: EventsService) {}
 
   @Get()
-  async findAll(@Query() req: SearchDto): Promise<GroupEventDto[]> {
+  async findAll(@Query() req: GroupEventSearchDto): Promise<GroupEventDto[]> {
     console.log('Data>>>', req);
     return this.service.findAll(req);
   }
