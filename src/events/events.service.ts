@@ -23,7 +23,7 @@ export class EventsService {
 
   async findAll(req: SearchDto): Promise<GroupEventDto[]> {
     const data = await this.repository.find({
-      relations: ['category'],
+      relations: ['category', 'group', 'group.members', 'attendance'],
       skip: req.skip,
       take: req.limit,
     });
