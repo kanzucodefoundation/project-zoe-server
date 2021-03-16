@@ -22,8 +22,7 @@ export class EventsService {
     private googleService: GoogleService,
   ) {}
 
-  async findAll(req: GroupEventSearchDto,): Promise<GroupEventDto[]> {
-    
+  async findAll(req: GroupEventSearchDto): Promise<GroupEventDto[]> {
     const filter: FindConditions<GroupEvent> = {};
 
     if (hasValue(req.parentId)) filter.parentId = req.parentId;
@@ -41,13 +40,17 @@ export class EventsService {
   }
 
   toDto(data: GroupEvent): GroupEventDto {
-    const { group, ...rest } = data;
+    const { group, attendance, ...rest } = data;
+    const attendancePercentage =
+      (100 * attendance.length) / group.members.length;
     return {
       ...rest,
+      attendancePercentage: attendancePercentage.toFixed(2),
       group: {
         id: group.id,
         name: group.name,
         parentId: group.parentId,
+        members: [],
       },
     };
   }
