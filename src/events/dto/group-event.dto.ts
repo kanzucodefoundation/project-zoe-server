@@ -29,6 +29,7 @@ export default class GroupEventDto {
     id: number;
     name: string;
     parentId?: number;
+    members: any;
   };
 
   metaData?: any;
