@@ -20,6 +20,7 @@ export default class GroupEventDto {
   details: string;
 
   venue?: InternalAddressDto;
+  attendancePercentage?: string;
 
   categoryId: string;
   parentId?: number;
@@ -29,7 +30,7 @@ export default class GroupEventDto {
     id: number;
     name: string;
     parentId?: number;
-    members: any;
+    members: any[];
   };
 
   metaData?: any;
