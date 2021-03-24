@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { FindConditions, Repository } from 'typeorm';
+import { FindConditions, LessThanOrEqual, MoreThanOrEqual, Repository } from 'typeorm';
 import { GoogleService } from '../vendor/google.service';
 import GooglePlaceDto from '../vendor/google-place.dto';
 import ClientFriendlyException from '../shared/exceptions/client-friendly.exception';
@@ -28,10 +28,13 @@ export class EventsService {
     if (hasValue(req.parentId)) filter.parentId = req.parentId;
     if (hasValue(req.groupId)) filter.groupId = req.groupId;
     if (hasValue(req.categoryId)) filter.categoryId = req.categoryId;
-
+    if(hasValue(req.periodStart) && hasValue(req.periodEnd)) {
+      filter.startDate = MoreThanOrEqual(req.periodStart);
+      filter.endDate = LessThanOrEqual(req.periodEnd);
+    }
+     
     const data = await this.repository.find({
       relations: ['category', 'group', 'group.members', 'attendance'],
-
       skip: req.skip,
       take: req.limit,
       where: filter,
