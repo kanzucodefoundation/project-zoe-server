@@ -76,7 +76,7 @@ export class GroupsService {
       findOps.name = ILike(`%${req.query}%`);
     }
     return await this.repository.find({
-      select: ['id', 'name', 'categoryId'],
+      select: ['id', 'name', 'categoryId', 'parentId'],
       where: findOps,
       skip: req.skip,
       take: req.limit,
