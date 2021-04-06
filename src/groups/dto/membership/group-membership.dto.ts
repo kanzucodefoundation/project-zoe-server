@@ -8,4 +8,5 @@ export default class GroupMembershipDto {
   contact: ComboDto;
   contactId: number;
   role: GroupRole;
+  category?: ComboDto;
 }

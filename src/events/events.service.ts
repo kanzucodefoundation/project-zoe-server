@@ -27,8 +27,11 @@ export class EventsService {
 
     if (hasValue(req.parentId)) filter.parentId = req.parentId;
     if (hasValue(req.groupId) || isValidNumber(req.groupId)) filter.groupId = req.groupId;
-    if (hasValue(req.categoryId)) filter.categoryId = req.categoryId;
-    if (hasValue(req.periodStart) && hasValue(req.periodEnd)) {
+    if (hasValue(req.categoryId)) {
+      const eventCategory = (await this.categoryRepository.findOne({where: {name: req.categoryId}}));
+      if (eventCategory) {filter.categoryId = eventCategory.id;}
+    }
+    if(hasValue(req.periodStart) && hasValue(req.periodEnd)) {
       filter.startDate = MoreThanOrEqual(req.periodStart);
       filter.endDate = LessThanOrEqual(req.periodEnd);
     }
@@ -61,14 +64,30 @@ export class EventsService {
   }
 
   toListView(event: GroupEvent): GroupEventDto {
+    const { group, ...rest } = event;
     return {
-      ...event,
+      ...rest,
+      group: {
+        id: group.id,
+        name: group.name,
+        parentId: group.parentId,
+        members: [],
+      },
     };
   }
 
   toDetailView(event: GroupEvent): GroupEventDto {
+    const { group, category, ...rest } = event;
     return {
-      ...event,
+      ...rest,
+      group: {
+        id: group.id,
+        name: group.name,
+        parentId: group.parentId,
+        members: [],
+      },
+      category: category ? {id: category.id, name: category.name} : null,
+      categoryFields: category.fields,
     };
   }
 
@@ -96,7 +115,6 @@ export class EventsService {
   }
 
   async findOne(id: number, full = true): Promise<GroupEventDto> {
-    // TODO optimise this query, we do not need the entire group
     const data = await this.repository.findOne(id, {
       relations: ['category', 'group', 'category.fields'],
     });

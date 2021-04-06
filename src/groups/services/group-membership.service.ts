@@ -31,7 +31,7 @@ export class GroupsMembershipService {
     if (hasNoValue(filter))
       throw new ClientFriendlyException('Please groupID or contactId');
     const data = await this.repository.find({
-      relations: ['contact', 'contact.person', 'group'],
+      relations: ['contact', 'contact.person', 'group', 'group.category'],
       skip: req.skip,
       take: req.limit,
       where: filter,
@@ -44,6 +44,7 @@ export class GroupsMembershipService {
     return {
       ...rest,
       group: group ? { name: group.name, id: group.id } : null,
+      category: group.category ? {name: group.category.name, id: group.category.id} : null,
       contact: { name: getPersonFullName(contact.person), id: contact.id },
     };
   }
