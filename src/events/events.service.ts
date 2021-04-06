@@ -10,7 +10,7 @@ import GroupEventDto from './dto/group-event.dto';
 import CreateEventDto from './dto/create-event.dto';
 import InternalAddress from '../shared/entity/InternalAddress';
 import GroupEventSearchDto from './dto/group-event-search.dto';
-import { hasValue } from 'src/utils/basicHelpers';
+import { hasValue, isValidNumber } from 'src/utils/basicHelpers';
 
 @Injectable()
 export class EventsService {
@@ -26,9 +26,9 @@ export class EventsService {
     const filter: FindConditions<GroupEvent> = {};
 
     if (hasValue(req.parentId)) filter.parentId = req.parentId;
-    if (hasValue(req.groupId)) filter.groupId = req.groupId;
+    if (hasValue(req.groupId) || isValidNumber(req.groupId)) filter.groupId = req.groupId;
     if (hasValue(req.categoryId)) filter.categoryId = req.categoryId;
-    if(hasValue(req.periodStart) && hasValue(req.periodEnd)) {
+    if (hasValue(req.periodStart) && hasValue(req.periodEnd)) {
       filter.startDate = MoreThanOrEqual(req.periodStart);
       filter.endDate = LessThanOrEqual(req.periodEnd);
     }
@@ -53,8 +53,10 @@ export class EventsService {
         id: group.id,
         name: group.name,
         parentId: group.parentId,
-        members: [],
+        members: group.members,
       },
+      attendance: attendance,
+      totalAttendance: attendance.length
     };
   }
 

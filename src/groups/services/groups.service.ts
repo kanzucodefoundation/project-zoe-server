@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Like, Repository, ILike } from 'typeorm';
+import { In, Repository, ILike } from 'typeorm';
 import Group from '../entities/group.entity';
 import SearchDto from '../../shared/dto/search.dto';
 import { GroupSearchDto } from '../dto/group-search.dto';
@@ -15,6 +15,9 @@ import { GoogleService } from '../../vendor/google.service';
 import ClientFriendlyException from '../../shared/exceptions/client-friendly.exception';
 import GroupMembership from '../entities/groupMembership.entity';
 import { GroupRole } from '../enums/groupRole';
+import { EventsService } from 'src/events/events.service';
+import GroupEventSearchDto from 'src/events/dto/group-event-search.dto';
+import { lastDayOfMonth, startOfMonth } from 'date-fns';
 
 @Injectable()
 export class GroupsService {
@@ -24,6 +27,7 @@ export class GroupsService {
     @InjectRepository(GroupMembership)
     private readonly membershipRepository: Repository<GroupMembership>,
     private googleService: GoogleService,
+    private eventService: EventsService,
   ) {}
 
   async findAll(req: SearchDto): Promise<GroupListDto[]> {
@@ -108,10 +112,7 @@ export class GroupsService {
     return this.findOne(insertedId, true);
   }
 
-  async findOne(
-    id: number,
-    full = true,
-  ): Promise<GroupListDto | GroupDetailDto> {
+  async findOne(id: number, full = true): Promise<GroupListDto | GroupDetailDto> {
     const data = await this.repository.findOne(id, {
       relations: ['category', 'parent'],
     });
@@ -123,7 +124,31 @@ export class GroupsService {
         where: { role: GroupRole.Leader, groupId: id },
         select: ['contactId'],
       });
+      const children = await this.repository.find({
+        where: {parentId: id},
+        select: ['id'],
+      })
+      
       groupData.leaders = membership.map(it => it.contactId);
+  
+      const d = groupData.children = children.length > 0 ? children.map(it => it.id) : [id];
+
+      let totalAtt = 0;
+      for(let i = 0; i < d.length; i++) {
+        const req: GroupEventSearchDto = {
+          groupId: d[i], 
+          periodStart: startOfMonth(new Date()),
+          periodEnd: lastDayOfMonth(new Date()), 
+          limit: 100, 
+          skip: 0
+        }
+        const events = await this.eventService.findAll(req);
+        events.map((e: any) => {
+          totalAtt += e.totalAttendance
+        })
+      }
+      groupData.totalAttendance = totalAtt;  
+
       return groupData;
     }
     return this.toListView(data);

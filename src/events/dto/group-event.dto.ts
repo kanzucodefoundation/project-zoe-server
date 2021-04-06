@@ -33,5 +33,8 @@ export default class GroupEventDto {
     members: any[];
   };
 
+  attendance?: any[];
+  totalAttendance?: number;
+  
   metaData?: any;
 }
