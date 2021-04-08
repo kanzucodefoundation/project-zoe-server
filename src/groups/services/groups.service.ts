@@ -17,7 +17,9 @@ import GroupMembership from '../entities/groupMembership.entity';
 import { GroupRole } from '../enums/groupRole';
 import { EventsService } from 'src/events/events.service';
 import GroupEventSearchDto from 'src/events/dto/group-event-search.dto';
-import { lastDayOfMonth, startOfMonth } from 'date-fns';
+import { isThisMonth, lastDayOfMonth, startOfMonth } from 'date-fns';
+import GroupEventDto from 'src/events/dto/group-event.dto';
+import ComboDto from 'src/shared/dto/combo.dto';
 
 @Injectable()
 export class GroupsService {
@@ -69,6 +71,13 @@ export class GroupsService {
       category: { name: category.name, id: category.id },
       parent: parent ? { name: parent.name, id: parent.id } : null,
     } as any;
+  }
+
+  toSimpleGroupView(group: Group): ComboDto {
+    return {
+      id: group.id,
+      name: group.name,
+    }
   }
 
   async combo(req: GroupSearchDto): Promise<Group[]> {
@@ -126,28 +135,39 @@ export class GroupsService {
       });
       const children = await this.repository.find({
         where: {parentId: id},
-        select: ['id'],
       })
       
       groupData.leaders = membership.map(it => it.contactId);
   
-      const d = groupData.children = children.length > 0 ? children.map(it => it.id) : [id];
+      const d = groupData.children = children.length > 0 ? children.map(this.toSimpleGroupView) : [this.toSimpleGroupView(data)];
 
+      const childEvents: GroupEventDto[] = []
       let totalAtt = 0;
+      let sumAtt = 0;
+      let count = 0;
+      
       for(let i = 0; i < d.length; i++) {
         const req: GroupEventSearchDto = {
-          groupId: d[i], 
-          periodStart: startOfMonth(new Date()),
-          periodEnd: lastDayOfMonth(new Date()), 
+          groupId: d[i].id, 
           limit: 100, 
           skip: 0
         }
         const events = await this.eventService.findAll(req);
         events.map((e: any) => {
-          totalAtt += e.totalAttendance
+          childEvents.push(e);
+          if (isThisMonth(e.startDate)) {
+            totalAtt += e.totalAttendance;
+            if (Number(e.attendancePercentage) >= 0) {
+              sumAtt += Number(e.attendancePercentage);
+              count++;
+            }
+          }
         })
       }
-      groupData.totalAttendance = totalAtt;  
+
+      groupData.totalAttendance = totalAtt;
+      groupData.averageAttendance = (sumAtt / count).toFixed(2);
+      groupData.childEvents = childEvents;
 
       return groupData;
     }
