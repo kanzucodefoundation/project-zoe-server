@@ -1,11 +1,15 @@
 import SearchDto from '../../shared/dto/search.dto';
+import { IsDate } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export default class GroupEventSearchDto extends SearchDto {
-    parentId?: number;
-    groupId?: number;
-    categoryId?:string;
-    periodStart?: Date;
-    periodEnd?: Date;
+  parentIdList?: number[];
+  groupIdList?: number[];
+  categoryIdList?: string[];
+  @IsDate()
+  @Type(() => Date)
+  from?: Date;
+  @IsDate()
+  @Type(() => Date)
+  to?: Date;
 }
-
-

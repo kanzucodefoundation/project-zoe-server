@@ -30,5 +30,6 @@ import { PrismaService } from '../shared/prisma.service';
     EventsAttendanceController,
   ],
   providers: [EventsService, PrismaService],
+  exports: [EventsService],
 })
 export class EventsModule {}

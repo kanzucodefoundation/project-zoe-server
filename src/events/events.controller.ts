@@ -7,15 +7,16 @@ import {
   Post,
   Put,
   Query,
+  Request,
   UseGuards,
 } from '@nestjs/common';
-import SearchDto from '../shared/dto/search.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { ApiTags } from '@nestjs/swagger';
 import { EventsService } from './events.service';
 import GroupEventDto from './dto/group-event.dto';
 import CreateEventDto from './dto/create-event.dto';
 import GroupEventSearchDto from './dto/group-event-search.dto';
+import { UserDto } from '../auth/dto/user.dto';
 
 @UseGuards(JwtAuthGuard)
 @ApiTags('Events')
@@ -24,9 +25,13 @@ export class EventsController {
   constructor(private readonly service: EventsService) {}
 
   @Get()
-  async findAll(@Query() req: GroupEventSearchDto): Promise<GroupEventDto[]> {
-    console.log('Data>>>', req);
-    return this.service.findAll(req);
+  async findAll(
+    @Query() dto: GroupEventSearchDto,
+    @Request() req,
+  ): Promise<GroupEventDto[]> {
+    const user: UserDto = req.user;
+    console.log('Filter>>>>', dto);
+    return this.service.findAll(dto, user);
   }
 
   @Post()

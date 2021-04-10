@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Like, Repository, ILike } from 'typeorm';
+import { In, Like, Repository, ILike, TreeRepository } from 'typeorm';
 import Group from '../entities/group.entity';
 import SearchDto from '../../shared/dto/search.dto';
 import { GroupSearchDto } from '../dto/group-search.dto';
@@ -21,12 +21,14 @@ export class GroupsService {
   constructor(
     @InjectRepository(Group)
     private readonly repository: Repository<Group>,
+    @InjectRepository(Group)
+    private readonly treeRepository: TreeRepository<Group>,
     @InjectRepository(GroupMembership)
     private readonly membershipRepository: Repository<GroupMembership>,
     private googleService: GoogleService,
   ) {}
 
-  async findAll(req: SearchDto): Promise<GroupListDto[]> {
+  async findAll(req: SearchDto): Promise<any[]> {
     const data = await this.repository.find({
       relations: ['category', 'parent'],
       skip: req.skip,
@@ -123,7 +125,7 @@ export class GroupsService {
         where: { role: GroupRole.Leader, groupId: id },
         select: ['contactId'],
       });
-      groupData.leaders = membership.map(it => it.contactId);
+      groupData.leaders = membership.map((it) => it.contactId);
       return groupData;
     }
     return this.toListView(data);
