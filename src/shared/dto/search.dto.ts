@@ -1,7 +1,9 @@
-import { IsArray, IsNumber, Min } from 'class-validator';
+import { IsArray, IsNumber, IsOptional, IsString, Min } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export default class SearchDto {
+  @IsString()
+  @IsOptional()
   query?: string;
 
   @Type(() => Number)

@@ -18,7 +18,7 @@ export default class EventField {
   @Column({ length: 100 })
   label: string;
 
-  @Column({ length: 200 })
+  @Column({ length: 200, nullable: true })
   details?: string;
 
   @Column({ length: 25 })
@@ -27,20 +27,16 @@ export default class EventField {
   @Column()
   isRequired: boolean;
 
-  @ManyToOne(
-    type => EventCategory,
-    it => it.fields,
-  )
+  @ManyToOne((type) => EventCategory, (it) => it.fields)
   @JoinColumn()
-  category: EventCategory;
-  @Column({ length: 40 })
-  categoryId: string;
+  category?: EventCategory;
+  @Column()
+  categoryId: number;
 }
 
 export enum FieldType {
   Text = 'Text',
   Number = 'Number',
   Date = 'Date',
-  //
   Array = 'Array',
 }

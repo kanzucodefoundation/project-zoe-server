@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository, ILike } from 'typeorm';
+import { In, Like, Repository, ILike, TreeRepository } from 'typeorm';
 import Group from '../entities/group.entity';
 import SearchDto from '../../shared/dto/search.dto';
 import { GroupSearchDto } from '../dto/group-search.dto';
@@ -26,13 +26,15 @@ export class GroupsService {
   constructor(
     @InjectRepository(Group)
     private readonly repository: Repository<Group>,
+    @InjectRepository(Group)
+    private readonly treeRepository: TreeRepository<Group>,
     @InjectRepository(GroupMembership)
     private readonly membershipRepository: Repository<GroupMembership>,
     private googleService: GoogleService,
     private eventService: EventsService,
   ) {}
 
-  async findAll(req: SearchDto): Promise<GroupListDto[]> {
+  async findAll(req: SearchDto): Promise<any[]> {
     const data = await this.repository.find({
       relations: ['category', 'parent'],
       skip: req.skip,
@@ -89,7 +91,7 @@ export class GroupsService {
       findOps.name = ILike(`%${req.query}%`);
     }
     return await this.repository.find({
-      select: ['id', 'name', 'categoryId'],
+      select: ['id', 'name', 'categoryId', 'parentId'],
       where: findOps,
       skip: req.skip,
       take: req.limit,

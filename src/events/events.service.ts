@@ -1,6 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { FindConditions, LessThanOrEqual, MoreThanOrEqual, Repository } from 'typeorm';
+import {
+  FindConditions,
+  LessThanOrEqual,
+  In,
+  MoreThanOrEqual,
+  Repository,
+} from 'typeorm';
 import { GoogleService } from '../vendor/google.service';
 import GooglePlaceDto from '../vendor/google-place.dto';
 import ClientFriendlyException from '../shared/exceptions/client-friendly.exception';
@@ -11,6 +17,7 @@ import CreateEventDto from './dto/create-event.dto';
 import InternalAddress from '../shared/entity/InternalAddress';
 import GroupEventSearchDto from './dto/group-event-search.dto';
 import { hasValue, isValidNumber } from 'src/utils/basicHelpers';
+import { UserDto } from '../auth/dto/user.dto';
 
 @Injectable()
 export class EventsService {
@@ -22,17 +29,25 @@ export class EventsService {
     private googleService: GoogleService,
   ) {}
 
-  async findAll(req: GroupEventSearchDto): Promise<GroupEventDto[]> {
+  async findAll(
+    req: GroupEventSearchDto,
+    user: UserDto,
+  ): Promise<GroupEventDto[]> {
     const filter: FindConditions<GroupEvent> = {};
 
-    if (hasValue(req.parentId)) filter.parentId = req.parentId;
-    if (hasValue(req.groupId) || isValidNumber(req.groupId)) filter.groupId = req.groupId;
-    if (hasValue(req.categoryId)) filter.categoryId = req.categoryId;
-    if (hasValue(req.periodStart) && hasValue(req.periodEnd)) {
-      filter.startDate = MoreThanOrEqual(req.periodStart);
-      filter.endDate = LessThanOrEqual(req.periodEnd);
+    if (hasValue(req.categoryIdList))
+      filter.categoryId = In(req.categoryIdList);
+    if (hasValue(req.groupIdList)) filter.id = In(req.groupIdList);
+    if (hasValue(req.parentIdList)) filter.parentId = In(req.parentIdList);
+
+    if (hasValue(req.from)) {
+      filter.startDate = MoreThanOrEqual(req.from);
     }
-     
+    if (hasValue(req.to)) {
+      filter.endDate = LessThanOrEqual(req.to);
+    }
+
+    console.log('Filter>>>', filter);
     const data = await this.repository.find({
       relations: ['category', 'group', 'group.members', 'attendance'],
       skip: req.skip,
@@ -61,14 +76,30 @@ export class EventsService {
   }
 
   toListView(event: GroupEvent): GroupEventDto {
+    const { group, ...rest } = event;
     return {
-      ...event,
+      ...rest,
+      group: {
+        id: group.id,
+        name: group.name,
+        parentId: group.parentId,
+        members: [],
+      },
     };
   }
 
   toDetailView(event: GroupEvent): GroupEventDto {
+    const { group, category, ...rest } = event;
     return {
-      ...event,
+      ...rest,
+      group: {
+        id: group.id,
+        name: group.name,
+        parentId: group.parentId,
+        members: [],
+      },
+      category: category ? { id: category.id, name: category.name } : null,
+      categoryFields: category.fields,
     };
   }
 
@@ -96,7 +127,6 @@ export class EventsService {
   }
 
   async findOne(id: number, full = true): Promise<GroupEventDto> {
-    // TODO optimise this query, we do not need the entire group
     const data = await this.repository.findOne(id, {
       relations: ['category', 'group', 'category.fields'],
     });

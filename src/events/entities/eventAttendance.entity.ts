@@ -3,7 +3,6 @@ import {
   Entity,
   JoinColumn,
   ManyToOne,
-  PrimaryColumn,
   PrimaryGeneratedColumn,
   Unique,
 } from 'typeorm';
@@ -22,20 +21,14 @@ export default class EventAttendance {
   @Column({ nullable: false })
   attended: boolean;
 
-  @ManyToOne(
-    type => GroupEvent,
-    it => it.attendance,
-  )
+  @ManyToOne((type) => GroupEvent, (it) => it.attendance)
   @JoinColumn()
   event?: GroupEvent;
 
   @Column({ nullable: false })
   eventId: number;
 
-  @ManyToOne(
-    type => Contact,
-    it => it.attendance,
-  )
+  @ManyToOne((type) => Contact, (it) => it.attendance)
   @JoinColumn()
   contact?: Contact;
 

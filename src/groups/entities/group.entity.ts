@@ -4,7 +4,6 @@ import {
   JoinColumn,
   ManyToOne,
   OneToMany,
-  PrimaryColumn,
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import { GroupPrivacy } from '../enums/groupPrivacy';
@@ -12,7 +11,6 @@ import GroupCategory from './groupCategory.entity';
 import GroupMembership from './groupMembership.entity';
 import GroupMembershipRequest from './groupMembershipRequest.entity';
 import GroupEvent from '../../events/entities/event.entity';
-import { Point } from '../../utils/locationHelpers';
 import InternalAddress from '../../shared/entity/InternalAddress';
 
 @Entity()
@@ -39,20 +37,17 @@ export default class Group {
   })
   metaData?: any;
 
-  @ManyToOne(
-    type => GroupCategory,
-    it => it.groups,
-  )
+  @ManyToOne((type) => GroupCategory, (it) => it.groups)
   @JoinColumn()
   category?: GroupCategory;
 
   @Column({ length: 40 })
   categoryId: string;
 
-  @ManyToOne(
-    type => Group,
-    it => it.children,
-  )
+  @OneToMany((type) => Group, (it) => it.parent)
+  children: Group[];
+
+  @ManyToOne((type) => Group, (it) => it.children)
   parent?: Group;
 
   @Column({ nullable: true })
@@ -64,29 +59,14 @@ export default class Group {
   })
   address?: InternalAddress;
 
-  @OneToMany(
-    type => Group,
-    it => it.parent,
-  )
-  children: Group[];
-
-  @OneToMany(
-    type => GroupEvent,
-    it => it.group,
-  )
+  @OneToMany((type) => GroupEvent, (it) => it.group)
   events: GroupEvent[];
 
   @JoinColumn()
-  @OneToMany(
-    type => GroupMembership,
-    it => it.group,
-  )
+  @OneToMany((type) => GroupMembership, (it) => it.group)
   members: GroupMembership[];
 
   @JoinColumn()
-  @OneToMany(
-    type => GroupMembershipRequest,
-    it => it.group,
-  )
+  @OneToMany((type) => GroupMembershipRequest, (it) => it.group)
   groupMembershipRequests: GroupMembershipRequest[];
 }
