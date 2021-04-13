@@ -32,9 +32,9 @@ export default class EventField {
     it => it.fields,
   )
   @JoinColumn()
-  category: EventCategory;
-  @Column({ length: 40 })
-  categoryId: string;
+  category?: EventCategory;
+  @Column()
+  categoryId: number;
 }
 
 export enum FieldType {

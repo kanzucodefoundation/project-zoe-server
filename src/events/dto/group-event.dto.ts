@@ -24,7 +24,7 @@ export default class GroupEventDto {
   venue?: InternalAddressDto;
   attendancePercentage?: string;
 
-  categoryId: string;
+  categoryId: number;
   category?: ComboDto;
   categoryFields?: EventField[];
   

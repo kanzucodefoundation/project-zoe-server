@@ -55,8 +55,8 @@ export default class GroupEvent {
   @JoinColumn()
   category: EventCategory;
 
-  @Column({ length: 40 })
-  categoryId: string;
+  @Column()
+  categoryId: number;
 
   @ManyToOne(
     type => Group,

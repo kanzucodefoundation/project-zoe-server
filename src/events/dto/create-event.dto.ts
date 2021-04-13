@@ -15,7 +15,7 @@ export default class CreateEventDto {
 
   venue?: InternalAddressDto;
 
-  categoryId: string;
+  categoryId: number;
   groupId?: number;
 
   metaData?: any;

@@ -1,11 +1,11 @@
-import { Column, Entity, OneToMany, PrimaryColumn } from 'typeorm';
+import { Column, Entity, OneToMany, PrimaryColumn, PrimaryGeneratedColumn } from 'typeorm';
 import GroupEvent from './event.entity';
 import EventField from './eventField.entity';
 
 @Entity()
 export default class EventCategory {
-  @PrimaryColumn({ length: 40 })
-  id: string;
+  @PrimaryGeneratedColumn()
+  id: number;
 
   @Column({ length: 200 })
   name: string;
@@ -17,7 +17,7 @@ export default class EventCategory {
       cascade: ['insert', 'remove'],
     },
   )
-  events: GroupEvent[];
+  events?: GroupEvent[];
 
   @OneToMany(
     type => EventField,
@@ -26,5 +26,5 @@ export default class EventCategory {
       cascade: ['insert', 'remove'],
     },
   )
-  fields: EventField[];
+  fields?: EventField[];
 }
