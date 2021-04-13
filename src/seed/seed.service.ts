@@ -4,6 +4,11 @@ import { seedUsers } from './data/users';
 import seedGroups, { seedGroupCategories } from './data/groups';
 import { GroupCategoriesService } from '../groups/services/group-categories.service';
 import { GroupsService } from '../groups/services/groups.service';
+import { Repository } from 'typeorm';
+import EventCategory from '../events/entities/eventCategory.entity';
+import { InjectRepository } from '@nestjs/typeorm';
+import GroupMembership from '../groups/entities/groupMembership.entity';
+import eventCategories from './data/eventCategories';
 
 @Injectable()
 export class SeedService {
@@ -11,8 +16,9 @@ export class SeedService {
     private readonly groupsService: GroupsService,
     private readonly groupCategoriesService: GroupCategoriesService,
     private readonly usersService: UsersService,
-  ) {
-  }
+    @InjectRepository(EventCategory)
+    private readonly eventCategoryRepository: Repository<EventCategory>,
+  ) {}
 
   async createUsers() {
     Logger.log(`Seeding ${seedUsers.length} users`);
@@ -47,6 +53,19 @@ export class SeedService {
       for (const rec of seedGroups) {
         await this.groupsService.create(rec);
       }
+    }
+  }
+
+  async createEventCategories() {
+    Logger.log(`Seeding ${seedGroups.length} Groups`);
+    const count = await this.eventCategoryRepository.count();
+    if (count > 0) {
+      Logger.debug(`${count} EventCategories already exist`);
+    } else {
+      for (const rec of eventCategories) {
+        await this.eventCategoryRepository.save(rec);
+      }
+      Logger.debug(`${eventCategories.length} EventCategories created`);
     }
   }
 }

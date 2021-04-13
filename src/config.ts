@@ -24,7 +24,7 @@ const database: TypeOrmModuleOptions = {
   database: process.env.DB_DATABASE,
   synchronize: process.env.DB_SYNCHRONIZE === 'true',
   cache: true,
-  //logging: true,
+  logging: true,
 };
 
 const config = {

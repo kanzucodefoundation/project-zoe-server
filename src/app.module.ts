@@ -16,10 +16,8 @@ import { join } from 'path';
 import { SeedModule } from './seed/seed.module';
 import { SeedService } from './seed/seed.service';
 import { VendorModule } from './vendor/vendor.module';
-import { ReportsModule } from './reports/reports.module';
 import { EventsModule } from './events/events.module';
 import { eventEntities } from './events/events.helpers';
-import { PrismaService } from './shared/prisma.service';
 
 console.log('App.Configuration >>>>', config);
 
@@ -48,7 +46,6 @@ console.log('App.Configuration >>>>', config);
     GroupsModule,
     SeedModule,
     VendorModule,
-    ReportsModule,
     EventsModule,
   ],
   controllers: [AuthController],
@@ -62,6 +59,7 @@ export class AppModule {
     await this.seedService.createUsers();
     await this.seedService.createGroupCategories();
     await this.seedService.createGroups();
+    await this.seedService.createEventCategories();
     Logger.log('#########Initialization complete############');
   }
 }

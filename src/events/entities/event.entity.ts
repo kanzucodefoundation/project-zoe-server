@@ -48,20 +48,14 @@ export default class GroupEvent {
   })
   venue?: InternalAddress;
 
-  @ManyToOne(
-    type => EventCategory,
-    it => it.events,
-  )
+  @ManyToOne((type) => EventCategory, (it) => it.events)
   @JoinColumn()
   category: EventCategory;
 
-  @Column()
+  @Column({nullable: false})
   categoryId: number;
 
-  @ManyToOne(
-    type => Group,
-    it => it.children,
-  )
+  @ManyToOne((type) => Group, (it) => it.children)
   group: Group;
 
   @Column({ nullable: true })
@@ -70,10 +64,7 @@ export default class GroupEvent {
   @Column({ nullable: true })
   parentId: number;
 
-  @OneToMany(
-    type => EventAttendance,
-    it => it.event,
-  )
+  @OneToMany((type) => EventAttendance, (it) => it.event)
   attendance: EventAttendance[];
 
   @Column({
@@ -81,8 +72,4 @@ export default class GroupEvent {
     type: 'jsonb',
   })
   metaData?: any;
-
 }
-
-
-
