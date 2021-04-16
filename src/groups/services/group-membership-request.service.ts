@@ -4,7 +4,7 @@ import { FindConditions } from 'typeorm/find-options/FindConditions';
 import { Repository } from 'typeorm';
 import GroupMembershipRequestSearchDto from '../dto/membershipRequest/search-request.dto';
 import GroupMembershipRequest from '../entities/groupMembershipRequest.entity';
-import { hasValue } from '../../utils/basicHelpers';
+import { hasValue } from 'src/utils/validation';
 import GroupMembershipRequestDto from '../dto/membershipRequest/group-membership-request.dto';
 import { NewRequestDto } from '../dto/membershipRequest/new-request.dto';
 import { getPersonFullName } from 'src/crm/crm.helpers';

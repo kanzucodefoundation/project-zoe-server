@@ -5,7 +5,6 @@ import {
   OneToOne,
   PrimaryGeneratedColumn,
 } from 'typeorm';
-import { Exclude } from 'class-transformer';
 import { Salutation } from '../enums/salutation';
 import Contact from './contact.entity';
 
@@ -58,13 +57,9 @@ export default class Person {
   @Column({ type: 'date', nullable: true })
   dateOfBirth: Date;
 
-  @OneToOne(
-    type => Contact,
-    it => it.person,
-    {
-      cascade: ['insert', 'remove', 'update'],
-    },
-  )
+  @OneToOne((type) => Contact, (it) => it.person, {
+    cascade: ['insert', 'remove', 'update'],
+  })
   @JoinColumn()
   contact: Contact;
 

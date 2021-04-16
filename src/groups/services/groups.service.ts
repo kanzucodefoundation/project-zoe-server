@@ -1,11 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Like, Repository, ILike, TreeRepository } from 'typeorm';
+import { ILike, In, Repository, TreeRepository } from 'typeorm';
 import Group from '../entities/group.entity';
 import SearchDto from '../../shared/dto/search.dto';
 import { GroupSearchDto } from '../dto/group-search.dto';
 import { FindConditions } from 'typeorm/find-options/FindConditions';
-import { hasValue } from '../../utils/basicHelpers';
+
 import GroupListDto from '../dto/group-list.dto';
 import CreateGroupDto from '../dto/create-group.dto';
 import UpdateGroupDto from '../dto/update-group.dto';
@@ -15,6 +15,7 @@ import { GoogleService } from '../../vendor/google.service';
 import ClientFriendlyException from '../../shared/exceptions/client-friendly.exception';
 import GroupMembership from '../entities/groupMembership.entity';
 import { GroupRole } from '../enums/groupRole';
+import { hasValue } from '../../utils/validation';
 
 @Injectable()
 export class GroupsService {
@@ -70,6 +71,7 @@ export class GroupsService {
   }
 
   async combo(req: GroupSearchDto): Promise<Group[]> {
+    console.log('GroupSearchDto', req);
     const findOps: FindConditions<Group> = {};
     if (hasValue(req.categories)) {
       findOps.categoryId = In(req.categories);
@@ -77,6 +79,7 @@ export class GroupsService {
     if (hasValue(req.query)) {
       findOps.name = ILike(`%${req.query}%`);
     }
+    console.log('findOps', findOps);
     return await this.repository.find({
       select: ['id', 'name', 'categoryId', 'parentId'],
       where: findOps,

@@ -19,7 +19,7 @@ import Email from './entities/email.entity';
 import Person from './entities/person.entity';
 import Company from './entities/company.entity';
 import { CreateCompanyDto } from './dto/create-company.dto';
-import { hasNoValue, hasValue, isValidNumber } from '../utils/basicHelpers';
+import { hasNoValue, hasValue, isValidNumber } from 'src/utils/validation';
 import { PhoneCategory } from './enums/phoneCategory';
 import { EmailCategory } from './enums/emailCategory';
 import Address from './entities/address.entity';
@@ -85,10 +85,10 @@ export class ContactsService {
         if (hasValue(idList)) {
           idList = intersection(
             idList,
-            resp.map(it => it.contactId),
+            resp.map((it) => it.contactId),
           );
         } else {
-          idList.push(...resp.map(it => it.contactId));
+          idList.push(...resp.map((it) => it.contactId));
         }
       }
 
@@ -111,10 +111,10 @@ export class ContactsService {
         if (hasValue(idList)) {
           idList = intersection(
             idList,
-            resp.map(it => it.contactId),
+            resp.map((it) => it.contactId),
           );
         } else {
-          idList.push(...resp.map(it => it.contactId));
+          idList.push(...resp.map((it) => it.contactId));
         }
       }
 
@@ -128,10 +128,10 @@ export class ContactsService {
         if (hasValue(idList)) {
           idList = intersection(
             idList,
-            resp.map(it => it.contactId),
+            resp.map((it) => it.contactId),
           );
         } else {
-          idList.push(...resp.map(it => it.contactId));
+          idList.push(...resp.map((it) => it.contactId));
         }
       }
 
@@ -145,10 +145,10 @@ export class ContactsService {
         if (hasValue(idList)) {
           idList = intersection(
             idList,
-            resp.map(it => it.contactId),
+            resp.map((it) => it.contactId),
           );
         } else {
-          idList.push(...resp.map(it => it.contactId));
+          idList.push(...resp.map((it) => it.contactId));
         }
       }
 
@@ -172,7 +172,7 @@ export class ContactsService {
         take: req.limit,
         where: findOpts,
       });
-      return data.map(it => {
+      return data.map((it) => {
         return ContactsService.toListDto(it);
       });
     } catch (e) {
@@ -326,22 +326,22 @@ export class ContactsService {
       contact: contactRef,
     });
     contact.phones = await this.phoneRepository.save(
-      phones.map(it => ({ ...it, contact: contactRef })),
+      phones.map((it) => ({ ...it, contact: contactRef })),
     );
     contact.emails = await this.emailRepository.save(
-      emails.map(it => ({ ...it, contact: contactRef })),
+      emails.map((it) => ({ ...it, contact: contactRef })),
     );
     contact.addresses = await this.addressRepository.save(
-      addresses.map(it => ({ ...it, contact: contactRef })),
+      addresses.map((it) => ({ ...it, contact: contactRef })),
     );
     contact.groupMemberships = await this.membershipRepository.save(
-      groupMemberships.map(it => ({
+      groupMemberships.map((it) => ({
         ...it,
         contact: contactRef,
       })),
     );
     contact.groupMembershipRequests = await this.gmRequestRepository.save(
-      groupMembershipRequests.map(it => ({
+      groupMembershipRequests.map((it) => ({
         ...it,
         contact: contactRef,
       })),

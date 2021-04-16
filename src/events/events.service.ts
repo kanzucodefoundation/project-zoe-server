@@ -2,8 +2,9 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import {
   FindConditions,
-  LessThanOrEqual,
+  ILike,
   In,
+  LessThanOrEqual,
   MoreThanOrEqual,
   Repository,
 } from 'typeorm';
@@ -16,8 +17,9 @@ import GroupEventDto from './dto/group-event.dto';
 import CreateEventDto from './dto/create-event.dto';
 import InternalAddress from '../shared/entity/InternalAddress';
 import GroupEventSearchDto from './dto/group-event-search.dto';
-import { hasValue } from 'src/utils/basicHelpers';
+import { hasValue } from 'src/utils/validation';
 import { UserDto } from '../auth/dto/user.dto';
+import EventMetricsDto from './dto/event-metrics-search.dto';
 
 @Injectable()
 export class EventsService {
@@ -35,6 +37,7 @@ export class EventsService {
   ): Promise<GroupEventDto[]> {
     const filter: FindConditions<GroupEvent> = {};
 
+    // TODO use user object to filter reports
     if (hasValue(req.categoryIdList))
       filter.categoryId = In(req.categoryIdList);
     if (hasValue(req.groupIdList)) filter.id = In(req.groupIdList);
@@ -46,10 +49,12 @@ export class EventsService {
     if (hasValue(req.to)) {
       filter.endDate = LessThanOrEqual(req.to);
     }
+    if (hasValue(req.query)) {
+      filter.name = ILike(`%${req.query.trim().toLowerCase()}%`);
+    }
 
-    console.log('Filter>>>', filter);
     const data = await this.repository.find({
-      relations: ['category', 'group', 'group.members', 'attendance'],
+      relations: ['category', 'group'],
       skip: req.skip,
       take: req.limit,
       where: filter,
@@ -57,13 +62,45 @@ export class EventsService {
     return data.map(this.toDto);
   }
 
+  async loadMetrics(req: EventMetricsDto, user: UserDto): Promise<any> {
+    const filter: FindConditions<GroupEvent> = {};
+
+    // TODO use user object to filter reports
+    if (hasValue(req.categoryIdList))
+      filter.categoryId = In(req.categoryIdList);
+    if (hasValue(req.groupIdList)) filter.id = In(req.groupIdList);
+
+    if (hasValue(req.from)) {
+      filter.startDate = MoreThanOrEqual(req.from);
+    }
+    if (hasValue(req.to)) {
+      filter.endDate = LessThanOrEqual(req.to);
+    }
+
+    const data = await this.repository.find({
+      select: ['name', 'categoryId', 'metaData', 'id'],
+      relations: ['category', 'group', 'group.members', 'attendance'],
+      where: filter,
+    });
+    return data.map((it) => {
+      const { group, attendance, ...rest } = it;
+      let attendancePercentage = 0;
+      if (group.members.length) {
+        attendancePercentage = (100 * attendance.length) / group.members.length;
+      }
+      return {
+        ...rest,
+        members: group.members.length,
+        attendance: attendance.length,
+        attendancePercentage,
+      };
+    });
+  }
+
   toDto(data: GroupEvent): GroupEventDto {
-    const { group, attendance, ...rest } = data;
-    const attendancePercentage =
-      (100 * attendance.length) / group.members.length;
+    const { group, ...rest } = data;
     return {
       ...rest,
-      attendancePercentage: attendancePercentage.toFixed(2),
       group: {
         id: group.id,
         name: group.name,

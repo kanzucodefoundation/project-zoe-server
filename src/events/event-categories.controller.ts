@@ -41,7 +41,9 @@ export class EventsCategoriesController {
 
   @Get(':id')
   async findOne(@Param('id') id: any): Promise<EventCategory> {
-    return await this.repository.findOne(id);
+    return await this.repository.findOne(id, {
+      relations: ['fields'],
+    });
   }
 
   @Delete(':id')

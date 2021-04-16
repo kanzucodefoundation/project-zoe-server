@@ -19,15 +19,13 @@ export default class GroupEventDto {
 
   submittedBy?: string;
 
-  details: string;
-
   venue?: InternalAddressDto;
   attendancePercentage?: string;
 
   categoryId: string;
   category?: ComboDto;
   categoryFields?: EventField[];
-  
+
   parentId?: number;
   groupId: number;
 

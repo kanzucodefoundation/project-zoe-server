@@ -1,11 +1,12 @@
 import { isEmpty, isArray as _isArray, isNumber, isInteger } from 'lodash';
 
-export const hasValue = (data: any) => {
-  return !isEmpty(data);
+export const hasValue = (text: any) => {
+  return !hasNoValue(text);
 };
 
-export const hasNoValue = (data: any) => {
-  return isEmpty(data);
+export const hasNoValue = (text: any) => {
+  if (isNumber(text)) return false;
+  return isEmpty(text);
 };
 
 export const isValidNumber = (data: any) => {

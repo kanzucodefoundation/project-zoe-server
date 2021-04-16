@@ -1,9 +1,13 @@
-import SearchDto from '../../shared/dto/search.dto';
-import { IsDate, IsOptional } from 'class-validator';
 import { Type } from 'class-transformer';
+import { IsDate, IsNumber, IsOptional, Min } from 'class-validator';
 
-export default class GroupEventSearchDto extends SearchDto {
-  parentIdList?: number[];
+export default class EventMetricsDto {
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  groupId?: number;
+
   groupIdList?: number[];
   categoryIdList?: string[];
 

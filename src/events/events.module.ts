@@ -11,6 +11,7 @@ import { EventsCategoriesController } from './event-categories.controller';
 import { EventsFieldsController } from './event-fields.controller';
 import { EventsAttendanceController } from './event-attendance.controller';
 import { PrismaService } from '../shared/prisma.service';
+import { EventsMetricsController } from './event-metrics.controller';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { PrismaService } from '../shared/prisma.service';
     EventsCategoriesController,
     EventsFieldsController,
     EventsAttendanceController,
+    EventsMetricsController,
   ],
   providers: [EventsService, PrismaService],
   exports: [EventsService],
