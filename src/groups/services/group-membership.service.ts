@@ -2,7 +2,6 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Connection, Repository } from 'typeorm';
 import { FindConditions } from 'typeorm/find-options/FindConditions';
-import { hasNoValue, hasValue } from '../../utils/basicHelpers';
 import GroupMembership from '../entities/groupMembership.entity';
 import GroupMembershipDto from '../dto/membership/group-membership.dto';
 import { getPersonFullName } from '../../crm/crm.helpers';
@@ -11,6 +10,7 @@ import ClientFriendlyException from '../../shared/exceptions/client-friendly.exc
 import UpdateGroupMembershipDto from '../dto/membership/update-group-membership.dto';
 import BatchGroupMembershipDto from '../dto/membership/batch-group-membership.dto';
 import { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
+import { hasNoValue, hasValue } from '../../utils/validation';
 
 @Injectable()
 export class GroupsMembershipService {
@@ -44,7 +44,9 @@ export class GroupsMembershipService {
     return {
       ...rest,
       group: group ? { name: group.name, id: group.id } : null,
-      category: group.category ? {name: group.category.name, id: group.category.id} : null,
+      category: group.category
+        ? { name: group.category.name, id: group.category.id }
+        : null,
       contact: { name: getPersonFullName(contact.person), id: contact.id },
     };
   }
@@ -52,7 +54,7 @@ export class GroupsMembershipService {
   async create(data: BatchGroupMembershipDto): Promise<number> {
     const { groupId, members, role } = data;
     const toInsert: QueryDeepPartialEntity<GroupMembership>[] = [];
-    members.forEach(contactId => {
+    members.forEach((contactId) => {
       toInsert.push({ groupId, contactId, role });
     });
     await this.repository

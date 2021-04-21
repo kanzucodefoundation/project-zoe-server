@@ -16,7 +16,6 @@ import { EventsService } from './events.service';
 import GroupEventDto from './dto/group-event.dto';
 import CreateEventDto from './dto/create-event.dto';
 import GroupEventSearchDto from './dto/group-event-search.dto';
-import { UserDto } from '../auth/dto/user.dto';
 
 //@UseGuards(JwtAuthGuard)
 @ApiTags('Events')
@@ -29,9 +28,7 @@ export class EventsController {
     @Query() dto: GroupEventSearchDto,
     @Request() req,
   ): Promise<GroupEventDto[]> {
-    const user: UserDto = req.user;
-    console.log('Filter>>>>', dto);
-    return this.service.findAll(dto, user);
+    return this.service.findAll(dto, req.user);
   }
 
   @Post()

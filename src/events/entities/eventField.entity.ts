@@ -1,6 +1,7 @@
 import {
   Column,
   Entity,
+  Index,
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
@@ -8,6 +9,7 @@ import {
 import EventCategory from './eventCategory.entity';
 
 @Entity()
+@Index(['name', 'categoryId'], { unique: true })
 export default class EventField {
   @PrimaryGeneratedColumn()
   id: number;
@@ -31,7 +33,9 @@ export default class EventField {
   @JoinColumn()
   category?: EventCategory;
   @Column()
-  categoryId: number;
+  categoryId: string;
+  @Column({ nullable: true })
+  order: number;
 }
 
 export enum FieldType {

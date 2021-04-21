@@ -39,9 +39,6 @@ export default class GroupEvent {
   @Column({ nullable: true })
   submittedBy?: string;
 
-  @Column({ nullable: false, length: 500 })
-  details: string;
-
   @Column({
     nullable: true,
     type: 'jsonb',

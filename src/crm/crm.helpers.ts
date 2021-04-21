@@ -6,7 +6,8 @@ import Phone from './entities/phone.entity';
 import Address from './entities/address.entity';
 import Occasion from './entities/occasion.entity';
 import Identification from './entities/identification.entity';
-import { hasNoValue, hasValue } from '../utils/basicHelpers';
+import { hasNoValue, hasValue } from 'src/utils/validation';
+
 import * as crypto from 'crypto';
 import Relationship from './entities/relationship.entity';
 import Request from './entities/request.entity';
@@ -16,8 +17,9 @@ export const getPersonFullName = (person: Partial<Person>): string => {
   if (hasNoValue(person)) {
     return '';
   }
-  const name = `${person.firstName || ''} ${person.middleName ||
-    ''} ${person.lastName || ''}`;
+  const name = `${person.firstName || ''} ${person.middleName || ''} ${
+    person.lastName || ''
+  }`;
   return name.trim().replace(/\s+/g, ' ');
 };
 
@@ -36,10 +38,7 @@ export const crmEntities = [
 
 export const createAvatar = (email: string, size = 200) => {
   if (hasValue(email)) {
-    const md5 = crypto
-      .createHash('md5')
-      .update(email)
-      .digest('hex');
+    const md5 = crypto.createHash('md5').update(email).digest('hex');
     return `https://gravatar.com/avatar/${md5}?s=${size}&d=retro`;
   }
   return `https://gravatar.com/avatar/?s=${size}&d=retro`;
@@ -48,7 +47,7 @@ export const createAvatar = (email: string, size = 200) => {
 export const getPhoneObj = (data: Contact): Phone => {
   const { phones } = data;
   if (phones && phones.length > 0) {
-    const pri = phones.find(it => it.isPrimary);
+    const pri = phones.find((it) => it.isPrimary);
     if (pri) return pri;
     else return phones[0];
   }
@@ -58,7 +57,7 @@ export const getPhoneObj = (data: Contact): Phone => {
 export const getEmail = (data: Contact): string => {
   const { emails } = data;
   if (emails && emails.length > 0) {
-    const pri = emails.find(it => it.isPrimary);
+    const pri = emails.find((it) => it.isPrimary);
     if (pri) return pri.value;
     else return emails[0].value;
   }
@@ -68,7 +67,7 @@ export const getEmail = (data: Contact): string => {
 export const getEmailObj = (data: Contact): Email => {
   const { emails } = data;
   if (emails && emails.length > 0) {
-    const pri = emails.find(it => it.isPrimary);
+    const pri = emails.find((it) => it.isPrimary);
     if (pri) return pri;
     else return emails[0];
   }
@@ -78,7 +77,7 @@ export const getEmailObj = (data: Contact): Email => {
 export const getPhone = (data: Contact): string => {
   const { phones } = data;
   if (phones && phones.length > 0) {
-    const pri = phones.find(it => it.isPrimary);
+    const pri = phones.find((it) => it.isPrimary);
     if (pri) return pri.value;
     else return phones[0].value;
   }
@@ -89,7 +88,7 @@ export const getCellGroup = (data: Contact): Group | null => {
   const { groupMemberships } = data;
   if (hasValue(groupMemberships)) {
     const pri = groupMemberships.find(
-      it => it.group.categoryId.toLocaleLowerCase() === 'mc',
+      (it) => it.group.categoryId.toLocaleLowerCase() === 'mc',
     );
     if (pri) {
       return pri.group;
@@ -102,7 +101,7 @@ export const getLocation = (data: Contact): Group | null => {
   const { groupMemberships } = data;
   if (hasValue(groupMemberships)) {
     const pri = groupMemberships.find(
-      it => it.group.categoryId.toLocaleLowerCase() === 'location',
+      (it) => it.group.categoryId.toLocaleLowerCase() === 'location',
     );
     if (pri) {
       return pri.group;

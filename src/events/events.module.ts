@@ -11,6 +11,7 @@ import { EventsCategoriesController } from './event-categories.controller';
 import { EventsFieldsController } from './event-fields.controller';
 import { EventsAttendanceController } from './event-attendance.controller';
 import { PrismaService } from '../shared/prisma.service';
+import { EventsMetricsController } from './event-metrics.controller';
 import { EventCategoryService } from './event-category.service';
 import { EventFieldService } from './event-field.service';
 
@@ -30,6 +31,7 @@ import { EventFieldService } from './event-field.service';
     EventsCategoriesController,
     EventsFieldsController,
     EventsAttendanceController,
+    EventsMetricsController,
   ],
   providers: [EventsService, PrismaService, EventCategoryService, EventFieldService],
 })
