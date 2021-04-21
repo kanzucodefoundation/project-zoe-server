@@ -21,13 +21,13 @@ export class EventCategoryService {
     async createEventCategory(createEventCategoryDto: EventCategoryCreateDto): Promise<EventCategoryDto>{
         const {name} = createEventCategoryDto;
 
-        const event_category: EventCategory = await this.eventCategoryRepository.create({
+        const category: EventCategory = await this.eventCategoryRepository.create({
             name
         });
 
-        await this.eventCategoryRepository.save(event_category);
+        await this.eventCategoryRepository.save(category);
 
-        return toCategoryDto(event_category);
+        return toCategoryDto(category);
     }    
 
     async getOneCategory(id:number): Promise<EventCategoryDto>{
@@ -50,27 +50,27 @@ export class EventCategoryService {
   async updateCategory (id:number, eventCategoryDto: EventCategoryDto): Promise<EventCategoryDto>{
     const {name} = eventCategoryDto;
 
-    let eventcategory: EventCategory = await this.eventCategoryRepository.findOne({where:{id}});
-    if (!eventcategory) {
+    let category: EventCategory = await this.eventCategoryRepository.findOne({where:{id}});
+    if (!category) {
         throw new HttpException(
             `Event Category does not exist`,
             HttpStatus.BAD_REQUEST,
         );
     }
 
-    eventcategory = {
+    category = {
         id,
         name,
     };
 
-    await this.eventCategoryRepository.update({id},eventcategory); //update
+    await this.eventCategoryRepository.update({id},category); //update
 
-    eventcategory = await this.eventCategoryRepository.findOne({
+    category = await this.eventCategoryRepository.findOne({
         where: {id},
         relations:['fields'],
     }); //re-query
 
-    return toCategoryDto(eventcategory);
+    return toCategoryDto(category);
   }
 
     async deleteCategory(id:number): Promise<EventCategoryDto>{

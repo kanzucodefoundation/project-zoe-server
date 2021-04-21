@@ -10,42 +10,46 @@ import {
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { ApiTags } from '@nestjs/swagger';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import EventField from './entities/eventField.entity';
+import { EventFieldService } from './event-field.service';
+import EventFieldDto from './dto/event-field.dto';
+import { EventFieldCreateDto } from './dto/event-field-create.dto';
 
 @UseGuards(JwtAuthGuard)
 @ApiTags('Events Fields')
 @Controller('api/events/fields')
 export class EventsFieldsController {
-  constructor(
-    @InjectRepository(EventField)
-    private readonly repository: Repository<EventField>,
-  ) {}
+  constructor (
+    private service: EventFieldService
+  ){}
 
-  @Get()
-  async findAll(): Promise<EventField[]> {
-    return await this.repository.find({});
-  }
-
-  @Post()
-  async create(@Body() data: EventField): Promise<EventField> {
-    return this.repository.save(data);
-  }
-
-  @Put()
-  async update(@Body() { id, ...data }: EventField): Promise<EventField> {
-    await this.repository.update(id, data);
-    return this.repository.findOne({ where: { id } });
-  }
-
+  //Get event field by id  
   @Get(':id')
-  async findOne(@Param('id') id: any): Promise<EventField> {
-    return await this.repository.findOne(id);
+  async findOne(@Param('id') id:number): Promise<EventFieldDto>{
+    return await this.service.getOneField(id);
   }
 
+  //Create event field
+  @Post('category/:id')
+  async create(@Param('id') category:number, @Body() createFieldDto: EventFieldCreateDto): Promise<EventFieldDto>{
+    return await this.service.createField(category,createFieldDto);
+  }
+
+  //Get event field by category
+  @Get('category/:id')
+  async findFieldbyCategory(@Param('id') id:number): Promise<EventFieldDto[]>{
+    return await this.service.getFieldbyCategory(id);
+    // return {fields};
+  }
+
+  //Update event field
+  @Put(':id')
+  async update(@Param('id') id:number, @Body() eventFieldDto: EventFieldDto): Promise<EventFieldDto>{
+    return await this.service.updateField(id,eventFieldDto);
+  }
+
+  //Delete event field
   @Delete(':id')
-  async remove(@Param('id') id: any): Promise<void> {
-    await this.repository.delete(id);
+  async remove(@Param('id') id:number):Promise<EventFieldDto>{
+    return await this.service.deleteField(id);
   }
 }

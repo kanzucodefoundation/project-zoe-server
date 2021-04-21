@@ -18,7 +18,7 @@ import CreateEventDto from './dto/create-event.dto';
 import GroupEventSearchDto from './dto/group-event-search.dto';
 import { UserDto } from '../auth/dto/user.dto';
 
-@UseGuards(JwtAuthGuard)
+//@UseGuards(JwtAuthGuard)
 @ApiTags('Events')
 @Controller('api/events/event')
 export class EventsController {

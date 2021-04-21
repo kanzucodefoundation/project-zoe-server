@@ -5,5 +5,5 @@ export default class EventFieldDto {
     details?: string;
     type: any;
     isRequired: boolean;
-    categoryId: number;
+    categoryId?: number;
 }
