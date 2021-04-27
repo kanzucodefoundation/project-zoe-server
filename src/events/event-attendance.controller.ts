@@ -66,7 +66,7 @@ export class EventsAttendanceController {
       },
       where: { groupId: { equals: req.groupId } },
     });
-    const memberships: GroupMembershipDto[] = data.map(it => {
+    const memberships: GroupMembershipDto[] = data.map((it) => {
       return {
         id: it.id,
         groupId: it.groupId,
@@ -96,7 +96,7 @@ export class EventsAttendanceController {
       },
       where: { eventId: { equals: req.eventId } },
     });
-    const attendance: EventAttendanceDto[] = attData.map(it => {
+    const attendance: EventAttendanceDto[] = attData.map((it) => {
       return {
         id: it.id,
         contactId: it.contactId,
@@ -125,6 +125,20 @@ export class EventsAttendanceController {
   async create(
     @Body() { id, ...data }: EventAttendanceCreateDto,
   ): Promise<EventAttendanceDto> {
+    const checkVisitor = await this.repository
+      .createQueryBuilder()
+      .where('"contactId"=:contactId AND "isVisitor"=:isVisitor', {
+        contactId: data.contactId,
+        isVisitor: true,
+      })
+      .execute();
+
+    if (checkVisitor.length <= 0 && data.attended) {
+      data.isVisitor = true;
+    } else {
+      data.isVisitor = false;
+    }
+
     if (id !== 0) {
       await this.repository
         .createQueryBuilder()
