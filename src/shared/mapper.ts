@@ -1,25 +1,3 @@
-/* 
-export const toTodoDto = (data: TodoEntity): TodoDto => {
-  const { id, name, description, tasks, owner } = data;
-
-  let todoDto: TodoDto = {
-    id,
-    name,
-    description,
-    owner: owner ? toUserDto(owner) : null,
-  };
-
-  if (tasks) {
-    todoDto = {
-      ...todoDto,
-      tasks: tasks.map((task: TaskEntity) => toTaskDto(task)),
-    };
-  }
-
-  return todoDto;
-};
-*/
-
 import { EventCategoryDto } from "src/events/dto/event-category.dto";
 import EventFieldDto from "src/events/dto/event-field.dto";
 import EventCategory from "src/events/entities/eventCategory.entity";

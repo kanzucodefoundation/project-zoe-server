@@ -5,6 +5,4 @@ import EventFieldDto from "./event-field.dto";
 export class EventCategoryCreateDto {
      @IsNotEmpty()
     name:string;
-
-    //fields?: EventFieldDto;
 }

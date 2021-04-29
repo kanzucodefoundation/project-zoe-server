@@ -38,7 +38,6 @@ export class EventsFieldsController {
   @Get('category/:id')
   async findFieldbyCategory(@Param('id') id:number): Promise<EventFieldDto[]>{
     return await this.service.getFieldbyCategory(id);
-    // return {fields};
   }
 
   //Update event field

@@ -33,9 +33,9 @@ export default class EventField {
   @JoinColumn()
   category?: EventCategory;
   @Column()
-  categoryId: string;
+  categoryId: number;
   @Column({ nullable: true })
-  order: number;
+  order?: number;
 }
 
 export enum FieldType {

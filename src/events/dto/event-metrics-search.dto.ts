@@ -9,7 +9,7 @@ export default class EventMetricsDto {
   groupId?: number;
 
   groupIdList?: number[];
-  categoryIdList?: string[];
+  categoryIdList?: number[];
 
   @IsOptional()
   @IsDate()
