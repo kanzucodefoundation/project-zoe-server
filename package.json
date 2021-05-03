@@ -41,6 +41,7 @@
     "express-rate-limit": "^5.1.1",
     "express-validator": "^6.10.0",
     "geolib": "^3.3.1",
+    "google-libphonenumber": "^3.2.19",
     "helmet": "^3.21.3",
     "lodash": "^4.17.19",
     "morgan": "^1.10.0",
