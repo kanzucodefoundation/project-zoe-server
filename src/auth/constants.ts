@@ -1,5 +1,5 @@
 export const jwtConstants = {
-  secret: 'secretKey',
+  secret: process.env.JWT_KEY || 'dWhaRFJETW5BTG01Znl1eA==',
 };
 
 export const appRoles = {

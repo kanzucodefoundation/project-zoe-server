@@ -13,7 +13,7 @@ import { ApiTags } from '@nestjs/swagger';
 import { ContactsService } from '../contacts.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import Person from '../entities/person.entity';
-import { Like, Repository, UpdateResult } from 'typeorm';
+import { Like, Repository } from 'typeorm';
 import { ContactSearchDto } from '../dto/contact-search.dto';
 import { CreatePersonDto } from '../dto/create-person.dto';
 import { getPersonFullName } from '../crm.helpers';
@@ -108,7 +108,8 @@ export class PeopleController {
 
   @Post()
   async create(@Body() data: CreatePersonDto): Promise<ContactListDto> {
-    const contact = await this.service.createPerson(data);
+    const created = await this.service.createPerson(data);
+    const contact = await this.service.findOne(created.id);
     return ContactsService.toListDto(contact);
   }
 

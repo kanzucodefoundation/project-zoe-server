@@ -22,10 +22,10 @@ export class CreatePersonDto {
   gender: Gender;
 
   @IsEnum(CivilStatus)
-  civilStatus: CivilStatus;
+  civilStatus?: CivilStatus;
 
   @IsDateString()
-  dateOfBirth: Date;
+  dateOfBirth: Date | string;
   ageGroup?: string;
 
   placeOfWork?: string;

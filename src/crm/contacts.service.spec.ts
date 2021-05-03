@@ -18,13 +18,13 @@ describe('ContactService', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       imports: [
-        TypeOrmModule.forRoot({
-          type: 'mysql', ...config.database,
-          entities: [
-            ...usersEntities, ...crmEntities, ...groupEntities,
-          ],
-          logging:'all'
-        }),
+        // TypeOrmModule.forRoot({
+        //   type: 'mysql', ...config.database,
+        //   entities: [
+        //     ...usersEntities, ...crmEntities, ...groupEntities,
+        //   ],
+        //   logging:'all'
+        // }),
 
         TypeOrmModule.forFeature([...crmEntities])
       ],

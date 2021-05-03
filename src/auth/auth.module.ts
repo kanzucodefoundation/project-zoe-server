@@ -20,13 +20,3 @@ import { jwtConstants } from './constants';
   exports: [AuthService],
 })
 export class AuthModule {}
-
-/*
-
-Application
-  Modules
-    Controllers -
-    Services - Business logic
-    Entities - Database
-
- */

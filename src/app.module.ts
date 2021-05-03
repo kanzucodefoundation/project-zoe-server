@@ -19,7 +19,12 @@ import { VendorModule } from './vendor/vendor.module';
 import { EventsModule } from './events/events.module';
 import { eventEntities } from './events/events.helpers';
 
-console.log('App.Configuration >>>>', config);
+export const appEntities = [
+  ...usersEntities,
+  ...crmEntities,
+  ...groupEntities,
+  ...eventEntities,
+];
 
 @Module({
   imports: [
@@ -33,12 +38,7 @@ console.log('App.Configuration >>>>', config);
     }),
     TypeOrmModule.forRoot({
       ...config.database,
-      entities: [
-        ...usersEntities,
-        ...crmEntities,
-        ...groupEntities,
-        ...eventEntities,
-      ],
+      entities: appEntities,
     }),
     UsersModule,
     AuthModule,

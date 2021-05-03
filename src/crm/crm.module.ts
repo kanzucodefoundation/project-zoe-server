@@ -2,6 +2,7 @@ import { HttpModule, Module } from '@nestjs/common';
 import { ContactsService } from './contacts.service';
 import { ContactsController } from './contollers/contacts.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { CsvModule } from 'nest-csv-parser';
 import { crmEntities } from './crm.helpers';
 import { PeopleController } from './contollers/people.controller';
 import { CompaniesController } from './contollers/companies.controller';
@@ -17,9 +18,11 @@ import { usersEntities } from '../users/users.helpers';
 import { RegisterController } from './contollers/register.controller';
 import { GoogleService } from 'src/vendor/google.service';
 import { PrismaService } from '../shared/prisma.service';
+import { ContactImportController } from './contollers/contact-import.controller';
 
 @Module({
   imports: [
+    CsvModule,
     HttpModule,
     TypeOrmModule.forFeature([
       ...crmEntities,
@@ -40,6 +43,7 @@ import { PrismaService } from '../shared/prisma.service';
     RelationshipsController,
     RequestsController,
     RegisterController,
+    ContactImportController,
   ],
   exports: [ContactsService],
 })

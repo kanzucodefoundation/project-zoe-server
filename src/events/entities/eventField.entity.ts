@@ -39,8 +39,8 @@ export default class EventField {
 }
 
 export enum FieldType {
-  Text = 'Text',
-  Number = 'Number',
-  Date = 'Date',
-  Array = 'Array',
+  Text = 'text',
+  Number = 'number',
+  Date = 'bate',
+  Array = 'array',
 }
