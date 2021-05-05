@@ -1,4 +1,4 @@
-import { Injectable, HttpException, Logger } from '@nestjs/common';
+import { HttpException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from './user.entity';
@@ -123,13 +123,19 @@ export class UsersService {
     return { token, mailURL, user };
   }
 
-  async register(dto: RegisterUserDto): Promise<User> {
-    const contact = await this.contactsService.createPerson(dto);
+  async register({
+    password,
+    email,
+    roles,
+    ...rest
+  }: RegisterUserDto): Promise<User> {
+    const contact = await this.contactsService.createPerson({ ...rest, email });
+
     const user = new User();
-    user.username = dto.email;
-    user.password = dto.password;
+    user.username = email;
+    user.password = password;
     user.contact = Contact.ref(contact.id);
-    user.roles = dto.roles;
+    user.roles = roles;
     user.isActive = true;
     user.hashPassword();
     return await this.repository.save(user);

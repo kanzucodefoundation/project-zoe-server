@@ -210,42 +210,40 @@ export class ContactsService {
   }
 
   async createPerson(personDto: CreatePersonDto): Promise<Contact> {
-    /*
-     * TODO We can't save the contact at once because of a bug in type-orm
-     *  https://github.com/typeorm/typeorm/issues/4090
-     * */
-    const person = new Person();
-    person.firstName = personDto.firstName;
-    person.middleName = personDto.middleName;
-    person.lastName = personDto.lastName;
-    person.civilStatus = personDto.civilStatus;
-    person.salutation = null;
-    person.dateOfBirth = personDto.dateOfBirth;
-    person.avatar = createAvatar(personDto.email);
-    person.gender = personDto.gender;
-    person.placeOfWork = personDto.placeOfWork;
-    person.ageGroup = personDto.ageGroup;
+    const model = new Contact();
+    model.category = ContactCategory.Person;
+    model.person = new Person();
+    model.person.firstName = personDto.firstName;
+    model.person.middleName = personDto.middleName;
+    model.person.lastName = personDto.lastName;
+    model.person.civilStatus = personDto.civilStatus;
+    model.person.salutation = null;
+    model.person.dateOfBirth = personDto.dateOfBirth;
+    model.person.avatar = createAvatar(personDto.email);
+    model.person.gender = personDto.gender;
+    model.person.placeOfWork = personDto.placeOfWork;
+    model.person.ageGroup = personDto.ageGroup;
 
-    const phones: Phone[] = [];
+    model.phones = [];
     if (hasValue(personDto.phone)) {
       const p = new Phone();
       p.category = PhoneCategory.Mobile;
       p.isPrimary = true;
       p.value = personDto.phone;
-      phones.push(p);
+      model.phones.push(p);
     }
 
-    const emails: Email[] = [];
+    model.emails = [];
     if (hasValue(personDto.email)) {
       const e = new Email();
       e.category = EmailCategory.Personal;
       e.isPrimary = true;
       e.value = personDto.email;
-      emails.push(e);
+      model.emails.push(e);
     }
 
-    const addresses: Address[] = [];
-    if (hasValue(personDto.residence)) {
+    model.addresses = [];
+    if (hasValue(personDto.residence?.placeId)) {
       const address = new Address();
       address.category = AddressCategory.Home;
       address.isPrimary = true;
@@ -261,23 +259,30 @@ export class ContactsService {
         address.district = place.district;
         console.log('Address', address);
       }
-      addresses.push(address);
+      model.addresses.push(address);
     }
 
-    const groupMemberships: GroupMembership[] = [];
+    model.groupMemberships = [];
     if (isValidNumber(personDto.churchLocationId)) {
       const membership = new GroupMembership();
       membership.groupId = personDto.churchLocationId;
       membership.role = GroupRole.Member;
-      groupMemberships.push(membership);
+      model.groupMemberships.push(membership);
     }
+    if (isValidNumber(personDto.cellGroupId)) {
+      const membership = new GroupMembership();
+      membership.groupId = personDto.cellGroupId;
+      membership.role = GroupRole.Member;
+      model.groupMemberships.push(membership);
+    }
+
     const groupMembershipRequests: GroupMembershipRequest[] = [];
     if (personDto.inCell === 'Yes') {
       if (isValidNumber(personDto.cellGroupId)) {
         const membership = new GroupMembership();
         membership.groupId = personDto.cellGroupId;
         membership.role = GroupRole.Member;
-        groupMemberships.push(membership);
+        model.groupMemberships.push(membership);
       } else if (typeof personDto.cellGroupId === 'string') {
         const group = new Group();
         group.name = personDto.cellGroupId;
@@ -289,7 +294,7 @@ export class ContactsService {
         const membership = new GroupMembership();
         membership.groupId = group.id;
         membership.role = GroupRole.Member;
-        groupMemberships.push(membership);
+        model.groupMemberships.push(membership);
       }
     } else {
       if (personDto.joinCell === 'Yes') {
@@ -317,38 +322,7 @@ export class ContactsService {
       }
     }
 
-    const model = new Contact();
-    model.category = ContactCategory.Person;
-    const contact = await this.repository.save(model);
-    const contactRef = Contact.ref(contact.id);
-    contact.person = await this.personRepository.save({
-      ...person,
-      contact: contactRef,
-    });
-    contact.phones = await this.phoneRepository.save(
-      phones.map((it) => ({ ...it, contact: contactRef })),
-    );
-    contact.emails = await this.emailRepository.save(
-      emails.map((it) => ({ ...it, contact: contactRef })),
-    );
-    contact.addresses = await this.addressRepository.save(
-      addresses.map((it) => ({ ...it, contact: contactRef })),
-    );
-    contact.groupMemberships = await this.membershipRepository.save(
-      groupMemberships.map((it) => ({
-        ...it,
-        contact: contactRef,
-      })),
-    );
-    contact.groupMembershipRequests = await this.gmRequestRepository.save(
-      groupMembershipRequests.map((it) => ({
-        ...it,
-        contact: contactRef,
-      })),
-    );
-    contact.identifications = [];
-    contact.occasions = [];
-    return await this.findOne(contact.id);
+    return await this.repository.save(model, { reload: true });
   }
 
   async getClosestGroups(

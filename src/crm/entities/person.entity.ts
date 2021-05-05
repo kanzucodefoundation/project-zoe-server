@@ -55,11 +55,9 @@ export default class Person {
   avatar: string;
 
   @Column({ type: 'date', nullable: true })
-  dateOfBirth: Date;
+  dateOfBirth: Date | string;
 
-  @OneToOne((type) => Contact, (it) => it.person, {
-    cascade: ['insert', 'remove', 'update'],
-  })
+  @OneToOne((type) => Contact, (it) => it.person)
   @JoinColumn()
   contact: Contact;
 

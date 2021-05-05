@@ -1,4 +1,10 @@
-import { Column, Entity, JoinColumn, OneToOne, PrimaryGeneratedColumn } from 'typeorm';
+import {
+  Column,
+  Entity,
+  JoinColumn,
+  OneToOne,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
 import Contact from './contact.entity';
 
 @Entity()
@@ -9,12 +15,7 @@ export default class Company {
   @Column()
   name: string;
 
-  @OneToOne(
-    type => Contact,
-    it => it.company,
-    {
-      cascade: ['insert', 'remove'],
-    })
+  @OneToOne((type) => Contact, (it) => it.company)
   @JoinColumn()
   contact?: Contact;
 

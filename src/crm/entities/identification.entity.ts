@@ -1,4 +1,10 @@
-import { Column, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
+import {
+  Column,
+  Entity,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
 import Contact from './contact.entity';
 import { IdentificationCategory } from '../enums/identificationCategory';
 
@@ -34,11 +40,7 @@ export default class Identification {
   isPrimary: boolean;
 
   @JoinColumn()
-  @ManyToOne(
-    type => Contact,
-    it => it.identifications,
-    { nullable: false, cascade: ['insert', 'remove'] },
-  )
+  @ManyToOne((type) => Contact, (it) => it.identifications)
   contact: Contact;
 
   @Column()

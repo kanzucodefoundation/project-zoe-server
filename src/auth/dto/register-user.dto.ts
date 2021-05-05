@@ -1,15 +1,20 @@
-import {CivilStatus} from '../../crm/enums/civilStatus';
-import {Gender} from '../../crm/enums/gender';
-import {IsDate, IsEmail, IsEnum, IsNotEmpty} from 'class-validator';
+import { CivilStatus } from '../../crm/enums/civilStatus';
+import { Gender } from '../../crm/enums/gender';
+import {
+  IsDate,
+  IsDateString,
+  IsEmail,
+  IsEnum,
+  IsNotEmpty,
+} from 'class-validator';
 
 export class RegisterUserDto {
-
   @IsNotEmpty()
   @IsEmail()
   email: string;
 
   @IsNotEmpty()
-  phone:  string;
+  phone: string;
 
   @IsNotEmpty()
   password: string;
@@ -25,12 +30,11 @@ export class RegisterUserDto {
   middleName?: string;
 
   @IsEnum(Gender)
-  gender:  Gender;
+  gender: Gender;
 
   @IsEnum(CivilStatus)
-  civilStatus:  CivilStatus;
+  civilStatus: CivilStatus;
 
-  @IsDate()
-  dateOfBirth: Date;
-
+  @IsDateString()
+  dateOfBirth: string | Date;
 }
