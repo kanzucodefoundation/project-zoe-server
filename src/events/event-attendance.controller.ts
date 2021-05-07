@@ -18,6 +18,7 @@ import { ApiTags } from '@nestjs/swagger';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import EventAttendance from './entities/eventAttendance.entity';
+import GroupEvent from './entities/event.entity';
 import { FindConditions } from 'typeorm/find-options/FindConditions';
 import { hasValue } from '../utils/validation';
 import GroupMembership from '../groups/entities/groupMembership.entity';
@@ -35,6 +36,8 @@ export class EventsAttendanceController {
   constructor(
     @InjectRepository(EventAttendance)
     private readonly repository: Repository<EventAttendance>,
+    @InjectRepository(GroupEvent)
+    private readonly groupRepository: Repository<GroupEvent>,
     @InjectRepository(GroupMembership)
     private readonly membershipRepository: Repository<GroupMembership>,
     private prisma: PrismaService,
@@ -125,12 +128,22 @@ export class EventsAttendanceController {
   async create(
     @Body() { id, ...data }: EventAttendanceCreateDto,
   ): Promise<EventAttendanceDto> {
+    const groupData = await this.groupRepository
+      .createQueryBuilder('groupId')
+      .where('Id =:Id', { Id: data.eventId })
+      .getOne();
+
     const checkVisitor = await this.repository
       .createQueryBuilder()
-      .where('"contactId"=:contactId AND "isVisitor"=:isVisitor', {
-        contactId: data.contactId,
-        isVisitor: true,
-      })
+      .leftJoin('events', 'event', '"eventId"="event".Id')
+      .where(
+        '"contactId"=:contactId AND "isVisitor"=:isVisitor AND "groupId"=:groupId',
+        {
+          contactId: data.contactId,
+          isVisitor: true,
+          groupId: groupData.groupId,
+        },
+      )
       .execute();
 
     if (checkVisitor.length <= 0 && data.attended) {
