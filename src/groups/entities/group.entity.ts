@@ -5,6 +5,9 @@ import {
   ManyToOne,
   OneToMany,
   PrimaryGeneratedColumn,
+  Tree,
+  TreeChildren,
+  TreeParent,
 } from 'typeorm';
 import { GroupPrivacy } from '../enums/groupPrivacy';
 import GroupCategory from './groupCategory.entity';
@@ -14,6 +17,7 @@ import GroupEvent from '../../events/entities/event.entity';
 import InternalAddress from '../../shared/entity/InternalAddress';
 
 @Entity()
+@Tree("closure-table")
 export default class Group {
   @PrimaryGeneratedColumn()
   id: number;
@@ -44,11 +48,11 @@ export default class Group {
   @Column({ length: 40 })
   categoryId: string;
 
-  @OneToMany((type) => Group, (it) => it.parent)
+  @TreeChildren()
   children: Group[];
 
-  @ManyToOne((type) => Group, (it) => it.children)
-  parent?: Group;
+  @TreeParent()
+  parent: Group;
 
   @Column({ nullable: true })
   parentId?: number;

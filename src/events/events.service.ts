@@ -40,7 +40,7 @@ export class EventsService {
     // TODO use user object to filter reports
     if (hasValue(req.categoryIdList))
       filter.categoryId = In(req.categoryIdList);
-    if (hasValue(req.groupIdList)) filter.id = In(req.groupIdList);
+    if (hasValue(req.groupIdList)) filter.groupId = In(req.groupIdList);
     if (hasValue(req.parentIdList)) filter.parentId = In(req.parentIdList);
 
     if (hasValue(req.from)) {
