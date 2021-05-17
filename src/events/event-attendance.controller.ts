@@ -18,6 +18,7 @@ import { ApiTags } from '@nestjs/swagger';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import EventAttendance from './entities/eventAttendance.entity';
+import GroupEvent from './entities/event.entity';
 import { FindConditions } from 'typeorm/find-options/FindConditions';
 import { hasValue } from '../utils/validation';
 import GroupMembership from '../groups/entities/groupMembership.entity';
@@ -35,6 +36,8 @@ export class EventsAttendanceController {
   constructor(
     @InjectRepository(EventAttendance)
     private readonly repository: Repository<EventAttendance>,
+    @InjectRepository(GroupEvent)
+    private readonly groupRepository: Repository<GroupEvent>,
     @InjectRepository(GroupMembership)
     private readonly membershipRepository: Repository<GroupMembership>,
     private prisma: PrismaService,
@@ -66,7 +69,7 @@ export class EventsAttendanceController {
       },
       where: { groupId: { equals: req.groupId } },
     });
-    const memberships: GroupMembershipDto[] = data.map(it => {
+    const memberships: GroupMembershipDto[] = data.map((it) => {
       return {
         id: it.id,
         groupId: it.groupId,
@@ -96,7 +99,7 @@ export class EventsAttendanceController {
       },
       where: { eventId: { equals: req.eventId } },
     });
-    const attendance: EventAttendanceDto[] = attData.map(it => {
+    const attendance: EventAttendanceDto[] = attData.map((it) => {
       return {
         id: it.id,
         contactId: it.contactId,
@@ -125,6 +128,30 @@ export class EventsAttendanceController {
   async create(
     @Body() { id, ...data }: EventAttendanceCreateDto,
   ): Promise<EventAttendanceDto> {
+    const groupData = await this.groupRepository
+      .createQueryBuilder('groupId')
+      .where('Id =:Id', { Id: data.eventId })
+      .getOne();
+
+    const checkVisitor = await this.repository
+      .createQueryBuilder()
+      .leftJoin('events', 'event', '"eventId"="event".Id')
+      .where(
+        '"contactId"=:contactId AND "isVisitor"=:isVisitor AND "groupId"=:groupId',
+        {
+          contactId: data.contactId,
+          isVisitor: true,
+          groupId: groupData.groupId,
+        },
+      )
+      .execute();
+
+    if (checkVisitor.length <= 0 && data.attended) {
+      data.isVisitor = true;
+    } else {
+      data.isVisitor = false;
+    }
+
     if (id !== 0) {
       await this.repository
         .createQueryBuilder()
