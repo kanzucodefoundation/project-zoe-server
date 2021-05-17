@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { intersection } from 'lodash';
-import { getRepository, ILike, In, Like, Repository } from 'typeorm';
+import { getRepository, ILike, In, Like, Repository, TreeRepository } from 'typeorm';
 import Contact from './entities/contact.entity';
 import { CreatePersonDto } from './dto/create-person.dto';
 import {
@@ -59,7 +59,7 @@ export class ContactsService {
     @InjectRepository(GroupMembership)
     private readonly membershipRepository: Repository<GroupMembership>,
     @InjectRepository(Group)
-    private readonly groupRepository: Repository<Group>,
+    private readonly groupRepository: TreeRepository<Group>,
     @InjectRepository(GroupMembershipRequest)
     private readonly gmRequestRepository: Repository<GroupMembershipRequest>,
     private googleService: GoogleService,
@@ -286,7 +286,7 @@ export class ContactsService {
       } else if (typeof personDto.cellGroupId === 'string') {
         const group = new Group();
         group.name = personDto.cellGroupId;
-        group.parentId = personDto.churchLocationId;
+        group.parent = await this.groupRepository.findOne(personDto.churchLocationId);
         group.privacy = GroupPrivacy.Public;
         group.categoryId = 'MC';
         group.details = '--pending--';

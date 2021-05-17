@@ -13,4 +13,6 @@ export class GroupDetailDto {
   metaData?: string;
   address?: any;
   leaders?: number[];
+  parents?: any;
+  children?: any;
 }

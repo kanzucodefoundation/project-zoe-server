@@ -1,3 +1,5 @@
+import ComboDto from "src/shared/dto/combo.dto";
+
 export default class GroupMembershipRequestDto {
 
     id: number;
@@ -8,7 +10,7 @@ export default class GroupMembershipRequestDto {
     group: {
         id: number;
         name: string;
-        parentId?: number;
+        parent?: ComboDto;
     };
     contact: {
         id: number;

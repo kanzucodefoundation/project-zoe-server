@@ -47,7 +47,7 @@ export class GroupMembershipRequestService {
       group: {
         id: group.id,
         name: group.name,
-        parentId: group.parentId,
+        parent: parent ? {id: group.parent.id, name: group.parent.name} : null,
       },
       contact: {
         id: contact.id,
