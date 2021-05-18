@@ -17,7 +17,7 @@ import GroupEventDto from './dto/group-event.dto';
 import CreateEventDto from './dto/create-event.dto';
 import InternalAddress from '../shared/entity/InternalAddress';
 import GroupEventSearchDto from './dto/group-event-search.dto';
-import { hasValue } from 'src/utils/validation';
+import { hasValue, getArray } from 'src/utils/validation';
 import { UserDto } from '../auth/dto/user.dto';
 import EventMetricsDto from './dto/event-metrics-search.dto';
 
@@ -39,10 +39,9 @@ export class EventsService {
 
     // TODO use user object to filter reports
     if (hasValue(req.categoryIdList))
-      filter.categoryId = In(req.categoryIdList);
-    if (hasValue(req.groupIdList)) filter.groupId = In(req.groupIdList);
-    if (hasValue(req.parentIdList)) filter.parentId = In(req.parentIdList);
-
+      filter.categoryId = In(getArray(req.categoryIdList));
+    if (hasValue(req.groupIdList)) filter.groupId = In(getArray(req.groupIdList));
+    if (hasValue(req.parentIdList)) filter.parentId = In(getArray(req.parentIdList));
     if (hasValue(req.from)) {
       filter.startDate = MoreThanOrEqual(req.from);
     }
