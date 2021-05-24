@@ -1,7 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Connection, getRepository, ILike, In, Repository, TreeRepository } from 'typeorm';
+import { Connection, getRepository, ILike, In, LessThanOrEqual, MoreThanOrEqual, Repository, TreeRepository } from 'typeorm';
 import Group from '../entities/group.entity';
+import GroupEvent from '../../events/entities/event.entity';
 import SearchDto from '../../shared/dto/search.dto';
 import { GroupSearchDto } from '../dto/group-search.dto';
 import { FindConditions } from 'typeorm/find-options/FindConditions';
@@ -16,6 +17,7 @@ import ClientFriendlyException from '../../shared/exceptions/client-friendly.exc
 import GroupMembership from '../entities/groupMembership.entity';
 import { GroupRole } from '../enums/groupRole';
 import { hasValue } from '../../utils/validation';
+import { endOfMonth, startOfMonth } from 'date-fns';
 
 @Injectable()
 export class GroupsService {
@@ -28,6 +30,8 @@ export class GroupsService {
     @InjectRepository(GroupMembership)
     private readonly membershipRepository: Repository<GroupMembership>,
     private googleService: GoogleService,
+    @InjectRepository(GroupEvent)
+    private readonly eventRepository: Repository<GroupEvent>,
   ) {}
 
   async findAll(req: SearchDto): Promise<any[]> {
@@ -130,6 +134,22 @@ export class GroupsService {
 
       const descendants = await this.treeRepository.findDescendants(data);
       groupData.children = descendants.map((it) => it.id)
+
+      const filter = {
+        groupId: In(groupData.children),
+        startDate: MoreThanOrEqual(startOfMonth(new Date())),
+        endDate: LessThanOrEqual(endOfMonth(new Date())),
+      }
+      let totalAtt = 0, totalMem = 0;
+      await (await this.eventRepository.find({
+        relations: ['attendance', 'group', 'group.members'],
+        where: filter
+      })).forEach((it) => {
+        totalAtt += it.attendance.length;
+        totalMem += it.group.members.length;
+      })
+      groupData.totalAttendance = totalAtt;
+      groupData.percentageAttendance = ((100 * totalAtt) / totalMem).toFixed(2);
 
       const membership = await this.membershipRepository.find({
         where: { role: GroupRole.Leader, groupId: id },

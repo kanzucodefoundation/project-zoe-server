@@ -53,7 +53,7 @@ export class EventsService {
     }
 
     const data = await this.repository.find({
-      relations: ['category', 'group'],
+      relations: ['category', 'group', 'attendance'],
       skip: req.skip,
       take: req.limit,
       where: filter,
@@ -97,16 +97,16 @@ export class EventsService {
   }
 
   toDto(data: GroupEvent): GroupEventDto {
-    const { group, ...rest } = data;
+    const { group, attendance, ...rest } = data;
     return {
       ...rest,
       group: {
         id: group.id,
         name: group.name,
         parentId: group.parentId,
-        members: [],
+        members: group.members,
       },
-      attendance: [],
+      attendance: attendance,
     };
   }
 
