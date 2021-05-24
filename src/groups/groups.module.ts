@@ -15,12 +15,14 @@ import { ContactsService } from 'src/crm/contacts.service';
 import { crmEntities } from 'src/crm/crm.helpers';
 import { GoogleService } from '../vendor/google.service';
 import { PrismaService } from '../shared/prisma.service';
+import { EventsService } from 'src/events/events.service';
+import { eventEntities } from 'src/events/events.helpers';
 
 @Module({
   imports: [
     VendorModule,
     HttpModule,
-    TypeOrmModule.forFeature([...groupEntities, ...crmEntities]),
+    TypeOrmModule.forFeature([...groupEntities, ...crmEntities, ...eventEntities]),
   ],
   providers: [
     GroupsService,
@@ -30,6 +32,7 @@ import { PrismaService } from '../shared/prisma.service';
     ContactsService,
     GoogleService,
     PrismaService,
+    EventsService,
   ],
   controllers: [
     GroupController,
