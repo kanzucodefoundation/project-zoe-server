@@ -47,7 +47,9 @@ export class GroupMembershipRequestService {
       group: {
         id: group.id,
         name: group.name,
-        parent: parent ? {id: group.parent.id, name: group.parent.name} : null,
+        parent: parent
+          ? { id: group.parent.id, name: group.parent.name }
+          : null,
       },
       contact: {
         id: contact.id,
@@ -71,7 +73,7 @@ export class GroupMembershipRequestService {
 
     const groupDetails = {
       placeId: data.residencePlaceId,
-      churchLocation: data.churchLocation,
+      parentGroupId: data.churchLocation,
     };
 
     const info = await this.contactService.getClosestGroups(groupDetails);

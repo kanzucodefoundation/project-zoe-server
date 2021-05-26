@@ -1,34 +1,35 @@
-import Contact from "src/crm/entities/contact.entity";
-import { PrimaryGeneratedColumn, Column, Entity, JoinColumn, ManyToOne } from "typeorm";
-import Group from "./group.entity";
+import Contact from '../../crm/entities/contact.entity';
+import {
+  Column,
+  Entity,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
+import Group from './group.entity';
 
 @Entity()
-export default class GroupMembershipRequest{
-    @PrimaryGeneratedColumn()
-    id: number;
+export default class GroupMembershipRequest {
+  @PrimaryGeneratedColumn()
+  id: number;
 
-    @JoinColumn()
-    @ManyToOne(type => Contact, it => it.groupMembershipRequests)
-    contact: Contact;
+  @JoinColumn()
+  @ManyToOne((type) => Contact, (it) => it.groupMembershipRequests)
+  contact: Contact;
 
-    @Column()
-    contactId: number;
+  @Column()
+  contactId: number;
 
-    @Column({ nullable: true })
-    parentId?: number;
+  @Column({ nullable: true })
+  parentId?: number;
 
-    @JoinColumn()
-    @ManyToOne(type => Group, it => it.groupMembershipRequests)
-    group: Group;
+  @JoinColumn()
+  @ManyToOne((type) => Group, (it) => it.groupMembershipRequests)
+  group: Group;
 
-    @Column()
-    groupId: number;
-    
-    @Column()
-    distanceKm?: number | null;
+  @Column()
+  groupId: number;
 
+  @Column()
+  distanceKm?: number | null;
 }
-
-
-
-

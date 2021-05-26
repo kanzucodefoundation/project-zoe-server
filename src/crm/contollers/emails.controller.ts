@@ -1,4 +1,14 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Post,
+  Put,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { InjectRepository } from '@nestjs/typeorm';
 import Email from '../entities/email.entity';
@@ -10,8 +20,9 @@ import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 @ApiTags('Crm Emails')
 @Controller('api/crm/emails')
 export class EmailsController {
-  constructor(@InjectRepository(Email) private readonly repository: Repository<Email>) {
-  }
+  constructor(
+    @InjectRepository(Email) private readonly repository: Repository<Email>,
+  ) {}
 
   @Get()
   async findAll(@Query() req: SearchDto): Promise<Email[]> {
@@ -22,12 +33,12 @@ export class EmailsController {
   }
 
   @Post()
-  async create(@Body()data: Email): Promise<Email> {
+  async create(@Body() data: Email): Promise<Email> {
     return await this.repository.save(data);
   }
 
   @Put()
-  async update(@Body()data: Email): Promise<Email> {
+  async update(@Body() data: Email): Promise<Email> {
     return await this.repository.save(data);
   }
 

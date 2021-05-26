@@ -17,7 +17,7 @@ import Identification from './identification.entity';
 import { ContactCategory } from '../enums/contactCategory';
 import GroupMembership from '../../groups/entities/groupMembership.entity';
 import Relationship from './relationship.entity';
-import GroupMembershipRequest from 'src/groups/entities/groupMembershipRequest.entity';
+import GroupMembershipRequest from '../../groups/entities/groupMembershipRequest.entity';
 import EventAttendance from '../../events/entities/eventAttendance.entity';
 
 @Entity()
@@ -33,7 +33,10 @@ export default class Contact {
   })
   category: ContactCategory;
 
-  @OneToOne((type) => Person, (it) => it.contact, { cascade: true })
+  @OneToOne((type) => Person, (it) => it.contact, {
+    cascade: true,
+    onDelete: 'CASCADE',
+  })
   person?: Person;
 
   @OneToOne((type) => Person, (it) => it.contact, { cascade: true })

@@ -28,7 +28,9 @@ export default class Occasion {
   category: OccasionCategory;
 
   @JoinColumn()
-  @ManyToOne((type) => Contact, (it) => it.occasions)
+  @ManyToOne((type) => Contact, (it) => it.occasions, {
+    onDelete: 'CASCADE',
+  })
   contact: Contact;
 
   @Column()

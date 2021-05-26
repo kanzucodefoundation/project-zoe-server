@@ -1,4 +1,4 @@
-import { isEmpty, isArray as _isArray, isNumber, isInteger } from 'lodash';
+import { isArray as _isArray, isEmpty, isInteger, isNumber } from 'lodash';
 
 export const hasValue = (text: any) => {
   return !hasNoValue(text);

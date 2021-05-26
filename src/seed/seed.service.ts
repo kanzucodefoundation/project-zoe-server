@@ -7,7 +7,6 @@ import { GroupsService } from '../groups/services/groups.service';
 import { Repository } from 'typeorm';
 import EventCategory from '../events/entities/eventCategory.entity';
 import { InjectRepository } from '@nestjs/typeorm';
-import GroupMembership from '../groups/entities/groupMembership.entity';
 import eventCategories from './data/eventCategories';
 
 @Injectable()

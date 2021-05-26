@@ -1,6 +1,14 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Connection, getRepository, ILike, In, LessThanOrEqual, MoreThanOrEqual, Repository, TreeRepository } from 'typeorm';
+import {
+  Connection,
+  ILike,
+  In,
+  LessThanOrEqual,
+  MoreThanOrEqual,
+  Repository,
+  TreeRepository,
+} from 'typeorm';
 import Group from '../entities/group.entity';
 import GroupEvent from '../../events/entities/event.entity';
 import SearchDto from '../../shared/dto/search.dto';
@@ -35,24 +43,18 @@ export class GroupsService {
   ) {}
 
   async findAll(req: SearchDto): Promise<any[]> {
-    const data = await this.treeRepository.find({
-      relations: ['category', 'parent'],
-      skip: req.skip,
-      take: req.limit,
-    });
-    return data.map(this.toListView);
+    // const data = await this.treeRepository.find({
+    //   relations: ['category', 'parent'],
+    //   skip: req.skip,
+    //   take: req.limit,
+    // });
+    // return data.map(this.toListView);
+
+    return await this.treeRepository.findTrees();
   }
 
   toListView(group: Group): GroupListDto {
-    const {
-      parent,
-      category,
-      id,
-      name,
-      details,
-      parentId,
-      privacy,
-    } = group;
+    const { parent, category, id, name, details, parentId, privacy } = group;
     return {
       id,
       name,
@@ -112,17 +114,18 @@ export class GroupsService {
     toSave.privacy = data.privacy;
     toSave.metaData = data.metaData;
     toSave.categoryId = data.categoryId;
-    toSave.parent = data.parentId ? await this.treeRepository.findOne(data.parentId) : null;
     toSave.address = place;
     toSave.details = data.details;
+    toSave.parent = data.parentId
+      ? await this.treeRepository.findOne(data.parentId)
+      : null;
     const result = await this.treeRepository.save(toSave);
-
     return this.findOne(result.id, true);
   }
 
   async findOne(id: number, full = true) {
     const data = await this.treeRepository.findOne(id, {
-      relations: ['category', 'parent']
+      relations: ['category', 'parent'],
     });
     Logger.log(`Read.Group success id:${id}`);
     if (full) {
@@ -130,24 +133,27 @@ export class GroupsService {
       const groupData = this.toSimpleView(data);
 
       const ancestors = await this.treeRepository.findAncestors(data);
-      groupData.parents = ancestors.map((it) => it.id)
+      groupData.parents = ancestors.map((it) => it.id);
 
       const descendants = await this.treeRepository.findDescendants(data);
-      groupData.children = descendants.map((it) => it.id)
+      groupData.children = descendants.map((it) => it.id);
 
       const filter = {
         groupId: In(groupData.children),
         startDate: MoreThanOrEqual(startOfMonth(new Date())),
         endDate: LessThanOrEqual(endOfMonth(new Date())),
-      }
-      let totalAtt = 0, totalMem = 0;
-      await (await this.eventRepository.find({
-        relations: ['attendance', 'group', 'group.members'],
-        where: filter
-      })).forEach((it) => {
+      };
+      let totalAtt = 0,
+        totalMem = 0;
+      await (
+        await this.eventRepository.find({
+          relations: ['attendance', 'group', 'group.members'],
+          where: filter,
+        })
+      ).forEach((it) => {
         totalAtt += it.attendance.length;
         totalMem += it.group.members.length;
-      })
+      });
       groupData.totalAttendance = totalAtt;
       groupData.percentageAttendance = ((100 * totalAtt) / totalMem).toFixed(2);
 
@@ -161,17 +167,15 @@ export class GroupsService {
     return this.toListView(data);
   }
 
-  async update(dto: UpdateGroupDto): Promise<GroupListDto | GroupDetailDto | any> {
+  async update(
+    dto: UpdateGroupDto,
+  ): Promise<GroupListDto | GroupDetailDto | any> {
     Logger.log(`Update.Group groupID:${dto.id} starting`);
-    
+
     const currGroup = await this.repository
       .createQueryBuilder()
       .where('id = :id', { id: dto.id })
       .getOne();
-
-    if (currGroup.parentId !== dto.parentId) {
-      await this.closureTableUpdate(dto.parentId, currGroup.parentId, dto.id);
-    }
 
     if (!currGroup)
       throw new ClientFriendlyException(`Invalid group ID:${dto.id}`);
@@ -204,7 +208,6 @@ export class GroupsService {
   }
 
   async remove(id: number): Promise<void> {
-    await this.closureTableDelete(id);
     await this.treeRepository.delete(id);
   }
 
@@ -215,26 +218,5 @@ export class GroupsService {
 
   async count(): Promise<number> {
     return await this.repository.count();
-  }
-
-  // NOTE: Delete and update features for nested entities not implemented yet. Issue:  https://github.com/typeorm/typeorm/issues/2032
-  async closureTableDelete(id: number): Promise<void> {
-    await this.connection
-      .createQueryBuilder()
-      .delete()
-      .from('group_closure')
-      .where( '"id_descendant" = :descendantId', {descendantId: id} )
-      .orWhere('"id_ancestor" = :ancestorId', { ancestorId: id })
-      .execute();
-  }
-
-  async closureTableUpdate(newParent: number, oldParent: number, id: number) {
-    await this.connection
-      .createQueryBuilder()
-      .update('group_closure')
-      .set({["id_ancestor"]: {["id"]: newParent}})
-      .where('"id_descendant" = :descendantId', {descendantId: id})
-      .andWhere('"id_ancestor" = :ancestorId', {ancestorId: oldParent})
-      .execute()
   }
 }

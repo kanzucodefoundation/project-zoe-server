@@ -1,18 +1,29 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Post,
+  Put,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { InjectRepository } from '@nestjs/typeorm';
 import Phone from '../entities/phone.entity';
 import { Repository } from 'typeorm';
 import SearchDto from '../../shared/dto/search.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
-import {PhoneDto} from "../dto/phone.dto";
+import { PhoneDto } from '../dto/phone.dto';
 
 @UseGuards(JwtAuthGuard)
 @ApiTags('Crm Phones')
 @Controller('api/crm/phones')
 export class PhonesController {
-  constructor(@InjectRepository(Phone) private readonly repository: Repository<Phone>) {
-  }
+  constructor(
+    @InjectRepository(Phone) private readonly repository: Repository<Phone>,
+  ) {}
 
   @Get()
   async findAll(@Query() req: SearchDto): Promise<Phone[]> {
@@ -23,12 +34,12 @@ export class PhonesController {
   }
 
   @Post()
-  async create(@Body()data: PhoneDto): Promise<Phone> {
+  async create(@Body() data: PhoneDto): Promise<Phone> {
     return await this.repository.save(data);
   }
 
   @Put()
-  async update(@Body()data: PhoneDto): Promise<Phone> {
+  async update(@Body() data: PhoneDto): Promise<Phone> {
     return await this.repository.save(data);
   }
 

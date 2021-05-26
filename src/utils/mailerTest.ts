@@ -1,10 +1,10 @@
-import * as sendGridTransport from "nodemailer-sendgrid-transport";
-import * as nodemailer from "nodemailer";
+import * as sendGridTransport from 'nodemailer-sendgrid-transport';
+import * as nodemailer from 'nodemailer';
 
 export interface IEmail {
-    to: string
-    subject: string
-    html: string
+  to: string;
+  subject: string;
+  html: string;
 }
 
 export async function sendEmail(data: IEmail): Promise<string> {

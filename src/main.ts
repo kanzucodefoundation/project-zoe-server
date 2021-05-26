@@ -6,7 +6,7 @@ import * as rateLimit from 'express-rate-limit';
 import * as compression from 'compression';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import config from './config';
-import { ParseIntPipe, ValidationPipe } from '@nestjs/common';
+import { ValidationPipe } from '@nestjs/common';
 import { HttpExceptionFilter } from './auth/http-exception.filter';
 
 async function bootstrap() {
@@ -39,7 +39,7 @@ async function bootstrap() {
     .setVersion('1.0')
     .build();
   const document = SwaggerModule.createDocument(app, options);
-  SwaggerModule.setup('docs', app, document);
+  SwaggerModule.setup('docs', app, document, {});
   await app.listen(config.app.port);
 }
 

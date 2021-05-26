@@ -1,5 +1,4 @@
 import { EventPrivacy } from '../enums/EventPrivacy';
-import { EventAttendanceDto } from './event-attendance.dto';
 import InternalAddressDto from '../../shared/dto/internal-address-dto';
 import ComboDto from 'src/shared/dto/combo.dto';
 import EventField from '../entities/eventField.entity';

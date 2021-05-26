@@ -40,7 +40,9 @@ export default class Identification {
   isPrimary: boolean;
 
   @JoinColumn()
-  @ManyToOne((type) => Contact, (it) => it.identifications)
+  @ManyToOne((type) => Contact, (it) => it.identifications, {
+    onDelete: 'CASCADE',
+  })
   contact: Contact;
 
   @Column()

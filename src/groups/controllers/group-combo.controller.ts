@@ -7,12 +7,10 @@ import { GroupSearchDto } from '../dto/group-search.dto';
 @ApiTags('Groups Combo')
 @Controller('api/groups/combo')
 export class GroupComboController {
-  constructor(private readonly service: GroupsService) {
-  }
+  constructor(private readonly service: GroupsService) {}
 
   @Get()
   async combo(@Query() req: GroupSearchDto): Promise<Group[]> {
     return this.service.combo(req);
   }
-
 }

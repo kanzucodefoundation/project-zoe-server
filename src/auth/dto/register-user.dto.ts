@@ -1,12 +1,6 @@
 import { CivilStatus } from '../../crm/enums/civilStatus';
 import { Gender } from '../../crm/enums/gender';
-import {
-  IsDate,
-  IsDateString,
-  IsEmail,
-  IsEnum,
-  IsNotEmpty,
-} from 'class-validator';
+import { IsDateString, IsEmail, IsEnum, IsNotEmpty } from 'class-validator';
 
 export class RegisterUserDto {
   @IsNotEmpty()

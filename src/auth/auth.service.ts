@@ -1,10 +1,10 @@
-import { Injectable, Logger, HttpException } from '@nestjs/common';
+import { HttpException, Injectable, Logger } from '@nestjs/common';
 import { UsersService } from '../users/users.service';
 import { JwtService } from '@nestjs/jwt';
 import { cleanUpUser, createUserDto } from './auth.helpers';
 import { UserDto } from './dto/user.dto';
 import { LoginResponseDto } from './dto/login-response.dto';
-import {IEmail, sendEmail} from 'src/utils/mailerTest';
+import { IEmail, sendEmail } from 'src/utils/mailerTest';
 import { ForgotPasswordResponseDto } from './dto/forgot-password-response.dto';
 import { ResetPasswordResponseDto } from './dto/reset-password-response.dto';
 import { UpdateUserDto } from '../users/dto/update-user.dto';
