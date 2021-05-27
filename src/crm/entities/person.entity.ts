@@ -57,7 +57,9 @@ export default class Person {
   @Column({ type: 'date', nullable: true })
   dateOfBirth: Date | string;
 
-  @OneToOne((type) => Contact, (it) => it.person)
+  @OneToOne((type) => Contact, (it) => it.person, {
+    onDelete: 'CASCADE',
+  })
   @JoinColumn()
   contact: Contact;
 

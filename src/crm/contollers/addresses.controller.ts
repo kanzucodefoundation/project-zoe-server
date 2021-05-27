@@ -1,4 +1,14 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Post,
+  Put,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { InjectRepository } from '@nestjs/typeorm';
 import Address from '../entities/address.entity';
@@ -10,8 +20,9 @@ import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 @ApiTags('Crm Addresses')
 @Controller('api/crm/addresses')
 export class AddressesController {
-  constructor(@InjectRepository(Address) private readonly repository: Repository<Address>) {
-  }
+  constructor(
+    @InjectRepository(Address) private readonly repository: Repository<Address>,
+  ) {}
 
   @Get()
   async findAll(@Query() req: SearchDto): Promise<Address[]> {
@@ -22,12 +33,12 @@ export class AddressesController {
   }
 
   @Post()
-  async create(@Body()data: Address): Promise<Address> {
+  async create(@Body() data: Address): Promise<Address> {
     return await this.repository.save(data);
   }
 
   @Put()
-  async update(@Body()data: Address): Promise<Address> {
+  async update(@Body() data: Address): Promise<Address> {
     return await this.repository.save(data);
   }
 

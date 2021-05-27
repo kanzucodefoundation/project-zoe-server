@@ -46,7 +46,9 @@ export default class Address {
   placeId?: string;
 
   @JoinColumn()
-  @ManyToOne((type) => Contact, (it) => it.addresses)
+  @ManyToOne((type) => Contact, (it) => it.addresses, {
+    onDelete: 'CASCADE',
+  })
   contact: Contact;
   @Column()
   contactId: number;

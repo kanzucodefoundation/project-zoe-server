@@ -15,7 +15,9 @@ export default class Company {
   @Column()
   name: string;
 
-  @OneToOne((type) => Contact, (it) => it.company)
+  @OneToOne((type) => Contact, (it) => it.company, {
+    onDelete: 'CASCADE',
+  })
   @JoinColumn()
   contact?: Contact;
 

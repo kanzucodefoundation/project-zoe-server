@@ -1,4 +1,8 @@
 import { TypeOrmModuleOptions } from '@nestjs/typeorm';
+import { usersEntities } from './users/users.helpers';
+import { crmEntities } from './crm/crm.helpers';
+import { groupEntities } from './groups/groups.helpers';
+import { eventEntities } from './events/events.helpers';
 
 require('dotenv').config();
 
@@ -35,3 +39,11 @@ const config = {
 };
 
 export default config;
+
+export const appEntities: any[] = [
+  ...usersEntities,
+  ...crmEntities,
+  ...groupEntities,
+  ...eventEntities,
+];
+console.log('#################appEntities#########', appEntities);

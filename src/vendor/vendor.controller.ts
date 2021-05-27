@@ -8,8 +8,7 @@ import { ApiTags } from '@nestjs/swagger';
 @ApiTags('Vendors')
 @Controller('vendor')
 export class VendorController {
-  constructor(private googleService: GoogleService) {
-  }
+  constructor(private googleService: GoogleService) {}
 
   @Get('place-details/:placeId')
   async findOne(@Param('placeId') placeId: string): Promise<GooglePlaceDto> {

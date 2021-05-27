@@ -10,5 +10,4 @@ import { GoogleService } from './google.service';
   providers: [VendorService, GoogleService],
   exports: [GoogleService],
 })
-export class VendorModule {
-}
+export class VendorModule {}

@@ -1,4 +1,4 @@
-import { isEmpty, isArray as _isArray, isNumber, isInteger } from 'lodash';
+import { isArray as _isArray, isEmpty, isInteger, isNumber } from 'lodash';
 
 export const hasValue = (text: any) => {
   return !hasNoValue(text);
@@ -16,6 +16,11 @@ export const isValidNumber = (data: any) => {
 export const isArray = (data: any) => {
   return _isArray(data);
 };
+
+export function getArray(data: any) {
+  return Array.isArray(data) ? data : [data]; 
+} 
+
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const PasswordValidator = require('password-validator');
 

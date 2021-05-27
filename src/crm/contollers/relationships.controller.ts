@@ -1,4 +1,14 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Post,
+  Put,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { InjectRepository } from '@nestjs/typeorm';
 import Relationship from '../entities/relationship.entity';
@@ -6,13 +16,14 @@ import { Repository } from 'typeorm';
 import SearchDto from '../../shared/dto/search.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 
-
 @UseGuards(JwtAuthGuard)
 @ApiTags('Crm Relationships')
 @Controller('api/crm/relationships')
 export class RelationshipsController {
-  constructor(@InjectRepository(Relationship) private readonly repository: Repository<Relationship>) {
-  }
+  constructor(
+    @InjectRepository(Relationship)
+    private readonly repository: Repository<Relationship>,
+  ) {}
 
   @Get()
   async findAll(@Query() req: SearchDto): Promise<Relationship[]> {
@@ -23,12 +34,12 @@ export class RelationshipsController {
   }
 
   @Post()
-  async create(@Body()data: Relationship): Promise<Relationship> {
+  async create(@Body() data: Relationship): Promise<Relationship> {
     return await this.repository.save(data);
   }
 
   @Put()
-  async update(@Body()data: Relationship): Promise<Relationship> {
+  async update(@Body() data: Relationship): Promise<Relationship> {
     return await this.repository.save(data);
   }
 

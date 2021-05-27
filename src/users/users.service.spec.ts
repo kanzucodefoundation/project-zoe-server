@@ -14,11 +14,15 @@ describe('UsersService', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       imports: [
-
-        CrmModule,UsersModule,
-        TypeOrmModule.forFeature([...usersEntities,...crmEntities,...groupEntities])
+        CrmModule,
+        UsersModule,
+        TypeOrmModule.forFeature([
+          ...usersEntities,
+          ...crmEntities,
+          ...groupEntities,
+        ]),
       ],
-      providers: [UsersService,ContactsService],
+      providers: [UsersService, ContactsService],
     }).compile();
 
     service = module.get<UsersService>(UsersService);
@@ -30,10 +34,10 @@ describe('UsersService', () => {
 
   it('Create New user', async () => {
     const user = new User();
-    user.username='test';
-    user.password='test';
+    user.username = 'test';
+    user.password = 'test';
     const created = await service.create(user);
-    console.log("Created",created)
+    console.log('Created', created);
     expect(created.id).toBeDefined();
   });
 });

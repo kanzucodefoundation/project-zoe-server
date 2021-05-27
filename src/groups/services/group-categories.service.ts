@@ -13,8 +13,8 @@ export class GroupCategoriesService {
 
   async findAll(req: SearchDto): Promise<GroupCategory[]> {
     return await this.repository.find({
-      skip:req.skip,
-      take:req.limit
+      skip: req.skip,
+      take: req.limit,
     });
   }
 

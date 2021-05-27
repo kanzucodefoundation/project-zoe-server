@@ -2,13 +2,15 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import {
   Connection,
-  getRepository,
   ILike,
   In,
+  LessThanOrEqual,
+  MoreThanOrEqual,
   Repository,
   TreeRepository,
 } from 'typeorm';
 import Group from '../entities/group.entity';
+import GroupEvent from '../../events/entities/event.entity';
 import SearchDto from '../../shared/dto/search.dto';
 import { GroupSearchDto } from '../dto/group-search.dto';
 import { FindConditions } from 'typeorm/find-options/FindConditions';
@@ -26,6 +28,7 @@ import { hasValue } from '../../utils/validation';
 import GroupReport from '../entities/groupReport.entity';
 import { eventsCategories } from 'src/seed/data/eventCategories';
 import { ReportFrequency } from '../enums/reportFrequency';
+import { endOfMonth, startOfMonth } from 'date-fns';
 
 @Injectable()
 export class GroupsService {
@@ -40,15 +43,19 @@ export class GroupsService {
     @InjectRepository(GroupReport)
     private readonly groupReportRepository: Repository<GroupReport>,
     private googleService: GoogleService,
+    @InjectRepository(GroupEvent)
+    private readonly eventRepository: Repository<GroupEvent>,
   ) {}
 
   async findAll(req: SearchDto): Promise<any[]> {
-    const data = await this.treeRepository.find({
-      relations: ['category', 'parent'],
-      skip: req.skip,
-      take: req.limit,
-    });
-    return data.map(this.toListView);
+    // const data = await this.treeRepository.find({
+    //   relations: ['category', 'parent'],
+    //   skip: req.skip,
+    //   take: req.limit,
+    // });
+    // return data.map(this.toListView);
+
+    return await this.treeRepository.findTrees();
   }
 
   toListView(group: Group): GroupListDto {
@@ -112,11 +119,11 @@ export class GroupsService {
     toSave.privacy = data.privacy;
     toSave.metaData = data.metaData;
     toSave.categoryId = data.categoryId;
+    toSave.address = place;
+    toSave.details = data.details;
     toSave.parent = data.parentId
       ? await this.treeRepository.findOne(data.parentId)
       : null;
-    toSave.address = place;
-    toSave.details = data.details;
     const result = await this.treeRepository.save(toSave);
 
     ////
@@ -159,6 +166,25 @@ export class GroupsService {
       const descendants = await this.treeRepository.findDescendants(data);
       groupData.children = descendants.map((it) => it.id);
 
+      const filter = {
+        groupId: In(groupData.children),
+        startDate: MoreThanOrEqual(startOfMonth(new Date())),
+        endDate: LessThanOrEqual(endOfMonth(new Date())),
+      };
+      let totalAtt = 0,
+        totalMem = 0;
+      await (
+        await this.eventRepository.find({
+          relations: ['attendance', 'group', 'group.members'],
+          where: filter,
+        })
+      ).forEach((it) => {
+        totalAtt += it.attendance.length;
+        totalMem += it.group.members.length;
+      });
+      groupData.totalAttendance = totalAtt;
+      groupData.percentageAttendance = ((100 * totalAtt) / totalMem).toFixed(2);
+
       const membership = await this.membershipRepository.find({
         where: { role: GroupRole.Leader, groupId: id },
         select: ['contactId'],
@@ -178,10 +204,6 @@ export class GroupsService {
       .createQueryBuilder()
       .where('id = :id', { id: dto.id })
       .getOne();
-
-    if (currGroup.parentId !== dto.parentId) {
-      await this.closureTableUpdate(dto.parentId, currGroup.parentId, dto.id);
-    }
 
     if (!currGroup)
       throw new ClientFriendlyException(`Invalid group ID:${dto.id}`);
@@ -214,7 +236,6 @@ export class GroupsService {
   }
 
   async remove(id: number): Promise<void> {
-    await this.closureTableDelete(id);
     await this.treeRepository.delete(id);
   }
 
@@ -225,26 +246,5 @@ export class GroupsService {
 
   async count(): Promise<number> {
     return await this.repository.count();
-  }
-
-  // NOTE: Delete and update features for nested entities not implemented yet. Issue:  https://github.com/typeorm/typeorm/issues/2032
-  async closureTableDelete(id: number): Promise<void> {
-    await this.connection
-      .createQueryBuilder()
-      .delete()
-      .from('group_closure')
-      .where('"id_descendant" = :descendantId', { descendantId: id })
-      .orWhere('"id_ancestor" = :ancestorId', { ancestorId: id })
-      .execute();
-  }
-
-  async closureTableUpdate(newParent: number, oldParent: number, id: number) {
-    await this.connection
-      .createQueryBuilder()
-      .update('group_closure')
-      .set({ ['id_ancestor']: { ['id']: newParent } })
-      .where('"id_descendant" = :descendantId', { descendantId: id })
-      .andWhere('"id_ancestor" = :ancestorId', { ancestorId: oldParent })
-      .execute();
   }
 }

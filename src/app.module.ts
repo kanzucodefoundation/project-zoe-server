@@ -1,4 +1,4 @@
-import { HttpModule, Logger, Module } from '@nestjs/common';
+import { Global, HttpModule, Logger, Module } from '@nestjs/common';
 import { AuthController } from './auth/auth.controller';
 import { AppService } from './app.service';
 import { UsersModule } from './users/users.module';
@@ -7,25 +7,15 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from './auth/auth.module';
 import { CrmModule } from './crm/crm.module';
 import { GroupsModule } from './groups/groups.module';
-import config from './config';
-import { groupEntities } from './groups/groups.helpers';
-import { crmEntities } from './crm/crm.helpers';
-import { usersEntities } from './users/users.helpers';
+import config, { appEntities } from './config';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 import { SeedModule } from './seed/seed.module';
 import { SeedService } from './seed/seed.service';
 import { VendorModule } from './vendor/vendor.module';
 import { EventsModule } from './events/events.module';
-import { eventEntities } from './events/events.helpers';
 
-export const appEntities = [
-  ...usersEntities,
-  ...crmEntities,
-  ...groupEntities,
-  ...eventEntities,
-];
-
+@Global()
 @Module({
   imports: [
     HttpModule,
@@ -48,6 +38,7 @@ export const appEntities = [
     VendorModule,
     EventsModule,
   ],
+  exports: [AppService],
   controllers: [AuthController],
   providers: [AppService],
 })

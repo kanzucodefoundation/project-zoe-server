@@ -1,11 +1,5 @@
 import { Type } from 'class-transformer';
-import {
-  IsBoolean,
-  IsNotEmpty,
-  IsNumber,
-  IsOptional,
-  Min,
-} from 'class-validator';
+import { IsBoolean, IsNotEmpty, IsNumber, Min } from 'class-validator';
 
 export class EventAttendanceCreateDto {
   @Type(() => Number)

@@ -28,7 +28,9 @@ export default class Phone {
   isPrimary: boolean;
 
   @JoinColumn()
-  @ManyToOne((type) => Contact, (it) => it.phones)
+  @ManyToOne((type) => Contact, (it) => it.phones, {
+    onDelete: 'CASCADE',
+  })
   contact?: Contact;
 
   @Column()

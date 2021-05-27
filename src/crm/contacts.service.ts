@@ -1,11 +1,17 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { intersection } from 'lodash';
-import { getRepository, ILike, In, Like, Repository, TreeRepository } from 'typeorm';
+import {
+  getRepository,
+  ILike,
+  In,
+  Like,
+  Repository,
+  TreeRepository,
+} from 'typeorm';
 import Contact from './entities/contact.entity';
 import { CreatePersonDto } from './dto/create-person.dto';
 import {
-  createAvatar,
   getCellGroup,
   getEmail,
   getLocation,
@@ -13,23 +19,18 @@ import {
   getPhone,
 } from './crm.helpers';
 import { ContactSearchDto } from './dto/contact-search.dto';
-import { ContactCategory } from './enums/contactCategory';
 import Phone from './entities/phone.entity';
 import Email from './entities/email.entity';
 import Person from './entities/person.entity';
 import Company from './entities/company.entity';
 import { CreateCompanyDto } from './dto/create-company.dto';
-import { hasNoValue, hasValue, isValidNumber } from 'src/utils/validation';
-import { PhoneCategory } from './enums/phoneCategory';
-import { EmailCategory } from './enums/emailCategory';
+import { hasNoValue, hasValue } from 'src/utils/validation';
 import Address from './entities/address.entity';
-import { AddressCategory } from './enums/addressCategory';
 import GroupMembership from '../groups/entities/groupMembership.entity';
 import { GroupRole } from '../groups/enums/groupRole';
 import ContactListDto from './dto/contact-list.dto';
 import { FindConditions } from 'typeorm/find-options/FindConditions';
 import Group from '../groups/entities/group.entity';
-import { GroupPrivacy } from '../groups/enums/groupPrivacy';
 import { GoogleService } from 'src/vendor/google.service';
 import GooglePlaceDto from 'src/vendor/google-place.dto';
 import { getPreciseDistance } from 'geolib';
@@ -40,6 +41,8 @@ import {
   GetGroupResponseDto,
 } from 'src/groups/dto/membershipRequest/new-request.dto';
 import { PrismaService } from '../shared/prisma.service';
+import { getContactModel } from './utils/creationUtils';
+import { GroupFinderService } from './group-finder/group-finder.service';
 
 @Injectable()
 export class ContactsService {
@@ -64,6 +67,7 @@ export class ContactsService {
     private readonly gmRequestRepository: Repository<GroupMembershipRequest>,
     private googleService: GoogleService,
     private prisma: PrismaService,
+    private groupFinderService: GroupFinderService,
   ) {}
 
   async findAll(req: ContactSearchDto): Promise<ContactListDto[]> {
@@ -209,103 +213,28 @@ export class ContactsService {
     return await this.repository.save(data);
   }
 
-  async createPerson(personDto: CreatePersonDto): Promise<Contact> {
-    const model = new Contact();
-    model.category = ContactCategory.Person;
-    model.person = new Person();
-    model.person.firstName = personDto.firstName;
-    model.person.middleName = personDto.middleName;
-    model.person.lastName = personDto.lastName;
-    model.person.civilStatus = personDto.civilStatus;
-    model.person.salutation = null;
-    model.person.dateOfBirth = personDto.dateOfBirth;
-    model.person.avatar = createAvatar(personDto.email);
-    model.person.gender = personDto.gender;
-    model.person.placeOfWork = personDto.placeOfWork;
-    model.person.ageGroup = personDto.ageGroup;
+  async createPerson(createPersonDto: CreatePersonDto): Promise<Contact> {
+    let place: GooglePlaceDto;
 
-    model.phones = [];
-    if (hasValue(personDto.phone)) {
-      const p = new Phone();
-      p.category = PhoneCategory.Mobile;
-      p.isPrimary = true;
-      p.value = personDto.phone;
-      model.phones.push(p);
+    //Make a call to the Google API to get coordinates
+    if (hasValue(createPersonDto.residence?.placeId)) {
+      place = await this.googleService.getPlaceDetails(
+        createPersonDto.residence?.placeId,
+      );
     }
 
-    model.emails = [];
-    if (hasValue(personDto.email)) {
-      const e = new Email();
-      e.category = EmailCategory.Personal;
-      e.isPrimary = true;
-      e.value = personDto.email;
-      model.emails.push(e);
-    }
+    const model = getContactModel(createPersonDto, place);
 
-    model.addresses = [];
-    if (hasValue(personDto.residence?.placeId)) {
-      const address = new Address();
-      address.category = AddressCategory.Home;
-      address.isPrimary = true;
-      address.freeForm = personDto.residence.description;
-      address.placeId = personDto.residence.placeId;
-      //Make a call to the Google API to get coordinates
-      let place: GooglePlaceDto = null;
-      if (address.placeId) {
-        place = await this.googleService.getPlaceDetails(address.placeId);
-        address.longitude = place.longitude;
-        address.latitude = place.latitude;
-        address.country = place.country;
-        address.district = place.district;
-        console.log('Address', address);
-      }
-      model.addresses.push(address);
-    }
-
-    model.groupMemberships = [];
-    if (isValidNumber(personDto.churchLocationId)) {
-      const membership = new GroupMembership();
-      membership.groupId = personDto.churchLocationId;
-      membership.role = GroupRole.Member;
-      model.groupMemberships.push(membership);
-    }
-    if (isValidNumber(personDto.cellGroupId)) {
-      const membership = new GroupMembership();
-      membership.groupId = personDto.cellGroupId;
-      membership.role = GroupRole.Member;
-      model.groupMemberships.push(membership);
-    }
-
-    const groupMembershipRequests: GroupMembershipRequest[] = [];
-    if (personDto.inCell === 'Yes') {
-      if (isValidNumber(personDto.cellGroupId)) {
-        const membership = new GroupMembership();
-        membership.groupId = personDto.cellGroupId;
-        membership.role = GroupRole.Member;
-        model.groupMemberships.push(membership);
-      } else if (typeof personDto.cellGroupId === 'string') {
-        const group = new Group();
-        group.name = personDto.cellGroupId;
-        group.parent = await this.groupRepository.findOne(personDto.churchLocationId);
-        group.privacy = GroupPrivacy.Public;
-        group.categoryId = 'MC';
-        group.details = '--pending--';
-        await this.groupRepository.save(group);
-        const membership = new GroupMembership();
-        membership.groupId = group.id;
-        membership.role = GroupRole.Member;
-        model.groupMemberships.push(membership);
-      }
-    } else {
-      if (personDto.joinCell === 'Yes') {
+    try {
+      // TODO move this logic away
+      const groupMembershipRequests: GroupMembershipRequest[] = [];
+      if (createPersonDto.joinCell === 'Yes') {
         Logger.log(`Attempt to add person to mc`);
         const groupRequest = new GroupMembershipRequest();
-
         const details = {
-          placeId: personDto.residence.placeId,
-          churchLocation: personDto.churchLocationId,
+          placeId: createPersonDto.residence.placeId,
+          parentGroupId: createPersonDto.churchLocationId,
         };
-
         const closestGroup = await this.getClosestGroups(details);
         Logger.log(
           `Got closest group:${closestGroup.id}>>${
@@ -313,13 +242,15 @@ export class ContactsService {
           } ${JSON.stringify(closestGroup)}`,
         );
         if (hasValue(closestGroup)) {
-          groupRequest.parentId = details.churchLocation;
+          groupRequest.parentId = details.parentGroupId;
           groupRequest.groupId = closestGroup.groupId;
           groupRequest.distanceKm = closestGroup.distance / 1000;
           groupMembershipRequests.push(groupRequest);
-          await this.notifyLeader(closestGroup, personDto);
+          await this.notifyLeader(closestGroup, createPersonDto);
         }
       }
+    } catch (e) {
+      console.log('Failed to attached to group');
     }
 
     return await this.repository.save(model, { reload: true });
@@ -329,7 +260,7 @@ export class ContactsService {
     data: GetClosestGroupDto,
   ): Promise<any | GetGroupResponseDto> {
     try {
-      const { placeId, churchLocation } = data;
+      const { placeId, parentGroupId } = data;
 
       let place: GooglePlaceDto = null;
       if (placeId) {
@@ -339,7 +270,7 @@ export class ContactsService {
       const groupsAtLocation = await getRepository(Group)
         .createQueryBuilder('group')
         .where('group.parentId = :churchLocationId', {
-          churchLocationId: churchLocation,
+          churchLocationId: parentGroupId,
         })
         .andWhere("group.categoryId = 'MC'")
         .getMany();

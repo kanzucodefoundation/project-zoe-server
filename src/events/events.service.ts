@@ -17,7 +17,7 @@ import GroupEventDto from './dto/group-event.dto';
 import CreateEventDto from './dto/create-event.dto';
 import InternalAddress from '../shared/entity/InternalAddress';
 import GroupEventSearchDto from './dto/group-event-search.dto';
-import { hasValue } from 'src/utils/validation';
+import { getArray, hasValue } from 'src/utils/validation';
 import { UserDto } from '../auth/dto/user.dto';
 import EventMetricsDto from './dto/event-metrics-search.dto';
 import GroupMembership from 'src/groups/entities/groupMembership.entity';
@@ -44,10 +44,11 @@ export class EventsService {
 
     // TODO use user object to filter reports
     if (hasValue(req.categoryIdList))
-      filter.categoryId = In(req.categoryIdList);
-    if (hasValue(req.groupIdList)) filter.groupId = In(req.groupIdList);
-    if (hasValue(req.parentIdList)) filter.parentId = In(req.parentIdList);
-
+      filter.categoryId = In(getArray(req.categoryIdList));
+    if (hasValue(req.groupIdList))
+      filter.groupId = In(getArray(req.groupIdList));
+    if (hasValue(req.parentIdList))
+      filter.parentId = In(getArray(req.parentIdList));
     if (hasValue(req.from)) {
       filter.startDate = MoreThanOrEqual(req.from);
     }
@@ -59,7 +60,7 @@ export class EventsService {
     }
 
     const data = await this.repository.find({
-      relations: ['category', 'group', 'submittedBy'],
+      relations: ['category', 'group', 'attendance', 'submittedBy'],
       skip: req.skip,
       take: req.limit,
       where: filter,
@@ -182,8 +183,7 @@ export class EventsService {
   }
 
   toDto(data: GroupEvent): GroupEventDto {
-    const { group, submittedBy, ...rest } = data;
-
+    const { group, attendance, submittedBy, ...rest } = data;
     return {
       ...rest,
       submittedBy: {
@@ -195,9 +195,9 @@ export class EventsService {
         id: group.id,
         name: group.name,
         parentId: group.parentId,
-        members: [],
+        members: group.members,
       },
-      attendance: [],
+      attendance: attendance,
     };
   }
 
