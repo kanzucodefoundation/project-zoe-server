@@ -58,8 +58,8 @@ export class AppModule {
     Logger.log('#########Initializing application############');
     await this.seedService.createUsers();
     await this.seedService.createGroupCategories();
-    await this.seedService.createGroups();
     await this.seedService.createEventCategories();
+    await this.seedService.createGroups();
     Logger.log('#########Initialization complete############');
   }
 }

@@ -134,6 +134,20 @@ const categories: any[] = [
       ...reportFields,
     ],
   },
+  {
+    id: eventsCategories.wedding,
+    name: 'Wedding',
+    events: [],
+    fields: [
+      {
+        label: 'No. of Weddings',
+        name: 'noOfWeddings',
+        type: FieldType.Number,
+        isRequired: true,
+      },
+      ...baseReportFields,
+    ],
+  },
 ];
 
 export default categories;

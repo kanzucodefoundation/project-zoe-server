@@ -20,6 +20,9 @@ import GroupEventSearchDto from './dto/group-event-search.dto';
 import { hasValue } from 'src/utils/validation';
 import { UserDto } from '../auth/dto/user.dto';
 import EventMetricsDto from './dto/event-metrics-search.dto';
+import GroupMembership from 'src/groups/entities/groupMembership.entity';
+import GroupReportDto from './dto/group-report.dto';
+import Group from 'src/groups/entities/group.entity';
 
 @Injectable()
 export class EventsService {
@@ -28,6 +31,8 @@ export class EventsService {
     private readonly repository: Repository<GroupEvent>,
     @InjectRepository(EventCategory)
     private readonly categoryRepository: Repository<EventCategory>,
+    @InjectRepository(GroupMembership)
+    private readonly groupRepository: Repository<Group>,
     private googleService: GoogleService,
   ) {}
 
@@ -54,12 +59,91 @@ export class EventsService {
     }
 
     const data = await this.repository.find({
-      relations: ['category', 'group'],
+      relations: ['category', 'group', 'submittedBy'],
       skip: req.skip,
       take: req.limit,
       where: filter,
     });
     return data.map(this.toDto);
+  }
+
+  async findUnsubmitted(req: GroupEventSearchDto): Promise<GroupReportDto[]> {
+    const filter: FindConditions<Group> = {};
+    if (hasValue(req.query)) {
+      filter.name = ILike(`%${req.query.trim().toLowerCase()}%`);
+    }
+
+    const unsubmitted = await this.groupRepository
+      .createQueryBuilder()
+      .leftJoinAndSelect(
+        (subQuery) => {
+          return subQuery
+            .select(['*'])
+            .from('group_membership', 'group_membership')
+            .where('"group_membership"."role" =:role', { role: 'Leader' });
+        },
+        'gm',
+        '"gm"."groupId"  = "Group"."id"',
+      )
+      .leftJoinAndSelect(
+        (subQuery) => {
+          return subQuery
+            .select([
+              '"person"."contactId", "person"."firstName","person"."middleName","person"."lastName"',
+            ])
+            .from('person', 'person');
+        },
+        'person',
+        '"person"."contactId" = "gm"."contactId"',
+      )
+      .leftJoinAndSelect(
+        'group_report',
+        'group_report',
+        '"group_report"."groupId" = "Group"."id"',
+      )
+      .leftJoinAndSelect(
+        (subQuery) => {
+          return subQuery
+            .select([
+              '"events"."name", "events"."startDate", "events"."endDate", "events"."groupId", "events"."categoryId"',
+            ])
+            .from('events', 'events')
+            .where(
+              '"events"."startDate" >= :from AND "events"."endDate" <= :to',
+              { from: req.from, to: req.to },
+            );
+        },
+        'events',
+        '"events"."groupId" = "group_report"."groupId" AND "events"."categoryId" = "group_report"."eventCategoryId"',
+      )
+      .where(filter)
+      .skip(req.skip)
+      .take(req.limit)
+      .getRawMany();
+
+    const newList: GroupReportDto[] = unsubmitted.map((item, index) => ({
+      id: index,
+      groupLeader: {
+        fullName:
+          item.firstName === null
+            ? 'No Group Leader'
+            : `${item.firstName} ${item.middleName && item.middleName} ${
+                item.lastName
+              }`.replace(/\s+/g, ' '),
+        role: item.role ? item.role : 'No Role Found',
+      },
+      frequency: item.group_report_frequency,
+      eventCategoryId:
+        item.group_report_eventCategoryId.charAt(0).toUpperCase() +
+        item.group_report_eventCategoryId.slice(1),
+      group: {
+        id: item.Group_id,
+        name: item.Group_name,
+        parentId: item.Group_parentId,
+        category: item.Group_categoryId,
+      },
+    }));
+    return newList;
   }
 
   async loadMetrics(req: EventMetricsDto, user: UserDto): Promise<any> {
@@ -98,9 +182,15 @@ export class EventsService {
   }
 
   toDto(data: GroupEvent): GroupEventDto {
-    const { group, ...rest } = data;
+    const { group, submittedBy, ...rest } = data;
+
     return {
       ...rest,
+      submittedBy: {
+        firstName: submittedBy.firstName,
+        middleName: submittedBy.middleName,
+        lastName: submittedBy.lastName,
+      },
       group: {
         id: group.id,
         name: group.name,

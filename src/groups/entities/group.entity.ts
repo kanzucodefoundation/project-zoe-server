@@ -15,9 +15,10 @@ import GroupMembership from './groupMembership.entity';
 import GroupMembershipRequest from './groupMembershipRequest.entity';
 import GroupEvent from '../../events/entities/event.entity';
 import InternalAddress from '../../shared/entity/InternalAddress';
+import GroupReport from './groupReport.entity';
 
 @Entity()
-@Tree("closure-table")
+@Tree('closure-table')
 export default class Group {
   @PrimaryGeneratedColumn()
   id: number;
@@ -44,6 +45,9 @@ export default class Group {
   @ManyToOne((type) => GroupCategory, (it) => it.groups)
   @JoinColumn()
   category?: GroupCategory;
+
+  @OneToMany((type) => GroupReport, (it) => it.group)
+  reportCategories: GroupReport[];
 
   @Column({ length: 40 })
   categoryId: string;

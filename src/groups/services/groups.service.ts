@@ -1,6 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Connection, getRepository, ILike, In, Repository, TreeRepository } from 'typeorm';
+import {
+  Connection,
+  getRepository,
+  ILike,
+  In,
+  Repository,
+  TreeRepository,
+} from 'typeorm';
 import Group from '../entities/group.entity';
 import SearchDto from '../../shared/dto/search.dto';
 import { GroupSearchDto } from '../dto/group-search.dto';
@@ -16,6 +23,9 @@ import ClientFriendlyException from '../../shared/exceptions/client-friendly.exc
 import GroupMembership from '../entities/groupMembership.entity';
 import { GroupRole } from '../enums/groupRole';
 import { hasValue } from '../../utils/validation';
+import GroupReport from '../entities/groupReport.entity';
+import { eventsCategories } from 'src/seed/data/eventCategories';
+import { ReportFrequency } from '../enums/reportFrequency';
 
 @Injectable()
 export class GroupsService {
@@ -27,6 +37,8 @@ export class GroupsService {
     private readonly connection: Connection,
     @InjectRepository(GroupMembership)
     private readonly membershipRepository: Repository<GroupMembership>,
+    @InjectRepository(GroupReport)
+    private readonly groupReportRepository: Repository<GroupReport>,
     private googleService: GoogleService,
   ) {}
 
@@ -40,15 +52,7 @@ export class GroupsService {
   }
 
   toListView(group: Group): GroupListDto {
-    const {
-      parent,
-      category,
-      id,
-      name,
-      details,
-      parentId,
-      privacy,
-    } = group;
+    const { parent, category, id, name, details, parentId, privacy } = group;
     return {
       id,
       name,
@@ -108,17 +112,41 @@ export class GroupsService {
     toSave.privacy = data.privacy;
     toSave.metaData = data.metaData;
     toSave.categoryId = data.categoryId;
-    toSave.parent = data.parentId ? await this.treeRepository.findOne(data.parentId) : null;
+    toSave.parent = data.parentId
+      ? await this.treeRepository.findOne(data.parentId)
+      : null;
     toSave.address = place;
     toSave.details = data.details;
     const result = await this.treeRepository.save(toSave);
 
+    ////
+    if (result.id) {
+      const saveReport = new GroupReport();
+      try {
+        for (let event in eventsCategories) {
+          saveReport.groupId = result.id;
+          saveReport.eventCategoryId = event;
+          saveReport.frequency =
+            event === 'evangelism' || event === 'frontier'
+              ? ReportFrequency.Monthly
+              : ReportFrequency.Weekly;
+          await this.groupReportRepository
+            .createQueryBuilder()
+            .insert()
+            .values(saveReport)
+            .execute();
+        }
+      } catch (e) {
+        Logger.debug('ERROR Adding Group Report entry: ', e.detail);
+      }
+    }
+    ////
     return this.findOne(result.id, true);
   }
 
   async findOne(id: number, full = true) {
     const data = await this.treeRepository.findOne(id, {
-      relations: ['category', 'parent']
+      relations: ['category', 'parent'],
     });
     Logger.log(`Read.Group success id:${id}`);
     if (full) {
@@ -126,10 +154,10 @@ export class GroupsService {
       const groupData = this.toSimpleView(data);
 
       const ancestors = await this.treeRepository.findAncestors(data);
-      groupData.parents = ancestors.map((it) => it.id)
+      groupData.parents = ancestors.map((it) => it.id);
 
       const descendants = await this.treeRepository.findDescendants(data);
-      groupData.children = descendants.map((it) => it.id)
+      groupData.children = descendants.map((it) => it.id);
 
       const membership = await this.membershipRepository.find({
         where: { role: GroupRole.Leader, groupId: id },
@@ -141,9 +169,11 @@ export class GroupsService {
     return this.toListView(data);
   }
 
-  async update(dto: UpdateGroupDto): Promise<GroupListDto | GroupDetailDto | any> {
+  async update(
+    dto: UpdateGroupDto,
+  ): Promise<GroupListDto | GroupDetailDto | any> {
     Logger.log(`Update.Group groupID:${dto.id} starting`);
-    
+
     const currGroup = await this.repository
       .createQueryBuilder()
       .where('id = :id', { id: dto.id })
@@ -203,7 +233,7 @@ export class GroupsService {
       .createQueryBuilder()
       .delete()
       .from('group_closure')
-      .where( '"id_descendant" = :descendantId', {descendantId: id} )
+      .where('"id_descendant" = :descendantId', { descendantId: id })
       .orWhere('"id_ancestor" = :ancestorId', { ancestorId: id })
       .execute();
   }
@@ -212,9 +242,9 @@ export class GroupsService {
     await this.connection
       .createQueryBuilder()
       .update('group_closure')
-      .set({["id_ancestor"]: {["id"]: newParent}})
-      .where('"id_descendant" = :descendantId', {descendantId: id})
-      .andWhere('"id_ancestor" = :ancestorId', {ancestorId: oldParent})
-      .execute()
+      .set({ ['id_ancestor']: { ['id']: newParent } })
+      .where('"id_descendant" = :descendantId', { descendantId: id })
+      .andWhere('"id_ancestor" = :ancestorId', { ancestorId: oldParent })
+      .execute();
   }
 }

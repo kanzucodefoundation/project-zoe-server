@@ -17,7 +17,12 @@ export default class GroupEventDto {
 
   submittedAt?: Date;
 
-  submittedBy?: string;
+  submittedById?: number;
+  submittedBy: {
+    firstName: string;
+    lastName: string;
+    middleName?: string;
+  };
 
   venue?: InternalAddressDto;
   attendancePercentage?: string;
