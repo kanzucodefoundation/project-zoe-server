@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import {
   Connection,
+  FindConditions,
   ILike,
   In,
   LessThanOrEqual,
@@ -13,8 +14,6 @@ import Group from '../entities/group.entity';
 import GroupEvent from '../../events/entities/event.entity';
 import SearchDto from '../../shared/dto/search.dto';
 import { GroupSearchDto } from '../dto/group-search.dto';
-import { FindConditions } from 'typeorm/find-options/FindConditions';
-
 import GroupListDto from '../dto/group-list.dto';
 import CreateGroupDto from '../dto/create-group.dto';
 import UpdateGroupDto from '../dto/update-group.dto';
