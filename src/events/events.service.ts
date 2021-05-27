@@ -31,7 +31,7 @@ export class EventsService {
     private readonly repository: Repository<GroupEvent>,
     @InjectRepository(EventCategory)
     private readonly categoryRepository: Repository<EventCategory>,
-    @InjectRepository(GroupMembership)
+    @InjectRepository(Group)
     private readonly groupRepository: Repository<Group>,
     private googleService: GoogleService,
   ) {}
