@@ -7,6 +7,7 @@ import {
   LessThanOrEqual,
   MoreThanOrEqual,
   Repository,
+  TreeRepository,
 } from 'typeorm';
 import { GoogleService } from '../vendor/google.service';
 import GooglePlaceDto from '../vendor/google-place.dto';
@@ -17,9 +18,11 @@ import GroupEventDto from './dto/group-event.dto';
 import CreateEventDto from './dto/create-event.dto';
 import InternalAddress from '../shared/entity/InternalAddress';
 import GroupEventSearchDto from './dto/group-event-search.dto';
-import { getArray, hasValue } from 'src/utils/validation';
+import { getArray, hasValue, removeDuplicates } from 'src/utils/validation';
 import { UserDto } from '../auth/dto/user.dto';
 import EventMetricsDto from './dto/event-metrics-search.dto';
+import { isDate } from 'lodash';
+import Group from 'src/groups/entities/group.entity';
 
 @Injectable()
 export class EventsService {
@@ -28,6 +31,8 @@ export class EventsService {
     private readonly repository: Repository<GroupEvent>,
     @InjectRepository(EventCategory)
     private readonly categoryRepository: Repository<EventCategory>,
+    @InjectRepository(Group)
+    private readonly groupRepository: TreeRepository<Group>,
     private googleService: GoogleService,
   ) {}
 
@@ -67,15 +72,26 @@ export class EventsService {
     // TODO use user object to filter reports
     if (hasValue(req.categoryIdList))
       filter.categoryId = In(req.categoryIdList);
-    if (hasValue(req.groupIdList)) filter.id = In(req.groupIdList);
 
-    if (hasValue(req.from)) {
+    if (hasValue(req.groupIdList)) {
+      const parents = await this.groupRepository.find({where: {id: In(req.groupIdList)}})
+      let _children = [];
+      for(let i = 0; i < parents.length; i++) {
+        const single = (await this.groupRepository.findDescendants(parents[i]))
+        single.forEach((g) => {
+          _children.push(g.id)
+        })
+      }
+      const children = removeDuplicates(_children);
+      filter.groupId = In(getArray(children));
+    }
+
+    if (isDate(req.from)) {
       filter.startDate = MoreThanOrEqual(req.from);
     }
-    if (hasValue(req.to)) {
+    if (isDate(req.to)) {
       filter.endDate = LessThanOrEqual(req.to);
     }
-
     const data = await this.repository.find({
       select: ['name', 'categoryId', 'metaData', 'id'],
       relations: ['category', 'group', 'group.members', 'attendance'],

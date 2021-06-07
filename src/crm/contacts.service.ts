@@ -222,11 +222,13 @@ export class ContactsService {
         createPersonDto.residence?.placeId,
       );
     }
-
     const model = getContactModel(createPersonDto, place);
+    await this.getGroupRequest(createPersonDto)
+    return await this.repository.save(model, { reload: true });
+  }
 
+  async getGroupRequest(createPersonDto: CreatePersonDto): Promise<void> {
     try {
-      // TODO move this logic away
       const groupMembershipRequests: GroupMembershipRequest[] = [];
       if (createPersonDto.joinCell === 'Yes') {
         Logger.log(`Attempt to add person to mc`);
@@ -250,10 +252,8 @@ export class ContactsService {
         }
       }
     } catch (e) {
-      console.log('Failed to attached to group');
+      console.log('Failed to attach to group');
     }
-
-    return await this.repository.save(model, { reload: true });
   }
 
   async getClosestGroups(
