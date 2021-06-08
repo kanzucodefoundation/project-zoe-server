@@ -88,7 +88,7 @@ export const getCellGroup = (data: Contact): Group | null => {
   const { groupMemberships } = data;
   if (hasValue(groupMemberships)) {
     const pri = groupMemberships.find(
-      (it) => it.group.categoryId.toLocaleLowerCase() === 'mc',
+      (it) => it.group?.categoryId.toLocaleLowerCase() === 'mc',
     );
     if (pri) {
       return pri.group;
@@ -101,7 +101,7 @@ export const getLocation = (data: Contact): Group | null => {
   const { groupMemberships } = data;
   if (hasValue(groupMemberships)) {
     const pri = groupMemberships.find(
-      (it) => it.group.categoryId.toLocaleLowerCase() === 'location',
+      (it) => it.group?.categoryId.toLocaleLowerCase() === 'location',
     );
     if (pri) {
       return pri.group;
