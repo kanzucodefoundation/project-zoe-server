@@ -187,12 +187,19 @@ export class GroupsService {
       place = currGroup.address;
       Logger.log(`Update.Group groupID:${dto.id} using old coordinates`);
     }
+
+    let parentGroup = null;
+    if (hasValue(dto.parentId)) {
+      parentGroup = await this.treeRepository.findOne(dto.parentId);
+    }
+
+    console.log(`Update.Group Id:${dto.parentId} parentGroup: `, parentGroup);
     const result = await this.repository
       .createQueryBuilder()
       .update(Group)
       .set({
         name: dto.name,
-        parent: await this.treeRepository.findOne(dto.parentId),
+        parent: parentGroup,
         details: dto.details,
         privacy: dto.privacy,
         categoryId: dto.categoryId,

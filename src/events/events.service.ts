@@ -17,12 +17,12 @@ import EventCategory from './entities/eventCategory.entity';
 import GroupEventDto from './dto/group-event.dto';
 import CreateEventDto from './dto/create-event.dto';
 import InternalAddress from '../shared/entity/InternalAddress';
-import GroupEventSearchDto from './dto/group-event-search.dto';
 import { getArray, hasValue, removeDuplicates } from 'src/utils/validation';
 import { UserDto } from '../auth/dto/user.dto';
 import EventMetricsDto from './dto/event-metrics-search.dto';
 import { isDate } from 'lodash';
 import Group from 'src/groups/entities/group.entity';
+import GroupEventSearchDto from './dto/group-event-search.dto';
 
 @Injectable()
 export class EventsService {
@@ -45,8 +45,10 @@ export class EventsService {
     // TODO use user object to filter reports
     if (hasValue(req.categoryIdList))
       filter.categoryId = In(getArray(req.categoryIdList));
-    if (hasValue(req.groupIdList)) filter.groupId = In(getArray(req.groupIdList));
-    if (hasValue(req.parentIdList)) filter.parentId = In(getArray(req.parentIdList));
+    if (hasValue(req.groupIdList))
+      filter.groupId = In(getArray(req.groupIdList));
+    if (hasValue(req.parentIdList))
+      filter.parentId = In(getArray(req.parentIdList));
     if (hasValue(req.from)) {
       filter.startDate = MoreThanOrEqual(req.from);
     }
@@ -74,13 +76,15 @@ export class EventsService {
       filter.categoryId = In(req.categoryIdList);
 
     if (hasValue(req.groupIdList)) {
-      const parents = await this.groupRepository.find({where: {id: In(req.groupIdList)}})
+      const parents = await this.groupRepository.find({
+        where: { id: In(req.groupIdList) },
+      });
       let _children = [];
-      for(let i = 0; i < parents.length; i++) {
-        const single = (await this.groupRepository.findDescendants(parents[i]))
+      for (let i = 0; i < parents.length; i++) {
+        const single = await this.groupRepository.findDescendants(parents[i]);
         single.forEach((g) => {
-          _children.push(g.id)
-        })
+          _children.push(g.id);
+        });
       }
       const children = removeDuplicates(_children);
       filter.groupId = In(getArray(children));
