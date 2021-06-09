@@ -23,6 +23,16 @@ export function getArray(data: any) {
   return Array.isArray(data) ? data : [data];
 }
 
+export function removeDuplicates(data: any) {
+  var result = [];
+  data.forEach((i) => {
+    if(result.indexOf(i) < 0) {
+      result.push(i)
+    }
+  })
+  return result;
+}
+
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const PasswordValidator = require('password-validator');
 

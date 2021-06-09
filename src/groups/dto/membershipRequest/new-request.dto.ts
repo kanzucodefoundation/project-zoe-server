@@ -18,3 +18,9 @@ export class GetGroupResponseDto {
   groupMeta: string;
   distance: number;
 }
+
+export class GetMissingReportDto {
+  startDate: string;
+  endDate: string;
+  parentGroupId: number;
+}

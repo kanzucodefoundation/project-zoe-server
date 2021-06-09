@@ -6,6 +6,7 @@ import {
   Param,
   Post,
   Put,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -13,6 +14,9 @@ import { ApiTags } from '@nestjs/swagger';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import EventField from './entities/eventField.entity';
+import EventFieldSearchDto from './dto/event-field-search.dto';
+import { FindConditions } from 'typeorm/find-options/FindConditions';
+import { hasValue } from '../utils/validation';
 
 @UseGuards(JwtAuthGuard)
 @ApiTags('Events Fields')
@@ -24,8 +28,12 @@ export class EventsFieldsController {
   ) {}
 
   @Get()
-  async findAll(): Promise<EventField[]> {
-    return await this.repository.find({});
+  async findAll(@Query() search: EventFieldSearchDto): Promise<EventField[]> {
+    const query: FindConditions<EventField> = {};
+    if (hasValue(search.category)) {
+      query.categoryId = search.category;
+    }
+    return await this.repository.find({ where: query });
   }
 
   @Post()
