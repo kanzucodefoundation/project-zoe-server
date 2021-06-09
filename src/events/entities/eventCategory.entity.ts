@@ -1,4 +1,3 @@
-import GroupReport from 'src/groups/entities/groupReport.entity';
 import { Column, Entity, Index, OneToMany, PrimaryColumn } from 'typeorm';
 import GroupEvent from './event.entity';
 import EventField from './eventField.entity';
@@ -22,6 +21,4 @@ export default class EventCategory {
   })
   fields: EventField[];
 
-  @OneToMany((type) => GroupReport, (it) => it.eventCategory, {})
-  reportingGroups: GroupReport[];
-}
+ }

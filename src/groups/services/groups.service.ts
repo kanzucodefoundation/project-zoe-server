@@ -24,9 +24,7 @@ import ClientFriendlyException from '../../shared/exceptions/client-friendly.exc
 import GroupMembership from '../entities/groupMembership.entity';
 import { GroupRole } from '../enums/groupRole';
 import { hasValue } from '../../utils/validation';
-import GroupReport from '../entities/groupReport.entity';
-import { eventsCategories } from 'src/seed/data/eventCategories';
-import { ReportFrequency } from '../enums/reportFrequency';
+import GroupCategoryReport from '../entities/groupCategoryReport.entity';
 import { endOfMonth, startOfMonth } from 'date-fns';
 
 @Injectable()
@@ -39,21 +37,14 @@ export class GroupsService {
     private readonly connection: Connection,
     @InjectRepository(GroupMembership)
     private readonly membershipRepository: Repository<GroupMembership>,
-    @InjectRepository(GroupReport)
-    private readonly groupReportRepository: Repository<GroupReport>,
+    @InjectRepository(GroupCategoryReport)
+    private readonly groupReportRepository: Repository<GroupCategoryReport>,
     private googleService: GoogleService,
     @InjectRepository(GroupEvent)
     private readonly eventRepository: Repository<GroupEvent>,
   ) {}
 
   async findAll(req: SearchDto): Promise<any[]> {
-    // const data = await this.treeRepository.find({
-    //   relations: ['category', 'parent'],
-    //   skip: req.skip,
-    //   take: req.limit,
-    // });
-    // return data.map(this.toListView);
-
     return await this.treeRepository.findTrees();
   }
 
@@ -125,28 +116,6 @@ export class GroupsService {
       : null;
     const result = await this.treeRepository.save(toSave);
 
-    ////
-    if (result.id) {
-      const saveReport = new GroupReport();
-      try {
-        for (let event in eventsCategories) {
-          saveReport.groupId = result.id;
-          saveReport.eventCategoryId = event;
-          saveReport.frequency =
-            event === 'evangelism' || event === 'frontier'
-              ? ReportFrequency.Monthly
-              : ReportFrequency.Weekly;
-          await this.groupReportRepository
-            .createQueryBuilder()
-            .insert()
-            .values(saveReport)
-            .execute();
-        }
-      } catch (e) {
-        Logger.debug('ERROR Adding Group Report entry: ', e.detail);
-      }
-    }
-    ////
     return this.findOne(result.id, true);
   }
 

@@ -1,10 +1,10 @@
-import { ReportFrequency } from 'src/groups/enums/reportFrequency';
+import { GroupCategoryReportFrequency } from 'src/groups/enums/groupCategoryReportFrequency ';
 import ComboDto from 'src/shared/dto/combo.dto';
 
 export default class GroupReportDto {
   id?: number;
 
-  frequency: ReportFrequency;
+  frequency: GroupCategoryReportFrequency;
 
   submittedById?: number;
   groupLeader?: {

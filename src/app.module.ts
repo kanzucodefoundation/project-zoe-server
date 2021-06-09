@@ -51,6 +51,7 @@ export class AppModule {
     await this.seedService.createGroupCategories();
     await this.seedService.createEventCategories();
     await this.seedService.createGroups();
+    await this.seedService.createGroupCategoryReports();
     Logger.log('#########Initialization complete############');
   }
 }

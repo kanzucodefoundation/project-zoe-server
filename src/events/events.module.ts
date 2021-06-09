@@ -8,7 +8,6 @@ import { EventsFieldsController } from './event-fields.controller';
 import { EventsAttendanceController } from './event-attendance.controller';
 import { PrismaService } from '../shared/prisma.service';
 import { EventsMetricsController } from './event-metrics.controller';
-import { GroupReportsController } from './events-groupReports.controller';
 import { appEntities } from '../config';
 
 @Module({
@@ -23,7 +22,6 @@ import { appEntities } from '../config';
     EventsFieldsController,
     EventsAttendanceController,
     EventsMetricsController,
-    GroupReportsController,
   ],
   providers: [EventsService, PrismaService],
   exports: [EventsService],

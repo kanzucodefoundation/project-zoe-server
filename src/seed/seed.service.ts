@@ -8,6 +8,8 @@ import { Repository } from 'typeorm';
 import EventCategory from '../events/entities/eventCategory.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import eventCategories from './data/eventCategories';
+import GroupCategoryReport from 'src/groups/entities/groupCategoryReport.entity';
+import seedGroupReportCategories from './data/groupCategoryReports';
 
 @Injectable()
 export class SeedService {
@@ -17,6 +19,8 @@ export class SeedService {
     private readonly usersService: UsersService,
     @InjectRepository(EventCategory)
     private readonly eventCategoryRepository: Repository<EventCategory>,
+    @InjectRepository(GroupCategoryReport)
+    private readonly gCatReportRepository: Repository<GroupCategoryReport>,
   ) {}
 
   async createUsers() {
@@ -56,7 +60,7 @@ export class SeedService {
   }
 
   async createEventCategories() {
-    Logger.log(`Seeding ${seedGroups.length} Groups`);
+    Logger.log(`Seeding ${seedGroups.length} EventCategories`);
     const count = await this.eventCategoryRepository.count();
     if (count > 0) {
       Logger.debug(`${count} EventCategories already exist`);
@@ -65,6 +69,24 @@ export class SeedService {
         await this.eventCategoryRepository.save(rec);
       }
       Logger.debug(`${eventCategories.length} EventCategories created`);
+    }
+  }
+
+  async createGroupCategoryReports() {
+    Logger.log(
+      `Seeding ${seedGroupReportCategories.length} GroupReportCategories`,
+    );
+    const count = await this.gCatReportRepository.count();
+    if (count > 0) {
+      Logger.debug(`${count} GroupReportCategories already exist`);
+    } else {
+      for (const rec of seedGroupReportCategories) {
+        
+        await this.gCatReportRepository.save(rec);
+      }
+      Logger.debug(
+        `${seedGroupReportCategories.length} GroupReportCategories created`,
+      );
     }
   }
 }

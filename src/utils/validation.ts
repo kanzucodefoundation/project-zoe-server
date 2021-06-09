@@ -1,10 +1,12 @@
 import { isArray as _isArray, isEmpty, isInteger, isNumber } from 'lodash';
+import { isDate } from 'date-fns';
 
 export const hasValue = (text: any) => {
   return !hasNoValue(text);
 };
 
 export const hasNoValue = (text: any) => {
+  if (isDate(text)) return false;
   if (isNumber(text)) return false;
   return isEmpty(text);
 };
@@ -18,8 +20,8 @@ export const isArray = (data: any) => {
 };
 
 export function getArray(data: any) {
-  return Array.isArray(data) ? data : [data]; 
-} 
+  return Array.isArray(data) ? data : [data];
+}
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const PasswordValidator = require('password-validator');
