@@ -11,6 +11,7 @@ import EventCategory from './eventCategory.entity';
 import Group from '../../groups/entities/group.entity';
 import InternalAddress from '../../shared/entity/InternalAddress';
 import EventAttendance from './eventAttendance.entity';
+import Person from 'src/crm/entities/person.entity';
 
 @Entity({ name: 'events' })
 export default class GroupEvent {
@@ -36,8 +37,11 @@ export default class GroupEvent {
   @Column({ type: 'timestamp', nullable: true })
   submittedAt?: Date;
 
+  @ManyToOne((type) => Person, (it) => it.contactId)
+  submittedBy: Person;
+
   @Column({ nullable: true })
-  submittedBy?: string;
+  submittedById?: number;
 
   @Column({
     nullable: true,

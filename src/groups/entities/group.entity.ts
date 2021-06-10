@@ -17,7 +17,7 @@ import GroupEvent from '../../events/entities/event.entity';
 import InternalAddress from '../../shared/entity/InternalAddress';
 
 @Entity()
-@Tree("closure-table")
+@Tree('closure-table')
 export default class Group {
   @PrimaryGeneratedColumn()
   id: number;

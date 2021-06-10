@@ -7,7 +7,7 @@ import {
   GetMissingReportDto,
 } from '../../groups/dto/membershipRequest/new-request.dto';
 import { groupConstants } from '../../seed/data/groups';
-import { GroupCategoryReport } from '../../groups/entities/groupCategoryReport.entity';
+import GroupCategoryReport from '../../groups/entities/groupCategoryReport.entity';
 
 @Injectable()
 export class GroupFinderService {

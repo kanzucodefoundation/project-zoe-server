@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import {
   Connection,
+  FindConditions,
   ILike,
   In,
   LessThanOrEqual,
@@ -13,8 +14,6 @@ import Group from '../entities/group.entity';
 import GroupEvent from '../../events/entities/event.entity';
 import SearchDto from '../../shared/dto/search.dto';
 import { GroupSearchDto } from '../dto/group-search.dto';
-import { FindConditions } from 'typeorm/find-options/FindConditions';
-
 import GroupListDto from '../dto/group-list.dto';
 import CreateGroupDto from '../dto/create-group.dto';
 import UpdateGroupDto from '../dto/update-group.dto';
@@ -25,6 +24,7 @@ import ClientFriendlyException from '../../shared/exceptions/client-friendly.exc
 import GroupMembership from '../entities/groupMembership.entity';
 import { GroupRole } from '../enums/groupRole';
 import { hasValue } from '../../utils/validation';
+import GroupCategoryReport from '../entities/groupCategoryReport.entity';
 import { endOfMonth, startOfMonth } from 'date-fns';
 
 @Injectable()
@@ -37,19 +37,14 @@ export class GroupsService {
     private readonly connection: Connection,
     @InjectRepository(GroupMembership)
     private readonly membershipRepository: Repository<GroupMembership>,
+    @InjectRepository(GroupCategoryReport)
+    private readonly groupReportRepository: Repository<GroupCategoryReport>,
     private googleService: GoogleService,
     @InjectRepository(GroupEvent)
     private readonly eventRepository: Repository<GroupEvent>,
   ) {}
 
   async findAll(req: SearchDto): Promise<any[]> {
-    // const data = await this.treeRepository.find({
-    //   relations: ['category', 'parent'],
-    //   skip: req.skip,
-    //   take: req.limit,
-    // });
-    // return data.map(this.toListView);
-
     return await this.treeRepository.findTrees();
   }
 
@@ -120,6 +115,7 @@ export class GroupsService {
       ? await this.treeRepository.findOne(data.parentId)
       : null;
     const result = await this.treeRepository.save(toSave);
+
     return this.findOne(result.id, true);
   }
 

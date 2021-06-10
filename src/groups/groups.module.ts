@@ -15,6 +15,10 @@ import { GoogleService } from '../vendor/google.service';
 import { PrismaService } from '../shared/prisma.service';
 import { EventsService } from 'src/events/events.service';
 import { appEntities } from '../config';
+import { GroupMissingReportsService } from './services/group-missing-reports.service';
+import { GroupReportsController } from './controllers/group-reports.controller';
+import { GroupReportFrequencyController } from './controllers/group-frequency.controller';
+import { GroupCategoryComboController } from './controllers/group-category-combo.controller';
 
 @Module({
   imports: [
@@ -31,6 +35,7 @@ import { appEntities } from '../config';
     GoogleService,
     PrismaService,
     EventsService,
+    GroupMissingReportsService,
   ],
   controllers: [
     GroupController,
@@ -38,6 +43,9 @@ import { appEntities } from '../config';
     GroupComboController,
     GroupMembershipController,
     GroupMembershipReqeustController,
+    GroupReportsController,
+    GroupReportFrequencyController,
+    GroupCategoryComboController,
   ],
   exports: [GroupsService, GroupCategoriesService],
 })

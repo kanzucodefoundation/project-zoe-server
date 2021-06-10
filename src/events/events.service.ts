@@ -20,8 +20,9 @@ import InternalAddress from '../shared/entity/InternalAddress';
 import { getArray, hasValue, removeDuplicates } from 'src/utils/validation';
 import { UserDto } from '../auth/dto/user.dto';
 import EventMetricsDto from './dto/event-metrics-search.dto';
-import { isDate } from 'lodash';
+import GroupReportDto from './dto/group-report.dto';
 import Group from 'src/groups/entities/group.entity';
+import { isDate } from 'lodash';
 import GroupEventSearchDto from './dto/group-event-search.dto';
 
 @Injectable()
@@ -60,7 +61,7 @@ export class EventsService {
     }
 
     const data = await this.repository.find({
-      relations: ['category', 'group', 'attendance'],
+      relations: ['category', 'group', 'attendance', 'submittedBy'],
       skip: req.skip,
       take: req.limit,
       where: filter,
@@ -117,9 +118,14 @@ export class EventsService {
   }
 
   toDto(data: GroupEvent): GroupEventDto {
-    const { group, attendance, ...rest } = data;
+    const { group, attendance, submittedBy, ...rest } = data;
     return {
       ...rest,
+      submittedBy: {
+        firstName: submittedBy.firstName,
+        middleName: submittedBy.middleName,
+        lastName: submittedBy.lastName,
+      },
       group: {
         id: group.id,
         name: group.name,

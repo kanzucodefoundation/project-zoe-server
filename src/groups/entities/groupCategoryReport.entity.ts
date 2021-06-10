@@ -1,16 +1,28 @@
-import { Column, Entity, PrimaryColumn } from 'typeorm';
-import { GroupCategoryReportFrequency } from '../enums/groupCategoryReportFrequency';
+import {
+  Column,
+  Entity,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
+import { GroupCategoryReportFrequency } from '../enums/groupCategoryReportFrequency ';
+import GroupCategory from './groupCategory.entity';
 
 @Entity()
-export class GroupCategoryReport {
-  @PrimaryColumn()
+export default class GroupCategoryReport {
+  @Column()
+  @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ length: 200 })
-  groupCategoryId: string; // MC
+  @ManyToOne((type) => GroupCategory, (it) => it.id)
+  @JoinColumn()
+  groupCategory: GroupCategory;
 
-  @Column({ length: 200 })
-  eventCategoryId: string; // MC-Meeting
+  @Column()
+  groupCategoryId: string;
+
+  @Column()
+  eventCategoryId: string;
 
   @Column({
     type: 'enum',

@@ -98,7 +98,7 @@ model events {
   startDate        DateTime?            @db.Timestamp(6)
   endDate          DateTime?            @db.Timestamp(6)
   submittedAt      DateTime?            @db.Timestamp(6)
-  submittedBy      String?              @db.VarChar
+  submittedById      Int?
   details          String               @db.VarChar(500)
   venue            Json?
   groupId          Int?
