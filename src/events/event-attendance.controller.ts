@@ -74,6 +74,7 @@ export class EventsAttendanceController {
         id: it.id,
         groupId: it.groupId,
         group: it.group,
+        isInferred: false,
         contact: {
           id: it.contact.id,
           name: getPersonFullName(it.contact.person),

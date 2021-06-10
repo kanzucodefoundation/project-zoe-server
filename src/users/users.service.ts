@@ -161,13 +161,15 @@ export class UsersService {
       update.password = user.password;
     }
 
-    await this.repository
+    const resp = await this.repository
       .createQueryBuilder()
       .update()
       .set(update)
       .where('id = :id', { id: data.id })
       .execute();
-    return await this.findOne(data.id);
+
+    const updated = await this.findOne(data.id);
+    return updated;
   }
 
   async remove(id: number): Promise<void> {

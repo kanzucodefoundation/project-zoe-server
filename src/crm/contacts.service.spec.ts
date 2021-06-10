@@ -8,7 +8,6 @@ import { Repository } from 'typeorm';
 import Person from './entities/person.entity';
 import config, { appEntities } from '../config';
 
-
 describe('ContactService', () => {
   let service: ContactsService;
   let personRepository: Repository<Person>;

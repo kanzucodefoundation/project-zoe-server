@@ -3,6 +3,7 @@ import ComboDto from '../../../shared/dto/combo.dto';
 
 export default class GroupMembershipDto {
   id: number;
+  isInferred: boolean;
   group: ComboDto;
   groupId: number;
   contact: ComboDto;
