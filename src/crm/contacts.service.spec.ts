@@ -6,8 +6,7 @@ import { Gender } from './enums/gender';
 import { CivilStatus } from './enums/civilStatus';
 import { Repository } from 'typeorm';
 import Person from './entities/person.entity';
-import config from '../config';
-import { appEntities } from '../app.module';
+import config, { appEntities } from '../config';
 
 describe('ContactService', () => {
   let service: ContactsService;

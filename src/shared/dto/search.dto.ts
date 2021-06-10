@@ -9,10 +9,10 @@ export default class SearchDto {
   @Type(() => Number)
   @IsNumber()
   @Min(0)
-  limit: number = 100;
+  limit?: number = 100;
 
   @Type(() => Number)
   @IsNumber()
   @Min(0)
-  skip: number = 0;
+  skip?: number = 0;
 }

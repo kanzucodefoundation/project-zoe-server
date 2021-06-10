@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Connection, Repository } from 'typeorm';
+import { Connection, In, Repository, TreeRepository } from 'typeorm';
 import { FindConditions } from 'typeorm/find-options/FindConditions';
 import GroupMembership from '../entities/groupMembership.entity';
 import GroupMembershipDto from '../dto/membership/group-membership.dto';
@@ -11,12 +11,16 @@ import UpdateGroupMembershipDto from '../dto/membership/update-group-membership.
 import BatchGroupMembershipDto from '../dto/membership/batch-group-membership.dto';
 import { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
 import { hasNoValue, hasValue } from '../../utils/validation';
+import Group from '../entities/group.entity';
+import { groupConstants } from '../../seed/data/groups';
 
 @Injectable()
 export class GroupsMembershipService {
   constructor(
     @InjectRepository(GroupMembership)
     private readonly repository: Repository<GroupMembership>,
+    @InjectRepository(Group)
+    private readonly groupTreeRepository: TreeRepository<Group>,
     private connection: Connection,
   ) {}
 
@@ -26,7 +30,17 @@ export class GroupsMembershipService {
       filter.contactId = req.contactId;
     }
     if (hasValue(req.groupId)) {
-      filter.groupId = req.groupId;
+      const parentGroup = await this.groupTreeRepository.findOneOrFail(
+        req.groupId,
+      );
+      const childGroupIds = await this.groupTreeRepository.findDescendants(
+        parentGroup,
+      );
+      const idList = new Set([
+        req.groupId,
+        ...childGroupIds.map((it) => it.id),
+      ]);
+      filter.groupId = In([...idList.values()]);
     }
     if (hasNoValue(filter))
       throw new ClientFriendlyException('Please groupID or contactId');
@@ -36,13 +50,14 @@ export class GroupsMembershipService {
       take: req.limit,
       where: filter,
     });
-    return data.map(this.toDto);
+    return data.map((it) => this.toDto(it, req.groupId));
   }
 
-  toDto(membership: GroupMembership): GroupMembershipDto {
+  toDto(membership: GroupMembership, refGroupId: number): GroupMembershipDto {
     const { group, contact, ...rest } = membership;
     return {
       ...rest,
+      isInferred: refGroupId !== refGroupId,
       group: group ? { name: group.name, id: group.id } : null,
       category: group.category
         ? { name: group.category.name, id: group.category.id }
@@ -70,7 +85,7 @@ export class GroupsMembershipService {
     const data = await this.repository.findOne(id, {
       relations: ['group', 'contact', 'contact.person'],
     });
-    return this.toDto(data);
+    return this.toDto(data, 0);
   }
 
   async update(dto: UpdateGroupMembershipDto): Promise<GroupMembershipDto> {
