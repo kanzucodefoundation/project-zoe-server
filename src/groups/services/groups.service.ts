@@ -158,6 +158,13 @@ export class GroupsService {
         select: ['contactId'],
       });
       groupData.leaders = membership.map((it) => it.contactId);
+
+      groupData.reports = await this.eventRepository.find({
+        relations: ['category', 'attendance'],
+        where: {groupId: In(groupData.children)},
+        select: ['id', 'name', 'startDate'],
+      });
+    
       return groupData;
     }
     return this.toListView(data);

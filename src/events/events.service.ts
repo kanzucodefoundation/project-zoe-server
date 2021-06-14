@@ -24,6 +24,7 @@ import GroupReportDto from './dto/group-report.dto';
 import Group from 'src/groups/entities/group.entity';
 import { isDate } from 'lodash';
 import GroupEventSearchDto from './dto/group-event-search.dto';
+import GroupMembership from 'src/groups/entities/groupMembership.entity';
 
 @Injectable()
 export class EventsService {
@@ -34,6 +35,8 @@ export class EventsService {
     private readonly categoryRepository: Repository<EventCategory>,
     @InjectRepository(Group)
     private readonly groupRepository: TreeRepository<Group>,
+    @InjectRepository(GroupMembership)
+    private readonly membershipRepository: Repository<GroupMembership>,
     private googleService: GoogleService,
   ) {}
 
@@ -42,12 +45,18 @@ export class EventsService {
     user: UserDto,
   ): Promise<GroupEventDto[]> {
     const filter: FindConditions<GroupEvent> = {};
+    
+    const membership = await this.membershipRepository.findOne({where: {contactId: user.contactId}, relations: ['group']});
+    const _descendants = await this.groupRepository.findDescendants(membership.group);
+    const descendants = _descendants.map((it) => it.id)
+    if (hasValue(req.groupIdList)) {
+      filter.groupId = In(getArray(req.groupIdList));
+    } else {
+      filter.groupId = In(getArray(descendants));
+    }
 
-    // TODO use user object to filter reports
     if (hasValue(req.categoryIdList))
       filter.categoryId = In(getArray(req.categoryIdList));
-    if (hasValue(req.groupIdList))
-      filter.groupId = In(getArray(req.groupIdList));
     if (hasValue(req.parentIdList))
       filter.parentId = In(getArray(req.parentIdList));
     if (hasValue(req.from)) {
@@ -122,9 +131,9 @@ export class EventsService {
     return {
       ...rest,
       submittedBy: {
-        firstName: submittedBy.firstName,
-        middleName: submittedBy.middleName,
-        lastName: submittedBy.lastName,
+        firstName: submittedBy?.firstName,
+        middleName: submittedBy?.middleName,
+        lastName: submittedBy?.lastName,
       },
       group: {
         id: group.id,
