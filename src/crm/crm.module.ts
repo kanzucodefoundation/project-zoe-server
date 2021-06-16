@@ -19,6 +19,7 @@ import { ContactImportController } from './contollers/contact-import.controller'
 import { GroupFinderService } from './group-finder/group-finder.service';
 import { appEntities } from '../config';
 import { PhonesService } from './phones.service';
+import { AddressesService } from './addresses.service';
 
 @Global()
 @Module({
@@ -29,6 +30,7 @@ import { PhonesService } from './phones.service';
     PrismaService,
     GroupFinderService,
     PhonesService,
+    AddressesService,
   ],
   controllers: [
     ContactsController,

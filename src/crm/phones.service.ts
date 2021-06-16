@@ -28,6 +28,7 @@ export class PhonesService {
       } else if (getIsPrimary.length > 1) {
         await getIsPrimary.map((it) => {
           const phones = { ...it, isPrimary: false };
+          data.isPrimary = true;
           this.repository.save(phones);
         });
       }
@@ -37,8 +38,6 @@ export class PhonesService {
     const getCurrentPhones = await this.repository.find({
       where: [{ contactId: data.contactId }],
     });
-    await this.repository.save(data);
     return getCurrentPhones;
   }
-
 }

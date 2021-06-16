@@ -15,6 +15,7 @@ import Address from '../entities/address.entity';
 import { Repository } from 'typeorm';
 import SearchDto from '../../shared/dto/search.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { AddressesService } from '../addresses.service';
 
 @UseGuards(JwtAuthGuard)
 @ApiTags('Crm Addresses')
@@ -22,6 +23,8 @@ import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 export class AddressesController {
   constructor(
     @InjectRepository(Address) private readonly repository: Repository<Address>,
+
+    private readonly service:AddressesService
   ) {}
 
   @Get()
@@ -34,7 +37,7 @@ export class AddressesController {
 
   @Post()
   async create(@Body() data: Address): Promise<Address> {
-    return await this.repository.save(data);
+    return await this.service.create(data);
   }
 
   @Put()
