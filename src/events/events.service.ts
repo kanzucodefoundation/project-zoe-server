@@ -122,9 +122,9 @@ export class EventsService {
     return {
       ...rest,
       submittedBy: {
-        firstName: submittedBy.firstName,
-        middleName: submittedBy.middleName,
-        lastName: submittedBy.lastName,
+        firstName: submittedBy?.firstName,
+        middleName: submittedBy?.middleName,
+        lastName: submittedBy?.lastName,
       },
       group: {
         id: group.id,
