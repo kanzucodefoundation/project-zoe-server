@@ -149,9 +149,10 @@ export class UsersService {
   }
 
   async update(data: UpdateUserDto): Promise<UserListDto> {
+    const _user = await this.findOne(data.id);
     const update: QueryDeepPartialEntity<User> = {
       roles: data.roles,
-      isActive: data.isActive,
+      isActive: data.isActive ? data.isActive : _user.isActive,
     };
 
     if (hasValue(data.password)) {
