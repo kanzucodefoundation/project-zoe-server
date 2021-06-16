@@ -16,6 +16,7 @@ import { Repository } from 'typeorm';
 import SearchDto from '../../shared/dto/search.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { PhoneDto } from '../dto/phone.dto';
+import {PhonesService} from "../phones.service"
 
 @UseGuards(JwtAuthGuard)
 @ApiTags('Crm Phones')
@@ -23,6 +24,7 @@ import { PhoneDto } from '../dto/phone.dto';
 export class PhonesController {
   constructor(
     @InjectRepository(Phone) private readonly repository: Repository<Phone>,
+    private readonly service: PhonesService
   ) {}
 
   @Get()
@@ -34,8 +36,8 @@ export class PhonesController {
   }
 
   @Post()
-  async create(@Body() data: PhoneDto): Promise<Phone> {
-    return await this.repository.save(data);
+  async create(@Body() data: PhoneDto): Promise<Phone[]> {
+    return this.service.create(data);
   }
 
   @Put()
