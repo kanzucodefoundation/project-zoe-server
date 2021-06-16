@@ -6,6 +6,8 @@ export default class CreateEventDto {
 
   name: string;
 
+  summary: string;
+
   startDate?: Date;
 
   endDate?: Date;
