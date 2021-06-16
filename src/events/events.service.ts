@@ -73,12 +73,9 @@ export class EventsService {
     const filter: FindConditions<GroupEvent> = {};
 
     // TODO use user object to filter reports
-    if (hasValue(req.categoryIdList))
-      filter.categoryId = In(req.categoryIdList);
-
     if (hasValue(req.groupIdList)) {
       const parents = await this.groupRepository.find({
-        where: { id: In(req.groupIdList) },
+        where: { id: In(getArray(req.groupIdList)) },
       });
       let _children = [];
       for (let i = 0; i < parents.length; i++) {
