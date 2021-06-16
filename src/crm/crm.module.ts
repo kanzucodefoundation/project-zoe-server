@@ -18,6 +18,8 @@ import { PrismaService } from '../shared/prisma.service';
 import { ContactImportController } from './contollers/contact-import.controller';
 import { GroupFinderService } from './group-finder/group-finder.service';
 import { appEntities } from '../config';
+import { PhonesService } from './phones.service';
+import { AddressesService } from './addresses.service';
 
 @Global()
 @Module({
@@ -27,6 +29,8 @@ import { appEntities } from '../config';
     GoogleService,
     PrismaService,
     GroupFinderService,
+    PhonesService,
+    AddressesService,
   ],
   controllers: [
     ContactsController,
