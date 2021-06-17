@@ -7,6 +7,7 @@ import { Repository } from 'typeorm';
 import { CreatePersonDto } from '../dto/create-person.dto';
 import { User } from '../../users/user.entity';
 import ContactListDto from '../dto/contact-list.dto';
+import { isEmptyObject } from 'src/utils/validation';
 
 @ApiTags('Register')
 @Controller('api/register')
@@ -21,6 +22,14 @@ export class RegisterController {
   @Post()
   async create(@Body() data: CreatePersonDto): Promise<ContactListDto> {
     const contact = await this.service.createPerson(data);
-    return ContactsService.toListDto(contact);
+    try {
+      return ContactsService.toListDto(contact);
+    } catch (e) {
+      if (isEmptyObject(contact)) {
+        return new ContactListDto();
+      } else {
+        return e;
+      }
+    }
   }
 }

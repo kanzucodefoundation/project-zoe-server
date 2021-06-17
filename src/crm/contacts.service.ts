@@ -214,17 +214,26 @@ export class ContactsService {
   }
 
   async createPerson(createPersonDto: CreatePersonDto): Promise<Contact> {
-    let place: GooglePlaceDto;
+    //First check if email address exists
+    const checkEmailExist = await this.emailRepository.find({
+      where: [{ value: createPersonDto.email }],
+    });
+    if (checkEmailExist.length > 0) {
+      return new Contact
+    } 
+    else {
+      let place: GooglePlaceDto;
 
-    //Make a call to the Google API to get coordinates
-    if (hasValue(createPersonDto.residence?.placeId)) {
-      place = await this.googleService.getPlaceDetails(
-        createPersonDto.residence?.placeId,
-      );
+      //Make a call to the Google API to get coordinates
+      if (hasValue(createPersonDto.residence?.placeId)) {
+        place = await this.googleService.getPlaceDetails(
+          createPersonDto.residence?.placeId,
+        );
+      }
+      const model = getContactModel(createPersonDto, place);
+      await this.getGroupRequest(createPersonDto);
+      return await this.repository.save(model, { reload: true });
     }
-    const model = getContactModel(createPersonDto, place);
-    await this.getGroupRequest(createPersonDto)
-    return await this.repository.save(model, { reload: true });
   }
 
   async getGroupRequest(createPersonDto: CreatePersonDto): Promise<void> {
