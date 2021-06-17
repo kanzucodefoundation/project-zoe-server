@@ -15,8 +15,8 @@ function parseValidationErrors(exception: any) {
   try {
     if (exception instanceof BadRequestException) {
       return {
-        message: 'Validation Error',
-        errors: exception.message,
+        message: exception.message,
+        errors: [exception.message],
       };
     }
   } catch (ex) {

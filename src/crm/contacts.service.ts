@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { intersection } from 'lodash';
 import {
@@ -219,21 +219,23 @@ export class ContactsService {
       where: [{ value: createPersonDto.email }],
     });
     if (checkEmailExist.length > 0) {
-      return new Contact
-    } 
-    else {
-      let place: GooglePlaceDto;
-
-      //Make a call to the Google API to get coordinates
-      if (hasValue(createPersonDto.residence?.placeId)) {
-        place = await this.googleService.getPlaceDetails(
-          createPersonDto.residence?.placeId,
-        );
-      }
-      const model = getContactModel(createPersonDto, place);
-      await this.getGroupRequest(createPersonDto);
-      return await this.repository.save(model, { reload: true });
+      throw new BadRequestException({
+        message:
+          'Email already exists. It is possible that you are already registered',
+      });
     }
+
+    let place: GooglePlaceDto;
+
+    //Make a call to the Google API to get coordinates
+    if (hasValue(createPersonDto.residence?.placeId)) {
+      place = await this.googleService.getPlaceDetails(
+        createPersonDto.residence?.placeId,
+      );
+    }
+    const model = getContactModel(createPersonDto, place);
+    await this.getGroupRequest(createPersonDto);
+    return await this.repository.save(model, { reload: true });
   }
 
   async getGroupRequest(createPersonDto: CreatePersonDto): Promise<void> {
