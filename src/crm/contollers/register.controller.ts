@@ -19,8 +19,8 @@ export class RegisterController {
     private readonly userRepository: Repository<User>,
   ) {}
   @Post()
-  async create(@Body() data: CreatePersonDto): Promise<ContactListDto> {
+  async create(@Body() data: CreatePersonDto): Promise<ContactListDto | Error> {
     const contact = await this.service.createPerson(data);
-    return ContactsService.toListDto(contact);
+      return ContactsService.toListDto(contact);
   }
 }
