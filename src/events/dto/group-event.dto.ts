@@ -17,7 +17,7 @@ export default class GroupEventDto {
   submittedAt?: Date;
 
   submittedById?: number;
-  submittedBy: {
+  submittedBy?: {
     firstName: string;
     lastName: string;
     middleName?: string;
