@@ -1,10 +1,10 @@
-# About project Angie
+# About Project Zoe 
 
-Angie is a church management centered on what's at the heart of all ministry - people. The platform simplifies the process of managing people and their relationships between each other and the church, keeping track of data across the organization and creates a foundation for adding new features that are specific to your church.
+Project Zoe is a church management centered on what's at the heart of all ministry - people. The platform simplifies the process of managing people and their relationships between each other and the church, keeping track of data across the organization and creates a foundation for adding new features that are specific to your church.
 
 # The tech
 
-This repo holds the Angie church relationship management system (RMS) server. 
+This repo holds the Project Zoe church relationship management system (RMS) server. 
 
 ## Getting started
 
