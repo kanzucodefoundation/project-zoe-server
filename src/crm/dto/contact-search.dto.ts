@@ -10,13 +10,8 @@ export class ContactSearchDto extends SearchDto {
   @IsArray()
   @IsNumber({}, { each: true })
   @IsOptional()
-  cellGroups?: number[];
-
-  @Type(() => Number)
-  @IsArray()
-  @IsNumber({}, { each: true })
-  @IsOptional()
   ageGroups?: number[];
+  cellGroups?: number[];
   churchLocations?: number[];
   skipUsers?: boolean;
 }
