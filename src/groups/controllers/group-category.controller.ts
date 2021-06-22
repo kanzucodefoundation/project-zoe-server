@@ -7,13 +7,16 @@ import {
   Put,
   Query,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
 import { GroupCategoriesService } from '../services/group-categories.service';
 import GroupCategory from '../entities/groupCategory.entity';
 import SearchDto from '../../shared/dto/search.dto';
 import { ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { SentryInterceptor } from 'src/utils/sentry.interceptor';
 
+@UseInterceptors(SentryInterceptor)
 @UseGuards(JwtAuthGuard)
 @ApiTags('Group Categories')
 @Controller('api/groups/category')

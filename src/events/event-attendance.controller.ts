@@ -9,6 +9,7 @@ import {
   Put,
   Query,
   UseGuards,
+  UseInterceptors,
   UsePipes,
   ValidationPipe,
 } from '@nestjs/common';
@@ -28,7 +29,9 @@ import { GroupRole } from '../groups/enums/groupRole';
 import EventAttendanceSearchDto from './dto/event-attendance-search.dto';
 import { EventAttendanceDto } from './dto/event-attendance.dto';
 import { EventAttendanceCreateDto } from './dto/event-attendance-create.dto';
+import { SentryInterceptor } from 'src/utils/sentry.interceptor';
 
+@UseInterceptors(SentryInterceptor)
 @UseGuards(JwtAuthGuard)
 @ApiTags('Events Attendance')
 @Controller('api/events/attendance')

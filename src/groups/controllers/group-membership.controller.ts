@@ -8,6 +8,7 @@ import {
   Put,
   Query,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import GroupMembershipSearchDto from '../dto/membership/group-membership-search.dto';
@@ -16,7 +17,9 @@ import GroupMembershipDto from '../dto/membership/group-membership.dto';
 import UpdateGroupMembershipDto from '../dto/membership/update-group-membership.dto';
 import BatchGroupMembershipDto from '../dto/membership/batch-group-membership.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { SentryInterceptor } from 'src/utils/sentry.interceptor';
 
+@UseInterceptors(SentryInterceptor)
 @UseGuards(JwtAuthGuard)
 @ApiTags('Groups Membership')
 @Controller('api/groups/member')

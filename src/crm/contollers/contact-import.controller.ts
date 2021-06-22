@@ -18,6 +18,7 @@ import CompanyListDto from '../dto/company-list.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { parseContact } from '../utils/importUtils';
+import { SentryInterceptor } from 'src/utils/sentry.interceptor';
 
 const Duplex = require('stream').Duplex; // core NodeJS API
 function bufferToStream(buffer) {
@@ -33,6 +34,7 @@ class Entity {
   email: string;
 }
 
+@UseInterceptors(SentryInterceptor)
 @UseGuards(JwtAuthGuard)
 @ApiTags('Crm Contacts')
 @Controller('api/crm/import')
