@@ -8,6 +8,8 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import config from './config';
 import { ValidationPipe } from '@nestjs/common';
 import { HttpExceptionFilter } from './auth/http-exception.filter';
+import * as Sentry from '@sentry/node';
+import { Integrations } from "@sentry/tracing";
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -40,6 +42,12 @@ async function bootstrap() {
     .build();
   const document = SwaggerModule.createDocument(app, options);
   SwaggerModule.setup('docs', app, document, {});
+
+  // Sentry Implementation
+  Sentry.init({
+    dsn: process.env.REACT_APP_SENTRY_DSN,
+  });
+
   await app.listen(config.app.port);
 }
 

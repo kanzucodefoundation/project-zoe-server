@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { intersection } from 'lodash';
 import {
@@ -214,6 +214,17 @@ export class ContactsService {
   }
 
   async createPerson(createPersonDto: CreatePersonDto): Promise<Contact> {
+    //First check if email address exists
+    const checkEmailExist = await this.emailRepository.find({
+      where: [{ value: createPersonDto.email }],
+    });
+    if (checkEmailExist.length > 0) {
+      throw new BadRequestException({
+        message:
+          'Email already exists. It is possible that you are already registered',
+      });
+    }
+
     let place: GooglePlaceDto;
 
     //Make a call to the Google API to get coordinates
@@ -223,7 +234,7 @@ export class ContactsService {
       );
     }
     const model = getContactModel(createPersonDto, place);
-    await this.getGroupRequest(createPersonDto)
+    await this.getGroupRequest(createPersonDto);
     return await this.repository.save(model, { reload: true });
   }
 

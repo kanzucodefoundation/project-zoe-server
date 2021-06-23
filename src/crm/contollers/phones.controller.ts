@@ -8,6 +8,7 @@ import {
   Put,
   Query,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -16,13 +17,17 @@ import { Repository } from 'typeorm';
 import SearchDto from '../../shared/dto/search.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { PhoneDto } from '../dto/phone.dto';
+import {PhonesService} from "../phones.service"
+import { SentryInterceptor } from 'src/utils/sentry.interceptor';
 
+@UseInterceptors(SentryInterceptor)
 @UseGuards(JwtAuthGuard)
 @ApiTags('Crm Phones')
 @Controller('api/crm/phones')
 export class PhonesController {
   constructor(
     @InjectRepository(Phone) private readonly repository: Repository<Phone>,
+    private readonly service: PhonesService
   ) {}
 
   @Get()
@@ -34,8 +39,8 @@ export class PhonesController {
   }
 
   @Post()
-  async create(@Body() data: PhoneDto): Promise<Phone> {
-    return await this.repository.save(data);
+  async create(@Body() data: PhoneDto): Promise<Phone[]> {
+    return this.service.create(data);
   }
 
   @Put()

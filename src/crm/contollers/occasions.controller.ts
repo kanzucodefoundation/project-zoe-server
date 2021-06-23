@@ -8,6 +8,7 @@ import {
   Put,
   Query,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -15,7 +16,9 @@ import Occasion from '../entities/occasion.entity';
 import { Repository } from 'typeorm';
 import SearchDto from '../../shared/dto/search.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { SentryInterceptor } from 'src/utils/sentry.interceptor';
 
+@UseInterceptors(SentryInterceptor)
 @UseGuards(JwtAuthGuard)
 @ApiTags('Crm Occasions')
 @Controller('api/crm/occasions')

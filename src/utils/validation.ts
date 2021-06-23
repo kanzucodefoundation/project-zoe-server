@@ -1,4 +1,4 @@
-import { isArray as _isArray, isEmpty, isInteger, isNumber } from 'lodash';
+import { isArray as _isArray, isEmpty, isInteger, isNumber,  } from 'lodash';
 import { isDate } from 'date-fns';
 
 export const hasValue = (text: any) => {
@@ -17,6 +17,10 @@ export const isValidNumber = (data: any) => {
 
 export const isArray = (data: any) => {
   return _isArray(data);
+};
+
+export const isEmptyObject = (data: any) => {
+  return isEmpty(data);
 };
 
 export function getArray(data: any) {
@@ -40,14 +44,6 @@ const schema = new PasswordValidator();
 schema
   .is()
   .min(8) // Minimum length 8
-  .is()
-  .max(20) // Maximum length 20
-  .has()
-  .uppercase() // Must have uppercase letters
-  .has()
-  .lowercase() // Must have lowercase letters
-  .has()
-  .digits() // Must have digits
   .has()
   .not()
   .spaces() // Should not have spaces
