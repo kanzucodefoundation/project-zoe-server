@@ -28,6 +28,7 @@ import { GroupCategoryReportFrequency } from '../enums/groupCategoryReportFreque
 import { GroupSearchDto } from '../dto/group-search.dto';
 import { GroupMissingReportSearchDto } from '../dto/group-missing-report-search.dto';
 import { groupConstants } from '../../seed/data/groups';
+import { EventFrequencyDto } from '../dto/event-frequency-search.dto';
 
 @Injectable()
 export class GroupMissingReportsService {
@@ -245,5 +246,21 @@ export class GroupMissingReportsService {
     }
 
     return groupCombo;
+  }
+
+  async getFrequencyByCategory(req: EventFrequencyDto): Promise<GroupCategoryReport[]> {
+    const filter: FindConditions<GroupCategoryReport> = {}; 
+    
+      if(hasValue(req.groupCategory)) {
+        filter.groupCategoryId = req.groupCategory
+      }
+      if(hasValue(req.eventCategory)) {
+        filter.eventCategoryId = req.eventCategory
+      }
+
+    const frequency = await this.categoryReportRepository.find({
+      where: filter
+    });
+    return frequency;
   }
 }
