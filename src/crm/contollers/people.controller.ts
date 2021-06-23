@@ -25,7 +25,9 @@ import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { User } from '../../users/user.entity';
 import ContactListDto from '../dto/contact-list.dto';
 import { PersonEditDto } from '../dto/person-edit.dto';
+import { SentryInterceptor } from 'src/utils/sentry.interceptor';
 
+@UseInterceptors(SentryInterceptor)
 @ApiTags('Crm People')
 @Controller('api/crm/people')
 @UseGuards(JwtAuthGuard)

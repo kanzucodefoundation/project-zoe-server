@@ -8,6 +8,7 @@ import {
   Put,
   Query,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { ApiTags } from '@nestjs/swagger';
@@ -17,7 +18,9 @@ import EventField from './entities/eventField.entity';
 import EventFieldSearchDto from './dto/event-field-search.dto';
 import { FindConditions } from 'typeorm/find-options/FindConditions';
 import { hasValue } from '../utils/validation';
+import { SentryInterceptor } from 'src/utils/sentry.interceptor';
 
+@UseInterceptors(SentryInterceptor)
 @UseGuards(JwtAuthGuard)
 @ApiTags('Events Fields')
 @Controller('api/events/fields')

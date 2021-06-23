@@ -8,6 +8,7 @@ import {
   Put,
   Query,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import SearchDto from '../shared/dto/search.dto';
@@ -17,7 +18,9 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { UserListDto } from './dto/user-list.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CreateUserResponseDto } from './dto/create-user-response.dto';
+import { SentryInterceptor } from 'src/utils/sentry.interceptor';
 
+@UseInterceptors(SentryInterceptor)
 @UseGuards(JwtAuthGuard)
 @ApiTags('Users')
 @Controller('api/users')

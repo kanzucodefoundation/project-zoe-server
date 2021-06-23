@@ -6,6 +6,7 @@ import {
   Put,
   Query,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { ContactsService } from '../contacts.service';
@@ -21,7 +22,9 @@ import Company from '../entities/company.entity';
 import CompanyListDto from '../dto/company-list.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import ContactListDto from '../dto/contact-list.dto';
+import { SentryInterceptor } from 'src/utils/sentry.interceptor';
 
+@UseInterceptors(SentryInterceptor)
 @UseGuards(JwtAuthGuard)
 @ApiTags('Crm Companies')
 @Controller('api/crm/companies')
