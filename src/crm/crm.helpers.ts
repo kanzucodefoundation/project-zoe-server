@@ -7,11 +7,11 @@ import Address from './entities/address.entity';
 import Occasion from './entities/occasion.entity';
 import Identification from './entities/identification.entity';
 import { hasNoValue, hasValue } from 'src/utils/validation';
-
 import * as crypto from 'crypto';
 import Relationship from './entities/relationship.entity';
 import Request from './entities/request.entity';
 import Group from '../groups/entities/group.entity';
+import UserRoles from './entities/userRoles.entity';
 
 export const getPersonFullName = (person: Partial<Person>): string => {
   if (hasNoValue(person)) {
@@ -34,6 +34,7 @@ export const crmEntities = [
   Identification,
   Relationship,
   Request,
+  UserRoles,
 ];
 
 export const createAvatar = (email: string, size = 200) => {

@@ -52,6 +52,7 @@ export class AppModule {
     await this.seedService.createEventCategories();
     await this.seedService.createGroups();
     await this.seedService.createGroupCategoryReports();
+    await this.seedService.createRoleAdmin()
     Logger.log('#########Initialization complete############');
   }
 }

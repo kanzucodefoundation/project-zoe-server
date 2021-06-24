@@ -10,6 +10,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import eventCategories from './data/eventCategories';
 import GroupCategoryReport from 'src/groups/entities/groupCategoryReport.entity';
 import seedGroupReportCategories from './data/groupCategoryReports';
+import UserRoles from 'src/crm/entities/userRoles.entity';
 
 @Injectable()
 export class SeedService {
@@ -21,6 +22,8 @@ export class SeedService {
     private readonly eventCategoryRepository: Repository<EventCategory>,
     @InjectRepository(GroupCategoryReport)
     private readonly gCatReportRepository: Repository<GroupCategoryReport>,
+    @InjectRepository(UserRoles)
+    private readonly rolesRepository: Repository<UserRoles>,
   ) {}
 
   async createUsers() {
@@ -81,12 +84,34 @@ export class SeedService {
       Logger.debug(`${count} GroupReportCategories already exist`);
     } else {
       for (const rec of seedGroupReportCategories) {
-        
         await this.gCatReportRepository.save(rec);
       }
       Logger.debug(
         `${seedGroupReportCategories.length} GroupReportCategories created`,
       );
+    }
+  }
+
+  async createRoleAdmin() {
+    const role = {
+      roleName: 'RoleAdmin',
+      capabilities: ['ROLE_EDIT'],
+      isActive: true,
+    };
+    const checkadminRole = await this.rolesRepository.find({
+      where: { roleName: role.roleName, capabilities: role.capabilities[0] },
+    });
+
+    if (checkadminRole.length < 1) {
+      Logger.debug(`Creating the ${role.roleName} Role`);
+      const toSave = new UserRoles();
+      toSave.roleName = role.roleName;
+      toSave.capabilities = role.capabilities;
+      toSave.isActive = role.isActive;
+
+      await this.rolesRepository.save(toSave);
+    } else {
+      Logger.debug(`${role.roleName} Role already exist`);
     }
   }
 }
