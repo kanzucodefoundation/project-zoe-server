@@ -7,11 +7,17 @@ export class ContactSearchDto extends SearchDto {
   phone?: string;
 
   @Type(() => Number)
-  @IsArray()
   @IsNumber({}, { each: true })
   @IsOptional()
-  ageGroups?: number[];
+  @IsArray()
   cellGroups?: number[];
+  
+
+  @Type(() => Number)
+  @IsNumber({}, { each: true })
+  @IsOptional()
+  @IsArray()
+  ageGroups?: number[];
   churchLocations?: number[];
   skipUsers?: boolean;
 }
