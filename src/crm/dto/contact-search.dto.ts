@@ -5,6 +5,7 @@ import { Type } from 'class-transformer';
 export class ContactSearchDto extends SearchDto {
   email?: string;
   phone?: string;
+  skipUsers?: boolean;
 
   @Type(() => Number)
   @IsNumber({}, { each: true })
@@ -12,12 +13,15 @@ export class ContactSearchDto extends SearchDto {
   @IsArray()
   cellGroups?: number[];
   
-
   @Type(() => Number)
   @IsNumber({}, { each: true })
   @IsOptional()
   @IsArray()
   ageGroups?: number[];
+
+  @Type(() => Number)
+  @IsNumber({}, { each: true })
+  @IsOptional()
+  @IsArray()
   churchLocations?: number[];
-  skipUsers?: boolean;
 }
