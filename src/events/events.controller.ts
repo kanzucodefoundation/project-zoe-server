@@ -9,6 +9,7 @@ import {
   Query,
   Request,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { ApiTags } from '@nestjs/swagger';
@@ -16,7 +17,9 @@ import { EventsService } from './events.service';
 import GroupEventDto from './dto/group-event.dto';
 import CreateEventDto from './dto/create-event.dto';
 import GroupEventSearchDto from './dto/group-event-search.dto';
+import { SentryInterceptor } from 'src/utils/sentry.interceptor';
 
+@UseInterceptors(SentryInterceptor)
 @UseGuards(JwtAuthGuard)
 @ApiTags('Events')
 @Controller('api/events/event')
