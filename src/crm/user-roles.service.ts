@@ -32,20 +32,35 @@ export class UserRolesService {
   }
 
   async update(userRole: UserRoleDto): Promise<UserRoleDto> {
+    const checkRole = await this.repository.findOne({
+      where:{id:userRole.id}
+    })
+    if(checkRole.roleName === "RoleAdmin"){
+      throw new BadRequestException({
+        message:
+          'Unable to edit an Admin role. Contact your administrator',
+      });
+    }
         return await this.repository.save(userRole)
   }
 
-  async remove(id: number): Promise<void> {
+  async remove(roleId: number): Promise<void> {
     const checkRole = await this.repository.findOne({
-      select:['isActive'],
-      where:{id:id}
+      where:{id:roleId}
     })
+    if(checkRole.roleName === "RoleAdmin"){
+      throw new BadRequestException({
+        message:
+          'Unable to delete an Admin role. Contact your administrator',
+      });
+    }
+
     if(checkRole.isActive){
       throw new BadRequestException({
         message:
           'Unable to delete an active role. Make sure no users have been assigned this role',
       });
     }
-    await this.repository.delete(id);
+    await this.repository.delete(roleId);
   }
 }
