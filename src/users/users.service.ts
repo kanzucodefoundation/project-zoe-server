@@ -10,7 +10,7 @@ import Contact from '../crm/entities/contact.entity';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UserListDto } from './dto/user-list.dto';
 import { getPersonFullName } from '../crm/crm.helpers';
-
+import * as bcrypt from "bcrypt";
 import { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
 import { CreateUserDto } from './dto/create-user.dto';
 import { CreateUserResponseDto } from './dto/create-user-response.dto';
@@ -150,6 +150,15 @@ export class UsersService {
 
   async update(data: UpdateUserDto): Promise<UserListDto> {
     const _user = await this.findOne(data.id);
+
+    if(data.oldPassword) {
+      const oldPassword = await (await this.findByName(_user.username)).password;
+      const isSame = bcrypt.compareSync(data.oldPassword, oldPassword)
+      if (!isSame) {
+        throw new HttpException("Old Password Is Incorrect", 406);
+      }
+    }
+
     const update: QueryDeepPartialEntity<User> = {
       roles: data.roles,
       isActive: data.isActive ? data.isActive : _user.isActive,
