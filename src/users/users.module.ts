@@ -9,6 +9,8 @@ import { AppService } from 'src/app.service';
 import { JwtStrategy } from 'src/auth/strategies/jwt.strategy';
 import { JwtModule } from '@nestjs/jwt';
 import { jwtConstants } from 'src/auth/constants';
+import { RolesService } from './roles.service';
+import { RolesController } from './roles.controller';
 
 @Module({
   imports: [
@@ -19,12 +21,8 @@ import { jwtConstants } from 'src/auth/constants';
       signOptions: { expiresIn: '60m' },
     }),
   ],
-  providers: [UsersService, AppService, JwtStrategy],
+  providers: [UsersService, AppService, JwtStrategy, RolesService],
   exports: [UsersService],
-  controllers: [UsersController],
+  controllers: [UsersController, RolesController],
 })
 export class UsersModule {}
-
-
-
-

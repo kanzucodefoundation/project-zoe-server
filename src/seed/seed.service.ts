@@ -10,7 +10,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import eventCategories from './data/eventCategories';
 import GroupCategoryReport from 'src/groups/entities/groupCategoryReport.entity';
 import seedGroupReportCategories from './data/groupCategoryReports';
-import UserRoles from 'src/crm/entities/userRoles.entity';
+import Roles from 'src/users/entities/roles.entity';
+import { roleAdmin } from './data/rolesPermissions';
 
 @Injectable()
 export class SeedService {
@@ -22,8 +23,8 @@ export class SeedService {
     private readonly eventCategoryRepository: Repository<EventCategory>,
     @InjectRepository(GroupCategoryReport)
     private readonly gCatReportRepository: Repository<GroupCategoryReport>,
-    @InjectRepository(UserRoles)
-    private readonly rolesRepository: Repository<UserRoles>,
+    @InjectRepository(Roles)
+    private readonly rolesRepository: Repository<Roles>,
   ) {}
 
   async createUsers() {
@@ -93,25 +94,21 @@ export class SeedService {
   }
 
   async createRoleAdmin() {
-    const role = {
-      roleName: 'RoleAdmin',
-      capabilities: ['ROLE_EDIT'],
-      isActive: true,
-    };
     const checkadminRole = await this.rolesRepository.find({
-      where: { roleName: role.roleName, capabilities: role.capabilities[0] },
+      where: { role: roleAdmin.role, permissions: roleAdmin.permissions },
     });
 
     if (checkadminRole.length < 1) {
-      Logger.debug(`Creating the ${role.roleName} Role`);
-      const toSave = new UserRoles();
-      toSave.roleName = role.roleName;
-      toSave.capabilities = role.capabilities;
-      toSave.isActive = role.isActive;
+      Logger.debug(`Creating the ${roleAdmin.role} Role`);
+      const toSave = new Roles();
+      toSave.role = roleAdmin.role;
+      toSave.description = roleAdmin.description;
+      toSave.permissions = [roleAdmin.permissions];
+      toSave.isActive = roleAdmin.isActive;
 
       await this.rolesRepository.save(toSave);
     } else {
-      Logger.debug(`${role.roleName} Role already exist`);
+      Logger.debug(`${roleAdmin.role} Role already exist`);
     }
   }
 }

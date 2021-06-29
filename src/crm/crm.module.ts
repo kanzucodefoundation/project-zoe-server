@@ -20,8 +20,6 @@ import { GroupFinderService } from './group-finder/group-finder.service';
 import { appEntities } from '../config';
 import { PhonesService } from './phones.service';
 import { AddressesService } from './addresses.service';
-import { UserRolesController } from './contollers/user-roles.controller';
-import { UserRolesService } from './user-roles.service';
 
 @Global()
 @Module({
@@ -33,7 +31,6 @@ import { UserRolesService } from './user-roles.service';
     GroupFinderService,
     PhonesService,
     AddressesService,
-    UserRolesService,
   ],
   controllers: [
     ContactsController,
@@ -48,7 +45,6 @@ import { UserRolesService } from './user-roles.service';
     RequestsController,
     RegisterController,
     ContactImportController,
-    UserRolesController,
   ],
   exports: [ContactsService, GroupFinderService],
 })

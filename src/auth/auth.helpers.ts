@@ -1,4 +1,4 @@
-import { User } from '../users/user.entity';
+import { User } from '../users/entities/user.entity';
 import { UserDto } from './dto/user.dto';
 import { getPersonFullName } from '../crm/crm.helpers';
 

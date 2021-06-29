@@ -5,7 +5,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import Person from '../entities/person.entity';
 import { Repository } from 'typeorm';
 import { CreatePersonDto } from '../dto/create-person.dto';
-import { User } from '../../users/user.entity';
+import { User } from '../../users/entities/user.entity';
 import ContactListDto from '../dto/contact-list.dto';
 
 @ApiTags('Register')
