@@ -5,18 +5,23 @@ import { Type } from 'class-transformer';
 export class ContactSearchDto extends SearchDto {
   email?: string;
   phone?: string;
-
-  @Type(() => Number)
-  @IsArray()
-  @IsNumber({}, { each: true })
-  @IsOptional()
-  cellGroups?: number[];
-
-  @Type(() => Number)
-  @IsArray()
-  @IsNumber({}, { each: true })
-  @IsOptional()
-  ageGroups?: number[];
-  churchLocations?: number[];
   skipUsers?: boolean;
+
+  @Type(() => Number)
+  @IsNumber({}, { each: true })
+  @IsOptional()
+  @IsArray()
+  cellGroups?: number[];
+  
+  @Type(() => Number)
+  @IsNumber({}, { each: true })
+  @IsOptional()
+  @IsArray()
+  ageGroups?: number[];
+
+  @Type(() => Number)
+  @IsNumber({}, { each: true })
+  @IsOptional()
+  @IsArray()
+  churchLocations?: number[];
 }
