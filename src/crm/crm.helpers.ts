@@ -7,7 +7,6 @@ import Address from './entities/address.entity';
 import Occasion from './entities/occasion.entity';
 import Identification from './entities/identification.entity';
 import { hasNoValue, hasValue } from 'src/utils/validation';
-
 import * as crypto from 'crypto';
 import Relationship from './entities/relationship.entity';
 import Request from './entities/request.entity';

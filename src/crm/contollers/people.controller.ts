@@ -22,7 +22,7 @@ import { FindConditions } from 'typeorm/find-options/FindConditions';
 import { FileInterceptor } from '@nestjs/platform-express';
 import PersonListDto from '../dto/person-list.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
-import { User } from '../../users/user.entity';
+import { User } from '../../users/entities/user.entity';
 import ContactListDto from '../dto/contact-list.dto';
 import { PersonEditDto } from '../dto/person-edit.dto';
 import { SentryInterceptor } from 'src/utils/sentry.interceptor';
