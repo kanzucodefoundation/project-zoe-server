@@ -9,12 +9,17 @@ import { ForgotPasswordResponseDto } from './dto/forgot-password-response.dto';
 import { ResetPasswordResponseDto } from './dto/reset-password-response.dto';
 import { UpdateUserDto } from '../users/dto/update-user.dto';
 import { UserListDto } from 'src/users/dto/user-list.dto';
+import Roles from 'src/users/entities/roles.entity';
+import { In, Repository } from 'typeorm';
+import { InjectRepository } from '@nestjs/typeorm';
 
 @Injectable()
 export class AuthService {
   constructor(
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
+    @InjectRepository(Roles)
+    private readonly repository: Repository<Roles>
   ) {}
 
   async validateUser(username: string, pass: string): Promise<UserDto | null> {
@@ -40,7 +45,9 @@ export class AuthService {
   }
 
   async generateToken(user: UserDto | UserListDto): Promise<LoginResponseDto> {
-    const payload = { ...user, sub: user.id };
+    const userPermissions = await this.getPermissions(user.roles);
+    user.permissions = userPermissions;
+    const payload = { ...user, sub: user.id, permissions: userPermissions };
     const token = await this.jwtService.signAsync(payload);
     return { token, user };
   }
@@ -109,5 +116,16 @@ export class AuthService {
     } else {
       Logger.error('Email not sent');
     }
+  }
+
+  async getPermissions(roles: string[]) {
+    const permissions: string[] = [];
+
+    const getPermissions = await this.repository.find({
+      select: ["permissions"],
+      where: { role: In(roles), isActive: true },
+    });
+    getPermissions.map((it: any) => permissions.push(...it.permissions));
+    return [...new Set(permissions)];
   }
 }

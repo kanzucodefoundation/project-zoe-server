@@ -1,7 +1,7 @@
 import { RegisterUserDto } from '../../auth/dto/register-user.dto';
 import { Gender } from '../../crm/enums/gender';
 import { CivilStatus } from '../../crm/enums/civilStatus';
-import { rolesList } from '../../auth/constants';
+import { roleAdmin } from '../../auth/constants';
 
 export const seedUsers: RegisterUserDto[] = [
   {
@@ -14,7 +14,7 @@ export const seedUsers: RegisterUserDto[] = [
     phone: '0701035517',
     email: 'ekastimo@gmail.com',
     password: 'Xpass@123',
-    roles: rolesList,
+    roles: [roleAdmin.role],
   },
   {
     firstName: 'Peter',
@@ -26,6 +26,6 @@ export const seedUsers: RegisterUserDto[] = [
     phone: '0701035517',
     email: 'kakoma@kanzucode.com',
     password: 'Password@1',
-    roles: rolesList,
+    roles: [roleAdmin.role],
   },
 ];
