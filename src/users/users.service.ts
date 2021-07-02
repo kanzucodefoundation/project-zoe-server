@@ -15,10 +15,8 @@ import { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity
 import { CreateUserDto } from './dto/create-user.dto';
 import { CreateUserResponseDto } from './dto/create-user-response.dto';
 import { IEmail, sendEmail } from 'src/utils/mailerTest';
-import { JwtService } from '@nestjs/jwt';
-import { UserDto } from 'src/auth/dto/user.dto';
-import { LoginResponseDto } from 'src/auth/dto/login-response.dto';
 import { hasValue } from '../utils/validation';
+import { JwtHelperService } from 'src/auth/jwt-helpers.service';
 
 @Injectable()
 export class UsersService {
@@ -27,8 +25,8 @@ export class UsersService {
     private readonly repository: Repository<User>,
     @InjectRepository(Email)
     private readonly emailRepository: Repository<Email>,
-    private readonly jwtService: JwtService,
     private readonly contactsService: ContactsService,
+    private readonly jwtHelperService: JwtHelperService,
   ) {}
 
   async findAll(req: SearchDto): Promise<UserListDto[]> {
@@ -55,12 +53,6 @@ export class UsersService {
       contactId: user.contactId,
       fullName,
     };
-  }
-
-  async generateToken(user: UserDto): Promise<LoginResponseDto> {
-    const payload = { ...user, sub: user.id };
-    const token = await this.jwtService.signAsync(payload);
-    return { token, user };
   }
 
   async create(data: User): Promise<User> {
@@ -96,7 +88,7 @@ export class UsersService {
     }
 
     const token = (
-      await this.generateToken({
+      await this.jwtHelperService.generateToken({
         id: user.id,
         contactId: user.contactId,
         username: user.username,
@@ -113,13 +105,12 @@ export class UsersService {
       subject: 'Account Activated!',
       html: `
                 <h3>Hello ${user.fullName}</h3></br>
-                <h4>Your Account Has Been Activated!!<h4></br>
+                <h4>Your Account Has Been Created.<h4></br>
                 <h4>Follow This <a href=${resetLink}>Link</a> To Reset Your Password</h5>
-                <p>This link should expire in 10 minutes</p>
+                <p>This link will expire in 10 minutes</p>
             `,
     };
     const mailURL = await sendEmail(mailerData);
-
     return { token, mailURL, user };
   }
 

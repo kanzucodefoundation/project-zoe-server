@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Global, Module } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { usersEntities } from './users.helpers';
@@ -11,7 +11,9 @@ import { JwtModule } from '@nestjs/jwt';
 import { jwtConstants } from 'src/auth/constants';
 import { RolesService } from './roles.service';
 import { RolesController } from './roles.controller';
+import { JwtHelperService } from 'src/auth/jwt-helpers.service';
 
+@Global()
 @Module({
   imports: [
     TypeOrmModule.forFeature([...usersEntities, ...crmEntities]),
@@ -21,7 +23,7 @@ import { RolesController } from './roles.controller';
       signOptions: { expiresIn: '60m' },
     }),
   ],
-  providers: [UsersService, AppService, JwtStrategy, RolesService],
+  providers: [UsersService, AppService, JwtStrategy, RolesService, JwtHelperService],
   exports: [UsersService],
   controllers: [UsersController, RolesController],
 })

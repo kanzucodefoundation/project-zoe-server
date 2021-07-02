@@ -6,6 +6,7 @@ import { UsersModule } from '../users/users.module';
 import { PassportModule } from '@nestjs/passport';
 import { JwtModule } from '@nestjs/jwt';
 import { jwtConstants } from './constants';
+import { JwtHelperService } from './jwt-helpers.service';
 
 @Module({
   imports: [
@@ -16,7 +17,7 @@ import { jwtConstants } from './constants';
       signOptions: { expiresIn: '60m' },
     }),
   ],
-  providers: [AuthService, LocalStrategy, JwtStrategy],
-  exports: [AuthService],
+  providers: [AuthService, LocalStrategy, JwtStrategy, JwtHelperService],
+  exports: [AuthService, JwtHelperService],
 })
 export class AuthModule {}
