@@ -33,7 +33,7 @@ export class UsersController {
   }
 
   @Post()
-  async create(@Body() data: CreateUserDto): Promise<CreateUserResponseDto> {
+  async create(@Body() data: CreateUserDto): Promise<UserListDto> {
     return await this.service.createUser(data);
   }
 

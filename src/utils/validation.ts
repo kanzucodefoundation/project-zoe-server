@@ -1,4 +1,4 @@
-import { isArray as _isArray, isEmpty, isInteger, isNumber,  } from 'lodash';
+import { isArray as _isArray, isEmpty, isInteger, isNumber } from 'lodash';
 import { isDate } from 'date-fns';
 
 export const hasValue = (text: any) => {

@@ -1,8 +1,9 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { roleAdmin } from 'src/auth/constants';
 import SearchDto from 'src/shared/dto/search.dto';
 import { hasValue } from 'src/utils/validation';
-import { FindConditions, ILike, Repository } from 'typeorm';
+import { FindConditions, ILike, In, Repository } from 'typeorm';
 import { RolesDto } from './dto/roles.dto';
 import Roles from './entities/roles.entity';
 
@@ -14,6 +15,19 @@ export class RolesService {
   ) {}
 
   async create(userRole: RolesDto): Promise<RolesDto> {
+    const checkRole = await this.repository.findOne({
+      where: [
+        { role: userRole.role },
+        // { permissions: In(userRole.permissions) },
+      ],
+    });
+
+    if (checkRole) {
+      throw new BadRequestException({
+        message:
+          'Duplicate role or permission entry detected. Contact your administrator',
+      });
+    }
     return await this.repository.save(userRole);
   }
 
@@ -37,7 +51,7 @@ export class RolesService {
     const checkRole = await this.repository.findOne({
       where: { id: userRole.id },
     });
-    if (checkRole.role === 'RoleAdmin') {
+    if (checkRole.role === roleAdmin.role) {
       throw new BadRequestException({
         message: 'Unable to edit an Admin role. Contact your administrator',
       });
@@ -49,7 +63,7 @@ export class RolesService {
     const checkRole = await this.repository.findOne({
       where: { id: roleId },
     });
-    if (checkRole.role === 'RoleAdmin') {
+    if (checkRole.role === roleAdmin.role) {
       throw new BadRequestException({
         message: 'Unable to delete an Admin role. Contact your administrator',
       });
