@@ -1,4 +1,5 @@
 import {
+  BaseEntity,
   Column,
   Entity,
   JoinColumn,
@@ -14,7 +15,7 @@ import EventAttendance from './eventAttendance.entity';
 import Person from 'src/crm/entities/person.entity';
 
 @Entity({ name: 'events' })
-export default class GroupEvent {
+export default class GroupEvent extends BaseEntity {
   @PrimaryGeneratedColumn()
   id: number;
 
@@ -28,7 +29,7 @@ export default class GroupEvent {
   @Column({ length: 100 })
   name: string;
 
-  @Column({ length: 100, nullable: true})
+  @Column({ length: 100, nullable: true })
   summary?: string;
 
   @Column({ type: 'timestamp', nullable: true })

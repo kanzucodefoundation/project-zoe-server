@@ -30,6 +30,7 @@ import EventAttendanceSearchDto from './dto/event-attendance-search.dto';
 import { EventAttendanceDto } from './dto/event-attendance.dto';
 import { EventAttendanceCreateDto } from './dto/event-attendance-create.dto';
 import { SentryInterceptor } from 'src/utils/sentry.interceptor';
+import GroupCategory from '../groups/entities/groupCategory.entity';
 
 @UseInterceptors(SentryInterceptor)
 @UseGuards(JwtAuthGuard)
@@ -50,7 +51,7 @@ export class EventsAttendanceController {
   async findAll(
     @Query() req: EventAttendanceSearchDto,
   ): Promise<{
-    attendance: EventAttendance[];
+    attendance: Partial<EventAttendance>[];
     memberships: GroupMembershipDto[];
   }> {
     const filter = {};

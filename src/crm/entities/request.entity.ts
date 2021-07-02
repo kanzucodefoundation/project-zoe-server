@@ -1,4 +1,5 @@
 import {
+  BaseEntity,
   Column,
   Entity,
   JoinColumn,
@@ -9,7 +10,7 @@ import Contact from './contact.entity';
 import { OccasionCategory } from '../enums/occasionCategory';
 
 @Entity()
-export default class Request {
+export default class Request extends BaseEntity {
   @PrimaryGeneratedColumn()
   id: number;
 

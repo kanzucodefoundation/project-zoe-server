@@ -9,7 +9,6 @@ import config from './config';
 import { ValidationPipe } from '@nestjs/common';
 import { HttpExceptionFilter } from './auth/http-exception.filter';
 import * as Sentry from '@sentry/node';
-import { Integrations } from "@sentry/tracing";
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);

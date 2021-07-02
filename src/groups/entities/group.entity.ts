@@ -1,4 +1,5 @@
 import {
+  BaseEntity,
   Column,
   Entity,
   JoinColumn,
@@ -17,8 +18,8 @@ import GroupEvent from '../../events/entities/event.entity';
 import InternalAddress from '../../shared/entity/InternalAddress';
 
 @Entity()
-@Tree('closure-table')
-export default class Group {
+@Tree('closure-table', {})
+export default class Group extends BaseEntity {
   @PrimaryGeneratedColumn()
   id: number;
 

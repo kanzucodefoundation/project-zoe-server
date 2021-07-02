@@ -1,7 +1,15 @@
-import { Column, Entity, JoinColumn, OneToOne, PrimaryGeneratedColumn, Unique } from "typeorm";
-import * as bcrypt from "bcrypt";
-import Contact from "../crm/entities/contact.entity";
-import { hasValue } from "../utils/validation";
+import {
+  BaseEntity,
+  Column,
+  Entity,
+  JoinColumn,
+  OneToOne,
+  PrimaryGeneratedColumn,
+  Unique,
+} from 'typeorm';
+import * as bcrypt from 'bcrypt';
+import Contact from '../crm/entities/contact.entity';
+import { hasValue } from '../utils/validation';
 
 // authentication will take approximately 13 seconds
 // https://pthree.org/wp-content/uploads/2016/06/bcrypt.png
@@ -9,7 +17,7 @@ const hashCost = 10;
 
 @Entity()
 @Unique(['username'])
-export class User {
+export class User extends BaseEntity {
   @PrimaryGeneratedColumn()
   id: number;
 

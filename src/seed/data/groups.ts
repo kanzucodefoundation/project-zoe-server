@@ -49,7 +49,7 @@ export const createMc = ({
   };
 };
 
-export const seedGroupCategories: GroupCategory[] = [
+export const seedGroupCategories: Partial<GroupCategory>[] = [
   {
     id: groupConstants.cluster,
     name: 'Cluster',

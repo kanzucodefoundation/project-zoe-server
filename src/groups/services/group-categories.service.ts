@@ -18,7 +18,7 @@ export class GroupCategoriesService {
     });
   }
 
-  async create(data: GroupCategory): Promise<GroupCategory> {
+  async create(data: Partial<GroupCategory>): Promise<GroupCategory> {
     return await this.repository.save(data);
   }
 
@@ -26,7 +26,7 @@ export class GroupCategoriesService {
     return await this.repository.findOne(id);
   }
 
-  async update(data: GroupCategory): Promise<GroupCategory> {
+  async update(data: Partial<GroupCategory>): Promise<GroupCategory> {
     return await this.repository.save(data);
   }
 

@@ -1,4 +1,5 @@
 import {
+  BaseEntity,
   Column,
   Entity,
   JoinColumn,
@@ -11,7 +12,7 @@ import { GroupRole } from '../enums/groupRole';
 import Contact from '../../crm/entities/contact.entity';
 
 @Entity()
-export default class GroupMembership {
+export default class GroupMembership extends BaseEntity {
   @PrimaryGeneratedColumn()
   id: number;
 

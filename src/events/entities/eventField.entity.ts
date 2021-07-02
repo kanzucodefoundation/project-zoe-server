@@ -1,4 +1,5 @@
 import {
+  BaseEntity,
   Column,
   Entity,
   Index,
@@ -10,7 +11,7 @@ import EventCategory from './eventCategory.entity';
 
 @Entity()
 @Index(['name', 'categoryId'], { unique: true })
-export default class EventField {
+export default class EventField extends BaseEntity {
   @PrimaryGeneratedColumn()
   id: number;
 

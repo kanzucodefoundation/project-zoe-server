@@ -1,4 +1,5 @@
 import {
+  BaseEntity,
   Column,
   Entity,
   JoinColumn,
@@ -12,7 +13,7 @@ import { Gender } from '../enums/gender';
 import { CivilStatus } from '../enums/civilStatus';
 
 @Entity()
-export default class Person {
+export default class Person extends BaseEntity {
   @PrimaryGeneratedColumn()
   id: number;
   @Column({

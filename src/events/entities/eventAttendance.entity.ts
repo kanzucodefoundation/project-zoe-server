@@ -1,4 +1,5 @@
 import {
+  BaseEntity,
   Column,
   Entity,
   JoinColumn,
@@ -11,7 +12,7 @@ import Contact from '../../crm/entities/contact.entity';
 
 @Entity()
 @Unique(['eventId', 'contactId'])
-export default class EventAttendance {
+export default class EventAttendance extends BaseEntity {
   @PrimaryGeneratedColumn()
   id: number;
 

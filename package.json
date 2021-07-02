@@ -20,6 +20,9 @@
     "test:e2e": "jest --config ./test/jest-e2e.json"
   },
   "dependencies": {
+    "@adminjs/express": "^4.0.0",
+    "@adminjs/nestjs": "^2.0.0",
+    "@adminjs/typeorm": "^2.0.0",
     "@nestjs/common": "^7.6.13",
     "@nestjs/config": "^0.6.3",
     "@nestjs/core": "^7.6.13",
@@ -32,6 +35,7 @@
     "@prisma/client": "^2.18.0",
     "@sentry/node": "^6.7.2",
     "@sentry/tracing": "^6.7.2",
+    "adminjs": "^5.0.0",
     "bcrypt": "^4.0.1",
     "bcryptjs": "^2.4.3",
     "class-transformer": "^0.4.0",
@@ -40,6 +44,7 @@
     "crypto": "^1.0.1",
     "csv-parser": "^3.0.0",
     "date-fns": "^2.21.1",
+    "express-formidable": "^1.2.0",
     "express-rate-limit": "^5.1.1",
     "express-validator": "^6.10.0",
     "geolib": "^3.3.1",

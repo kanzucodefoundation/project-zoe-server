@@ -1,4 +1,5 @@
 import {
+  BaseEntity,
   Column,
   Entity,
   JoinColumn,
@@ -8,7 +9,7 @@ import {
 import Contact from './contact.entity';
 
 @Entity()
-export default class Company {
+export default class Company extends BaseEntity {
   @PrimaryGeneratedColumn()
   id: number;
 

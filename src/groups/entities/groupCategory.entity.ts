@@ -1,8 +1,8 @@
-import { Column, Entity, OneToMany, PrimaryColumn } from 'typeorm';
+import { BaseEntity, Column, Entity, OneToMany, PrimaryColumn } from 'typeorm';
 import Group from './group.entity';
 
 @Entity()
-export default class GroupCategory {
+export default class GroupCategory extends BaseEntity {
   @PrimaryColumn({ length: 40 })
   id: string;
 

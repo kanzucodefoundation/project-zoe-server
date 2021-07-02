@@ -1,4 +1,5 @@
 import {
+  BaseEntity,
   Column,
   Entity,
   JoinColumn,
@@ -21,7 +22,7 @@ import GroupMembershipRequest from '../../groups/entities/groupMembershipRequest
 import EventAttendance from '../../events/entities/eventAttendance.entity';
 
 @Entity()
-export default class Contact {
+export default class Contact extends BaseEntity {
   @PrimaryGeneratedColumn({ name: 'id' })
   id: number;
 

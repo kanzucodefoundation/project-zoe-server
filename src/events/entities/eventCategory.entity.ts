@@ -1,10 +1,17 @@
-import { Column, Entity, Index, OneToMany, PrimaryColumn } from 'typeorm';
+import {
+  BaseEntity,
+  Column,
+  Entity,
+  Index,
+  OneToMany,
+  PrimaryColumn,
+} from 'typeorm';
 import GroupEvent from './event.entity';
 import EventField from './eventField.entity';
 
 @Entity()
 @Index(['name'], { unique: true })
-export default class EventCategory {
+export default class EventCategory extends BaseEntity {
   @PrimaryColumn({ length: 40 })
   id: string;
 
@@ -20,5 +27,4 @@ export default class EventCategory {
     cascade: ['insert', 'remove'],
   })
   fields: EventField[];
-
- }
+}

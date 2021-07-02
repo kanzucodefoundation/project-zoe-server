@@ -1,4 +1,5 @@
 import {
+  BaseEntity,
   Column,
   Entity,
   JoinColumn,
@@ -9,7 +10,7 @@ import { GroupCategoryReportFrequency } from '../enums/groupCategoryReportFreque
 import GroupCategory from './groupCategory.entity';
 
 @Entity()
-export default class GroupCategoryReport {
+export default class GroupCategoryReport extends BaseEntity {
   @Column()
   @PrimaryGeneratedColumn()
   id: number;
