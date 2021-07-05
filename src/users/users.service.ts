@@ -100,8 +100,6 @@ export class UsersService {
       this.remove(saveUser.id);
       throw new HttpException('User Not Created', 400);
     } else {
-      //TODO @Herbert Add code to save the user roles using the saveUser.id ID returned
-
       this.saveUserRoles(saveUser.contactId, data.roles);
     }
 
@@ -164,8 +162,9 @@ export class UsersService {
   }
 
   async findOne(id: number): Promise<UserListDto> {
-    const data = await this.repository.findOne(id, {
+    const data = await this.repository.findOne({
       relations: ['contact', 'contact.person', 'userRoles', 'userRoles.roles'],
+      where: { id: id },
     });
 
     return this.toListModel(data);
@@ -184,7 +183,7 @@ export class UsersService {
     }
 
     const update: QueryDeepPartialEntity<User> = {
-      isActive: data.isActive ? data.isActive : _user.isActive,
+      isActive: data.isActive,
     };
 
     if (hasValue(data.password)) {
@@ -195,7 +194,7 @@ export class UsersService {
     }
 
     if (data.roles.length > 0) {
-      //USER DATA is source of truth for updating user roles
+      
       const dbUserRolesStrArr: string[] = [];
       const sentRolesStrArr: string[] = [];
       const getdbUserRoles = await this.userRolesRepository.find({
@@ -227,7 +226,7 @@ export class UsersService {
         );
 
         const toAdd = differenceBy(getRolesIds, currentDbRoles, 'role');
-        toAdd.map(async (it) => await this.saveUserRoles(data.id, [it.role]));
+        toAdd.map((it) => this.saveUserRoles(data.id, [it.role]));
       }
     }
 
@@ -238,8 +237,7 @@ export class UsersService {
       .where('id = :id', { id: data.id })
       .execute();
 
-    const updated = await this.findOne(data.id);
-    return updated;
+    return await this.findOne(data.id);
   }
 
   async remove(id: number): Promise<void> {
