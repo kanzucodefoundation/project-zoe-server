@@ -4,6 +4,7 @@ import {
   JoinColumn,
   OneToMany,
   OneToOne,
+  PrimaryColumn,
   PrimaryGeneratedColumn,
   Unique,
 } from 'typeorm';
@@ -19,7 +20,7 @@ const hashCost = 10;
 @Entity()
 @Unique(['username'])
 export class User {
-  @PrimaryGeneratedColumn()
+  @PrimaryColumn()
   id: number;
 
   @Column({ length: 40 })
@@ -34,9 +35,6 @@ export class User {
 
   @Column({ nullable: false })
   contactId: number;
-
-  @Column('simple-array', { nullable: false })
-  roles: string[];
 
   @Column()
   isActive: boolean;

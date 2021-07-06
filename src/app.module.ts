@@ -47,12 +47,12 @@ export class AppModule {
 
   async onModuleInit(): Promise<void> {
     Logger.log('#########Initializing application############');
+    await this.seedService.createRoleAdmin();
     await this.seedService.createUsers();
     await this.seedService.createGroupCategories();
     await this.seedService.createEventCategories();
     await this.seedService.createGroups();
     await this.seedService.createGroupCategoryReports();
-    await this.seedService.createRoleAdmin()
     Logger.log('#########Initialization complete############');
   }
 }
