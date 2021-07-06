@@ -20,7 +20,7 @@ const hashCost = 10;
 @Entity()
 @Unique(['username'])
 export class User {
-  @PrimaryColumn()
+  @PrimaryGeneratedColumn()
   id: number;
 
   @Column({ length: 40 })

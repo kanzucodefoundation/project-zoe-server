@@ -164,8 +164,7 @@ export class UsersService {
     const _user = await this.findOne(data.id);
 
     if (data.oldPassword) {
-      const oldPassword = await (await this.findByName(_user.username))
-        .password;
+      const oldPassword = (await this.findByName(_user.username)).password;
       const isSame = bcrypt.compareSync(data.oldPassword, oldPassword);
       if (!isSame) {
         throw new HttpException('Old Password Is Incorrect', 406);

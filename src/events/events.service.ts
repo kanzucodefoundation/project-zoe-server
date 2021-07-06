@@ -20,7 +20,6 @@ import InternalAddress from '../shared/entity/InternalAddress';
 import { getArray, hasValue, removeDuplicates } from 'src/utils/validation';
 import { UserDto } from '../auth/dto/user.dto';
 import EventMetricsDto from './dto/event-metrics-search.dto';
-import GroupReportDto from './dto/group-report.dto';
 import Group from 'src/groups/entities/group.entity';
 import { isDate } from 'lodash';
 import GroupEventSearchDto from './dto/group-event-search.dto';
@@ -45,10 +44,18 @@ export class EventsService {
     user: UserDto,
   ): Promise<GroupEventDto[]> {
     const filter: FindConditions<GroupEvent> = {};
-    
-    const membership = await this.membershipRepository.findOne({where: {contactId: user.contactId}, relations: ['group']});
-    const _descendants = await this.groupRepository.findDescendants(membership.group);
-    const descendants = _descendants.map((it) => it.id)
+    let descendants = [];
+    const membership = await this.membershipRepository.findOne({
+      where: { contactId: user.contactId },
+      relations: ['group'],
+    });
+    if (membership?.group) {
+      const _descendants = await this.groupRepository.findDescendants(
+        membership.group,
+      );
+      descendants = _descendants?.map((it) => it.id) ?? [];
+    }
+
     if (hasValue(req.groupIdList)) {
       filter.groupId = In(getArray(req.groupIdList));
     } else {

@@ -21,7 +21,7 @@ export class AuthService {
     private readonly jwtHelperService: JwtHelperService,
     private readonly jwtService: JwtService,
     @InjectRepository(Roles)
-    private readonly repository: Repository<Roles>,
+    private readonly rolesRepository: Repository<Roles>,
   ) {}
 
   async validateUser(username: string, pass: string): Promise<UserDto | null> {
@@ -30,16 +30,20 @@ export class AuthService {
       Logger.warn('invalid username: ', username);
       return null;
     }
-
+    console.log('Check if user is active', user.isActive);
     if (!user.isActive) {
       Logger.warn('User Inactive', username);
       return null;
     }
-
+    const roles = [];
+    user.userRoles.forEach((it) => roles.push(...it.roles.permissions));
+    console.log('Check if user is active', user.isActive);
     const valid = await user.validatePassword(pass);
     if (valid) {
       cleanUpUser(user);
-      return createUserDto(user);
+      const dto = createUserDto(user);
+      dto.permissions = roles;
+      return dto;
     } else {
       Logger.warn('invalid password: ', username);
       return null;
@@ -75,7 +79,7 @@ export class AuthService {
       html: `
             <h3>Hello ${user.fullName}</h3></br>
             <h4>Here is a link to reset your Password!<h4></br>
-            <a href=${resetLink}>Reset Password</a>
+            <a href="${resetLink}">Reset Password</a>
             <p>This link should expire in 10 minutes</p>
         `,
     };
@@ -123,7 +127,7 @@ export class AuthService {
   async getPermissions(roles: string[]) {
     const permissions: string[] = [];
 
-    const getPermissions = await this.repository.find({
+    const getPermissions = await this.rolesRepository.find({
       select: ['permissions'],
       where: { role: In(roles), isActive: true },
     });
