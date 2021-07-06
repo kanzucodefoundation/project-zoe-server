@@ -1,25 +1,27 @@
 import { HttpException, Injectable, Logger } from '@nestjs/common';
 import { UsersService } from '../users/users.service';
-import { JwtService } from '@nestjs/jwt';
 import { cleanUpUser, createUserDto } from './auth.helpers';
 import { UserDto } from './dto/user.dto';
-import { LoginResponseDto } from './dto/login-response.dto';
 import { IEmail, sendEmail } from 'src/utils/mailerTest';
 import { ForgotPasswordResponseDto } from './dto/forgot-password-response.dto';
 import { ResetPasswordResponseDto } from './dto/reset-password-response.dto';
 import { UpdateUserDto } from '../users/dto/update-user.dto';
+import { JwtHelperService } from './jwt-helpers.service';
 import { UserListDto } from 'src/users/dto/user-list.dto';
 import Roles from 'src/users/entities/roles.entity';
 import { In, Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 
+
 @Injectable()
 export class AuthService {
   constructor(
     private readonly usersService: UsersService,
+    private readonly jwtHelperService: JwtHelperService,
     private readonly jwtService: JwtService,
     @InjectRepository(Roles)
     private readonly repository: Repository<Roles>
+
   ) {}
 
   async validateUser(username: string, pass: string): Promise<UserDto | null> {
@@ -64,7 +66,7 @@ export class AuthService {
     }
 
     const user = await this.usersService.findOne(userExists.id);
-    const token = (await this.generateToken(user)).token;
+    const token = (await this.jwtHelperService.generateToken(user)).token;
     const resetLink = `${process.env.APP_URL}/#/reset-password/${token}`;
 
     const mailerData: IEmail = {
@@ -85,7 +87,7 @@ export class AuthService {
     token: string,
     newPassword: string,
   ): Promise<ResetPasswordResponseDto> {
-    const decodedToken = await this.decodeToken(token);
+    const decodedToken = await this.jwtHelperService.decodeToken(token);
     if (!decodedToken) {
       throw new HttpException('Incorrect Token, User not retrieved', 404);
     }
