@@ -11,7 +11,8 @@ import { UserListDto } from 'src/users/dto/user-list.dto';
 import Roles from 'src/users/entities/roles.entity';
 import { In, Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
-
+import { JwtService } from '@nestjs/jwt';
+import { LoginResponseDto } from './dto/login-response.dto';
 
 @Injectable()
 export class AuthService {
@@ -20,8 +21,7 @@ export class AuthService {
     private readonly jwtHelperService: JwtHelperService,
     private readonly jwtService: JwtService,
     @InjectRepository(Roles)
-    private readonly repository: Repository<Roles>
-
+    private readonly repository: Repository<Roles>,
   ) {}
 
   async validateUser(username: string, pass: string): Promise<UserDto | null> {
@@ -124,7 +124,7 @@ export class AuthService {
     const permissions: string[] = [];
 
     const getPermissions = await this.repository.find({
-      select: ["permissions"],
+      select: ['permissions'],
       where: { role: In(roles), isActive: true },
     });
     getPermissions.map((it: any) => permissions.push(...it.permissions));

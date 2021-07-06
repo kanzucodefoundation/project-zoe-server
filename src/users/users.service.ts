@@ -13,18 +13,12 @@ import { getPersonFullName } from '../crm/crm.helpers';
 import * as bcrypt from 'bcrypt';
 import { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
 import { CreateUserDto } from './dto/create-user.dto';
-import { CreateUserResponseDto } from './dto/create-user-response.dto';
 import { IEmail, sendEmail } from 'src/utils/mailerTest';
-import { hasValue } from '../utils/validation';
-import { JwtHelperService } from 'src/auth/jwt-helpers.service';
-import { JwtService } from '@nestjs/jwt';
-import { UserDto } from 'src/auth/dto/user.dto';
-import { LoginResponseDto } from 'src/auth/dto/login-response.dto';
 import { hasValue, isArray } from '../utils/validation';
+import { JwtHelperService } from 'src/auth/jwt-helpers.service';
 import Roles from './entities/roles.entity';
 import UserRoles from './entities/userRoles.entity';
-import { differenceBy, isEqual } from 'lodash';
-
+import { differenceBy } from 'lodash';
 
 @Injectable()
 export class UsersService {
@@ -39,7 +33,6 @@ export class UsersService {
     private readonly rolesRepository: Repository<Roles>,
     @InjectRepository(UserRoles)
     private readonly userRolesRepository: Repository<UserRoles>,
-
   ) {}
 
   async findAll(req: SearchDto): Promise<UserListDto[]> {
@@ -133,8 +126,8 @@ export class UsersService {
             `,
     };
     const mailURL = await sendEmail(mailerData);
-    return { token, mailURL, user };
-
+    // return { token, mailURL, user };
+    return user;
   }
 
   async register({
@@ -191,7 +184,6 @@ export class UsersService {
     }
 
     if (data.roles.length > 0) {
-      
       const dbUserRolesStrArr: string[] = [];
       const sentRolesStrArr: string[] = [];
       const getdbUserRoles = await this.userRolesRepository.find({
