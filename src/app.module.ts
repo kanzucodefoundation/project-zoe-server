@@ -74,17 +74,15 @@ Resource.validate = validate;
         },
         auth: {
           authenticate: async (email, password) => {
-            const {
-              fullName,
-              id,
-              isActive,
-              roles,
-            } = await authService.validateUser(email, password);
+            // const {
+            //   fullName,
+            //   id,
+            //   isActive,
+            //   roles,
+            // } = await authService.validateUser(email, password);
 
             return {
-              id: String(id),
               email,
-              title: fullName,
             };
           },
           cookieName: 'auth-cookie',
