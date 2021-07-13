@@ -24,7 +24,6 @@ import { ForgotPasswordResponseDto } from './dto/forgot-password-response.dto';
 import { ResetPasswordResponseDto } from './dto/reset-password-response.dto';
 import { isValidPassword } from 'src/utils/validation';
 import { SentryInterceptor } from 'src/utils/sentry.interceptor';
-import { JwtHelperService } from './jwt-helpers.service';
 
 @UseInterceptors(SentryInterceptor)
 @ApiTags('Index')
@@ -32,14 +31,13 @@ import { JwtHelperService } from './jwt-helpers.service';
 export class AuthController {
   constructor(
     private readonly authService: AuthService,
-    private readonly jwtHelperService: JwtHelperService,
   ) {}
 
   @ApiBody({ type: LoginDto })
   @UseGuards(LocalAuthGuard)
   @Post('login')
   async login(@Request() req): Promise<LoginResponseDto> {
-    return this.jwtHelperService.generateToken(req.user);
+    return this.authService.generateToken(req.user);
   }
 
   @UseGuards(JwtAuthGuard)
