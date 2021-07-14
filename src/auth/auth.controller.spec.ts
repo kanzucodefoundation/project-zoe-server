@@ -1,22 +1,55 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AuthController } from './auth.controller';
-import { AppService } from '../app.service';
+import { AuthService } from './auth.service';
 
 describe('AuthController', () => {
-  let authController: AuthController;
+  let controller: AuthController;
+
+  const mockAuthService = {
+    generateToken: jest.fn((dto) => {
+      return {
+        token: String(Date.now()),
+        user: {
+          ...dto
+        }
+      }
+    }),
+  }
 
   beforeEach(async () => {
-    const app: TestingModule = await Test.createTestingModule({
+
+    const module: TestingModule = await Test.createTestingModule({
       controllers: [AuthController],
-      providers: [AppService],
-    }).compile();
+      providers: [AuthService],
+    })
+      .overrideProvider(AuthService)
+      .useValue(mockAuthService)
+      .compile();
 
-    authController = app.get<AuthController>(AuthController);
+    controller = module.get<AuthController>(AuthController);
   });
 
-  describe('root', () => {
-    it('should return "Hello World!"', () => {
-      //expect(appController.getHello()).toBe('Hello World!');
-    });
-  });
-});
+  it('should be defined', () => {
+    expect(controller).toBeDefined(); 
+  })
+
+  it('should log user in', async () => {
+    const usr = {
+      id: Date.now(),
+      contactId: Date.now(),
+      username: "johndoe@test.com",
+      email: "johndoe@test.com",
+      fullName: "John Doe",
+      role: ['RoleAdmin'],
+      isActive: true,
+    };
+    const result = await controller.login({ user: usr });
+    expect(result).toEqual({
+      token: expect.any(String),
+      user: {
+        ...usr
+      }
+    })
+  })
+})
+
