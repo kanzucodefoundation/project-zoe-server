@@ -8,34 +8,30 @@ import { User } from './entities/user.entity';
 import { ContactsService } from '../crm/contacts.service';
 import { CrmModule } from '../crm/crm.module';
 import { UsersModule } from './users.module';
+import config, { appEntities } from 'src/config';
 
 describe('UsersService', () => {
   let service: UsersService;
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      imports: [
-        CrmModule,
-        UsersModule,
-        TypeOrmModule.forFeature([
-          ...usersEntities,
-          ...crmEntities,
-          ...groupEntities,
-        ]),
-      ],
-      providers: [UsersService, ContactsService],
+      imports: [UsersModule],
+      providers: [UsersService],
     }).compile();
 
     service = module.get<UsersService>(UsersService);
   });
 
-  it('should be defined', () => {
+  it('should be defined', async () => {
     expect(service).toBeDefined();
   });
 
   it('Create New user', async () => {
     const user = new User();
+    user.id = 1;
     user.username = 'test';
-    user.password = 'test';
+    user.password = 'testPassword';
+    user.contactId = 1;
+    user.isActive = true;
     const created = await service.create(user);
     console.log('Created', created);
     expect(created.id).toBeDefined();
