@@ -1,93 +1,55 @@
-import { Test, TestingModule } from "@nestjs/testing";
-import { GroupsMembershipService } from "../services/group-membership.service";
-import { GroupMembershipController } from "./group-membership.controller";
+import { Test, TestingModule } from '@nestjs/testing';
+import ComboDto from 'src/shared/dto/combo.dto';
+import { GroupsMembershipService } from '../services/group-membership.service';
+import { GroupMembershipController } from './group-membership.controller';
 
-describe('GroupMembershipController', () => {
-    let controller: GroupMembershipController;
+describe('Group membership controller', () => {
+  let controller: GroupMembershipController;
 
-    const mockGroupMembershipService = {
-        findAll: jest.fn((req) => {
-            return [
-                    {
-                    id: Date.now(),
-                    isInferred: true,
-                    group: {
-                        id: Date.now(),
-                        name: "Group B",
-                    },
-                    groupId: Date.now(),
-                    contact: {
-                        id: req.contactId,
-                        name: "John Doe",
-                    },
-                    contactId: Date.now(),
-                    role: "Leader",
-                    category: {
-                        id: Date.now(),
-                        name: "A Category"
-                    }
-                },
-                {
-                    id: Date.now(),
-                    isInferred: true,
-                    group: {
-                        id: Date.now(),
-                        name: "Group B",
-                    },
-                    groupId: Date.now(),
-                    contact: {
-                        id: req.contactId,
-                        name: "John Doe"
-                    },
-                    contactId: Date.now(),
-                    role: "Member",
-                },
-            ];
-        })
-    };
+  const mockGroupsMembershipService = {
+    findAll: jest.fn((dto) => {
+      return {
+        id: expect.any(Number),
+        isInferred: true,
+        group: new ComboDto(),
+        groupId: Math.floor(Math.random() * 1000),
+        contact: new ComboDto(),
+        contactId: Math.floor(Math.random() * 1000),
+        role: 'Leader',
+        category: new ComboDto(),
+      };
+    }),
+  };
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      controllers: [GroupMembershipController],
+      providers: [GroupsMembershipService],
+    })
+      .overrideProvider(GroupsMembershipService)
+      .useValue(mockGroupsMembershipService)
+      .compile();
 
-    beforeEach(async () => {
-        const module: TestingModule = await Test.createTestingModule({
-            controllers: [GroupMembershipController],
-            providers: [GroupsMembershipService],
-        })
-            .overrideProvider(GroupsMembershipService)
-            .useValue(mockGroupMembershipService)
-            .compile();
-        
-        controller = module.get<GroupMembershipController>(GroupMembershipController)
+    controller = module.get<GroupMembershipController>(
+      GroupMembershipController,
+    );
+  });
+
+  it('should be defined', () => {
+    expect(controller).toBeDefined();
+  });
+
+  it('Should return list of groups for user', async () => {
+    const dto = { contactId: 1 };
+    const result = await controller.findAll(dto);
+    expect(result).toEqual({
+      id: expect.any(Number),
+      isInferred: expect.any(Boolean),
+      group: expect.any(ComboDto),
+      groupId: expect.any(Number),
+      contact: expect.any(ComboDto),
+      contactId: expect.any(Number),
+      role: expect.any(String),
+      category: expect.any(ComboDto),
     });
-
-    it('should be defined', () => {
-        expect(controller).toBeDefined()
-    });
-
-    it('should list all groups a user belongs to', async () => {
-
-        const dto = {
-            contactId: Date.now()
-        }
-
-        const expectedObj = {
-            id: expect.any(Number) || undefined,
-            isInferred: expect.any(Boolean),
-            group: {
-                id: expect.any(Number),
-                name: expect.any(String),
-            },
-            groupId: expect.any(Number),
-            contact: {
-                id: dto.contactId,
-                name: expect.any(String)
-            },
-            contactId: expect.any(Number),
-            role: expect.any(String),
-        }
-
-        const result = await controller.findAll(dto);
-        result.forEach((it) => {
-            expect(it).toMatchObject(expectedObj)
-        })
-    });
-})
-
+  });
+});
