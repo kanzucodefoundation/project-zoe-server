@@ -2,6 +2,8 @@ import { Test, TestingModule } from '@nestjs/testing';
 import ComboDto from 'src/shared/dto/combo.dto';
 import { GroupsMembershipService } from '../services/group-membership.service';
 import { GroupMembershipController } from './group-membership.controller';
+import BatchGroupMembershipDto from '../dto/membership/batch-group-membership.dto';
+import { GroupRole } from '../enums/groupRole';
 
 describe('Group membership controller', () => {
   let controller: GroupMembershipController;
@@ -18,6 +20,9 @@ describe('Group membership controller', () => {
         role: 'Leader',
         category: new ComboDto(),
       };
+    }),
+    create: jest.fn((data) => {
+      return data.members.length;
     }),
   };
   beforeEach(async () => {
@@ -51,5 +56,21 @@ describe('Group membership controller', () => {
       role: expect.any(String),
       category: expect.any(ComboDto),
     });
+  });
+
+  it('Should assign a signed-up member/s to a group', async () => {
+    const randomNumber = () => Math.floor(Math.random() * 10000);
+    const data: BatchGroupMembershipDto = {
+      groupId: randomNumber(),
+      members: [randomNumber(), randomNumber(), randomNumber(), randomNumber()],
+      role: GroupRole.Leader,
+    };
+
+    const membersAdd = await controller.create(data);
+    const finalResult = {
+      message: 'Operation succeeded',
+      inserted: expect.any(Number),
+    };
+    expect(membersAdd).toEqual(finalResult);
   });
 });
