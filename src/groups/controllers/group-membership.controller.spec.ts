@@ -7,7 +7,7 @@ describe('Group Membership', () => {
     let controller: GroupMembershipController;
 
     const mockGroupMembershipService = {
-        /*findAll: jest.fn((dto) => {
+        findAll: jest.fn((dto) => {
           return {
             id: expect.any(Number),
             isInferred: true,
@@ -18,7 +18,7 @@ describe('Group Membership', () => {
             role: 'Leader',
             category: new ComboDto(),
           };
-        }),*/
+        }),
         create: jest.fn((dto) => {
             return dto.members.length;
         }),
@@ -42,6 +42,22 @@ describe('Group Membership', () => {
     it('should be defined', () => {
         expect(controller).toBeDefined();
     });
+    
+    it('Should return list of groups for user', async () => {
+        const dto = { contactId: 1 };
+        const result = await controller.findAll(dto);
+        expect(result).toEqual({
+            id: expect.any(Number),
+            isInferred: expect.any(Boolean),
+            group: expect.any(ComboDto),
+            groupId: expect.any(Number),
+            contact: expect.any(ComboDto),
+            contactId: expect.any(Number),
+            role: expect.any(String),
+            category: expect.any(ComboDto),
+          });
+        });
+    });
 
     it('should create a team/group member', async () => {
         const dto = {
@@ -64,20 +80,4 @@ describe('Group Membership', () => {
         const result = await controller.remove(Date.now());
         expect(result).toBeUndefined();
     });
-  
-    /*it('Should return list of groups for user', async () => {
-        const dto = { contactId: 1 };
-        const result = await controller.findAll(dto);
-        expect(result).toEqual({
-            id: expect.any(Number),
-            isInferred: expect.any(Boolean),
-            group: expect.any(ComboDto),
-            groupId: expect.any(Number),
-            contact: expect.any(ComboDto),
-            contactId: expect.any(Number),
-            role: expect.any(String),
-            category: expect.any(ComboDto),
-          });
-        });
-    });*/
 });
