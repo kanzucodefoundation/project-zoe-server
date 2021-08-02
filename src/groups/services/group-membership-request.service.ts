@@ -47,7 +47,7 @@ export class GroupMembershipRequestService {
       group: {
         id: group.id,
         name: group.name,
-        parent: parent
+        parent: group.parent
           ? { id: group.parent.id, name: group.parent.name }
           : null,
       },
@@ -77,15 +77,15 @@ export class GroupMembershipRequestService {
     };
 
     const info = await this.contactService.getClosestGroups(groupDetails);
-
-    const result = await this.repository
+    
+    await this.repository
       .createQueryBuilder()
       .insert()
       .values({
         contactId: data.contactId,
         parentId: data.churchLocation,
         groupId: info.groupId,
-        distanceKm: info.distance / 1000,
+        distanceKm: Math.round(info.distance / 1000),
       })
       .execute();
 
@@ -117,11 +117,13 @@ export class GroupMembershipRequestService {
   }
 
   async findOne(id: number): Promise<GroupMembershipRequestDto> {
-    return this.toDto(
-      await this.repository.findOne(id, {
-        relations: ['contact', 'contact.person', 'group'],
-      }),
+    const request = await this.repository.findOne(id, 
+      {relations: ['contact', 'contact.person', 'group'],}
     );
+    if (!request) {
+      new HttpException("No Such Request Found", 401)
+    }
+    return this.toDto(request);
   }
 
   async remove(id: number): Promise<void> {

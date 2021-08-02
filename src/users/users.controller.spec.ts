@@ -14,6 +14,21 @@ describe('Users Controller', () => {
         ...dto,
       };
     }),
+    update: jest.fn((dto) => {
+      return {
+        id: dto.id,
+        username: "janedoe@testemail.com",
+        fullName: "Jane Doe",
+        contactId: Math.floor(Math.random() * 10),
+        contact: {
+          id: Math.floor(Math.random() * 10),
+          name: "Jane Doe"
+        },
+        avatar: "http://avatar.com/104",
+        roles: dto.roles,
+        isActive: dto.isActive
+      };
+    }),
   };
 
   beforeEach(async () => {
@@ -49,4 +64,30 @@ describe('Users Controller', () => {
       avatar: expect.any(String),
     });
   });
+
+  it('should edit the details of a user', async () => {
+    const dto = {
+      id: Math.floor(Math.random() * 10),
+      roles: ['RoleAdmin', 'USER_EDIT'],
+      isActive: true,
+    }
+
+    const expectedObj = {
+      id: dto.id,
+      roles: dto.roles,
+      isActive: dto.isActive,
+      username: expect.any(String),
+      fullName: expect.any(String),
+      contactId: expect.any(Number),
+      contact: {
+        id: expect.any(Number),
+        name: expect.any(String),
+      },
+      avatar: expect.any(String),
+    }
+
+    const result = await controller.update(dto);
+    expect(result).toStrictEqual(expectedObj);
+  });
+
 });

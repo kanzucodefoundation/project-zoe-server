@@ -45,22 +45,22 @@ describe('GroupController', () => {
 
     it('should update a team/group', async () => {
         const dto = {
-            id: Date.now(),
+            id: Math.floor(Math.random() * 10),
             privacy: GroupPrivacy.Public,
             name: "Group A",
             details: "Details of Group A",
-            categoryId: String(Date.now()),
-            parentId: Date.now(),
+            categoryId: Date.name,
+            parentId: Math.floor(Math.random() * 10),
             metaData: {},
             address: {
                 country: "Uganda",
                 district: "Kampala" ,
-                placeId: String(Date.now()),
+                placeId: Date.name,
                 name: "A Random Place",
-                latitude: Date.now(),
-                longitude: Date.now(),
-                geoCoordinates: String(Date.now()),
-                vicinity: String(Date.now())
+                latitude: Math.floor(Math.random() * 10),
+                longitude: Math.floor(Math.random() * 10),
+                geoCoordinates: Date.name,
+                vicinity: Date.name
             },
         };
 

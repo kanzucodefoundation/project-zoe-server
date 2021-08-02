@@ -8,7 +8,7 @@ describe('AuthController', () => {
   const mockAuthService = {
     generateToken: jest.fn((dto) => {
       return {
-        token: String(Date.now()),
+        token: Date.name,
         user: {
           ...dto
         }
@@ -35,8 +35,8 @@ describe('AuthController', () => {
 
   it('should log user in', async () => {
     const usr = {
-      id: Date.now(),
-      contactId: Date.now(),
+      id: Math.floor(Math.random() * 10),
+      contactId: Math.floor(Math.random() * 10),
       username: "johndoe@test.com",
       email: "johndoe@test.com",
       fullName: "John Doe",

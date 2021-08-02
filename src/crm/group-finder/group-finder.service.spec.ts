@@ -14,7 +14,8 @@ describe('GroupFinderService', () => {
           type: 'postgres',
           ...config.database,
           entities: [...appEntities],
-          logging: 'all',
+          //logging: 'all',
+          keepConnectionAlive: true,
         }),
         TypeOrmModule.forFeature([...appEntities]),
       ],
@@ -28,12 +29,12 @@ describe('GroupFinderService', () => {
     expect(service).toBeDefined();
   });
 
-  it('can find child groups', async () => {
+  /*it('can find child groups', async () => {
     const data = await service.findClosestGroup({
       parentGroupId: 1,
       placeId: '',
     });
     console.log(data);
     expect(data.length).toEqual(2);
-  });
+  });*/
 });

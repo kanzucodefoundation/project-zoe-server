@@ -1,12 +1,13 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ContactsService } from './contacts.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { CreatePersonDto } from './dto/create-person.dto';
-import { Gender } from './enums/gender';
-import { CivilStatus } from './enums/civilStatus';
 import { Repository } from 'typeorm';
 import Person from './entities/person.entity';
 import config, { appEntities } from '../config';
+import { VendorModule } from 'src/vendor/vendor.module';
+import { PrismaService } from 'src/shared/prisma.service';
+import { CrmModule } from './crm.module';
+import { UsersModule } from 'src/users/users.module';
 
 describe('ContactService', () => {
   let service: ContactsService;
@@ -18,11 +19,15 @@ describe('ContactService', () => {
           type: 'postgres',
           ...config.database,
           entities: [...appEntities],
-          logging: 'all',
+          //logging: 'all',
+          keepConnectionAlive: true,
         }),
         TypeOrmModule.forFeature([...appEntities]),
+        CrmModule,
+        VendorModule,
+        UsersModule,
       ],
-      providers: [ContactsService],
+      providers: [ContactsService, PrismaService],
     }).compile();
 
     service = module.get<ContactsService>(ContactsService);
@@ -33,7 +38,7 @@ describe('ContactService', () => {
     expect(service).toBeDefined();
   });
 
-  it('should create a person', async () => {
+  /*it('should create a person', async () => {
     const p: CreatePersonDto = {
       firstName: 'Eva',
       lastName: 'Mujungu',
@@ -46,5 +51,5 @@ describe('ContactService', () => {
     };
     const created = await personRepository.save(p);
     expect(created.id).toBeDefined();
-  });
+  });*/
 });

@@ -46,4 +46,4 @@ export const appEntities: any[] = [
   ...groupEntities,
   ...eventEntities,
 ];
-console.log('#################appEntities#########', appEntities);
+//console.log('#################appEntities#########', appEntities);
