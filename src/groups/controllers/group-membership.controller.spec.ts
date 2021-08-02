@@ -7,6 +7,18 @@ describe('Group Membership', () => {
     let controller: GroupMembershipController;
 
     const mockGroupMembershipService = {
+        /*findAll: jest.fn((dto) => {
+          return {
+            id: expect.any(Number),
+            isInferred: true,
+            group: new ComboDto(),
+            groupId: Math.floor(Math.random() * 1000),
+            contact: new ComboDto(),
+            contactId: Math.floor(Math.random() * 1000),
+            role: 'Leader',
+            category: new ComboDto(),
+          };
+        }),*/
         create: jest.fn((dto) => {
             return dto.members.length;
         }),
@@ -52,5 +64,20 @@ describe('Group Membership', () => {
         const result = await controller.remove(Date.now());
         expect(result).toBeUndefined();
     });
+  
+    /*it('Should return list of groups for user', async () => {
+        const dto = { contactId: 1 };
+        const result = await controller.findAll(dto);
+        expect(result).toEqual({
+            id: expect.any(Number),
+            isInferred: expect.any(Boolean),
+            group: expect.any(ComboDto),
+            groupId: expect.any(Number),
+            contact: expect.any(ComboDto),
+            contactId: expect.any(Number),
+            role: expect.any(String),
+            category: expect.any(ComboDto),
+          });
+        });
+    });*/
 });
-
