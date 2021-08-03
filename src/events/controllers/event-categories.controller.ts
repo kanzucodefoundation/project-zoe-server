@@ -9,10 +9,10 @@ import {
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { ApiTags } from '@nestjs/swagger';
 import { InjectRepository } from '@nestjs/typeorm';
-import EventCategory from './entities/eventCategory.entity';
+import EventCategory from '../entities/eventCategory.entity';
 import { Repository } from 'typeorm';
 import { SentryInterceptor } from 'src/utils/sentry.interceptor';
 

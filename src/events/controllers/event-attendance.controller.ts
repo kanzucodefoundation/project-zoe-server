@@ -13,22 +13,22 @@ import {
   UsePipes,
   ValidationPipe,
 } from '@nestjs/common';
-import { PrismaService } from '../shared/prisma.service';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { PrismaService } from '../../shared/prisma.service';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { ApiTags } from '@nestjs/swagger';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import EventAttendance from './entities/eventAttendance.entity';
-import GroupEvent from './entities/event.entity';
+import EventAttendance from '../entities/eventAttendance.entity';
+import GroupEvent from '../entities/event.entity';
 import { FindConditions } from 'typeorm/find-options/FindConditions';
-import { hasValue } from '../utils/validation';
-import GroupMembership from '../groups/entities/groupMembership.entity';
-import GroupMembershipDto from '../groups/dto/membership/group-membership.dto';
-import { getPersonFullName } from '../crm/crm.helpers';
-import { GroupRole } from '../groups/enums/groupRole';
-import EventAttendanceSearchDto from './dto/event-attendance-search.dto';
-import { EventAttendanceDto } from './dto/event-attendance.dto';
-import { EventAttendanceCreateDto } from './dto/event-attendance-create.dto';
+import { hasValue } from '../../utils/validation';
+import GroupMembership from '../../groups/entities/groupMembership.entity';
+import GroupMembershipDto from '../../groups/dto/membership/group-membership.dto';
+import { getPersonFullName } from '../../crm/crm.helpers';
+import { GroupRole } from '../../groups/enums/groupRole';
+import EventAttendanceSearchDto from '../dto/event-attendance-search.dto';
+import { EventAttendanceDto } from '../dto/event-attendance.dto';
+import { EventAttendanceCreateDto } from '../dto/event-attendance-create.dto';
 import { SentryInterceptor } from 'src/utils/sentry.interceptor';
 
 @UseInterceptors(SentryInterceptor)

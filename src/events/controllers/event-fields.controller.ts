@@ -10,14 +10,14 @@ import {
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { ApiTags } from '@nestjs/swagger';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import EventField from './entities/eventField.entity';
-import EventFieldSearchDto from './dto/event-field-search.dto';
+import EventField from '../entities/eventField.entity';
+import EventFieldSearchDto from '../dto/event-field-search.dto';
 import { FindConditions } from 'typeorm/find-options/FindConditions';
-import { hasValue } from '../utils/validation';
+import { hasValue } from '../../utils/validation';
 import { SentryInterceptor } from 'src/utils/sentry.interceptor';
 
 @UseInterceptors(SentryInterceptor)

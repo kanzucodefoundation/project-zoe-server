@@ -1,8 +1,8 @@
 import { Controller, Get, Query, Request, UseGuards, UseInterceptors } from '@nestjs/common';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { ApiTags } from '@nestjs/swagger';
-import EventMetricsDto from './dto/event-metrics-search.dto';
-import { EventsService } from './events.service';
+import EventMetricsDto from '../dto/event-metrics-search.dto';
+import { EventsService } from '../events.service';
 import { SentryInterceptor } from 'src/utils/sentry.interceptor';
 
 @UseInterceptors(SentryInterceptor)

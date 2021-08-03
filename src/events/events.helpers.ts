@@ -8,4 +8,5 @@ export const eventEntities = [
   EventCategory,
   EventField,
   EventAttendance,
+  
 ];
