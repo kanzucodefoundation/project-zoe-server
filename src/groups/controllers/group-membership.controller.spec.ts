@@ -38,7 +38,7 @@ describe('Group membership controller', () => {
     expect(controller).toBeDefined();
   });
 
-  it('Should return list of groups for user', async () => {
+  it('Should return list of group memberships for a user', async () => {
     const dto = { contactId: 1 };
     const result = await controller.findAll(dto);
     expect(result).toEqual({
