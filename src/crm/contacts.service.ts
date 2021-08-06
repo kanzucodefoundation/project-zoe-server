@@ -257,7 +257,7 @@ export class ContactsService {
         if (hasValue(closestGroup)) {
           groupRequest.parentId = details.parentGroupId;
           groupRequest.groupId = closestGroup.groupId;
-          groupRequest.distanceKm = closestGroup.distance / 1000;
+          groupRequest.distanceKm = Math.round(closestGroup.distance / 1000);
           groupMembershipRequests.push(groupRequest);
           await this.notifyLeader(closestGroup, createPersonDto);
         }
