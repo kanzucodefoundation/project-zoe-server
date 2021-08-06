@@ -13,14 +13,21 @@ import { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity
 import { hasNoValue, hasValue } from '../../utils/validation';
 import Group from '../entities/group.entity';
 import { groupConstants } from '../../seed/data/groups';
+import Contact from 'src/crm/entities/contact.entity';
+import { IEmail, sendEmail } from 'src/utils/mailerTest';
+import Email from 'src/crm/entities/email.entity';
 
 @Injectable()
 export class GroupsMembershipService {
   constructor(
     @InjectRepository(GroupMembership)
     private readonly repository: Repository<GroupMembership>,
+    @InjectRepository(Email)
+    private readonly emailRepository: Repository<Email>,
     @InjectRepository(Group)
     private readonly groupTreeRepository: TreeRepository<Group>,
+    @InjectRepository(Contact)
+    private readonly contactRepository: Repository<Contact>,
     private connection: Connection,
   ) {}
 
@@ -69,7 +76,9 @@ export class GroupsMembershipService {
   async create(data: BatchGroupMembershipDto): Promise<number> {
     const { groupId, members, role } = data;
     const toInsert: QueryDeepPartialEntity<GroupMembership>[] = [];
+    let personId;
     members.forEach((contactId) => {
+      personId = contactId;
       toInsert.push({ groupId, contactId, role });
     });
     await this.repository
@@ -78,7 +87,39 @@ export class GroupsMembershipService {
       .into(GroupMembership)
       .values(toInsert)
       .execute();
+    //Send notifications to member
+    this.sendMailToMember(personId);
     return members.length;
+  }
+
+  //Send an email
+  async sendMailToMember(personId: number): Promise<void> {
+    try {
+      const user = await this.contactRepository.findOne(personId, {
+        relations: ['person'],
+      });
+
+      //Find all from email repository given contactId
+      const mailAddress = await this.emailRepository.findOne({
+        where: [{ contactId: personId }],
+      });
+      const memberEmail = mailAddress.value;
+
+      const mailerData: IEmail = {
+        to: `${memberEmail}`,
+        subject: 'Approval of your Request to join an MC',
+        html: `
+        <h3>Hello ${user.person.firstName} ${user.person.lastName},</h3></br>
+        <h4>Your Request to join a Missional Community has been Approved.<h4></br>
+        
+        <p>Cheers!</p>
+        `,
+      };
+      await sendEmail(mailerData);
+      console.log('Email sent successfully.');
+    } catch (error) {
+      Logger.log(error);
+    }
   }
 
   async findOne(id: number): Promise<GroupMembershipDto> {
