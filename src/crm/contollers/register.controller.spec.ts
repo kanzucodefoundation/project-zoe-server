@@ -5,7 +5,7 @@ import { CivilStatus } from '../enums/civilStatus';
 import { Gender } from '../enums/gender';
 import { RegisterController } from './register.controller';
 
-describe('Crm Controller', () => {
+describe('Register Controller', () => {
   let controller: RegisterController;
 
   const mockContactsService = {
