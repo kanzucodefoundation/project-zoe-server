@@ -19,6 +19,7 @@ import { JwtHelperService } from 'src/auth/jwt-helpers.service';
 import Roles from './entities/roles.entity';
 import UserRoles from './entities/userRoles.entity';
 import { differenceBy } from 'lodash';
+import { CreatePersonDto } from 'src/crm/dto/create-person.dto';
 
 @Injectable()
 export class UsersService {
@@ -260,6 +261,20 @@ export class UsersService {
         throw new HttpException(`Failed To Create User Roles`, 400);
       }
     });
+  }
+
+  async registerUser(data: CreatePersonDto){
+    const _contact = await this.contactsService.createPerson(data);
+    const contact = await ContactsService.toListDto(_contact);
+    await this.createUser({
+      contactId: contact.id,
+      username: contact.email,
+      password: "12345678",
+      roles: ["DASHBOARD", "USER_VIEW"],
+      isActive: true,
+    });
+    console.log(contact)
+    return contact;
   }
 
   compareArrays(a: any[], b: any[]) {
