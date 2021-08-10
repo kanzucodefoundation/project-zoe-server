@@ -12,10 +12,12 @@ import Group from '../../groups/entities/group.entity';
 import InternalAddress from '../../shared/entity/InternalAddress';
 import EventAttendance from './eventAttendance.entity';
 import Person from 'src/crm/entities/person.entity';
+import { EventActivity } from './event-activity.entity';
 
 @Entity({ name: 'events' })
 export default class GroupEvent {
   @PrimaryGeneratedColumn()
+  
   id: number;
 
   @Column({
@@ -71,6 +73,8 @@ export default class GroupEvent {
   @OneToMany((type) => EventAttendance, (it) => it.event)
   attendance: EventAttendance[];
 
+  @OneToMany((type) => EventActivity, (it) => it.event)
+  activity: EventActivity[];
   @Column({
     nullable: true,
     type: 'jsonb',

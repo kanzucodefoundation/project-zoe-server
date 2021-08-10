@@ -1,36 +1,67 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { CreateEventActivityDto } from '../events/dto/create-event-activity.dto';
 import { UpdateEventActivityDto } from './dto/update-event-activity.dto';
-import { EventActivity } from './entities/event-activity.entity';
-import { EventActivityRepository } from '../events/event-activities-repository';
+
 import { Repository } from 'typeorm';
+import { EventActivity } from './entities/event-activity.entity';
 
 @Injectable()
 export class EventActivitiesService {
   constructor(
     @InjectRepository(EventActivity)
-    private readonly eventActivityRepository:Repository <EventActivity>,
+    private readonly repository: Repository<EventActivity>,
   ) {}
+    
+  async create(data: CreateEventActivityDto) {
+    const result = await this.repository
+      .createQueryBuilder()
+      .insert()
+      .values({
+        name: data.name,
+        eventId: data.eventId,
+      
 
-  create(EventActivity: CreateEventActivityDto):Promise<CreateEventActivityDto  | any >  {
-
-    return `This action adds a new eventActivity`;
+      })
+      .execute();
+      console.log("creatingdata");
+  
+    return result;
+   
   }
 
   findAll() {
     return `This action returns all eventActivities`;
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} eventActivity`;
+  async findOne(id: number):Promise<CreateEventActivityDto>{
+    console.log("finding one");
+    const data = await this.repository.findOne(id);
+    return data;
   }
 
-  update(id: number, updateEventActivityDto: UpdateEventActivityDto) {
-    return `This action updates a #${id} eventActivity`;
+  async update(dto: UpdateEventActivityDto): Promise< UpdateEventActivityDto>{
+    console.log("updating activity");
+    const result = await this.repository
+      .createQueryBuilder()
+      .update(EventActivity)
+      .set({
+        ...dto,
+      })
+      .where('id = :id', { id: dto.id})
+      .execute();
+    if (result.affected)
+      Logger.log(
+        `Update.EventActivity eventId:${dto.id} affected:${result.affected} complete`,
+      );
+    return await this.findOne(dto.id);
+      
+    
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} eventActivity`;
+  async remove(id: number):Promise<void> {
+    console.log("removing an activity");
+    await this.repository.delete(id);
+   
   }
 }

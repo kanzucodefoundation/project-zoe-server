@@ -1,9 +1,11 @@
 
 export class CreateEventActivityDto {
 
-    eventActivityId: number;
-    eventName:string
-    eventId: number;
+  id?: number;
+
+  name:string
+ 
+  eventId: number;
   
   
   }

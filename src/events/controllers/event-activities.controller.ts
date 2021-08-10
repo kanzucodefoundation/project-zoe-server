@@ -6,18 +6,14 @@ import { ApiTags } from '@nestjs/swagger';
 import { EventActivity } from '../entities/event-activity.entity';
 
 
-@ApiTags('Event-activities')
-@Controller('event-activities')
+@ApiTags('Event-Activities')
+@Controller('api/events/activities')
 export class EventActivitiesController {
-
-
-  constructor(private readonly eventActivitiesService: EventActivitiesService){}
+ constructor(private eventActivitiesService: EventActivitiesService){}
 
   @Post()
-   async create(@Body() createEventActivityDto: CreateEventActivityDto){
-    const eventActivity = await this.eventActivitiesService.create(createEventActivityDto);
-  
-    return  EventActivity;
+   create(@Body() createEventActivityDto: CreateEventActivityDto){
+    return this.eventActivitiesService.create(createEventActivityDto);
   }
 
   @Get()
@@ -25,14 +21,14 @@ export class EventActivitiesController {
     return this.eventActivitiesService.findAll();
   }
 
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.eventActivitiesService.findOne(+id);
+  @Get('/:id')
+  findOne(@Param('id') id: number) {
+    return this.eventActivitiesService.findOne(id);
   }
 
-  @Put(':id')
-  update(@Param('id') id: string, @Body() updateEventActivityDto: UpdateEventActivityDto) {
-    return this.eventActivitiesService.update(+id, updateEventActivityDto);
+  @Put()
+  update (@Body() data: UpdateEventActivityDto):Promise<UpdateEventActivityDto> {
+    return this.eventActivitiesService.update(data);
   }
 
   @Delete(':id')

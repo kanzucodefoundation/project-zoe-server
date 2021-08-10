@@ -14,7 +14,6 @@ import { SeedModule } from './seed/seed.module';
 import { SeedService } from './seed/seed.service';
 import { VendorModule } from './vendor/vendor.module';
 import { EventsModule } from './events/events.module';
-import { EventActivitiesModule } from './events/event-activities.module';
 
 @Global()
 @Module({
@@ -38,7 +37,7 @@ import { EventActivitiesModule } from './events/event-activities.module';
     SeedModule,
     VendorModule,
     EventsModule,
-    EventActivitiesModule,
+    
   ],
   exports: [AppService],
   controllers: [AuthController],

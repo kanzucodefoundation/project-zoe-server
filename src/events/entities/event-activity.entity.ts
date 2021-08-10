@@ -1,11 +1,11 @@
-import { Column, Entity, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
-// import  EventActivity from './event-activity.entity';
+import { Column, Entity, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn, Unique } from 'typeorm';
+import GroupEvent from './event.entity';
+
 
 @Entity()
+
 export class EventActivity {
-  static save() {
-    throw new Error('Method not implemented.');
-  }
+  
    
     @PrimaryGeneratedColumn()
     id: number;
@@ -13,11 +13,11 @@ export class EventActivity {
     @Column()
     name: string;
   
-    @Column()
-    eventId: number;
-  static eventActivityId: any;
-  static eventId: any;
-  static eventName: any;
-  
+    @ManyToOne((type) => GroupEvent, (it) => it.activity)
+    @JoinColumn()
+   event: GroupEvent[];
+
+   eventId: number;
+ 
 
 }
