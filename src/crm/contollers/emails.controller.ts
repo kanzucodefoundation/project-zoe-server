@@ -17,41 +17,37 @@ import { Repository } from 'typeorm';
 import SearchDto from '../../shared/dto/search.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { SentryInterceptor } from 'src/utils/sentry.interceptor';
+import { EmailService } from '../emails.service';
 
 @UseInterceptors(SentryInterceptor)
 @UseGuards(JwtAuthGuard)
 @ApiTags('Crm Emails')
 @Controller('api/crm/emails')
 export class EmailsController {
-  constructor(
-    @InjectRepository(Email) private readonly repository: Repository<Email>,
-  ) {}
+  constructor(private readonly service: EmailService) {}
 
   @Get()
   async findAll(@Query() req: SearchDto): Promise<Email[]> {
-    return await this.repository.find({
-      skip: req.skip,
-      take: req.limit,
-    });
+    return await this.service.findAll(req);
   }
 
   @Post()
   async create(@Body() data: Email): Promise<Email> {
-    return await this.repository.save(data);
+    return await this.service.create(data);
   }
 
   @Put()
   async update(@Body() data: Email): Promise<Email> {
-    return await this.repository.save(data);
+    return await this.service.update(data);
   }
 
   @Get(':id')
   async findOne(@Param('id') id: number): Promise<Email> {
-    return await this.repository.findOne(id);
+    return await this.service.findOne(id);
   }
 
   @Delete(':id')
   async remove(@Param('id') id: number): Promise<void> {
-    await this.repository.delete(id);
+    await this.service.delete(id);
   }
 }

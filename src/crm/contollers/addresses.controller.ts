@@ -11,9 +11,7 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
-import { InjectRepository } from '@nestjs/typeorm';
 import Address from '../entities/address.entity';
-import { Repository } from 'typeorm';
 import SearchDto from '../../shared/dto/search.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { AddressesService } from '../addresses.service';
@@ -24,18 +22,11 @@ import { SentryInterceptor } from 'src/utils/sentry.interceptor';
 @ApiTags('Crm Addresses')
 @Controller('api/crm/addresses')
 export class AddressesController {
-  constructor(
-    @InjectRepository(Address) private readonly repository: Repository<Address>,
-
-    private readonly service:AddressesService
-  ) {}
+  constructor(private readonly service: AddressesService) {}
 
   @Get()
   async findAll(@Query() req: SearchDto): Promise<Address[]> {
-    return await this.repository.find({
-      skip: req.skip,
-      take: req.limit,
-    });
+    return this.service.findAll(req);
   }
 
   @Post()
@@ -45,16 +36,16 @@ export class AddressesController {
 
   @Put()
   async update(@Body() data: Address): Promise<Address> {
-    return await this.repository.save(data);
+    return await this.service.update(data);
   }
 
   @Get(':id')
   async findOne(@Param('id') id: number): Promise<Address> {
-    return await this.repository.findOne(id);
+    return await this.service.findOne(id);
   }
 
   @Delete(':id')
   async remove(@Param('id') id: number): Promise<void> {
-    await this.repository.delete(id);
+    await this.service.delete(id);
   }
 }
