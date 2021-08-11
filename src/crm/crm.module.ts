@@ -21,6 +21,7 @@ import { appEntities } from '../config';
 import { PhonesService } from './phones.service';
 import { AddressesService } from './addresses.service';
 import { EmailService } from './emails.service';
+import { PeopleService } from './people.service';
 
 @Global()
 @Module({
@@ -33,6 +34,7 @@ import { EmailService } from './emails.service';
     PhonesService,
     AddressesService,
     EmailService,
+    PeopleService,
   ],
   controllers: [
     ContactsController,
