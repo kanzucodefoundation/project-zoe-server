@@ -16,6 +16,8 @@ export const appRoles = {
   roleGroupView: 'GROUP_VIEW',
   roleGroupEdit: 'GROUP_EDIT',
 
+  roleMcView: 'MC_VIEW',
+
   roleEventView: 'EVENT_VIEW',
   roleEventEdit: 'EVENT_EDIT',
 };
