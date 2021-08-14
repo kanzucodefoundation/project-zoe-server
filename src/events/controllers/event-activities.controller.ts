@@ -24,7 +24,7 @@ export class EventActivitiesController {
   
 
   @Get('/:id')
-  async findOne(@Param('id') id: number) :Promise<EventActivity>{
+  async findOne(@Param('id') id: number) {
     return await this.service.findOne(id);
   }
 

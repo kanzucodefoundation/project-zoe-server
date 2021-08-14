@@ -11,12 +11,11 @@ export class EventActivity {
     id: number;
   
     @Column()
-    name: string;
-  
+    name: string;  
     @ManyToOne((type) => GroupEvent, (it) => it.activity)
     @JoinColumn()
-    event: GroupEvent[];
-
+    event: GroupEvent;
+    @Column()
     eventId: number;
  
 

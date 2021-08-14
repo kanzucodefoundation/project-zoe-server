@@ -34,11 +34,29 @@ export class EventActivitiesService {
   
   }
 
-  async update(data: EventActivity): Promise<EventActivity> {
-    console.log("updating ");
-    return await this.repository.save(data);
-  }
+  // async update(data: EventActivity): Promise<EventActivity> {
+  //   console.log("updating ");
+    
+  //   return await this.repository.update(data);
+  // }
+  async update(dto: UpdateEventActivityDto): Promise< UpdateEventActivityDto>{
+    console.log("updating activity");
+    const result = await this.repository
+      .createQueryBuilder()
+      .update(EventActivity)
+      .set({
+        ...dto,
+      })
+      .where('id = :id', { id: dto.id})
+      .execute();
+    if (result.affected)
+      Logger.log(
+        `Update.EventActivity eventId:${dto.id} affected:${result.affected} complete`,
+      );
+    return await this.findOne(dto.id);
 
+
+  }
   async remove(id: number):Promise<void> {
     console.log("removing an activity");
     await this.repository.delete(id);
