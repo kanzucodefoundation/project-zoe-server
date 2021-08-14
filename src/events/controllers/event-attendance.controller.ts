@@ -167,14 +167,7 @@ export class EventsAttendanceController {
         .execute();
       return this.findOne(id);
     } else {
-      const resp = await this.repository
-        .createQueryBuilder()
-        .insert()
-        .values({
-          ...data,
-        })
-        .execute();
-      return this.findOne(parseInt(`${resp.identifiers[0].id}`));
+      
     }
   }
 

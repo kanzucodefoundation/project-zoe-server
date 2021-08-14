@@ -1,38 +1,40 @@
-import { Controller, Get, Post, Body, Put, Param, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body, Put, Param, Delete, Query } from '@nestjs/common';
 import { EventActivitiesService } from '../event-activities.service';
 import { CreateEventActivityDto } from '../dto/create-event-activity.dto';
-import { UpdateEventActivityDto } from '../dto/update-event-activity.dto';
 import { ApiTags } from '@nestjs/swagger';
 import { EventActivity } from '../entities/event-activity.entity';
+import SearchDto from 'src/shared/dto/search.dto';
 
 
-@ApiTags('Event-Activities')
+@ApiTags('EventActivities')
 @Controller('api/events/activities')
 export class EventActivitiesController {
- constructor(private eventActivitiesService: EventActivitiesService){}
+ constructor(private service: EventActivitiesService){}
 
-  @Post()
-   create(@Body() createEventActivityDto: CreateEventActivityDto){
-    return this.eventActivitiesService.create(createEventActivityDto);
-  }
 
   @Get()
-  findAll() {
-    return this.eventActivitiesService.findAll();
+  async findAll(@Query()req:SearchDto):Promise<EventActivity[]> {
+    return await this.service.findAll(req);
+  }
+  @Post()
+  async create( @Body() data:EventActivity): Promise<CreateEventActivityDto |any>{
+    return await this.service.create(data);
   }
 
+  
+
   @Get('/:id')
-  findOne(@Param('id') id: number) {
-    return this.eventActivitiesService.findOne(id);
+  async findOne(@Param('id') id: number) :Promise<EventActivity>{
+    return await this.service.findOne(id);
   }
 
   @Put()
-  update (@Body() data: UpdateEventActivityDto):Promise<UpdateEventActivityDto> {
-    return this.eventActivitiesService.update(data);
+  async update (@Body() data: EventActivity):Promise<CreateEventActivityDto | any> {
+    return await this.service.update(data)
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.eventActivitiesService.remove(+id);
+  async remove(@Param('id') id:number):Promise<void> {
+    return await this.service.remove(id);
   }
 }

@@ -15,9 +15,9 @@ export class EventActivity {
   
     @ManyToOne((type) => GroupEvent, (it) => it.activity)
     @JoinColumn()
-   event: GroupEvent[];
+    event: GroupEvent[];
 
-   eventId: number;
+    eventId: number;
  
 
 }

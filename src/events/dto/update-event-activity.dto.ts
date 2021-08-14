@@ -5,5 +5,7 @@ import { CreateEventActivityDto } from './create-event-activity.dto';
 export class UpdateEventActivityDto extends PartialType(CreateEventActivityDto) {
   
 
-  id?: number;
+  id: number;
+  name:string;
+  event:number;
 }
