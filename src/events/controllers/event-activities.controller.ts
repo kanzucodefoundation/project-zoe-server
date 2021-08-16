@@ -13,8 +13,8 @@ export class EventActivitiesController {
 
 
   @Get()
-  async findAll(@Query()req:SearchDto):Promise<EventActivity[]> {
-    return await this.service.findAll(req);
+  async findAll(@Query() req:SearchDto):Promise<EventActivity[]> {
+    return this.service.findAll(req);
   }
   @Post()
   async create( @Body() data:EventActivity): Promise<CreateEventActivityDto |any>{

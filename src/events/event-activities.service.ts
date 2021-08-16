@@ -5,7 +5,9 @@ import { UpdateEventActivityDto } from './dto/update-event-activity.dto';
 
 import { Repository } from 'typeorm';
 import { EventActivity } from './entities/event-activity.entity';
-import SearchDto from 'src/shared/dto/search.dto';
+
+
+import EventActivitiesSearchDto from './dto/event-activities-search.dto';
 
 @Injectable()
 export class EventActivitiesService {
@@ -24,8 +26,11 @@ export class EventActivitiesService {
     }
 
 
-  async findAll(req: SearchDto):Promise<EventActivity[]>{
-    return await this.repository.find();
+  async findAll(req:EventActivitiesSearchDto):Promise<EventActivity[]>{
+    console.log("finding all");
+    return await this.repository.find(req);
+
+    
   }
 
   async findOne(id: number):Promise<EventActivity>{
@@ -34,11 +39,7 @@ export class EventActivitiesService {
   
   }
 
-  // async update(data: EventActivity): Promise<EventActivity> {
-  //   console.log("updating ");
-    
-  //   return await this.repository.update(data);
-  // }
+  
   async update(dto: UpdateEventActivityDto): Promise< UpdateEventActivityDto>{
     console.log("updating activity");
     const result = await this.repository

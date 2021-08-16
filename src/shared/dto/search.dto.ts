@@ -15,4 +15,6 @@ export default class SearchDto {
   @IsNumber()
   @Min(0)
   skip?: number = 0;
+
+  
 }
