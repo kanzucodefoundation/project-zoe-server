@@ -11,12 +11,11 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
-import { InjectRepository } from '@nestjs/typeorm';
 import Relationship from '../entities/relationship.entity';
-import { Repository } from 'typeorm';
 import SearchDto from '../../shared/dto/search.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { SentryInterceptor } from 'src/utils/sentry.interceptor';
+import { RelationshipsService } from '../relationships.service';
 
 @UseInterceptors(SentryInterceptor)
 @UseGuards(JwtAuthGuard)
@@ -24,35 +23,31 @@ import { SentryInterceptor } from 'src/utils/sentry.interceptor';
 @Controller('api/crm/relationships')
 export class RelationshipsController {
   constructor(
-    @InjectRepository(Relationship)
-    private readonly repository: Repository<Relationship>,
+    private readonly service: RelationshipsService,
   ) {}
 
   @Get()
   async findAll(@Query() req: SearchDto): Promise<Relationship[]> {
-    return await this.repository.find({
-      skip: req.skip,
-      take: req.limit,
-    });
+    return await this.service.findAll(req);
   }
 
   @Post()
   async create(@Body() data: Relationship): Promise<Relationship> {
-    return await this.repository.save(data);
+    return await this.service.create(data);
   }
 
   @Put()
   async update(@Body() data: Relationship): Promise<Relationship> {
-    return await this.repository.save(data);
+    return await this.service.update(data);
   }
 
   @Get(':id')
   async findOne(@Param('id') id: number): Promise<Relationship> {
-    return await this.repository.findOne(id);
+    return await this.service.findOne(id);
   }
 
   @Delete(':id')
   async remove(@Param('id') id: number): Promise<void> {
-    await this.repository.delete(id);
+    await this.service.remove(id);
   }
 }

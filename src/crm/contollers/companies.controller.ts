@@ -9,20 +9,14 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
-import { ContactsService } from '../contacts.service';
-import { InjectRepository } from '@nestjs/typeorm';
-
-import { Like, Repository } from 'typeorm';
 import { ContactSearchDto } from '../dto/contact-search.dto';
-
-import { hasValue } from 'src/utils/validation';
-import { FindConditions } from 'typeorm/find-options/FindConditions';
 import { CreateCompanyDto } from '../dto/create-company.dto';
 import Company from '../entities/company.entity';
 import CompanyListDto from '../dto/company-list.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import ContactListDto from '../dto/contact-list.dto';
 import { SentryInterceptor } from 'src/utils/sentry.interceptor';
+import { CompanyService } from '../company.service';
 
 @UseInterceptors(SentryInterceptor)
 @UseGuards(JwtAuthGuard)
@@ -30,49 +24,26 @@ import { SentryInterceptor } from 'src/utils/sentry.interceptor';
 @Controller('api/crm/companies')
 export class CompaniesController {
   constructor(
-    private readonly service: ContactsService,
-    @InjectRepository(Company)
-    private readonly personRepository: Repository<Company>,
+    private readonly service: CompanyService,
   ) {}
 
   @Get()
   async findAll(@Query() req: ContactSearchDto): Promise<Company[]> {
-    let q: FindConditions<Company>[] = [];
-    if (hasValue(req.query)) {
-      q = [
-        {
-          name: Like(`${req.query}%`),
-        },
-      ];
-    }
-    return await this.personRepository.find({
-      where: q,
-      skip: req.skip,
-      take: req.limit,
-    });
+    return await this.service.findAll(req)
   }
 
   @Get('combo')
   async findCombo(@Query() req: ContactSearchDto): Promise<CompanyListDto[]> {
-    const data = await this.personRepository.find({
-      select: ['id', 'name'],
-      skip: req.skip,
-      take: req.limit,
-    });
-    return data.map((it) => ({
-      id: it.id,
-      name: it.name,
-    }));
+    return await this.service.findCombo(req)
   }
 
   @Post()
   async create(@Body() data: CreateCompanyDto): Promise<ContactListDto> {
-    const contact = await this.service.createCompany(data);
-    return ContactsService.toListDto(contact);
+    return await this.service.create(data);
   }
 
   @Put()
   async update(@Body() data: Company): Promise<Company> {
-    return await this.personRepository.save(data);
+    return await this.service.update(data);
   }
 }
