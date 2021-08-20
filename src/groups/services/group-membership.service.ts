@@ -1,6 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Connection, In, Repository, TreeRepository } from 'typeorm';
+import {
+  Connection,
+  getRepository,
+  In,
+  Repository,
+  TreeRepository,
+} from 'typeorm';
 import { FindConditions } from 'typeorm/find-options/FindConditions';
 import GroupMembership from '../entities/groupMembership.entity';
 import GroupMembershipDto from '../dto/membership/group-membership.dto';
@@ -13,14 +19,22 @@ import { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity
 import { hasNoValue, hasValue } from '../../utils/validation';
 import Group from '../entities/group.entity';
 import { groupConstants } from '../../seed/data/groups';
+import Contact from 'src/crm/entities/contact.entity';
+import { IEmail, sendEmail } from 'src/utils/mailerTest';
+import Email from 'src/crm/entities/email.entity';
+import GroupMembershipRequest from '../entities/groupMembershipRequest.entity';
 
 @Injectable()
 export class GroupsMembershipService {
   constructor(
     @InjectRepository(GroupMembership)
     private readonly repository: Repository<GroupMembership>,
+    @InjectRepository(Email)
+    private readonly emailRepository: Repository<Email>,
     @InjectRepository(Group)
     private readonly groupTreeRepository: TreeRepository<Group>,
+    @InjectRepository(Contact)
+    private readonly contactRepository: Repository<Contact>,
     private connection: Connection,
   ) {}
 
@@ -69,7 +83,9 @@ export class GroupsMembershipService {
   async create(data: BatchGroupMembershipDto): Promise<number> {
     const { groupId, members, role } = data;
     const toInsert: QueryDeepPartialEntity<GroupMembership>[] = [];
+    let personId;
     members.forEach((contactId) => {
+      personId = contactId;
       toInsert.push({ groupId, contactId, role });
     });
     await this.repository
@@ -78,7 +94,55 @@ export class GroupsMembershipService {
       .into(GroupMembership)
       .values(toInsert)
       .execute();
+    //Send notifications to member
+    this.sendMailToMember(personId, groupId);
     return members.length;
+  }
+
+  //Send an email
+  async sendMailToMember(personId: number, groupId: number): Promise<void> {
+    try {
+      const user = await this.contactRepository.findOne(personId, {
+        relations: ['person'],
+      });
+
+      //Find all from email repository given contactId
+      const mailAddress = await this.emailRepository.findOne({
+        where: [{ contactId: personId }],
+      });
+      const memberEmail = mailAddress.value;
+
+      //finding MC attached to
+      const groupsAtLocation = await getRepository(Group)
+        .createQueryBuilder('group')
+        .where('group.id = :groupId', {
+          groupId: groupId,
+        })
+        .getMany();
+
+      //Logging details
+      console.log(
+        groupsAtLocation[0].name,
+        'located at ',
+        groupsAtLocation[0].address.name,
+      );
+
+      const mailerData: IEmail = {
+        to: `${memberEmail}`,
+        subject: 'Approval of your Request to join an MC',
+        html: `
+        <h3>Hello ${user.person.firstName} ${user.person.lastName},</h3></br>
+        <h4>Your request to join an MC has been approved<h4></br>
+        <p> You have been attached to ${groupsAtLocation[0].name} located at ${groupsAtLocation[0].address.name}
+
+        <p>Cheers!</p>
+        `,
+      };
+      await sendEmail(mailerData);
+      Logger.log('Email sent successfully.');
+    } catch (error) {
+      Logger.log(error);
+    }
   }
 
   async findOne(id: number): Promise<GroupMembershipDto> {
