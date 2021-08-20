@@ -43,14 +43,6 @@ export class GroupMembershipReqeustController {
     return this.service.create(data);
   }
 
-  //Join MC
-  @Post('/mc')
-  async mcRequest(
-    @Body() data: NewMcDto,
-  ): Promise<GroupMembershipRequestDto | any> {
-    return await this.service.mcRequest(data);
-  }
-
   @Put()
   async update(): Promise<any> {
     return await this.service.update;
