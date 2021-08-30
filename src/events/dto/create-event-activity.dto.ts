@@ -6,7 +6,7 @@ export class CreateEventActivityDto {
   name:string;
  
   eventId: number;
-  event:number;
+  // event:number;
  
 
   

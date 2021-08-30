@@ -16,5 +16,6 @@ export default class SearchDto {
   @Min(0)
   skip?: number = 0;
 
+
   
 }

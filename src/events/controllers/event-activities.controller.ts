@@ -3,7 +3,9 @@ import { EventActivitiesService } from '../event-activities.service';
 import { CreateEventActivityDto } from '../dto/create-event-activity.dto';
 import { ApiTags } from '@nestjs/swagger';
 import { EventActivity } from '../entities/event-activity.entity';
-import SearchDto from 'src/shared/dto/search.dto';
+//import SearchDto from 'src/shared/dto/search.dto';
+import EventActivitiesDto from '../dto/event-activities-search.dto';
+import EventActivitiesSearchDto from '../dto/event-activities-search.dto';
 
 
 @ApiTags('EventActivities')
@@ -13,9 +15,13 @@ export class EventActivitiesController {
 
 
   @Get()
-  async findAll(@Query() req:SearchDto):Promise<EventActivity[]> {
-    return this.service.findAll(req);
+  async findAll(@Query() req:EventActivitiesSearchDto
+  ):Promise<EventActivity[]>{
+
+    return  await this.service.findAll(req);
   }
+   
+  
   @Post()
   async create( @Body() data:EventActivity): Promise<CreateEventActivityDto |any>{
     return await this.service.create(data);

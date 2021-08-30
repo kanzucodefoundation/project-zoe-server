@@ -21,16 +21,31 @@ export class EventActivitiesService {
   ) {}
     
       
-    async create(data:EventActivity):Promise<EventActivity>{
-      return await this.repository.save(data);
-    }
+  async create(data:EventActivity):Promise<EventActivity>{
+      
+    const result = await this.repository
+    .createQueryBuilder()
+    .insert()
+    .values({ 
+      name:data.name,  
+      eventId:data.eventId,
+     
+    })    
+    .execute();  
+    console.log(result);
+    Logger.log('Event Activity added successfully');
 
-
+   return data;
+   
+  }
+//Get all activities.
   async findAll(req:EventActivitiesSearchDto):Promise<EventActivity[]>{
     console.log("finding all");
-    return await this.repository.find(req);
-
-    
+    const data = await this.repository.find({
+      where:{eventId:req.eventId},
+      relations:['event'],
+    })
+    return (data);    
   }
 
   async findOne(id: number):Promise<EventActivity>{

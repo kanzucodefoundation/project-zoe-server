@@ -8,8 +8,7 @@ export class EventActivity {
   
    
     @PrimaryGeneratedColumn()
-    id: number;
-  
+    id: number;  
     @Column()
     name: string;  
     @ManyToOne((type) => GroupEvent, (it) => it.activity)
@@ -18,5 +17,4 @@ export class EventActivity {
     @Column()
     eventId: number;
  
-
 }

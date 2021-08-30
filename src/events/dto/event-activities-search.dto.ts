@@ -6,9 +6,6 @@ import SearchDto from "src/shared/dto/search.dto";
 export default class EventActivitiesSearchDto extends SearchDto{
 @Type(()=>Number)
 @IsNumber()
-@Min(0)
-eventId?:number;
-
-
-    
+// @Min(0)
+eventId?:number;    
 }
