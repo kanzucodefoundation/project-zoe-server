@@ -1,13 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { CreateEventActivityDto } from '../events/dto/create-event-activity.dto';
-import { UpdateEventActivityDto } from './dto/update-event-activity.dto';
-
 import { Repository } from 'typeorm';
+import EventActivitiesSearchDto from './dto/event-activities-search.dto';
+import { UpdateEventActivityDto } from './dto/update-event-activity.dto';
 import { EventActivity } from './entities/event-activity.entity';
 
 
-import EventActivitiesSearchDto from './dto/event-activities-search.dto';
+
 
 @Injectable()
 export class EventActivitiesService {
@@ -40,34 +39,36 @@ export class EventActivitiesService {
   }
 //Get all activities.
   async findAll(req:EventActivitiesSearchDto):Promise<EventActivity[]>{
-    console.log("finding all");
-    const data = await this.repository.find({
-      where:{eventId:req.eventId},
+    console.log("findin all",req);
+    const data = await this.repository.find({  
+      where:{eventId:req.eventId},       
       relations:['event'],
-    })
+      
+    });
     return (data);    
   }
 
   async findOne(id: number):Promise<EventActivity>{
-    console.log("finding one");
+    console.log("#######");
     return await this.repository.findOne(id);
   
   }
 
   
   async update(dto: UpdateEventActivityDto): Promise< UpdateEventActivityDto>{
-    console.log("updating activity");
+    console.log("updating activity",dto);
     const result = await this.repository
       .createQueryBuilder()
       .update(EventActivity)
-      .set({
-        ...dto,
+      .set({  
+           
+        name:dto.name,   
       })
       .where('id = :id', { id: dto.id})
       .execute();
     if (result.affected)
       Logger.log(
-        `Update.EventActivity eventId:${dto.id} affected:${result.affected} complete`,
+        `Update.EventActivity id: ${dto.id} affected:${result.affected} complete`,
       );
     return await this.findOne(dto.id);
 
