@@ -1,4 +1,13 @@
-import { Controller, Get, Post, Body, Put, Param, Delete, Query } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Put,
+  Param,
+  Delete,
+  Query,
+} from '@nestjs/common';
 import { EventActivitiesService } from '../event-activities.service';
 import { CreateEventActivityDto } from '../dto/create-event-activity.dto';
 import { ApiTags } from '@nestjs/swagger';
@@ -7,27 +16,24 @@ import { EventActivity } from '../entities/event-activity.entity';
 import EventActivitiesDto from '../dto/event-activities-search.dto';
 import EventActivitiesSearchDto from '../dto/event-activities-search.dto';
 
-
 @ApiTags('EventActivities')
 @Controller('api/events/activities')
 export class EventActivitiesController {
- constructor(private service: EventActivitiesService){}
-
+  constructor(private service: EventActivitiesService) {}
 
   @Get()
-  async findAll(@Query() req:EventActivitiesSearchDto
-  ):Promise<EventActivity[]>{
-
-    return  await this.service.findAll(req);
+  async findAll(
+    @Query() req: EventActivitiesSearchDto,
+  ): Promise<EventActivity[]> {
+    return await this.service.findAll(req);
   }
-   
-  
+
   @Post()
-  async create( @Body() data:EventActivity): Promise<CreateEventActivityDto |any>{
+  async create(
+    @Body() data: EventActivity,
+  ): Promise<CreateEventActivityDto | any> {
     return await this.service.create(data);
   }
-
-  
 
   @Get('/:id')
   async findOne(@Param('id') id: number) {
@@ -35,12 +41,14 @@ export class EventActivitiesController {
   }
 
   @Put()
-  async update (@Body() data: EventActivity):Promise<CreateEventActivityDto | any> {
-    return await this.service.update(data)
+  async update(
+    @Body() data: EventActivity,
+  ): Promise<CreateEventActivityDto | any> {
+    return await this.service.update(data);
   }
 
   @Delete(':id')
-  async remove(@Param('id') id:number):Promise<void> {
+  async remove(@Param('id') id: number): Promise<void> {
     return await this.service.remove(id);
   }
 }

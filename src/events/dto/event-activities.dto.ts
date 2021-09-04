@@ -17,5 +17,4 @@ export class EventActivititiesDto {
   @Min(0)
   eventId: number;
   event: any;
-
 }
