@@ -13,11 +13,11 @@ id:number;
 activities?:EventActivity;
 
 @Column()
-activitiesId:number;
+activityId:number;
 
 @ManyToOne((type) => Contact, (it) => it.member)
 @JoinColumn()
-contact?:Contact[];
+contact?:Contact;
 
 @Column()
 contactId:number;

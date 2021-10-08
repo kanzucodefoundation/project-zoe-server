@@ -4,20 +4,13 @@ import { IsNotEmpty, IsNumber, Min } from "class-validator";
 export class CreateMemberEventActivitiesDto {
 
    
-    @Type(() => Number)
-    @IsNumber()
+  
     id: number;
     
-    @IsNotEmpty()
-    @Type(() => Number)
-    @IsNumber()
-    @Min(0)
-    activitiesId: number;
+   
+    activityId: number;
     
-    @IsNotEmpty()
-    @Type(() => Number)
-    @IsNumber()
-    @Min(0)
-    contactId:number;
+   
+    contactId:number[];
 
 }

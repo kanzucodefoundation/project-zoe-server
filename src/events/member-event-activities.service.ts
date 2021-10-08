@@ -7,6 +7,7 @@ import {UpdateMemberEventActivitiesDto } from './dto/update-member-event-activit
 import { InjectRepository } from '@nestjs/typeorm';
 
 import MemberEventActivitiesSearchDto from './dto/member-event-activities-search.dto';
+import { MemberEventActivitiesDto } from './dto/member-event-activities.dto';
 
 @Injectable()
 export class MemberEventActivitiesService {
@@ -17,21 +18,39 @@ export class MemberEventActivitiesService {
   ) {}
 
 
-  async create(data:  MemberEventActivities): Promise< MemberEventActivities> {
-    const result = await this.repository
-      .createQueryBuilder()
-      .insert()
-      .values({
-        
-         //activity: data.activity,
-         activitiesId: data.activitiesId,
-         //contactId:data.contactId,
-         contact:data.contact,
+  async create(data:  MemberEventActivitiesDto): Promise< MemberEventActivitiesDto> {
+    console.log(data);
+    //const result = await this.repository(MemberEventActivities)
+    // .createQueryBuilder()
+    // .where(data.contactId)      
+    for (let i = 0; i <= data.contactId.length; i++) {
+      //.createQueryBuilder()
+    let toSave = new MemberEventActivities();
+      toSave.activityId= data.activityId;
 
-      })
-      .execute();
-    console.log(result);
-    Logger.log('Member added successfully');
+      toSave.contactId = data.contactId[i];
+    
+
+    
+      const member = await this.repository.save(toSave);
+    
+
+      
+    }
+
+    //   .createQueryBuilder()
+    //   .insert()
+    //   .values({
+        // 
+    //      //activity: data.activity,
+    //      activitiesId: data.activitiesId,
+    //      contactId:data.contactId,
+    //     //  contact:data.contact,
+
+    //   })
+    //   .execute();
+    // console.log(result);
+    // Logger.log('Member asssigned activity successfully');
 
     return data;
   }
@@ -41,7 +60,7 @@ export class MemberEventActivitiesService {
   async findAll(req:MemberEventActivitiesSearchDto): Promise<MemberEventActivities[] | any > {
     console.log('finding all',req);
     const data = await this.repository.find({
-       where: { activitiesId: req.activitiesId},
+      //  where: { activitiesId: req.activitiesId},
       relations: ['activities','contact','contact.person'],
     });
     
@@ -59,7 +78,7 @@ export class MemberEventActivitiesService {
       .update(MemberEventActivities)
       .set({
         // name: dto.name,
-        activitiesId:dto.activitiesId,  
+        activityId:dto.activityId,  
         contactId: dto.contactId,
       })
       .where('id = :id', { id: dto.id })

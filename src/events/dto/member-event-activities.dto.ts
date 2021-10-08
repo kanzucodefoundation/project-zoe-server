@@ -12,12 +12,12 @@ export class MemberEventActivitiesDto {
     @Type(() => Number)
     @IsNumber()
     @Min(0)
-    activitiesId: number;
+    activityId: number;
     
     @IsNotEmpty()
-    @Type(() => Number)
-    @IsNumber()
+     @Type(() => Number)
+     @IsNumber()
     @Min(0)
-    contactId:number;
+    contactId:number[];
 
 }

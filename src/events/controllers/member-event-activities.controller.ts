@@ -1,3 +1,4 @@
+import { MemberEventActivitiesDto } from './../dto/member-event-activities.dto';
 import { MemberEventActivities } from './../entities/member-event-activities.entity';
 import { MemberEventActivitiesService } from './../member-event-activities.service';
 
@@ -24,8 +25,8 @@ export class MemberEventActivitiesController {
 
   @Post()
   async create(
-    @Body() data: MemberEventActivities,
-  ): Promise<CreateMemberEventActivitiesDto | any> {
+    @Body() data: CreateMemberEventActivitiesDto,
+  ): Promise<MemberEventActivitiesDto> {
     return await this.service.create(data);
   }
 
@@ -42,7 +43,7 @@ export class MemberEventActivitiesController {
 
   @Put()
   async update(
-    @Body() data: MemberEventActivities,
+    @Body() data: MemberEventActivitiesDto,
   ): Promise<CreateMemberEventActivitiesDto | any> {
     return await this.service.update(data);
   }

@@ -23,17 +23,12 @@ export class EventActivitiesService {
       })
       .execute();
     console.log(result);
-    Logger.log('Event Activity added successfully');
-    
-  const member = [ { id: 0, activitiesId: 0, contact: [], contactId: 0 } ]
-  const details = member.filter((it=>(it.contact)))
-  console.log(member);
+    Logger.log('Event Activity added successfully');  
+
 
     return data;
   }
-  // member: [ { id: 0, activitiesId: 0, contact: [], contactId: 0 } ]
-  // const details = member.filter((it=>(it.contact)))
-  // console.log(member);
+
   //Get all activities.
   async findAll(): Promise<EventActivity[]> {
     console.log('findin all');
