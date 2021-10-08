@@ -1,3 +1,4 @@
+import {  MemberEventActivities } from '../../events/entities/member-event-activities.entity';
 import {
   Column,
   Entity,
@@ -80,9 +81,16 @@ export default class Contact {
   })
   attendance: EventAttendance[];
 
+  @OneToMany((type) =>MemberEventActivities, (it) => it.contact)
+  member: MemberEventActivities[];
+
   static ref(id: number) {
     const c = new Contact();
     c.id = id;
     return c;
   }
+
+
+
+
 }

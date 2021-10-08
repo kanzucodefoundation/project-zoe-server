@@ -13,6 +13,7 @@ export class EventActivitiesService {
   ) {}
 
   async create(data: EventActivity): Promise<EventActivity> {
+    //console.log(data);
     const result = await this.repository
       .createQueryBuilder()
       .insert()
@@ -23,14 +24,21 @@ export class EventActivitiesService {
       .execute();
     console.log(result);
     Logger.log('Event Activity added successfully');
+    
+  const member = [ { id: 0, activitiesId: 0, contact: [], contactId: 0 } ]
+  const details = member.filter((it=>(it.contact)))
+  console.log(member);
 
     return data;
   }
+  // member: [ { id: 0, activitiesId: 0, contact: [], contactId: 0 } ]
+  // const details = member.filter((it=>(it.contact)))
+  // console.log(member);
   //Get all activities.
-  async findAll(req: EventActivitiesSearchDto): Promise<EventActivity[]> {
-    console.log('findin all', req);
+  async findAll(): Promise<EventActivity[]> {
+    console.log('findin all');
     const data = await this.repository.find({
-      where: { eventId: req.eventId },
+    
       relations: ['event'],
     });
     return data;

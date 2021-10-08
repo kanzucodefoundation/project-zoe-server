@@ -127,6 +127,9 @@ export class ContactsService {
         const resp = await this.phoneRepository.find({
           select: ['contactId'],
           where: { value: Like(`%${req.phone}%`) },
+
+
+          
         });
         console.log('resp', resp);
         if (hasValue(idList)) {

@@ -1,3 +1,4 @@
+import { MemberEventActivities } from './entities/member-event-activities.entity';
 import GroupEvent from './entities/event.entity';
 import EventCategory from './entities/eventCategory.entity';
 import EventField from './entities/eventField.entity';
@@ -10,5 +11,6 @@ export const eventEntities = [
   EventField,
   EventAttendance,
   EventActivity,
+  MemberEventActivities,
   
 ];

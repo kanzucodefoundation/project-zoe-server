@@ -17,4 +17,7 @@ export class EventActivititiesDto {
   @Min(0)
   eventId: number;
   event: any;
+  @Min(1)
+  contactId: [];
+  contact: any;
 }
