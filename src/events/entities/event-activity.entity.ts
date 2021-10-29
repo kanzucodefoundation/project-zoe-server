@@ -22,9 +22,6 @@ export class EventActivity {
   @Column()
   eventId: number;
   
-  @ManyToOne((type) => MemberEventActivities, (it) => it.activity,{
-     cascade: ['insert'],
-  })
+  @ManyToOne((type) => MemberEventActivities, (it) => it.activities)
   member: MemberEventActivities[];
-   
 }

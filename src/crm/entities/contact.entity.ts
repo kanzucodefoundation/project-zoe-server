@@ -81,9 +81,7 @@ export default class Contact {
   })
   attendance: EventAttendance[];
 
-  @OneToMany((type) =>MemberEventActivities, (it) => it.contact,{
-    cascade: ['insert'],
-  })
+  @OneToMany((type) =>MemberEventActivities, (it) => it.contact)
   member: MemberEventActivities[];
 
   static ref(id: number) {

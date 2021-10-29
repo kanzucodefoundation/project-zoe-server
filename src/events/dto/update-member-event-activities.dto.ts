@@ -1,6 +1,6 @@
 
 export class UpdateMemberEventActivitiesDto {
     id:number;
-    activityId: number;  
+    activitiesId: number;  
     contactId: number;
 }

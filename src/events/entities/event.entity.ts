@@ -73,11 +73,11 @@ export default class GroupEvent {
   @OneToMany((type) => EventAttendance, (it) => it.event)
   attendance: EventAttendance[];
 
-<<<<<<< HEAD
+
   @OneToMany((type) => EventActivity, (it) => it.event)
   activity: EventActivity[];
-=======
->>>>>>> 0b5768f3d0d06e3be9decb205e27aaafee612d3d
+
+
   @Column({
     nullable: true,
     type: 'jsonb',

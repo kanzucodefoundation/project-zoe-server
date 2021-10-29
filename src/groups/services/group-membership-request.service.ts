@@ -1,14 +1,7 @@
-<<<<<<< HEAD
-import { HttpException, Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { FindConditions } from 'typeorm/find-options/FindConditions';
-import { Repository } from 'typeorm';
-=======
 import { HttpException, Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { FindConditions } from 'typeorm/find-options/FindConditions';
 import { Repository, TreeRepository } from 'typeorm';
->>>>>>> 0b5768f3d0d06e3be9decb205e27aaafee612d3d
 import GroupMembershipRequestSearchDto from '../dto/membershipRequest/search-request.dto';
 import GroupMembershipRequest from '../entities/groupMembershipRequest.entity';
 import { hasValue } from 'src/utils/validation';
@@ -18,27 +11,21 @@ import { getPersonFullName } from 'src/crm/crm.helpers';
 import { ContactsService } from 'src/crm/contacts.service';
 import Contact from 'src/crm/entities/contact.entity';
 import { IEmail, sendEmail } from 'src/utils/mailerTest';
-<<<<<<< HEAD
-=======
 import Email from 'src/crm/entities/email.entity';
 import GroupMembership from '../entities/groupMembership.entity';
 import Group from '../entities/group.entity';
->>>>>>> 0b5768f3d0d06e3be9decb205e27aaafee612d3d
 
 @Injectable()
 export class GroupMembershipRequestService {
   constructor(
     @InjectRepository(GroupMembershipRequest)
     private readonly repository: Repository<GroupMembershipRequest>,
-<<<<<<< HEAD
-=======
     @InjectRepository(Email)
     private readonly emailRepository: Repository<Email>,
     @InjectRepository(GroupMembership)
     private readonly membershipRepository: Repository<GroupMembership>,
     @InjectRepository(Group)
     private readonly groupRepository: Repository<Group>,
->>>>>>> 0b5768f3d0d06e3be9decb205e27aaafee612d3d
     @InjectRepository(Contact)
     private readonly contactRepository: Repository<Contact>,
     private readonly contactService: ContactsService,
@@ -69,11 +56,7 @@ export class GroupMembershipRequestService {
       group: {
         id: group.id,
         name: group.name,
-<<<<<<< HEAD
-        parent: parent
-=======
         parent: group.parent
->>>>>>> 0b5768f3d0d06e3be9decb205e27aaafee612d3d
           ? { id: group.parent.id, name: group.parent.name }
           : null,
       },
@@ -86,10 +69,7 @@ export class GroupMembershipRequestService {
   }
 
   async create(data: NewRequestDto): Promise<GroupMembershipRequestDto | any> {
-<<<<<<< HEAD
-=======
     // console.log('All the data', data);
->>>>>>> 0b5768f3d0d06e3be9decb205e27aaafee612d3d
     const user = await this.contactRepository.findOne(data.contactId, {
       relations: ['person'],
     });
