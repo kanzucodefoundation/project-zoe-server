@@ -78,55 +78,7 @@ export class GroupsMembershipService {
       .into(GroupMembership)
       .values(toInsert)
       .execute();
-    //Send notifications to member
-    this.sendMailToMember(personId, groupId);
     return members.length;
-  }
-
-  //Send an email
-  async sendMailToMember(personId: number, groupId: number): Promise<void> {
-    try {
-      const user = await this.contactRepository.findOne(personId, {
-        relations: ['person'],
-      });
-
-      //Find all from email repository given contactId
-      const mailAddress = await this.emailRepository.findOne({
-        where: [{ contactId: personId }],
-      });
-      const memberEmail = mailAddress.value;
-
-      //finding MC attached to
-      const groupsAtLocation = await getRepository(Group)
-        .createQueryBuilder('group')
-        .where('group.id = :groupId', {
-          groupId: groupId,
-        })
-        .getMany();
-
-      //Logging details
-      console.log(
-        groupsAtLocation[0].name,
-        'located at ',
-        groupsAtLocation[0].address.name,
-      );
-
-      const mailerData: IEmail = {
-        to: `${memberEmail}`,
-        subject: 'Approval of your Request to join an MC',
-        html: `
-        <h3>Hello ${user.person.firstName} ${user.person.lastName},</h3></br>
-        <h4>Your request to join an MC has been approved<h4></br>
-        <p> You have been attached to ${groupsAtLocation[0].name} located at ${groupsAtLocation[0].address.name}
-
-        <p>Cheers!</p>
-        `,
-      };
-      await sendEmail(mailerData);
-      Logger.log('Email sent successfully.');
-    } catch (error) {
-      Logger.log(error);
-    }
   }
 
   async findOne(id: number): Promise<GroupMembershipDto> {

@@ -14,10 +14,7 @@ import { ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { SentryInterceptor } from 'src/utils/sentry.interceptor';
 import GroupMembershipRequestDto from '../dto/membershipRequest/group-membership-request.dto';
-import {
-  NewMcDto,
-  NewRequestDto,
-} from '../dto/membershipRequest/new-request.dto';
+import { NewRequestDto } from '../dto/membershipRequest/new-request.dto';
 import GroupMembershipRequestSearchDto from '../dto/membershipRequest/search-request.dto';
 import { GroupMembershipRequestService } from '../services/group-membership-request.service';
 
@@ -26,35 +23,35 @@ import { GroupMembershipRequestService } from '../services/group-membership-requ
 @ApiTags('Groups Membership Request')
 @Controller('api/groups/request')
 export class GroupMembershipReqeustController {
-  constructor(private readonly service: GroupMembershipRequestService) {}
+    constructor(
+        private readonly service: GroupMembershipRequestService) {
+    }
 
-  @Get()
-  async findAll(
-    @Query() req: GroupMembershipRequestSearchDto,
-  ): Promise<GroupMembershipRequestDto[]> {
-    return await this.service.findAll(req);
-  }
+    @Get()
+    async findAll(@Query() req: GroupMembershipRequestSearchDto): Promise<GroupMembershipRequestDto[]> {
+        return await this.service.findAll(req);
+    }
 
-  @Post()
-  async create(
-    @Body() data: NewRequestDto,
-  ): Promise<GroupMembershipRequestDto | any> {
-    //return await this.service.create(data);
-    return this.service.create(data);
-  }
+    @Post()
+    async create(@Body() data: NewRequestDto): Promise<GroupMembershipRequestDto | any> {
+        return await this.service.create(data);
+    }
 
-  @Put()
-  async update(): Promise<any> {
-    return await this.service.update;
-  }
+    @Put()
+    async update(): Promise<any> {
+        return await this.service.update;
+    }
 
-  @Get(':id')
-  async findOne(@Param('id') id: number): Promise<any> {
-    return await this.service.findOne(id);
-  }
+    @Get(':id')
+    async findOne(@Param('id') id: number): Promise<any> {
+        return await this.service.findOne(id);
+    }
 
-  @Delete(':id')
-  async remove(@Param('id') id: number): Promise<any> {
-    return await this.service.remove(id);
-  }
+    @Delete(':id')
+    async remove(@Param('id') id: number): Promise<any> {
+        return await this.service.remove(id);
+    }
 }
+
+
+

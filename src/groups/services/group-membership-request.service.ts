@@ -1,7 +1,7 @@
-import { HttpException, Injectable, Logger } from '@nestjs/common';
+import { HttpException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { FindConditions } from 'typeorm/find-options/FindConditions';
-import { Repository, TreeRepository } from 'typeorm';
+import { Repository } from 'typeorm';
 import GroupMembershipRequestSearchDto from '../dto/membershipRequest/search-request.dto';
 import GroupMembershipRequest from '../entities/groupMembershipRequest.entity';
 import { hasValue } from 'src/utils/validation';
@@ -11,21 +11,12 @@ import { getPersonFullName } from 'src/crm/crm.helpers';
 import { ContactsService } from 'src/crm/contacts.service';
 import Contact from 'src/crm/entities/contact.entity';
 import { IEmail, sendEmail } from 'src/utils/mailerTest';
-import Email from 'src/crm/entities/email.entity';
-import GroupMembership from '../entities/groupMembership.entity';
-import Group from '../entities/group.entity';
 
 @Injectable()
 export class GroupMembershipRequestService {
   constructor(
     @InjectRepository(GroupMembershipRequest)
     private readonly repository: Repository<GroupMembershipRequest>,
-    @InjectRepository(Email)
-    private readonly emailRepository: Repository<Email>,
-    @InjectRepository(GroupMembership)
-    private readonly membershipRepository: Repository<GroupMembership>,
-    @InjectRepository(Group)
-    private readonly groupRepository: Repository<Group>,
     @InjectRepository(Contact)
     private readonly contactRepository: Repository<Contact>,
     private readonly contactService: ContactsService,
@@ -56,7 +47,7 @@ export class GroupMembershipRequestService {
       group: {
         id: group.id,
         name: group.name,
-        parent: group.parent
+        parent: parent
           ? { id: group.parent.id, name: group.parent.name }
           : null,
       },
@@ -69,25 +60,13 @@ export class GroupMembershipRequestService {
   }
 
   async create(data: NewRequestDto): Promise<GroupMembershipRequestDto | any> {
-    // console.log('All the data', data);
     const user = await this.contactRepository.findOne(data.contactId, {
       relations: ['person'],
     });
 
-    //Checking if a member is already attached to an MC
-    const mcAttachedTo = await this.groupRepository.findOne({
-      where: { id: data.churchLocation },
-    });
-
-    const categoryID = mcAttachedTo.categoryId;
-    if (categoryID.toLocaleLowerCase() === 'mc') {
-      throw new HttpException('User is already registered to an MC', 400);
-    }
-
     const isPendingRequest = await this.repository.count({
       where: { contactId: data.contactId },
     });
-
     if (isPendingRequest > 0) {
       throw new HttpException('User already has a pending request', 400);
     }

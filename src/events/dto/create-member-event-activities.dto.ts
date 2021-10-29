@@ -5,7 +5,7 @@ export class CreateMemberEventActivitiesDto {
 
    
   
-    id: number;
+    // id: number;
     
    
     activityId: number;

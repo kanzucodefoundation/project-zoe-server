@@ -10,16 +10,19 @@ id:number;
 
 @OneToMany((type) => EventActivity, (it) => it.member)
 @JoinColumn()
-activities?:EventActivity;
+activity:EventActivity;
 
 @Column()
 activityId:number;
 
 @ManyToOne((type) => Contact, (it) => it.member)
 @JoinColumn()
-contact?:Contact;
+contact:Contact;
 
 @Column()
 contactId:number;
+// @Column({ nullable: false })
+// isActive: Boolean;
+  
 
 }

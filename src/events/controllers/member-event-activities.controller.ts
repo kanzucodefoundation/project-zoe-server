@@ -17,6 +17,7 @@ import { CreateMemberEventActivitiesDto } from '../dto/create-member-event-activ
 import { ApiTags } from '@nestjs/swagger';
 
 import MemberEventActivitiesSearchDto from '../dto/member-event-activities-search.dto';
+import { UpdateMemberEventActivitiesDto } from '../dto/update-member-event-activities.dto';
 
 @ApiTags(' MemberEventActivities')
 @Controller('api/events/member')
@@ -25,15 +26,15 @@ export class MemberEventActivitiesController {
 
   @Post()
   async create(
-    @Body() data: CreateMemberEventActivitiesDto,
+    @Body() data: MemberEventActivitiesDto,
   ): Promise<MemberEventActivitiesDto> {
     return await this.service.create(data);
   }
 
   @Get()
-  async findAll(@Query() req: MemberEventActivitiesSearchDto,): Promise<MemberEventActivities[] > {
+  async findAll(): Promise<MemberEventActivities[]> {
  
-    return await this.service.findAll(req);
+    return await this.service.findAll();
   }
 
   @Get('/:id')
@@ -43,7 +44,7 @@ export class MemberEventActivitiesController {
 
   @Put()
   async update(
-    @Body() data: MemberEventActivitiesDto,
+    @Body() data: UpdateMemberEventActivitiesDto,
   ): Promise<CreateMemberEventActivitiesDto | any> {
     return await this.service.update(data);
   }
