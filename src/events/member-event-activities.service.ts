@@ -55,7 +55,7 @@ export class MemberEventActivitiesService {
           contact.push({ contactId: data[j].contactId, person: fullName });
         }
       }
-      const allData = { activity: allActivities[i].name, members: contact};
+      const allData = { activity: allActivities[i].name,activityId:allActivities[i].id, members: contact};
       toDto.push(allData);
     }
 

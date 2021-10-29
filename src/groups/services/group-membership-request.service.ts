@@ -94,11 +94,6 @@ export class GroupMembershipRequestService {
       relations: ['person'],
     });
 
-<<<<<<< HEAD
-    const isPendingRequest = await this.repository.count({
-      where: { contactId: data.contactId },
-    });
-=======
     //Checking if a member is already attached to an MC
     const mcAttachedTo = await this.groupRepository.findOne({
       where: { id: data.churchLocation },
@@ -113,7 +108,6 @@ export class GroupMembershipRequestService {
       where: { contactId: data.contactId },
     });
 
->>>>>>> 0b5768f3d0d06e3be9decb205e27aaafee612d3d
     if (isPendingRequest > 0) {
       throw new HttpException('User already has a pending request', 400);
     }
@@ -132,19 +126,11 @@ export class GroupMembershipRequestService {
         contactId: data.contactId,
         parentId: data.churchLocation,
         groupId: info.groupId,
-<<<<<<< HEAD
         distanceKm: info.distance / 1000,
-=======
-        distanceKm: Math.round(info.distance / 1000),
->>>>>>> 0b5768f3d0d06e3be9decb205e27aaafee612d3d
       })
       .execute();
 
     const closestCellData = JSON.parse(info.groupMeta);
-<<<<<<< HEAD
-=======
-    console.log(closestCellData);
->>>>>>> 0b5768f3d0d06e3be9decb205e27aaafee612d3d
     const mailerData: IEmail = {
       to: `${closestCellData.email}`,
       subject: 'Join MC Request',

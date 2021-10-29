@@ -1,16 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-<<<<<<< HEAD
 import { Connection, In, Repository, TreeRepository } from 'typeorm';
-=======
-import {
-  Connection,
-  getRepository,
-  In,
-  Repository,
-  TreeRepository,
-} from 'typeorm';
->>>>>>> 0b5768f3d0d06e3be9decb205e27aaafee612d3d
 import { FindConditions } from 'typeorm/find-options/FindConditions';
 import GroupMembership from '../entities/groupMembership.entity';
 import GroupMembershipDto from '../dto/membership/group-membership.dto';
@@ -23,30 +13,14 @@ import { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity
 import { hasNoValue, hasValue } from '../../utils/validation';
 import Group from '../entities/group.entity';
 import { groupConstants } from '../../seed/data/groups';
-<<<<<<< HEAD
-=======
-import Contact from 'src/crm/entities/contact.entity';
-import { IEmail, sendEmail } from 'src/utils/mailerTest';
-import Email from 'src/crm/entities/email.entity';
-import GroupMembershipRequest from '../entities/groupMembershipRequest.entity';
->>>>>>> 0b5768f3d0d06e3be9decb205e27aaafee612d3d
 
 @Injectable()
 export class GroupsMembershipService {
   constructor(
     @InjectRepository(GroupMembership)
     private readonly repository: Repository<GroupMembership>,
-<<<<<<< HEAD
     @InjectRepository(Group)
     private readonly groupTreeRepository: TreeRepository<Group>,
-=======
-    @InjectRepository(Email)
-    private readonly emailRepository: Repository<Email>,
-    @InjectRepository(Group)
-    private readonly groupTreeRepository: TreeRepository<Group>,
-    @InjectRepository(Contact)
-    private readonly contactRepository: Repository<Contact>,
->>>>>>> 0b5768f3d0d06e3be9decb205e27aaafee612d3d
     private connection: Connection,
   ) {}
 
@@ -95,13 +69,7 @@ export class GroupsMembershipService {
   async create(data: BatchGroupMembershipDto): Promise<number> {
     const { groupId, members, role } = data;
     const toInsert: QueryDeepPartialEntity<GroupMembership>[] = [];
-<<<<<<< HEAD
     members.forEach((contactId) => {
-=======
-    let personId;
-    members.forEach((contactId) => {
-      personId = contactId;
->>>>>>> 0b5768f3d0d06e3be9decb205e27aaafee612d3d
       toInsert.push({ groupId, contactId, role });
     });
     await this.repository
