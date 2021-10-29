@@ -127,9 +127,12 @@ export class ContactsService {
         const resp = await this.phoneRepository.find({
           select: ['contactId'],
           where: { value: Like(`%${req.phone}%`) },
+<<<<<<< HEAD
 
 
           
+=======
+>>>>>>> 0b5768f3d0d06e3be9decb205e27aaafee612d3d
         });
         console.log('resp', resp);
         if (hasValue(idList)) {
@@ -260,7 +263,11 @@ export class ContactsService {
         if (hasValue(closestGroup)) {
           groupRequest.parentId = details.parentGroupId;
           groupRequest.groupId = closestGroup.groupId;
+<<<<<<< HEAD
           groupRequest.distanceKm = closestGroup.distance / 1000;
+=======
+          groupRequest.distanceKm = Math.round(closestGroup.distance / 1000);
+>>>>>>> 0b5768f3d0d06e3be9decb205e27aaafee612d3d
           groupMembershipRequests.push(groupRequest);
           await this.notifyLeader(closestGroup, createPersonDto);
         }

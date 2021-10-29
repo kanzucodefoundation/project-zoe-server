@@ -6,18 +6,18 @@ import { eventEntities } from './events/events.helpers';
 
 require('dotenv').config();
 
-export function normalizePort(val: any) {
-  const port = parseInt(val, 10);
-  if (isNaN(port)) {
-    // named pipe
-    return val;
+  export function normalizePort(val: any) {
+    const port = parseInt(val, 10);
+    if (isNaN(port)) {
+      // named pipe
+      return val;
+    }
+    if (port >= 0) {
+      // port number
+      return port;
+    }
+    return false;
   }
-  if (port >= 0) {
-    // port number
-    return port;
-  }
-  return false;
-}
 
 const database: TypeOrmModuleOptions = {
   type: 'postgres',
