@@ -1,17 +1,32 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Post,
+  Put,
+  Query,
+  UseGuards,
+  UseInterceptors,
+} from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { InjectRepository } from '@nestjs/typeorm';
 import Occasion from '../entities/occasion.entity';
 import { Repository } from 'typeorm';
 import SearchDto from '../../shared/dto/search.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { SentryInterceptor } from 'src/utils/sentry.interceptor';
 
+@UseInterceptors(SentryInterceptor)
 @UseGuards(JwtAuthGuard)
 @ApiTags('Crm Occasions')
 @Controller('api/crm/occasions')
 export class OccasionsController {
-  constructor(@InjectRepository(Occasion) private readonly repository: Repository<Occasion>) {
-  }
+  constructor(
+    @InjectRepository(Occasion)
+    private readonly repository: Repository<Occasion>,
+  ) {}
 
   @Get()
   async findAll(@Query() req: SearchDto): Promise<Occasion[]> {
@@ -22,12 +37,12 @@ export class OccasionsController {
   }
 
   @Post()
-  async create(@Body()data: Occasion): Promise<Occasion> {
+  async create(@Body() data: Occasion): Promise<Occasion> {
     return await this.repository.save(data);
   }
 
   @Put()
-  async update(@Body()data: Occasion): Promise<Occasion> {
+  async update(@Body() data: Occasion): Promise<Occasion> {
     return await this.repository.save(data);
   }
 

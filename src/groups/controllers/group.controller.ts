@@ -1,4 +1,15 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Post,
+  Put,
+  Query,
+  UseGuards,
+  UseInterceptors,
+} from '@nestjs/common';
 import { GroupsService } from '../services/groups.service';
 import SearchDto from '../../shared/dto/search.dto';
 import { ApiTags } from '@nestjs/swagger';
@@ -6,8 +17,9 @@ import GroupListDto from '../dto/group-list.dto';
 import CreateGroupDto from '../dto/create-group.dto';
 import UpdateGroupDto from '../dto/update-group.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
-import {GroupDetailDto} from "../dto/group-detail.dto";
+import { SentryInterceptor } from './../../utils/sentry.interceptor';
 
+@UseInterceptors(SentryInterceptor)
 @UseGuards(JwtAuthGuard)
 @ApiTags('Groups')
 @Controller('api/groups/group')
@@ -31,8 +43,8 @@ export class GroupController {
   }
 
   @Get(':id')
-  async findOne(@Param('id') id: number): Promise<GroupDetailDto> {
-    return await this.service.findOne(id,true);
+  async findOne(@Param('id') id: number): Promise<GroupListDto> {
+    return await this.service.findOne(id);
   }
 
   @Delete(':id')

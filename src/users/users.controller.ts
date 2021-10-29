@@ -1,4 +1,15 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Post,
+  Put,
+  Query,
+  UseGuards,
+  UseInterceptors,
+} from '@nestjs/common';
 import { UsersService } from './users.service';
 import SearchDto from '../shared/dto/search.dto';
 import { ApiTags } from '@nestjs/swagger';
@@ -7,7 +18,9 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { UserListDto } from './dto/user-list.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CreateUserResponseDto } from './dto/create-user-response.dto';
+import { SentryInterceptor } from 'src/utils/sentry.interceptor';
 
+@UseInterceptors(SentryInterceptor)
 @UseGuards(JwtAuthGuard)
 @ApiTags('Users')
 @Controller('api/users')
@@ -16,13 +29,14 @@ export class UsersController {
     private readonly service: UsersService) {
   }
 
+  
   @Get()
   async findAll(@Query() req: SearchDto): Promise<UserListDto[]> {
     return this.service.findAll(req);
   }
 
-  @Post('create-user')
-  async create(@Body() data: CreateUserDto): Promise<CreateUserResponseDto> {
+  @Post()
+  async create(@Body() data: CreateUserDto): Promise<UserListDto> {
     return await this.service.createUser(data);
   }
 

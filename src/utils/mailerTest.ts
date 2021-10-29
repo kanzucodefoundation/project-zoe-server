@@ -1,25 +1,20 @@
-const nodemailer = require("nodemailer");
+import * as sendGridTransport from 'nodemailer-sendgrid-transport';
+import * as nodemailer from 'nodemailer';
 
 export interface IEmail {
-    to: string
-    subject: string
-    html: string
+  to: string;
+  subject: string;
+  html: string;
 }
 
 export async function sendEmail(data: IEmail): Promise<string> {
-    const testAccount = await nodemailer.createTestAccount();
-
-    const transporter = nodemailer.createTransport({
-        host: "smtp.ethereal.email",
-        port: 587,
-        secure: false,
-        auth: {
-            user: testAccount.user,
-            pass: testAccount.pass
+    const transporter = nodemailer.createTransport(sendGridTransport({
+        auth:{
+            'api_key':process.env.SENDGRID_API
         }
-    });
+        }));
     const mailOptions = {
-        from: testAccount.user,
+        from: process.env.EMAIL_SENDER,
         to: data.to,
         subject: data.subject,
         html: data.html

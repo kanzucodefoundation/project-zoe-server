@@ -1,18 +1,31 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Post,
+  Put,
+  Query,
+  UseGuards,
+  UseInterceptors,
+} from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { InjectRepository } from '@nestjs/typeorm';
 import Request from '../entities/request.entity';
 import { Repository } from 'typeorm';
 import SearchDto from '../../shared/dto/search.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { SentryInterceptor } from 'src/utils/sentry.interceptor';
 
-
+@UseInterceptors(SentryInterceptor)
 @UseGuards(JwtAuthGuard)
 @ApiTags('Crm Requests')
 @Controller('api/crm/requests')
 export class RequestsController {
-  constructor(@InjectRepository(Request) private readonly repository: Repository<Request>) {
-  }
+  constructor(
+    @InjectRepository(Request) private readonly repository: Repository<Request>,
+  ) {}
 
   @Get()
   async findAll(@Query() req: SearchDto): Promise<Request[]> {
@@ -23,12 +36,12 @@ export class RequestsController {
   }
 
   @Post()
-  async create(@Body()data: Request): Promise<Request> {
+  async create(@Body() data: Request): Promise<Request> {
     return await this.repository.save(data);
   }
 
   @Put()
-  async update(@Body()data: Request): Promise<Request> {
+  async update(@Body() data: Request): Promise<Request> {
     return await this.repository.save(data);
   }
 

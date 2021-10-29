@@ -1,8 +1,8 @@
-import { Module } from '@nestjs/common';
+import { Global, HttpModule, Module } from '@nestjs/common';
 import { ContactsService } from './contacts.service';
 import { ContactsController } from './contollers/contacts.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { crmEntities } from './crm.helpers';
+import { CsvModule } from 'nest-csv-parser';
 import { PeopleController } from './contollers/people.controller';
 import { CompaniesController } from './contollers/companies.controller';
 import { EmailsController } from './contollers/emails.controller';
@@ -12,24 +12,40 @@ import { OccasionsController } from './contollers/occasions.controller';
 import { AddressesController } from './contollers/addresses.controller';
 import { RelationshipsController } from './contollers/relationships.controller';
 import { RequestsController } from './contollers/requests.controller';
-import { groupEntities } from '../groups/groups.helpers';
-import { usersEntities } from '../users/users.helpers';
-import {RegisterController} from "./contollers/register.controller";
+import { RegisterController } from './contollers/register.controller';
+import { GoogleService } from 'src/vendor/google.service';
+import { PrismaService } from '../shared/prisma.service';
+import { ContactImportController } from './contollers/contact-import.controller';
+import { GroupFinderService } from './group-finder/group-finder.service';
+import { appEntities } from '../config';
+import { PhonesService } from './phones.service';
+import { AddressesService } from './addresses.service';
 
+@Global()
 @Module({
-  imports: [TypeOrmModule.forFeature([...crmEntities, ...groupEntities,...usersEntities])],
-  providers: [ContactsService],
+  imports: [CsvModule, HttpModule, TypeOrmModule.forFeature(appEntities)],
+  providers: [
+    ContactsService,
+    GoogleService,
+    PrismaService,
+    GroupFinderService,
+    PhonesService,
+    AddressesService,
+  ],
   controllers: [
-    ContactsController, PeopleController, CompaniesController,
+    ContactsController,
+    PeopleController,
+    CompaniesController,
     EmailsController,
     PhonesController,
     IdentificationsController,
     OccasionsController,
     AddressesController,
     RelationshipsController,
-    RequestsController,RegisterController
+    RequestsController,
+    RegisterController,
+    ContactImportController,
   ],
-  exports: [ContactsService],
+  exports: [ContactsService, GroupFinderService],
 })
-export class CrmModule {
-}
+export class CrmModule {}

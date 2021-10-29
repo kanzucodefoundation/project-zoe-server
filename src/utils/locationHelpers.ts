@@ -1,8 +1,8 @@
-import { hasValue } from './basicHelpers';
+import { hasValue } from './validation';
 
 export interface Point {
-  x: number
-  y: number
+  x: number;
+  y: number;
 }
 
 export const stringToPoint = (str: string): Point | undefined => {

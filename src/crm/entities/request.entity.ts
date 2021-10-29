@@ -1,4 +1,10 @@
-import { Column, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
+import {
+  Column,
+  Entity,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
 import Contact from './contact.entity';
 import { OccasionCategory } from '../enums/occasionCategory';
 
@@ -22,11 +28,7 @@ export default class Request {
   category: OccasionCategory;
 
   @JoinColumn()
-  @ManyToOne(
-    type => Contact,
-    it => it.occasions,
-    { nullable: false, cascade: ['insert', 'remove', 'update'] },
-  )
+  @ManyToOne((type) => Contact, (it) => it.occasions)
   contact: Contact;
 
   @Column()

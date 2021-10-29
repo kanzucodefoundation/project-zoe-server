@@ -1,11 +1,15 @@
-import { Column, Entity, JoinColumn, OneToOne, PrimaryGeneratedColumn } from 'typeorm';
-import { Exclude } from 'class-transformer';
+import {
+  Column,
+  Entity,
+  JoinColumn,
+  OneToOne,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
 import { Salutation } from '../enums/salutation';
 import Contact from './contact.entity';
 
 import { Gender } from '../enums/gender';
 import { CivilStatus } from '../enums/civilStatus';
-
 
 @Entity()
 export default class Person {
@@ -50,20 +54,15 @@ export default class Person {
   @Column({ nullable: true })
   avatar: string;
 
-  @Column()
-  dateOfBirth: Date;
+  @Column({ type: 'date', nullable: true })
+  dateOfBirth: Date | string;
 
-
-  @OneToOne(
-    type => Contact,
-    it => it.person,
-    {
-      cascade: ['insert', 'remove','update'],
-    })
+  @OneToOne((type) => Contact, (it) => it.person, {
+    onDelete: 'CASCADE',
+  })
   @JoinColumn()
   contact: Contact;
 
   @Column()
   contactId: number;
-
 }

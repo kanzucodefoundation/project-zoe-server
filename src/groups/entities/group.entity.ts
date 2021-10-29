@@ -1,11 +1,24 @@
-import { Column, Entity, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
+import {
+  Column,
+  Entity,
+  JoinColumn,
+  ManyToOne,
+  OneToMany,
+  PrimaryGeneratedColumn,
+  Tree,
+  TreeChildren,
+  TreeParent,
+} from 'typeorm';
 import { GroupPrivacy } from '../enums/groupPrivacy';
 import GroupCategory from './groupCategory.entity';
 import GroupMembership from './groupMembership.entity';
+import GroupMembershipRequest from './groupMembershipRequest.entity';
+import GroupEvent from '../../events/entities/event.entity';
+import InternalAddress from '../../shared/entity/InternalAddress';
 
 @Entity()
+@Tree('closure-table')
 export default class Group {
-
   @PrimaryGeneratedColumn()
   id: number;
 
@@ -22,42 +35,42 @@ export default class Group {
   @Column({ nullable: true, length: 500 })
   details?: string;
 
-
-  @Column({ nullable: true, type:'json' })
+  @Column({
+    nullable: true,
+    type: 'jsonb',
+  })
   metaData?: any;
 
-  @ManyToOne(type => GroupCategory, it => it.groups)
+  @ManyToOne((type) => GroupCategory, (it) => it.groups)
   @JoinColumn()
   category?: GroupCategory;
 
-  @Column()
+  @Column({ length: 40 })
   categoryId: string;
 
-  @ManyToOne(type => Group, it => it.children)
-  parent?: Group;
+  @TreeChildren()
+  children: Group[];
+
+  @TreeParent()
+  parent: Group;
 
   @Column({ nullable: true })
   parentId?: number;
 
-  @Column({ nullable: true })
-  freeForm?: string;
+  @Column({
+    nullable: true,
+    type: 'jsonb',
+  })
+  address?: InternalAddress;
 
-  @Column({ type:'float',nullable: true })
-  latitude?: number;
-
-  @Column({ type:'float',nullable: true })
-  longitude?: number;
-
-  @Column({ type: 'point', nullable: true })
-  geoCoordinates?: string;
-
-  @Column({ nullable: true })
-  placeId?: string;
-
-  @OneToMany(type => Group, it => it.parent)
-  children: Group[];
+  @OneToMany((type) => GroupEvent, (it) => it.group)
+  events: GroupEvent[];
 
   @JoinColumn()
-  @OneToMany(type => GroupMembership, it => it.group)
+  @OneToMany((type) => GroupMembership, (it) => it.group)
   members: GroupMembership[];
+
+  @JoinColumn()
+  @OneToMany((type) => GroupMembershipRequest, (it) => it.group)
+  groupMembershipRequests: GroupMembershipRequest[];
 }

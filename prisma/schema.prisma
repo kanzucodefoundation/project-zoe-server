@@ -1,0 +1,340 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model address {
+  id             Int                   @id @default(autoincrement())
+  category       address_category_enum @default(Home)
+  isPrimary      Boolean
+  country        String                @db.VarChar
+  district       String                @db.VarChar
+  county         String?               @db.VarChar
+  subCounty      String?               @db.VarChar
+  village        String?               @db.VarChar
+  parish         String?               @db.VarChar
+  postalCode     String?               @db.VarChar
+  street         String?               @db.VarChar
+  freeForm       String?               @db.VarChar
+  latitude       Float?
+  longitude      Float?
+  geoCoordinates Unsupported("point")?
+  placeId        String?               @db.VarChar
+  contactId      Int
+  contact        contact               @relation(fields: [contactId], references: [id])
+}
+
+model company {
+  id        Int     @id @default(autoincrement())
+  name      String  @db.VarChar
+  contactId Int     @unique
+  contact   contact @relation(fields: [contactId], references: [id])
+}
+
+model contact {
+  id                                            Int                        @id @default(autoincrement())
+  category                                      contact_category_enum      @default(Person)
+  address                                       address[]
+  company                                       company?
+  email                                         email[]
+  event_attendance                              event_attendance[]
+  group_membership                              group_membership[]
+  group_membership_request                      group_membership_request[]
+  identification                                identification[]
+  occasion                                      occasion[]
+  person                                        person?
+  phone                                         phone[]
+  relationship_contactTorelationship_contactId  relationship[]             @relation("contactTorelationship_contactId")
+  relationship_contactTorelationship_relativeId relationship[]             @relation("contactTorelationship_relativeId")
+  request                                       request[]
+  user                                          user?
+}
+
+model email {
+  id        Int                 @id @default(autoincrement())
+  category  email_category_enum @default(Personal)
+  value     String              @db.VarChar
+  isPrimary Boolean             @default(false)
+  contactId Int
+  contact   contact             @relation(fields: [contactId], references: [id])
+}
+
+model event_attendance {
+  id        Int     @id @default(autoincrement())
+  isVisitor Boolean
+  eventId   Int
+  contactId Int
+  attended  Boolean
+  contact   contact @relation(fields: [contactId], references: [id])
+  events    events  @relation(fields: [eventId], references: [id])
+}
+
+model event_category {
+  id          String        @id @db.VarChar(40)
+  name        String        @db.VarChar(200)
+  event_field event_field[]
+  events      events[]
+}
+
+model event_field {
+  id             Int            @id @default(autoincrement())
+  name           String         @db.VarChar(40)
+  label          String         @db.VarChar(100)
+  details        String         @db.VarChar(200)
+  type           String         @db.VarChar(25)
+  isRequired     Boolean
+  categoryId     String         @db.VarChar(40)
+  event_category event_category @relation(fields: [categoryId], references: [id])
+}
+
+model events {
+  id               Int                  @id @default(autoincrement())
+  privacy          events_privacy_enum?
+  name             String               @db.VarChar(100)
+  startDate        DateTime?            @db.Timestamp(6)
+  endDate          DateTime?            @db.Timestamp(6)
+  submittedAt      DateTime?            @db.Timestamp(6)
+  submittedById      Int?
+  details          String               @db.VarChar(500)
+  venue            Json?
+  groupId          Int?
+  metaData         Json?
+  categoryId       String               @db.VarChar(40)
+  event_category   event_category       @relation(fields: [categoryId], references: [id])
+  group            group?               @relation(fields: [groupId], references: [id])
+  event_attendance event_attendance[]
+}
+
+model group {
+  id                       Int                        @id @default(autoincrement())
+  privacy                  group_privacy_enum?
+  name                     String                     @db.VarChar(100)
+  details                  String?                    @db.VarChar(500)
+  metaData                 Json?
+  parentId                 Int?
+  freeForm                 String?                    @db.VarChar
+  latitude                 Float?
+  longitude                Float?
+  geoCoordinates           Unsupported("point")?
+  placeId                  String?                    @db.VarChar
+  categoryId               String                     @db.VarChar(40)
+  group_category           group_category             @relation(fields: [categoryId], references: [id])
+  group                    group?                     @relation("groupTogroup_parentId", fields: [parentId], references: [id])
+  events                   events[]
+  other_group              group[]                    @relation("groupTogroup_parentId")
+  group_membership         group_membership[]
+  group_membership_request group_membership_request[]
+}
+
+model group_category {
+  id    String  @id @db.VarChar(40)
+  name  String  @db.VarChar(200)
+  group group[]
+}
+
+model group_membership {
+  id        Int                         @id @default(autoincrement())
+  groupId   Int
+  contactId Int
+  role      group_membership_role_enum?
+  contact   contact                     @relation(fields: [contactId], references: [id])
+  group     group                       @relation(fields: [groupId], references: [id])
+}
+
+model group_membership_request {
+  id         Int     @id @default(autoincrement())
+  contactId  Int
+  parentId   Int?
+  groupId    Int
+  distanceKm Int
+  contact    contact @relation(fields: [contactId], references: [id])
+  group      group   @relation(fields: [groupId], references: [id])
+}
+
+model identification {
+  id             Int                          @id @default(autoincrement())
+  value          String                       @db.VarChar
+  cardNumber     String                       @db.VarChar
+  issuingCountry String                       @db.VarChar
+  startDate      DateTime                     @db.Timestamp(6)
+  expiryDate     DateTime                     @db.Timestamp(6)
+  category       identification_category_enum @default(Nin)
+  isPrimary      Boolean
+  contactId      Int
+  contact        contact                      @relation(fields: [contactId], references: [id])
+}
+
+model occasion {
+  id        Int                    @id @default(autoincrement())
+  value     DateTime               @db.Timestamp(6)
+  details   String                 @db.VarChar
+  category  occasion_category_enum @default(Birthday)
+  contactId Int
+  contact   contact                @relation(fields: [contactId], references: [id])
+}
+
+model person {
+  id          Int                      @id @default(autoincrement())
+  salutation  person_salutation_enum?
+  firstName   String                   @db.VarChar(40)
+  lastName    String                   @db.VarChar(40)
+  middleName  String?                  @db.VarChar(40)
+  ageGroup    String?                  @db.VarChar
+  placeOfWork String?                  @db.VarChar
+  gender      person_gender_enum
+  civilStatus person_civilstatus_enum?
+  avatar      String?                  @db.VarChar
+  dateOfBirth DateTime?                @db.Date
+  contactId   Int                      @unique
+  contact     contact                  @relation(fields: [contactId], references: [id])
+}
+
+model phone {
+  id        Int                 @id @default(autoincrement())
+  category  phone_category_enum @default(Mobile)
+  value     String              @db.VarChar
+  isPrimary Boolean
+  contactId Int
+  contact   contact             @relation(fields: [contactId], references: [id])
+}
+
+model query_result_cache {
+  id         Int     @id @default(autoincrement())
+  identifier String? @db.VarChar
+  time       BigInt
+  duration   Int
+  query      String
+  result     String
+
+  @@map("query-result-cache")
+}
+
+model relationship {
+  id                                       Int                        @id @default(autoincrement())
+  category                                 relationship_category_enum @default(Other)
+  contactId                                Int
+  relativeId                               Int
+  contact_contactTorelationship_contactId  contact                    @relation("contactTorelationship_contactId", fields: [contactId], references: [id])
+  contact_contactTorelationship_relativeId contact                    @relation("contactTorelationship_relativeId", fields: [relativeId], references: [id])
+}
+
+model request {
+  id         Int                   @id @default(autoincrement())
+  value      DateTime              @db.Timestamp(6)
+  details    String                @db.VarChar
+  category   request_category_enum @default(Birthday)
+  relativeId Int
+  contactId  Int
+  contact    contact               @relation(fields: [contactId], references: [id])
+}
+
+model user {
+  id        Int     @id @default(autoincrement())
+  username  String  @unique @db.VarChar(40)
+  password  String  @db.VarChar(100)
+  contactId Int     @unique
+  roles     String
+  isActive  Boolean
+  contact   contact @relation(fields: [contactId], references: [id])
+}
+
+enum address_category_enum {
+  Work
+  Home
+  Other
+}
+
+enum contact_category_enum {
+  Person
+  Company
+}
+
+enum email_category_enum {
+  Work
+  Personal
+  Other
+}
+
+enum events_privacy_enum {
+  Public
+  Private
+}
+
+enum group_membership_role_enum {
+  Member
+  Leader
+}
+
+enum group_privacy_enum {
+  Private
+  Public
+}
+
+enum identification_category_enum {
+  Nin
+  Passport
+  DrivingPermit
+  VillageCard
+  Nssf
+  Other
+}
+
+enum occasion_category_enum {
+  Birthday
+  Anniversary
+  Salvation
+  Engaged
+  Other
+}
+
+enum person_civilstatus_enum {
+  Other
+  Single
+  Married
+  Dating
+}
+
+enum person_gender_enum {
+  Male
+  Female
+}
+
+enum person_salutation_enum {
+  Mr
+  Mrs
+  Ms
+  Dr
+  Prof
+  Other
+}
+
+enum phone_category_enum {
+  Mobile
+  Office
+  Home
+  Fax
+  Other
+}
+
+enum relationship_category_enum {
+  Mother
+  Father
+  Daughter
+  Son
+  Fiancee
+  Sister
+  Brother
+  Other
+}
+
+enum request_category_enum {
+  Birthday
+  Anniversary
+  Salvation
+  Engaged
+  Other
+}

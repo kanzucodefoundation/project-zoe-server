@@ -1,44 +1,48 @@
-import {IsDateString, IsEnum, IsNotEmpty, IsNumber, IsOptional, IsString} from "class-validator";
-import {Gender} from "../enums/gender";
-import {CivilStatus} from "../enums/civilStatus";
-import {Salutation} from "../enums/salutation";
+import {
+  IsDateString,
+  IsEnum,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+} from 'class-validator';
+import { Gender } from '../enums/gender';
+import { CivilStatus } from '../enums/civilStatus';
+import { Salutation } from '../enums/salutation';
 
 export class PersonEditDto {
+  @IsNumber()
+  id: number;
 
-    @IsNumber()
-    id: number;
+  @IsNotEmpty()
+  firstName: string;
 
-    @IsNotEmpty()
-    firstName: string;
+  @IsNotEmpty()
+  lastName: string;
 
-    @IsNotEmpty()
-    lastName: string;
+  middleName?: string;
 
-    middleName?: string;
+  @IsEnum(Gender)
+  gender: Gender;
 
-    @IsEnum(Gender)
-    gender: Gender;
+  @IsOptional()
+  @IsEnum(CivilStatus)
+  civilStatus?: CivilStatus;
 
-    @IsOptional()
-    @IsEnum(CivilStatus)
-    civilStatus?: CivilStatus;
+  @IsDateString()
+  dateOfBirth: Date;
 
-    @IsDateString()
-    dateOfBirth: Date;
+  residence?: string;
 
-    residence?: string;
+  placeOfWork?: string;
 
-    placeOfWork?: string;
+  @IsNumber()
+  contactId: number;
 
-    @IsNumber()
-    contactId: number;
+  @IsOptional()
+  @IsEnum(Salutation)
+  salutation?: Salutation;
 
-    @IsOptional()
-    @IsEnum(Salutation)
-    salutation?: Salutation;
+  age?: string;
 
-    age?: string
-
-    avatar?: string
-
+  avatar?: string;
 }

@@ -1,10 +1,15 @@
-import { Column, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
+import {
+  Column,
+  Entity,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
 import Contact from './contact.entity';
 import { EmailCategory } from '../enums/emailCategory';
 
 @Entity()
 export default class Email {
-
   @PrimaryGeneratedColumn()
   id: number;
 
@@ -25,7 +30,10 @@ export default class Email {
   isPrimary: boolean;
 
   @JoinColumn()
-  @ManyToOne(type => Contact, it => it.emails, { nullable: false })
+  @ManyToOne((type) => Contact, (it) => it.emails, {
+    nullable: false,
+    onDelete: 'CASCADE',
+  })
   contact?: Contact;
 
   @Column()

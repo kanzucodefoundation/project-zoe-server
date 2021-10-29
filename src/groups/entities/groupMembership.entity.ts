@@ -1,4 +1,10 @@
-import { Column, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
+import {
+  Column,
+  Entity,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
 import Group from './group.entity';
 
 import { GroupRole } from '../enums/groupRole';
@@ -10,13 +16,13 @@ export default class GroupMembership {
   id: number;
 
   @JoinColumn()
-  @ManyToOne(type => Group, it => it.members)
+  @ManyToOne((type) => Group, (it) => it.members)
   group: Group;
   @Column()
   groupId: number;
 
   @JoinColumn()
-  @ManyToOne(type => Contact, it => it.groupMemberships)
+  @ManyToOne((type) => Contact, (it) => it.groupMemberships)
   contact: Contact;
 
   @Column()

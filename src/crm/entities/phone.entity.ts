@@ -1,4 +1,10 @@
-import { Column, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
+import {
+  Column,
+  Entity,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
 import Contact from './contact.entity';
 import { PhoneCategory } from '../enums/phoneCategory';
 
@@ -22,11 +28,9 @@ export default class Phone {
   isPrimary: boolean;
 
   @JoinColumn()
-  @ManyToOne(
-    type => Contact,
-    it => it.phones,
-    { nullable: false, cascade: ['insert', 'remove', 'update'] },
-  )
+  @ManyToOne((type) => Contact, (it) => it.phones, {
+    onDelete: 'CASCADE',
+  })
   contact?: Contact;
 
   @Column()

@@ -1,63 +1,55 @@
-import {Column, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn} from "typeorm";
-import Contact from "./contact.entity";
+import {
+  Column,
+  Entity,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
+import Contact from './contact.entity';
 import { AddressCategory } from '../enums/addressCategory';
 
 @Entity()
 export default class Address {
-    @PrimaryGeneratedColumn()
-    id: number;
+  @PrimaryGeneratedColumn()
+  id: number;
 
-    @Column({
-        type: "enum",
-        enum: AddressCategory,
-        nullable: false,
-        default: AddressCategory.Home
-    })
-    category: AddressCategory;
+  @Column({
+    type: 'enum',
+    enum: AddressCategory,
+    nullable: false,
+    default: AddressCategory.Home,
+  })
+  category: AddressCategory;
 
-    @Column()
-    isPrimary: boolean;
+  @Column()
+  isPrimary: boolean;
 
-    @Column()
-    country: string;
+  @Column()
+  country: string;
 
-    @Column()
-    district: string;
+  @Column()
+  district: string;
 
-    @Column({nullable: true})
-    county: string;
+  @Column({ nullable: true })
+  freeForm?: string;
 
-    @Column({nullable: true})
-    subCounty?: string;
+  @Column({ type: 'float', nullable: true })
+  latitude?: number;
 
-    @Column({nullable: true})
-    village?: string;
+  @Column({ type: 'float', nullable: true })
+  longitude?: number;
 
-    @Column({nullable: true})
-    parish?: string;
+  @Column({ type: 'point', nullable: true })
+  geoCoordinates?: string;
 
-    @Column({nullable: true})
-    postalCode?: string;
+  @Column({ nullable: true })
+  placeId?: string;
 
-    @Column({nullable: true})
-    street?: string;
-
-    @Column({nullable: true})
-    freeForm?: string;
-
-    @Column({nullable: true})
-    latLon?: string;
-
-    @Column({nullable: true})
-    placeId?: string;
-
-    @JoinColumn()
-    @ManyToOne(
-      type => Contact,
-      it => it.addresses,
-      { nullable: false, cascade: ['insert', 'remove'] },
-    )
-    contact: Contact;
-    @Column()
-    contactId: number;
+  @JoinColumn()
+  @ManyToOne((type) => Contact, (it) => it.addresses, {
+    onDelete: 'CASCADE',
+  })
+  contact: Contact;
+  @Column()
+  contactId: number;
 }

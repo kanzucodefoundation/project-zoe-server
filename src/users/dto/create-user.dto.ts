@@ -1,4 +1,4 @@
-import {IsNotEmpty, IsNumber} from 'class-validator';
+import { IsNotEmpty, IsNumber } from 'class-validator';
 
 export class CreateUserDto {
   @IsNotEmpty()
@@ -10,4 +10,6 @@ export class CreateUserDto {
   password: string;
   @IsNotEmpty()
   roles: string[];
+  @IsNotEmpty()
+  isActive: boolean;
 }

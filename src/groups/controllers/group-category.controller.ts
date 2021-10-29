@@ -1,16 +1,27 @@
-import { Controller, Delete, Get, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Post,
+  Put,
+  Query,
+  UseGuards,
+  UseInterceptors,
+} from '@nestjs/common';
 import { GroupCategoriesService } from '../services/group-categories.service';
 import GroupCategory from '../entities/groupCategory.entity';
 import SearchDto from '../../shared/dto/search.dto';
 import { ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { SentryInterceptor } from 'src/utils/sentry.interceptor';
 
+@UseInterceptors(SentryInterceptor)
 @UseGuards(JwtAuthGuard)
 @ApiTags('Group Categories')
 @Controller('api/groups/category')
 export class GroupCategoryController {
-  constructor(private readonly service: GroupCategoriesService) {
-  }
+  constructor(private readonly service: GroupCategoriesService) {}
 
   @Get()
   async findAll(@Query() req: SearchDto): Promise<GroupCategory[]> {
@@ -27,13 +38,13 @@ export class GroupCategoryController {
     return await this.service.update(data);
   }
 
-  @Get(":id")
-  async findOne(@Param('id') id:number): Promise<GroupCategory> {
+  @Get(':id')
+  async findOne(@Param('id') id: number): Promise<GroupCategory> {
     return await this.service.findOne(id);
   }
 
-  @Delete(":id")
-  async remove(@Param('id') id:number): Promise<void> {
+  @Delete(':id')
+  async remove(@Param('id') id: number): Promise<void> {
     await this.service.remove(id);
   }
 }
