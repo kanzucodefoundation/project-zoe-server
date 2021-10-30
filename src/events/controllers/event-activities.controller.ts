@@ -24,7 +24,7 @@ export class EventActivitiesController {
   @Get()
   async findAll(
     
-  ): Promise<EventActivity[]> {
+  ): Promise<CreateEventActivityDto[]> {
     return await this.service.findAll();
   }
 

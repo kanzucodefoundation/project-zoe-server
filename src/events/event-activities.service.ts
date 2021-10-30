@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { CreateEventActivityDto } from './dto/create-event-activity.dto';
 import EventActivitiesSearchDto from './dto/event-activities-search.dto';
 import { UpdateEventActivityDto } from './dto/update-event-activity.dto';
 import { EventActivity } from './entities/event-activity.entity';
@@ -30,7 +31,7 @@ export class EventActivitiesService {
   }
 
   //Get all activities.
-  async findAll(): Promise<EventActivity[]> {
+  async findAll(): Promise<CreateEventActivityDto[]> {
     console.log('findin all');
     const data = await this.repository.find({
     
