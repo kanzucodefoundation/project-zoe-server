@@ -49,7 +49,7 @@ export class MemberEventActivitiesController {
     return await this.service.update(data);
   }
 
-  @Delete(':id')
+  @Delete('/:id')
   async remove(@Param('id') id: number): Promise<void> {
     return await this.service.remove(id);
   }

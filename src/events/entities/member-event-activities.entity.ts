@@ -21,8 +21,7 @@ contact:Contact;
 
 @Column()
 contactId:number;
-// @Column({ nullable: false })
-// isActive: Boolean;
+
   
 
 }

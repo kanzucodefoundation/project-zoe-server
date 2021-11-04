@@ -16,6 +16,6 @@ export class EventActivititiesDto {
   @IsNumber()
   @Min(0)
   eventId: number;
-  event: any;
+  //event: any;
  
 }

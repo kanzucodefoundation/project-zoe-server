@@ -1,7 +1,7 @@
 import { contact } from '@prisma/client';
 import { MemberEventActivities } from './entities/member-event-activities.entity';
 import { Injectable, Logger } from '@nestjs/common';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 
 import { UpdateMemberEventActivitiesDto } from './dto/update-member-event-activities.dto';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -40,7 +40,7 @@ export class MemberEventActivitiesService {
     const allActivities = await this.eventActivityrepository.find({});
 
     const toDto = [];
-    const member = [];
+    
     for (let i = 0; i < allActivities.length; i++) {
       const data = await this.repository.find({
         where: { activityId: allActivities[i].id },
@@ -48,14 +48,14 @@ export class MemberEventActivitiesService {
         relations: ['activity', 'contact', 'contact.person'],
       });
 
-      const contact = [];
+      const member = [];
       if (data) {
         for (let j = 0; j < data.length; j++) {
           const fullName = `${data[j].contact.person.firstName} ${data[j].contact.person.lastName}`;
-          contact.push({ contactId: data[j].contactId, person: fullName });
+          member.push({ contactId: data[j].contactId, person: fullName });
         }
       }
-      const allData = { activity: allActivities[i].name, members: contact};
+      const allData = { activity: allActivities[i].name, members: member};
       toDto.push(allData);
     }
 
@@ -67,24 +67,19 @@ export class MemberEventActivitiesService {
   }
 
   async update(
-    dto: UpdateMemberEventActivitiesDto,
-  ): Promise<UpdateMemberEventActivitiesDto> {
-    const result = await this.repository
-      .createQueryBuilder()
-      .update(MemberEventActivities)
-      .set({
-        activityId: dto.activityId,
-        contactId: dto.contactId,
+      data: UpdateMemberEventActivitiesDto,
+    ): Promise<UpdateMemberEventActivitiesDto |any> {
+      console.log('updating members',data);
+        for (let i = 0; i < data.contactId.length; i++) {
+          await this.repository.delete(data.contactId[i]);
 
-      })
-      .where('id = :id', { id: dto.id })
-      .execute();
-    if (result.affected)
-      Logger.log(
-        `Update.MemberEventActivities id: ${dto.id} affected:${result.affected} complete`,
-      );
-    return await this.findOne(dto.id);
+        }
+      
+    return data;
   }
+     
+  
+ 
 
   async remove(id: number): Promise<void> {
     console.log('removing an member from an activity');
