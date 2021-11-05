@@ -6,15 +6,11 @@ import {
   Put,
   Param,
   Delete,
-  Query,
 } from '@nestjs/common';
 import { EventActivitiesService } from '../event-activities.service';
 import { CreateEventActivityDto } from '../dto/create-event-activity.dto';
 import { ApiTags } from '@nestjs/swagger';
 import { EventActivity } from '../entities/event-activity.entity';
-
-import EventActivitiesDto from '../dto/event-activities-search.dto';
-import EventActivitiesSearchDto from '../dto/event-activities-search.dto';
 
 @ApiTags('EventActivities')
 @Controller('api/events/activities')
@@ -22,9 +18,7 @@ export class EventActivitiesController {
   constructor(private service: EventActivitiesService) {}
 
   @Get()
-  async findAll(
-    
-  ): Promise<CreateEventActivityDto[]> {
+  async findAll(): Promise<CreateEventActivityDto[]> {
     return await this.service.findAll();
   }
 

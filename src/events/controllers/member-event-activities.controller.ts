@@ -2,7 +2,6 @@ import { MemberEventActivitiesDto } from './../dto/member-event-activities.dto';
 import { MemberEventActivities } from './../entities/member-event-activities.entity';
 import { MemberEventActivitiesService } from './../member-event-activities.service';
 
-
 import {
   Controller,
   Get,
@@ -33,7 +32,6 @@ export class MemberEventActivitiesController {
 
   @Get()
   async findAll(): Promise<MemberEventActivities[]> {
- 
     return await this.service.findAll();
   }
 
