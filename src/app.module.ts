@@ -15,6 +15,7 @@ import { SeedService } from './seed/seed.service';
 import { VendorModule } from './vendor/vendor.module';
 import { EventsModule } from './events/events.module';
 import { ChatModule } from './chat/chat.module';
+import { HelpModule } from './help/help.module';
 
 @Global()
 @Module({
@@ -39,6 +40,7 @@ import { ChatModule } from './chat/chat.module';
     VendorModule,
     EventsModule,
     ChatModule,
+    HelpModule,
   ],
   exports: [AppService],
   controllers: [AuthController],
