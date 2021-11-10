@@ -12,6 +12,7 @@ import Group from '../../groups/entities/group.entity';
 import InternalAddress from '../../shared/entity/InternalAddress';
 import EventAttendance from './eventAttendance.entity';
 import Person from 'src/crm/entities/person.entity';
+import EventRegistration from './eventRegistration.entity';
 
 @Entity({ name: 'events' })
 export default class GroupEvent {
@@ -28,7 +29,7 @@ export default class GroupEvent {
   @Column({ length: 100 })
   name: string;
 
-  @Column({ length: 100, nullable: true})
+  @Column({ length: 100, nullable: true })
   summary?: string;
 
   @Column({ type: 'timestamp', nullable: true })
@@ -70,6 +71,9 @@ export default class GroupEvent {
 
   @OneToMany((type) => EventAttendance, (it) => it.event)
   attendance: EventAttendance[];
+
+  @OneToMany((type) => EventRegistration, (it) => it.event)
+  registration: EventRegistration[];
 
   @Column({
     nullable: true,
