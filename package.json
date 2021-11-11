@@ -19,6 +19,7 @@
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "commit": "cz",
+    "pre-commit": "npm test",
     "prepare": "husky install"
   },
   "dependencies": {
@@ -86,7 +87,7 @@
     "eslint": "7.21.0",
     "eslint-config-prettier": "8.1.0",
     "eslint-plugin-import": "2.22.1",
-    "husky": "^7.0.4",
+    "husky": "^7.0.0",
     "jest": "26.6.3",
     "prettier": "2.2.1",
     "prisma": "^2.27.0",
