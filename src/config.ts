@@ -3,6 +3,7 @@ import { usersEntities } from './users/users.helpers';
 import { crmEntities } from './crm/crm.helpers';
 import { groupEntities } from './groups/groups.helpers';
 import { eventEntities } from './events/events.helpers';
+import { helpEntities } from './help/help.helpers';
 
 require('dotenv').config();
 
@@ -45,5 +46,6 @@ export const appEntities: any[] = [
   ...crmEntities,
   ...groupEntities,
   ...eventEntities,
+  ...helpEntities,
 ];
 console.log('#################appEntities#########', appEntities);

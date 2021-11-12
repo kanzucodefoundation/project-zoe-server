@@ -29,7 +29,6 @@ export class UsersController {
     private readonly service: UsersService) {
   }
 
-  
   @Get()
   async findAll(@Query() req: SearchDto): Promise<UserListDto[]> {
     return this.service.findAll(req);
