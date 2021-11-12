@@ -20,6 +20,7 @@ import GroupMembership from '../../groups/entities/groupMembership.entity';
 import Relationship from './relationship.entity';
 import GroupMembershipRequest from '../../groups/entities/groupMembershipRequest.entity';
 import EventAttendance from '../../events/entities/eventAttendance.entity';
+import EventRegistration from 'src/events/entities/eventRegistration.entity';
 
 @Entity()
 export default class Contact {
@@ -81,8 +82,15 @@ export default class Contact {
   })
   attendance: EventAttendance[];
 
+
   @OneToMany((type) =>MemberEventActivities, (it) => it.contact)
   member: MemberEventActivities[];
+
+  @OneToMany((type) => EventRegistration, (it) => it.contact, {
+    cascade: ['insert'],
+  })
+  registration: EventRegistration[];
+
 
   static ref(id: number) {
     const c = new Contact();
