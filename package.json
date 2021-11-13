@@ -18,7 +18,7 @@
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
-    "commit": "cz",
+    "cm": "cz",
     "pre-commit": "npm test",
     "prepare": "husky install"
   },
@@ -83,6 +83,7 @@
     "@types/supertest": "2.0.10",
     "@typescript-eslint/eslint-plugin": "4.16.1",
     "@typescript-eslint/parser": "4.16.1",
+    "commitizen": "^4.2.4",
     "cz-conventional-changelog": "^3.3.0",
     "eslint": "7.21.0",
     "eslint-config-prettier": "8.1.0",
