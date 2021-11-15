@@ -33,6 +33,7 @@ import { EventRegistrationService } from "./event-registration.service";
 
     EventActivitiesController,
     MemberEventActivitiesController,
+    EventsRegistrationController,
   ],
   providers: [
     EventsService,
@@ -40,7 +41,6 @@ import { EventRegistrationService } from "./event-registration.service";
     EventActivitiesService,
     MemberEventActivitiesService,
 
-    EventsRegistrationController,
     EventRegistrationService,
   ],
   //providers: [EventsService, PrismaService, EventRegistrationService],
