@@ -1,5 +1,5 @@
-import { Column, Entity, OneToMany, PrimaryColumn } from 'typeorm';
-import Group from './group.entity';
+import { Column, Entity, OneToMany, PrimaryColumn } from "typeorm";
+import Group from "./group.entity";
 
 @Entity()
 export default class GroupCategory {
@@ -10,7 +10,7 @@ export default class GroupCategory {
   name: string;
 
   @OneToMany((type) => Group, (it) => it.category, {
-    cascade: ['insert', 'remove'],
+    cascade: ["insert", "remove"],
   })
   groups: Group[];
 }
