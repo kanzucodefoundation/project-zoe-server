@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { getPersonFullName } from 'src/crm/crm.helpers';
 import { Repository } from 'typeorm';
 import EventRegistrationSearchDto from './dto/even-registration-search.dto';
-import EventRegistartion from './dto/event-registration.dto';
+import EventRegistrationDto from './dto/event-registration.dto';
 import EventRegistration from './entities/eventRegistration.entity';
 
 @Injectable()
@@ -12,7 +12,7 @@ export class EventRegistrationService {
     @InjectRepository(EventRegistration)
     private readonly repository: Repository<EventRegistration>,
   ) {}
-  async create(data: EventRegistartion): Promise<any> {
+  async create(data: EventRegistrationDto): Promise<any> {
     const result = await this.repository
       .createQueryBuilder()
       .insert()

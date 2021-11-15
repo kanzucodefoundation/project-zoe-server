@@ -19,7 +19,7 @@ import GroupEvent from './entities/event.entity';
 import GroupMembership from '../groups/entities/groupMembership.entity';
 import { SentryInterceptor } from 'src/utils/sentry.interceptor';
 import { EventRegistrationService } from './event-registration.service';
-import EventRegistartion from './dto/event-registration.dto';
+import EventRegistrationDto from './dto/event-registration.dto';
 import EventRegistrationSearchDto from './dto/even-registration-search.dto';
 
 @UseInterceptors(SentryInterceptor)
@@ -31,7 +31,7 @@ export class EventsRegistrationController {
     private readonly eventRegistrationService: EventRegistrationService,
   ) {}
   @Post()
-  create(@Body() data: EventRegistartion): Promise<void> {
+  create(@Body() data: EventRegistrationDto): Promise<void> {
     return this.eventRegistrationService.create(data);
   }
 
