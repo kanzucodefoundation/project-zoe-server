@@ -15,6 +15,8 @@ import { SeedService } from './seed/seed.service';
 import { VendorModule } from './vendor/vendor.module';
 import { EventsModule } from './events/events.module';
 import { ChatModule } from './chat/chat.module';
+import { ChatGateway } from './chat.gateway';
+import { MessengerModule } from './messenger/messenger.module';
 
 @Global()
 @Module({
@@ -39,10 +41,11 @@ import { ChatModule } from './chat/chat.module';
     VendorModule,
     EventsModule,
     ChatModule,
+    MessengerModule,
   ],
   exports: [AppService],
-  controllers: [AuthController],
-  providers: [AppService],
+  controllers: [AuthController,],
+  providers: [AppService, ChatGateway, ],
 })
 export class AppModule {
   constructor(private readonly seedService: SeedService) {}

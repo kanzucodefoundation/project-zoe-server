@@ -2,6 +2,7 @@ import {
   Column,
   Entity,
   JoinColumn,
+  ManyToOne,
   OneToMany,
   OneToOne,
   PrimaryGeneratedColumn,
@@ -19,6 +20,8 @@ import GroupMembership from '../../groups/entities/groupMembership.entity';
 import Relationship from './relationship.entity';
 import GroupMembershipRequest from '../../groups/entities/groupMembershipRequest.entity';
 import EventAttendance from '../../events/entities/eventAttendance.entity';
+import Messenger from 'src/messenger/entities/messenger.entity';
+// import Messaging from 'src/messages/messaging.entity';
 
 @Entity()
 export default class Contact {
@@ -79,6 +82,9 @@ export default class Contact {
     cascade: ['insert'],
   })
   attendance: EventAttendance[];
+
+  @OneToMany((type) => Messenger, (it) => it.contact, { cascade: true })
+  messenger:Messenger[];
 
   static ref(id: number) {
     const c = new Contact();
