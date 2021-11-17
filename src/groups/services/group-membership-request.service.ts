@@ -47,7 +47,7 @@ export class GroupMembershipRequestService {
       group: {
         id: group.id,
         name: group.name,
-        parent: parent
+        parent: group.parent
           ? { id: group.parent.id, name: group.parent.name }
           : null,
       },
@@ -60,6 +60,7 @@ export class GroupMembershipRequestService {
   }
 
   async create(data: NewRequestDto): Promise<GroupMembershipRequestDto | any> {
+    console.log("%%%", data);
     const user = await this.contactRepository.findOne(data.contactId, {
       relations: ["person"],
     });
@@ -85,7 +86,7 @@ export class GroupMembershipRequestService {
         contactId: data.contactId,
         parentId: data.churchLocation,
         groupId: info.groupId,
-        distanceKm: info.distance / 1000,
+        distanceKm: Math.round(info.distance / 1000),
       })
       .execute();
 
