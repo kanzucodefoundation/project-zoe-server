@@ -5,9 +5,11 @@
   "author": "",
   "license": "MIT",
   "engines": {
+    "npm": "7.5.2",
     "node": "12.22.5"
   },
   "scripts": {
+    "heroku-postbuild": "npm run build",
     "prebuild": "rimraf dist",
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
@@ -52,7 +54,6 @@
     "google-libphonenumber": "^3.2.19",
     "helmet": "^3.21.3",
     "lodash": "^4.17.19",
-    "mongoose": "^6.0.12",
     "morgan": "^1.10.0",
     "nest-csv-parser": "^2.0.4",
     "nodemailer": "^6.4.18",

@@ -40,5 +40,7 @@ lerna-debug.log*
 #Eslint cache file
 .eslintcache
 
+package-lock.json
+
 
 
