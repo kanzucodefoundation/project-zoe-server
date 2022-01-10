@@ -1,10 +1,10 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { getPersonFullName } from 'src/crm/crm.helpers';
-import { Repository } from 'typeorm';
-import EventRegistrationSearchDto from './dto/even-registration-search.dto';
-import EventRegistartion from './dto/event-registration.dto';
-import EventRegistration from './entities/eventRegistration.entity';
+import { Injectable, Logger } from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { getPersonFullName } from "src/crm/crm.helpers";
+import { Repository } from "typeorm";
+import EventRegistrationSearchDto from "./dto/even-registration-search.dto";
+import EventRegistrationDto from "./dto/event-registration.dto";
+import EventRegistration from "./entities/eventRegistration.entity";
 
 @Injectable()
 export class EventRegistrationService {
@@ -12,7 +12,7 @@ export class EventRegistrationService {
     @InjectRepository(EventRegistration)
     private readonly repository: Repository<EventRegistration>,
   ) {}
-  async create(data: EventRegistartion): Promise<any> {
+  async create(data: EventRegistrationDto): Promise<any> {
     const result = await this.repository
       .createQueryBuilder()
       .insert()
@@ -22,7 +22,7 @@ export class EventRegistrationService {
       })
       .execute();
 
-    Logger.log('Event Registration is successfully');
+    Logger.log("Event Registration is successfully");
     return data;
   }
 
@@ -55,7 +55,7 @@ export class EventRegistrationService {
   async findOne(id: number): Promise<any> {
     //Find particular record given the id
     const data = await this.repository.findOne(id, {
-      relations: ['event', 'contact', 'contact.person'],
+      relations: ["event", "contact", "contact.person"],
     });
     //Refactoring into an array for Dto formatting
     const response: any[] = [];
@@ -67,7 +67,7 @@ export class EventRegistrationService {
   async findAll(req: EventRegistrationSearchDto): Promise<any> {
     const data = await this.repository.find({
       where: { contactId: req.contactId },
-      relations: ['event', 'contact', 'contact.person'],
+      relations: ["event", "contact", "contact.person"],
     });
 
     return this.toDto(data);

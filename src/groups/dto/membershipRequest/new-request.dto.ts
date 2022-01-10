@@ -6,12 +6,6 @@ export class NewRequestDto {
   residencePlaceId: string;
   residenceDescription: string;
 }
-export class NewMcDto {
-  email: string;
-  phone: string;
-  residencePlaceId: string;
-  residenceDescription: string;
-}
 
 export class GetClosestGroupDto {
   placeId: string;

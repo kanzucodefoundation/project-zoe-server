@@ -5,22 +5,25 @@ import {
   ManyToOne,
   OneToMany,
   PrimaryGeneratedColumn,
-} from 'typeorm';
-import { EventPrivacy } from '../enums/EventPrivacy';
-import EventCategory from './eventCategory.entity';
-import Group from '../../groups/entities/group.entity';
-import InternalAddress from '../../shared/entity/InternalAddress';
-import EventAttendance from './eventAttendance.entity';
-import Person from 'src/crm/entities/person.entity';
-import EventRegistration from './eventRegistration.entity';
+} from "typeorm";
+import { EventPrivacy } from "../enums/EventPrivacy";
+import EventCategory from "./eventCategory.entity";
+import Group from "../../groups/entities/group.entity";
+import InternalAddress from "../../shared/entity/InternalAddress";
+import EventAttendance from "./eventAttendance.entity";
+import Person from "src/crm/entities/person.entity";
 
-@Entity({ name: 'events' })
+import { EventActivity } from "./event-activity.entity";
+
+import EventRegistration from "./eventRegistration.entity";
+
+@Entity({ name: "events" })
 export default class GroupEvent {
   @PrimaryGeneratedColumn()
   id: number;
 
   @Column({
-    type: 'enum',
+    type: "enum",
     enum: EventPrivacy,
     nullable: true,
   })
@@ -32,13 +35,13 @@ export default class GroupEvent {
   @Column({ length: 100, nullable: true })
   summary?: string;
 
-  @Column({ type: 'timestamp', nullable: true })
+  @Column({ type: "timestamp", nullable: true })
   startDate?: Date;
 
-  @Column({ type: 'timestamp', nullable: true })
+  @Column({ type: "timestamp", nullable: true })
   endDate?: Date;
 
-  @Column({ type: 'timestamp', nullable: true })
+  @Column({ type: "timestamp", nullable: true })
   submittedAt?: Date;
 
   @ManyToOne((type) => Person, (it) => it.contactId)
@@ -49,7 +52,7 @@ export default class GroupEvent {
 
   @Column({
     nullable: true,
-    type: 'jsonb',
+    type: "jsonb",
   })
   venue?: InternalAddress;
 
@@ -72,12 +75,15 @@ export default class GroupEvent {
   @OneToMany((type) => EventAttendance, (it) => it.event)
   attendance: EventAttendance[];
 
+  @OneToMany((type) => EventActivity, (it) => it.event)
+  activity: EventActivity[];
+
   @OneToMany((type) => EventRegistration, (it) => it.event)
   registration: EventRegistration[];
 
   @Column({
     nullable: true,
-    type: 'jsonb',
+    type: "jsonb",
   })
   metaData?: any;
 }

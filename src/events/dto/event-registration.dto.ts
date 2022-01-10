@@ -1,7 +1,7 @@
-import { Type } from 'class-transformer';
-import { IsNotEmpty, IsNumber, Min } from 'class-validator';
+import { Type } from "class-transformer";
+import { IsNotEmpty, IsNumber, Min } from "class-validator";
 
-export default class EventRegistartion {
+export default class EventRegistrationDto {
   @IsNotEmpty()
   @Type(() => Number)
   @IsNumber()

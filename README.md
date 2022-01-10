@@ -35,6 +35,10 @@ This repo works with the server at https://github.com/kanzucode/angie-client so 
 **Solution:** Run `npm install -g eslint` then `eslint --init`
 If that fails, other alternatives here https://github.com/eslint/eslint/issues/10192
 
+## Commitizen friendly
+[![Commitizen friendly](https://img.shields.io/badge/commitizen-friendly-brightgreen.svg)](http://commitizen.github.io/cz-cli/)
+
+
 
 
 
