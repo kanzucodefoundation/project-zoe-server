@@ -1,8 +1,8 @@
-import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import SearchDto from '../../shared/dto/search.dto';
-import GroupCategory from '../entities/groupCategory.entity';
+import { Injectable } from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
+import SearchDto from "../../shared/dto/search.dto";
+import GroupCategory from "../entities/groupCategory.entity";
 
 @Injectable()
 export class GroupCategoriesService {
@@ -30,7 +30,7 @@ export class GroupCategoriesService {
     return await this.repository.save(data);
   }
 
-  async remove(id: number): Promise<void> {
+  async remove(id: string): Promise<void> {
     await this.repository.delete(id);
   }
 

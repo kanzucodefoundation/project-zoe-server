@@ -10,19 +10,19 @@ import {
   Request,
   UseGuards,
   UseInterceptors,
-} from '@nestjs/common';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { ApiTags } from '@nestjs/swagger';
-import { EventsService } from './events.service';
-import GroupEventDto from './dto/group-event.dto';
-import CreateEventDto from './dto/create-event.dto';
-import GroupEventSearchDto from './dto/group-event-search.dto';
-import { SentryInterceptor } from 'src/utils/sentry.interceptor';
+} from "@nestjs/common";
+import { JwtAuthGuard } from "../../auth/guards/jwt-auth.guard";
+import { ApiTags } from "@nestjs/swagger";
+import { EventsService } from "../events.service";
+import GroupEventDto from "../dto/group-event.dto";
+import CreateEventDto from "../dto/create-event.dto";
+import GroupEventSearchDto from "../dto/group-event-search.dto";
+import { SentryInterceptor } from "src/utils/sentry.interceptor";
 
 @UseInterceptors(SentryInterceptor)
 @UseGuards(JwtAuthGuard)
-@ApiTags('Events')
-@Controller('api/events/event')
+@ApiTags("Events")
+@Controller("api/events/event")
 export class EventsController {
   constructor(private readonly service: EventsService) {}
 
@@ -44,13 +44,13 @@ export class EventsController {
     return await this.service.update(data);
   }
 
-  @Get(':id')
-  async findOne(@Param('id') id: number): Promise<GroupEventDto> {
+  @Get(":id")
+  async findOne(@Param("id") id: number): Promise<GroupEventDto> {
     return await this.service.findOne(id);
   }
 
-  @Delete(':id')
-  async remove(@Param('id') id: number): Promise<void> {
+  @Delete(":id")
+  async remove(@Param("id") id: number): Promise<void> {
     await this.service.remove(id);
   }
 }

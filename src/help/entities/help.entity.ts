@@ -1,13 +1,13 @@
 import {
-    Column,
-    Entity,
-    PrimaryGeneratedColumn,
-    CreateDateColumn,
-    UpdateDateColumn
-} from 'typeorm';
-import { URLCategory } from '../enums/URLCategory';
+  Column,
+  Entity,
+  PrimaryGeneratedColumn,
+  CreateDateColumn,
+  UpdateDateColumn,
+} from "typeorm";
+import { URLCategory } from "../enums/URLCategory";
 
-@Entity({ name: 'help' })
+@Entity({ name: "help" })
 export default class Help {
   @PrimaryGeneratedColumn()
   id: number;
@@ -15,24 +15,24 @@ export default class Help {
   @Column({ length: 300 })
   title: string;
 
-  @Column({ nullable: false})
+  @Column({ nullable: false })
   url?: string;
 
   @Column({
-    type: 'enum',
+    type: "enum",
     enum: URLCategory,
     nullable: true,
   })
   category: URLCategory;
 
   @CreateDateColumn({
-    default: () => 'NOW()',
+    default: () => "NOW()",
     nullable: false,
   })
   createdOn: Date;
 
   @UpdateDateColumn({
-    default: () => 'NOW()',
+    default: () => "NOW()",
     nullable: false,
   })
   modifiedOn: Date;

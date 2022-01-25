@@ -1,16 +1,15 @@
-import { URLCategory } from '../enums/URLCategory';
+import { URLCategory } from "../enums/URLCategory";
 
 export default class HelpDto {
-    id: number;
+  id: number;
 
-    category: URLCategory;
+  category: URLCategory;
 
-    title: string;
+  title: string;
 
-    url?: string;
+  url?: string;
 
-    createdOn: Date;
+  createdOn: Date;
 
-    modifiedOn: Date; 
-
+  modifiedOn: Date;
 }
