@@ -28,6 +28,7 @@ import { HelpModule } from "./help/help.module";
     }),
     ConfigModule.forRoot({
       isGlobal: true,
+      expandVariables: true,
     }),
     TypeOrmModule.forRoot({
       ...config.database,
