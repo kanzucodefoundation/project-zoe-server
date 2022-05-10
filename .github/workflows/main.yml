@@ -17,6 +17,12 @@ jobs:
         with:
           node-version: '16.x'
 
+      # For some strange reason, npm 8.x fails so sticking to this for now
+      - name: Install npm 6.14.5
+        run: |
+          npm install -g npm@6.14.5 &&
+          npm --version 
+
       - name: Cache dependencies
         uses: actions/cache@v2
         with:
