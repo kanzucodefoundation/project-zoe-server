@@ -12,16 +12,12 @@ jobs:
       - name: Checkout the repository
         uses: actions/checkout@v2
 
+      # For some strange reason, npm 8.x fails so sticking to this for now
       - name: Setup Node.js
-        uses: actions/setup-node@v1
+        uses: volta-cli/action@v1
         with:
           node-version: '16.x'
-
-      # For some strange reason, npm 8.x fails so sticking to this for now
-      - name: Install npm 6.14.5
-        run: |
-          npm install -g npm@6.14.5 &&
-          npm --version 
+          npm-version: '6.14.5'
 
       - name: Cache dependencies
         uses: actions/cache@v2
@@ -44,7 +40,7 @@ jobs:
       - name: Build
         run: |
           DISABLE_ESLINT_PLUGIN=true npm run build
-          
+
       - name: Archive npm failure logs
         uses: actions/upload-artifact@v2
         if: failure()
