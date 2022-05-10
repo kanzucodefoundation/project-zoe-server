@@ -1,8 +1,8 @@
-name: Build and deploy Project Zoe client
+name: Build and deploy Project Zoe server
 
 on:
   push:
-    branches: [ master, develop, feature/worship-harvest ]
+    branches: [ master, develop ]
  
 jobs:
   build-and-deploy:
@@ -12,7 +12,7 @@ jobs:
       - name: Checkout the repository
         uses: actions/checkout@v2
 
-      # For some strange reason, npm 8.x fails so sticking to this for now
+      # For some strange reason, npm 8.x fails so sticking to 6.14.5 for now
       - name: Setup Node.js
         uses: volta-cli/action@v1
         with:
@@ -41,6 +41,7 @@ jobs:
         run: |
           DISABLE_ESLINT_PLUGIN=true npm run build
 
+      # We add this in case we need to troubleshoot an npm build failure
       - name: Archive npm failure logs
         uses: actions/upload-artifact@v2
         if: failure()
