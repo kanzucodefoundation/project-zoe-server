@@ -21,10 +21,10 @@ import { differenceBy } from "lodash";
 
 @Injectable()
 export class UsersService {
-  repository: Repository<User>;
-  emailRepository: Repository<Email>;
-  rolesRepository: Repository<Roles>;
-  userRolesRepository: Repository<UserRoles>;
+  private readonly repository: Repository<User>;
+  private readonly emailRepository: Repository<Email>;
+  private readonly rolesRepository: Repository<Roles>;
+  private readonly userRolesRepository: Repository<UserRoles>;
 
   constructor(
     @Inject("CONNECTION") connection,
