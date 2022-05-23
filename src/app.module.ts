@@ -17,6 +17,7 @@ import { EventsModule } from "./events/events.module";
 
 import { ChatModule } from "./chat/chat.module";
 import { HelpModule } from "./help/help.module";
+import { TenancyModule } from "./tenancy/tenancy.module";
 
 @Global()
 @Module({
@@ -44,6 +45,7 @@ import { HelpModule } from "./help/help.module";
 
     ChatModule,
     HelpModule,
+    TenancyModule,
   ],
   exports: [AppService],
   controllers: [AuthController],
