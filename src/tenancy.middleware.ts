@@ -1,4 +1,4 @@
-import { Injectable, NestMiddleware } from "@nestjs/common";
+import { Injectable, Logger, NestMiddleware } from "@nestjs/common";
 import { JwtHelperService } from "src/auth/jwt-helpers.service";
 
 @Injectable()
@@ -21,6 +21,7 @@ export class TenancyMiddleware implements NestMiddleware {
           : "";
     }
     req.headers.tenant = tenant;
+    Logger.log(`New request received. Church: ${tenant}`);
 
     next();
   }

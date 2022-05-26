@@ -8,11 +8,10 @@ const connectionFactory = {
   provide: "CONNECTION",
   scope: Scope.REQUEST,
   useFactory: async (req) => {
-    console.log(req.headers);
     const tenantName = req.headers["tenant"];
     const connectionManager = getConnectionManager();
     const connectionPublic = connectionManager.get("default");
-    const allTenants = ["demo", "tenant2", "tenant3"];
+    const allTenants = ["demo", "worshipharvest", "vive"];
 
     //const tenantDetails = await connectionPublic.getRepository(Tenant).findOne({code: tenantName})
 
@@ -35,15 +34,12 @@ const connectionFactory = {
         connection.isConnected ? connection : connection.connect(),
       );
     } else {
-      //connectionPublic.query(`CREATE DATABASE IF NOT EXISTS ${tenantDatabaseName}`)
-
       await createConnection({
         ...config.database,
         name: connectionName,
         type: "postgres",
         database: connectionName,
         entities: appEntities,
-        //schema: connectionName,
       });
 
       const connection = await connectionManager.get(connectionName);
