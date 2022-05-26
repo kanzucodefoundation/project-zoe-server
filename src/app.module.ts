@@ -1,4 +1,10 @@
-import { Global, HttpModule, Logger, Module } from "@nestjs/common";
+import {
+  Global,
+  HttpModule,
+  Logger,
+  Module,
+  MiddlewareConsumer,
+} from "@nestjs/common";
 import { AuthController } from "./auth/auth.controller";
 import { AppService } from "./app.service";
 import { UsersModule } from "./users/users.module";
@@ -18,6 +24,7 @@ import { EventsModule } from "./events/events.module";
 import { ChatModule } from "./chat/chat.module";
 import { HelpModule } from "./help/help.module";
 import { TenancyModule } from "./tenancy/tenancy.module";
+import { TenancyMiddleware } from "./tenancy.middleware";
 
 @Global()
 @Module({
@@ -63,5 +70,9 @@ export class AppModule {
     await this.seedService.createGroups();
     await this.seedService.createGroupCategoryReports();
     Logger.log("#########Initialization complete############");
+  }
+
+  public configure(consumer: MiddlewareConsumer): void {
+    consumer.apply(TenancyMiddleware).forRoutes("*");
   }
 }

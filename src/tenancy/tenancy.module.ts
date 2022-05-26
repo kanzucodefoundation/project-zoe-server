@@ -8,13 +8,19 @@ const connectionFactory = {
   provide: "CONNECTION",
   scope: Scope.REQUEST,
   useFactory: async (req) => {
-    const tenantName = req.headers["x-tenant"];
+    console.log(req.headers);
+    const tenantName = req.headers["tenant"];
     const connectionManager = getConnectionManager();
     const connectionPublic = connectionManager.get("default");
     const allTenants = ["demo", "tenant2", "tenant3"];
 
     //const tenantDetails = await connectionPublic.getRepository(Tenant).findOne({code: tenantName})
 
+    if (!tenantName) {
+      throw new BadRequestException(
+        "No church name provided. A valid church name must be provided.",
+      );
+    }
     if (!allTenants.includes(tenantName)) {
       throw new BadRequestException("Invalid church name provided.");
     }
