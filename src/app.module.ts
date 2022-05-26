@@ -24,7 +24,7 @@ import { EventsModule } from "./events/events.module";
 import { ChatModule } from "./chat/chat.module";
 import { HelpModule } from "./help/help.module";
 import { TenancyModule } from "./tenancy/tenancy.module";
-import { TenancyMiddleware } from "./tenancy.middleware";
+import { TenancyMiddleware } from "./middleware/tenancy.middleware";
 
 @Global()
 @Module({
