@@ -1,9 +1,8 @@
 import { MemberEventActivities } from "./entities/member-event-activities.entity";
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, Inject } from "@nestjs/common";
 import { In, Repository } from "typeorm";
 
 import { UpdateMemberEventActivitiesDto } from "./dto/update-member-event-activities.dto";
-import { InjectRepository } from "@nestjs/typeorm";
 import { EventActivity } from "./entities/event-activity.entity";
 import MemberEventActivitiesSearchDto from "./dto/member-event-activities-search.dto";
 import { MemberEventActivitiesDto } from "./dto/member-event-activities.dto";
@@ -11,12 +10,13 @@ import { CreateMemberEventActivitiesDto } from "./dto/create-member-event-activi
 
 @Injectable()
 export class MemberEventActivitiesService {
-  constructor(
-    @InjectRepository(MemberEventActivities)
-    private readonly repository: Repository<MemberEventActivities>,
-    @InjectRepository(EventActivity)
-    private readonly eventActivityrepository: Repository<EventActivity>,
-  ) {}
+  private readonly repository: Repository<MemberEventActivities>;
+  private readonly eventActivityrepository: Repository<EventActivity>;
+
+  constructor(@Inject("CONNECTION") connection) {
+    this.repository = connection.getRepository(MemberEventActivities);
+    this.eventActivityrepository = connection.getRepository(EventActivity);
+  }
 
   async create(
     data: MemberEventActivitiesDto,

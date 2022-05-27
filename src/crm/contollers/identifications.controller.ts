@@ -8,25 +8,26 @@ import {
   Put,
   Query,
   UseGuards,
+  Inject,
   UseInterceptors,
-} from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
-import { InjectRepository } from '@nestjs/typeorm';
-import Identification from '../entities/identification.entity';
-import { Repository } from 'typeorm';
-import SearchDto from '../../shared/dto/search.dto';
-import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
-import { SentryInterceptor } from 'src/utils/sentry.interceptor';
+} from "@nestjs/common";
+import { ApiTags } from "@nestjs/swagger";
+import Identification from "../entities/identification.entity";
+import { Repository } from "typeorm";
+import SearchDto from "../../shared/dto/search.dto";
+import { JwtAuthGuard } from "../../auth/guards/jwt-auth.guard";
+import { SentryInterceptor } from "src/utils/sentry.interceptor";
 
 @UseInterceptors(SentryInterceptor)
 @UseGuards(JwtAuthGuard)
-@ApiTags('Crm Identifications')
-@Controller('api/crm/identifications')
+@ApiTags("Crm Identifications")
+@Controller("api/crm/identifications")
 export class IdentificationsController {
-  constructor(
-    @InjectRepository(Identification)
-    private readonly repository: Repository<Identification>,
-  ) {}
+  private readonly repository: Repository<Identification>;
+
+  constructor(@Inject("CONNECTION") connection) {
+    this.repository = connection.getRepository(Identification);
+  }
 
   @Get()
   async findAll(@Query() req: SearchDto): Promise<Identification[]> {
@@ -46,13 +47,13 @@ export class IdentificationsController {
     return await this.repository.save(data);
   }
 
-  @Get(':id')
-  async findOne(@Param('id') id: number): Promise<Identification> {
+  @Get(":id")
+  async findOne(@Param("id") id: number): Promise<Identification> {
     return await this.repository.findOne(id);
   }
 
-  @Delete(':id')
-  async remove(@Param('id') id: number): Promise<void> {
+  @Delete(":id")
+  async remove(@Param("id") id: number): Promise<void> {
     await this.repository.delete(id);
   }
 }

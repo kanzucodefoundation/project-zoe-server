@@ -1,31 +1,34 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { UsersService } from '../users/users.service';
-import { seedUsers } from './data/users';
-import seedGroups, { seedGroupCategories } from './data/groups';
-import { GroupCategoriesService } from '../groups/services/group-categories.service';
-import { GroupsService } from '../groups/services/groups.service';
-import { Repository } from 'typeorm';
-import EventCategory from '../events/entities/eventCategory.entity';
-import { InjectRepository } from '@nestjs/typeorm';
-import eventCategories from './data/eventCategories';
-import GroupCategoryReport from 'src/groups/entities/groupCategoryReport.entity';
-import seedGroupReportCategories from './data/groupCategoryReports';
-import Roles from 'src/users/entities/roles.entity';
-import { roleAdmin } from 'src/auth/constants';
+import { Injectable, Logger, Inject } from "@nestjs/common";
+import { UsersService } from "../users/users.service";
+import { seedUsers } from "./data/users";
+import seedGroups, { seedGroupCategories } from "./data/groups";
+import { GroupCategoriesService } from "../groups/services/group-categories.service";
+import { GroupsService } from "../groups/services/groups.service";
+import { Repository } from "typeorm";
+import EventCategory from "../events/entities/eventCategory.entity";
+import { InjectRepository } from "@nestjs/typeorm";
+import eventCategories from "./data/eventCategories";
+import GroupCategoryReport from "src/groups/entities/groupCategoryReport.entity";
+import seedGroupReportCategories from "./data/groupCategoryReports";
+import Roles from "src/users/entities/roles.entity";
+import { roleAdmin } from "src/auth/constants";
 
 @Injectable()
 export class SeedService {
+  private readonly eventCategoryRepository: Repository<EventCategory>;
+  private readonly gCatReportRepository: Repository<GroupCategoryReport>;
+  private readonly rolesRepository: Repository<Roles>;
+
   constructor(
+    @Inject("CONNECTION") connection,
     private readonly groupsService: GroupsService,
     private readonly groupCategoriesService: GroupCategoriesService,
     private readonly usersService: UsersService,
-    @InjectRepository(EventCategory)
-    private readonly eventCategoryRepository: Repository<EventCategory>,
-    @InjectRepository(GroupCategoryReport)
-    private readonly gCatReportRepository: Repository<GroupCategoryReport>,
-    @InjectRepository(Roles)
-    private readonly rolesRepository: Repository<Roles>,
-  ) {}
+  ) {
+    this.eventCategoryRepository = connection.getRepository(EventCategory);
+    this.gCatReportRepository = connection.getRepository(GroupCategoryReport);
+    this.rolesRepository = connection.getRepository(Roles);
+  }
 
   async createUsers() {
     Logger.log(`Seeding ${seedUsers.length} users`);
