@@ -25,7 +25,8 @@
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "cm": "cz",
     "pre-commit": "npm test",
-    "prepare": "husky install"
+    "prepare": "husky install",
+    "seed": "ts-node -r tsconfig-paths/register ./src/seed/seed.command.ts"
   },
   "dependencies": {
     "@nestjs/common": "^7.6.13",

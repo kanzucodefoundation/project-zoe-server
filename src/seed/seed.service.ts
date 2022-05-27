@@ -4,7 +4,7 @@ import { seedUsers } from "./data/users";
 import seedGroups, { seedGroupCategories } from "./data/groups";
 import { GroupCategoriesService } from "../groups/services/group-categories.service";
 import { GroupsService } from "../groups/services/groups.service";
-import { Repository } from "typeorm";
+import { Repository, Connection } from "typeorm";
 import EventCategory from "../events/entities/eventCategory.entity";
 import { InjectRepository } from "@nestjs/typeorm";
 import eventCategories from "./data/eventCategories";
@@ -15,17 +15,21 @@ import { roleAdmin } from "src/auth/constants";
 
 @Injectable()
 export class SeedService {
+  private eventCategoryRepository: Repository<EventCategory>;
+  private gCatReportRepository: Repository<GroupCategoryReport>;
+  private rolesRepository: Repository<Roles>;
+
   constructor(
     private readonly groupsService: GroupsService,
     private readonly groupCategoriesService: GroupCategoriesService,
     private readonly usersService: UsersService,
-    @InjectRepository(EventCategory)
-    private readonly eventCategoryRepository: Repository<EventCategory>,
-    @InjectRepository(GroupCategoryReport)
-    private readonly gCatReportRepository: Repository<GroupCategoryReport>,
-    @InjectRepository(Roles)
-    private readonly rolesRepository: Repository<Roles>,
   ) {}
+
+  async initializeRepositories(connection: Connection) {
+    this.rolesRepository = connection.getRepository(Roles);
+    this.gCatReportRepository = connection.getRepository(GroupCategoryReport);
+    this.eventCategoryRepository = connection.getRepository(EventCategory);
+  }
 
   async createAll() {
     await this.createRoleAdmin();

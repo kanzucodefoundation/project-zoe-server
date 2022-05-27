@@ -30,10 +30,7 @@ import { SeedService } from "../seed/seed.service";
 @ApiTags("Index")
 @Controller("api/auth")
 export class AuthController {
-  constructor(
-    private readonly authService: AuthService,
-    private readonly seedService: SeedService,
-  ) {}
+  constructor(private readonly authService: AuthService) {}
 
   @ApiBody({ type: LoginDto })
   @UseGuards(LocalAuthGuard)
@@ -42,7 +39,6 @@ export class AuthController {
     const tenant = req.body.hasOwnProperty("churchName")
       ? req.body["churchName"].toLowerCase().replace(/\s/g, "")
       : "default";
-    this.seedService.createAll();
     return this.authService.generateToken(req.user, tenant);
   }
 
