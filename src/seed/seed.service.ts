@@ -1,17 +1,17 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { UsersService } from '../users/users.service';
-import { seedUsers } from './data/users';
-import seedGroups, { seedGroupCategories } from './data/groups';
-import { GroupCategoriesService } from '../groups/services/group-categories.service';
-import { GroupsService } from '../groups/services/groups.service';
-import { Repository } from 'typeorm';
-import EventCategory from '../events/entities/eventCategory.entity';
-import { InjectRepository } from '@nestjs/typeorm';
-import eventCategories from './data/eventCategories';
-import GroupCategoryReport from 'src/groups/entities/groupCategoryReport.entity';
-import seedGroupReportCategories from './data/groupCategoryReports';
-import Roles from 'src/users/entities/roles.entity';
-import { roleAdmin } from 'src/auth/constants';
+import { Injectable, Logger } from "@nestjs/common";
+import { UsersService } from "../users/users.service";
+import { seedUsers } from "./data/users";
+import seedGroups, { seedGroupCategories } from "./data/groups";
+import { GroupCategoriesService } from "../groups/services/group-categories.service";
+import { GroupsService } from "../groups/services/groups.service";
+import { Repository } from "typeorm";
+import EventCategory from "../events/entities/eventCategory.entity";
+import { InjectRepository } from "@nestjs/typeorm";
+import eventCategories from "./data/eventCategories";
+import GroupCategoryReport from "src/groups/entities/groupCategoryReport.entity";
+import seedGroupReportCategories from "./data/groupCategoryReports";
+import Roles from "src/users/entities/roles.entity";
+import { roleAdmin } from "src/auth/constants";
 
 @Injectable()
 export class SeedService {
@@ -27,6 +27,14 @@ export class SeedService {
     private readonly rolesRepository: Repository<Roles>,
   ) {}
 
+  async createAll() {
+    await this.createRoleAdmin();
+    await this.createUsers();
+    await this.createGroupCategories();
+    await this.createEventCategories();
+    await this.createGroups();
+    await this.createGroupCategoryReports();
+  }
   async createUsers() {
     Logger.log(`Seeding ${seedUsers.length} users`);
     for (const user of seedUsers) {
