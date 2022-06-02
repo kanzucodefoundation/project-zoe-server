@@ -2,7 +2,8 @@ import { Module, Scope, Global, BadRequestException } from "@nestjs/common";
 import { getConnectionManager, createConnection } from "typeorm";
 import { REQUEST } from "@nestjs/core";
 import config, { appEntities } from "../config";
-import { TenancyController } from "./tenancy.controller";
+import { TenantsController } from "./tenants.controller";
+import { TenantsService } from "./tenants.service";
 import * as dotenv from "dotenv";
 
 const connectionFactory = {
@@ -54,8 +55,8 @@ const connectionFactory = {
 
 @Global()
 @Module({
-  providers: [connectionFactory],
+  providers: [connectionFactory, TenantsService],
   exports: ["CONNECTION"],
-  controllers: [TenancyController],
+  controllers: [TenantsController],
 })
-export class TenancyModule {}
+export class TenantsModule {}

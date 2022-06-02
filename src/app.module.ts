@@ -23,7 +23,7 @@ import { EventsModule } from "./events/events.module";
 
 import { ChatModule } from "./chat/chat.module";
 import { HelpModule } from "./help/help.module";
-import { TenancyModule } from "./tenancy/tenancy.module";
+import { TenantsModule } from "./tenants/tenants.module";
 import { TenancyMiddleware } from "./middleware/tenancy.middleware";
 
 @Global()
@@ -52,7 +52,7 @@ import { TenancyMiddleware } from "./middleware/tenancy.middleware";
 
     ChatModule,
     HelpModule,
-    TenancyModule,
+    TenantsModule,
   ],
   exports: [AppService],
   controllers: [AuthController],
