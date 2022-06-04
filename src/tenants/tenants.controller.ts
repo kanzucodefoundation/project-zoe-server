@@ -10,7 +10,6 @@ import { SentryInterceptor } from "src/utils/sentry.interceptor";
 import { TenantDto } from "./dto/tenant.dto";
 import { TenantsService } from "./tenants.service";
 
-@Controller("tenancy")
 @UseInterceptors(SentryInterceptor)
 @UseGuards(JwtAuthGuard)
 @Controller("api/tenants")
@@ -19,6 +18,8 @@ export class TenantsController {
 
   @Post()
   create(@Body() tenantDto: TenantDto) {
+    // @TODO Check if user has permission to do this
+    // @TODO If 'seed' boolean is set, seed the new tenant
     return this.tenantsService.create(tenantDto);
   }
 }

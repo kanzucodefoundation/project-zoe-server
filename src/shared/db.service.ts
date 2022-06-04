@@ -1,7 +1,8 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Global, Logger } from "@nestjs/common";
 import { getConnectionManager, createConnection } from "typeorm";
 import * as dotenv from "dotenv";
 import config, { appEntities } from "../config";
+import { Tenant } from "src/tenants/entities/tenant.entity";
 
 @Injectable()
 export class DbService {
@@ -18,11 +19,14 @@ export class DbService {
       );
     } else {
       //@TODO If public, use different entities
+      // @TODO Do try-catch
+      // @TODO Check db for tenant name. If not exists, create new
+      const dbEntities = tenantName == "public" ? [Tenant] : appEntities;
       await createConnection({
         ...config.database,
         name: connectionName,
         type: "postgres",
-        entities: appEntities,
+        entities: dbEntities,
         schema: tenantName,
       });
 

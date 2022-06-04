@@ -1,4 +1,4 @@
 export class TenantDto {
-  id: number;
   name: string;
+  seed?: boolean;
 }

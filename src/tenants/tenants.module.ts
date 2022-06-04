@@ -5,6 +5,7 @@ import config, { appEntities } from "../config";
 import { TenantsController } from "./tenants.controller";
 import { TenantsService } from "./tenants.service";
 import * as dotenv from "dotenv";
+import { DbService } from "src/shared/db.service";
 
 const connectionFactory = {
   provide: "CONNECTION",
@@ -55,7 +56,7 @@ const connectionFactory = {
 
 @Global()
 @Module({
-  providers: [connectionFactory, TenantsService],
+  providers: [connectionFactory, TenantsService, DbService],
   exports: ["CONNECTION"],
   controllers: [TenantsController],
 })
