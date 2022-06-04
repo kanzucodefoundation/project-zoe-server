@@ -8,7 +8,7 @@ import { Tenant } from "src/tenants/entities/tenant.entity";
 export class DbService {
   async getConnection(tenantName: string = "public") {
     const connectionManager = getConnectionManager();
-    const connectionName = `projectzoe_${tenantName}`;
+    const connectionName = this.getConnectionName(tenantName);
 
     Logger.log(`Getting Db connection ${connectionName}`);
 
@@ -35,5 +35,9 @@ export class DbService {
         connection.isConnected ? connection : connection.connect(),
       );
     }
+  }
+
+  getConnectionName(tenantName: string) {
+    return `projectzoe_${tenantName}`;
   }
 }

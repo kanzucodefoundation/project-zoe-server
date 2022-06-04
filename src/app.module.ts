@@ -59,19 +59,6 @@ import { TenancyMiddleware } from "./middleware/tenancy.middleware";
   providers: [AppService],
 })
 export class AppModule {
-  constructor(private readonly seedService: SeedService) {}
-
-  async onModuleInit(): Promise<void> {
-    Logger.log("#########Initializing application############");
-    await this.seedService.createRoleAdmin();
-    await this.seedService.createUsers();
-    await this.seedService.createGroupCategories();
-    await this.seedService.createEventCategories();
-    await this.seedService.createGroups();
-    await this.seedService.createGroupCategoryReports();
-    Logger.log("#########Initialization complete############");
-  }
-
   public configure(consumer: MiddlewareConsumer): void {
     consumer.apply(TenancyMiddleware).forRoutes("*");
   }

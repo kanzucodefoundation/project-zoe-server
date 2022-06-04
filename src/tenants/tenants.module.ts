@@ -6,7 +6,8 @@ import { TenantsController } from "./tenants.controller";
 import { TenantsService } from "./tenants.service";
 import * as dotenv from "dotenv";
 import { DbService } from "src/shared/db.service";
-
+import { SeedModule } from "src/seed/seed.module";
+import { Tenant } from "./entities/tenant.entity";
 const connectionFactory = {
   provide: "CONNECTION",
   scope: Scope.REQUEST,
@@ -30,19 +31,19 @@ const connectionFactory = {
     //const tenancy = tenantDetails.code
 
     const connectionName = `${process.env.DB_DATABASE}_${tenantName}`;
-
     if (connectionManager.has(connectionName)) {
       const connection = await connectionManager.get(connectionName);
       return Promise.resolve(
         connection.isConnected ? connection : connection.connect(),
       );
     } else {
+      const dbEntities = tenantName == "public" ? [Tenant] : appEntities;
       await createConnection({
         ...config.database,
         name: connectionName,
         type: "postgres",
-        database: connectionName,
-        entities: appEntities,
+        entities: dbEntities,
+        schema: tenantName,
       });
 
       const connection = await connectionManager.get(connectionName);
@@ -56,6 +57,7 @@ const connectionFactory = {
 
 @Global()
 @Module({
+  imports: [SeedModule],
   providers: [connectionFactory, TenantsService, DbService],
   exports: ["CONNECTION"],
   controllers: [TenantsController],

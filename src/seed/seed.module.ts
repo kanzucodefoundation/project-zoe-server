@@ -26,11 +26,4 @@ import { eventEntities } from "../events/events.helpers";
   providers: [SeedService],
   exports: [SeedService],
 })
-export class SeedModule {
-  constructor(private seedService: SeedService) {}
-  seed(connection) {
-    console.log("App module");
-    this.seedService.initializeRepositories(connection);
-    this.seedService.createAll();
-  }
-}
+export class SeedModule {}

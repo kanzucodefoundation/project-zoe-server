@@ -15,21 +15,17 @@ import { roleAdmin } from "src/auth/constants";
 
 @Injectable()
 export class SeedService {
-  private eventCategoryRepository: Repository<EventCategory>;
-  private gCatReportRepository: Repository<GroupCategoryReport>;
-  private rolesRepository: Repository<Roles>;
-
   constructor(
+    @InjectRepository(Roles)
+    private readonly rolesRepository: Repository<Roles>,
+    @InjectRepository(GroupCategoryReport)
+    private readonly gCatReportRepository: Repository<GroupCategoryReport>,
+    @InjectRepository(EventCategory)
+    private readonly eventCategoryRepository: Repository<EventCategory>,
     private readonly groupsService: GroupsService,
     private readonly groupCategoriesService: GroupCategoriesService,
     private readonly usersService: UsersService,
   ) {}
-
-  async initializeRepositories(connection: Connection) {
-    this.rolesRepository = connection.getRepository(Roles);
-    this.gCatReportRepository = connection.getRepository(GroupCategoryReport);
-    this.eventCategoryRepository = connection.getRepository(EventCategory);
-  }
 
   async createAll() {
     await this.createRoleAdmin();

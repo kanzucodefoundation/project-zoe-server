@@ -8,8 +8,9 @@ export class TenancyMiddleware implements NestMiddleware {
   async use(req: any, res: any, next: () => void) {
     let tenant = "";
     if (
-      req.originalUrl == "/api/auth/login" &&
-      req.body.hasOwnProperty("churchName")
+      (req.originalUrl == "/api/auth/login" &&
+        req.body.hasOwnProperty("churchName")) ||
+      req.originalUrl == "/api/tenants"
     ) {
       tenant = req.body["churchName"].toLowerCase().replace(/\s/g, "");
     } else {

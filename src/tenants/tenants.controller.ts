@@ -11,7 +11,6 @@ import { TenantDto } from "./dto/tenant.dto";
 import { TenantsService } from "./tenants.service";
 
 @UseInterceptors(SentryInterceptor)
-@UseGuards(JwtAuthGuard)
 @Controller("api/tenants")
 export class TenantsController {
   constructor(private readonly tenantsService: TenantsService) {}

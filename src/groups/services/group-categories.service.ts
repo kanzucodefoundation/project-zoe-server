@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Inject } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import SearchDto from "../../shared/dto/search.dto";
@@ -6,10 +6,10 @@ import GroupCategory from "../entities/groupCategory.entity";
 
 @Injectable()
 export class GroupCategoriesService {
-  constructor(
-    @InjectRepository(GroupCategory)
-    private readonly repository: Repository<GroupCategory>,
-  ) {}
+  private readonly repository: Repository<GroupCategory>;
+  constructor(@Inject("CONNECTION") connection) {
+    this.repository = connection.getRepository(GroupCategory);
+  }
 
   async findAll(req: SearchDto): Promise<GroupCategory[]> {
     return await this.repository.find({
