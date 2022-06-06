@@ -1,5 +1,4 @@
 import { Injectable, Logger, Inject } from "@nestjs/common";
-import { InjectRepository } from "@nestjs/typeorm";
 import { Connection, In, Repository, TreeRepository } from "typeorm";
 import { FindConditions } from "typeorm/find-options/FindConditions";
 import GroupMembership from "../entities/groupMembership.entity";
@@ -20,7 +19,7 @@ export class GroupsMembershipService {
   private readonly groupTreeRepository: TreeRepository<Group>;
   private readonly connection: Connection;
 
-  constructor(@Inject("CONNECTION") connection) {
+  constructor(@Inject("CONNECTION") connection: Connection) {
     this.repository = connection.getRepository(GroupMembership);
     this.groupTreeRepository = connection.getTreeRepository(Group);
     this.connection = connection;

@@ -4,7 +4,6 @@ import {
   Logger,
   Inject,
 } from "@nestjs/common";
-import { InjectRepository } from "@nestjs/typeorm";
 import { intersection } from "lodash";
 import {
   getRepository,
@@ -12,6 +11,7 @@ import {
   In,
   Like,
   Repository,
+  Connection,
   TreeRepository,
 } from "typeorm";
 import Contact from "./entities/contact.entity";
@@ -62,7 +62,7 @@ export class ContactsService {
   private readonly gmRequestRepository: Repository<GroupMembershipRequest>;
 
   constructor(
-    @Inject("CONNECTION") connection,
+    @Inject("CONNECTION") connection: Connection,
     private googleService: GoogleService,
     private prisma: PrismaService,
     private groupFinderService: GroupFinderService,

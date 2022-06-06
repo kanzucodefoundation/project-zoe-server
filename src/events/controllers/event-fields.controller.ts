@@ -13,8 +13,7 @@ import {
 } from "@nestjs/common";
 import { JwtAuthGuard } from "../../auth/guards/jwt-auth.guard";
 import { ApiTags } from "@nestjs/swagger";
-import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { Repository, Connection } from "typeorm";
 import EventField from "../entities/eventField.entity";
 import EventFieldSearchDto from "../dto/event-field-search.dto";
 import { FindConditions } from "typeorm/find-options/FindConditions";
@@ -28,7 +27,7 @@ import { SentryInterceptor } from "src/utils/sentry.interceptor";
 export class EventsFieldsController {
   private readonly repository: Repository<EventField>;
 
-  constructor(@Inject("CONNECTION") connection) {
+  constructor(@Inject("CONNECTION") connection: Connection) {
     this.repository = connection.getRepository(EventField);
   }
 

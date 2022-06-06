@@ -1,9 +1,8 @@
 import { Injectable, Inject } from "@nestjs/common";
-import { InjectRepository } from "@nestjs/typeorm";
 import { hasValue } from "src/utils/validation";
 import GooglePlaceDto from "src/vendor/google-place.dto";
 import { GoogleService } from "src/vendor/google.service";
-import { Repository } from "typeorm";
+import { Repository, Connection } from "typeorm";
 import Address from "./entities/address.entity";
 
 @Injectable()
@@ -11,7 +10,7 @@ export class AddressesService {
   private readonly repository: Repository<Address>;
 
   constructor(
-    @Inject("CONNECTION") connection,
+    @Inject("CONNECTION") connection: Connection,
     private googleService: GoogleService,
   ) {
     this.repository = connection.getRepository(Address);

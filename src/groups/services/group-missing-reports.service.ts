@@ -13,6 +13,7 @@ import {
   ILike,
   In,
   LessThanOrEqual,
+  Connection,
   MoreThanOrEqual,
   Repository,
   TreeRepository,
@@ -36,7 +37,7 @@ export class GroupMissingReportsService {
   private readonly groupMemberRepository: Repository<GroupMembership>;
   private readonly groupEventRepository: Repository<GroupEvent>;
 
-  constructor(@Inject("CONNECTION") connection) {
+  constructor(@Inject("CONNECTION") connection: Connection) {
     this.groupRepository = connection.getTreeRepository(Group);
     this.categoryReportRepository = connection.getRepository(
       GroupCategoryReport,

@@ -1,6 +1,5 @@
 import { Injectable, Logger, Inject } from "@nestjs/common";
-import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { Repository, Connection } from "typeorm";
 import { CreateEventActivityDto } from "./dto/create-event-activity.dto";
 import EventActivitiesSearchDto from "./dto/event-activities-search.dto";
 import { UpdateEventActivityDto } from "./dto/update-event-activity.dto";
@@ -10,7 +9,7 @@ import { EventActivity } from "./entities/event-activity.entity";
 export class EventActivitiesService {
   private readonly repository: Repository<EventActivity>;
 
-  constructor(@Inject("CONNECTION") connection) {
+  constructor(@Inject("CONNECTION") connection: Connection) {
     this.repository = connection.getRepository(EventActivity);
   }
 

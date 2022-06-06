@@ -12,7 +12,7 @@ import { ApiTags } from "@nestjs/swagger";
 import { CsvParser } from "nest-csv-parser";
 import { ContactsService } from "../contacts.service";
 import { Express } from "express";
-import { Repository } from "typeorm";
+import { Repository, Connection } from "typeorm";
 import Company from "../entities/company.entity";
 import CompanyListDto from "../dto/company-list.dto";
 import { FileInterceptor } from "@nestjs/platform-express";
@@ -42,7 +42,7 @@ export class ContactImportController {
   private readonly companyRepository: Repository<Company>;
 
   constructor(
-    @Inject("CONNECTION") connection,
+    @Inject("CONNECTION") connection: Connection,
     private readonly service: ContactsService,
     private readonly csvParser: CsvParser,
   ) {

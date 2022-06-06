@@ -4,9 +4,8 @@ import { seedUsers } from "./data/users";
 import seedGroups, { seedGroupCategories } from "./data/groups";
 import { GroupCategoriesService } from "../groups/services/group-categories.service";
 import { GroupsService } from "../groups/services/groups.service";
-import { Repository } from "typeorm";
+import { Repository, Connection } from "typeorm";
 import EventCategory from "../events/entities/eventCategory.entity";
-import { InjectRepository } from "@nestjs/typeorm";
 import eventCategories from "./data/eventCategories";
 import GroupCategoryReport from "src/groups/entities/groupCategoryReport.entity";
 import seedGroupReportCategories from "./data/groupCategoryReports";
@@ -20,7 +19,7 @@ export class SeedService {
   private readonly rolesRepository: Repository<Roles>;
 
   constructor(
-    @Inject("CONNECTION") connection,
+    @Inject("CONNECTION") connection: Connection,
     private readonly groupsService: GroupsService,
     private readonly groupCategoriesService: GroupCategoriesService,
     private readonly usersService: UsersService,

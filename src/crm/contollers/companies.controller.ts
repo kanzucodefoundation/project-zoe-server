@@ -12,7 +12,7 @@ import {
 import { ApiTags } from "@nestjs/swagger";
 import { ContactsService } from "../contacts.service";
 
-import { Like, Repository } from "typeorm";
+import { Like, Repository, Connection } from "typeorm";
 import { ContactSearchDto } from "../dto/contact-search.dto";
 
 import { hasValue } from "src/utils/validation";
@@ -32,7 +32,7 @@ export class CompaniesController {
   private readonly personRepository: Repository<Company>;
 
   constructor(
-    @Inject("CONNECTION") connection,
+    @Inject("CONNECTION") connection: Connection,
     private readonly service: ContactsService,
   ) {
     this.personRepository = connection.getRepository(Company);

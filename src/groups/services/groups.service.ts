@@ -6,6 +6,7 @@ import {
   LessThanOrEqual,
   MoreThanOrEqual,
   Repository,
+  Connection,
   TreeRepository,
 } from "typeorm";
 import Group from "../entities/group.entity";
@@ -34,7 +35,7 @@ export class GroupsService {
   private readonly eventRepository: Repository<GroupEvent>;
 
   constructor(
-    @Inject("CONNECTION") connection,
+    @Inject("CONNECTION") connection: Connection,
     private googleService: GoogleService,
   ) {
     this.repository = connection.getRepository(Group);

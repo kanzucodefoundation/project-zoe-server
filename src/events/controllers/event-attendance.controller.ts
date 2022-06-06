@@ -17,8 +17,7 @@ import {
 import { PrismaService } from "../../shared/prisma.service";
 import { JwtAuthGuard } from "../../auth/guards/jwt-auth.guard";
 import { ApiTags } from "@nestjs/swagger";
-import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { Repository, Connection } from "typeorm";
 import EventAttendance from "../entities/eventAttendance.entity";
 import GroupEvent from "../entities/event.entity";
 import { FindConditions } from "typeorm/find-options/FindConditions";
@@ -41,7 +40,10 @@ export class EventsAttendanceController {
   private readonly groupRepository: Repository<GroupEvent>;
   private readonly membershipRepository: Repository<GroupMembership>;
 
-  constructor(@Inject("CONNECTION") connection, private prisma: PrismaService) {
+  constructor(
+    @Inject("CONNECTION") connection: Connection,
+    private prisma: PrismaService,
+  ) {
     this.repository = connection.getRepository(EventAttendance);
     this.groupRepository = connection.getRepository(GroupEvent);
     this.membershipRepository = connection.getRepository(GroupMembership);

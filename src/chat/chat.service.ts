@@ -1,8 +1,7 @@
 import { Injectable, Logger, Inject } from "@nestjs/common";
-import { InjectRepository } from "@nestjs/typeorm";
 import Email from "src/crm/entities/email.entity";
 import { IEmail, sendEmail } from "src/utils/mailerTest";
-import { Repository } from "typeorm";
+import { Repository, Connection } from "typeorm";
 import mailChatDto from "./dto/sendMail.dto";
 import { UpdateChatDto } from "./dto/update-chat.dto";
 
@@ -10,7 +9,7 @@ import { UpdateChatDto } from "./dto/update-chat.dto";
 export class ChatService {
   private readonly emailRepository: Repository<Email>;
 
-  constructor(@Inject("CONNECTION") connection) {
+  constructor(@Inject("CONNECTION") connection: Connection) {
     this.emailRepository = connection.getRepository(Email);
   }
   async mailAll(data: mailChatDto): Promise<void> {

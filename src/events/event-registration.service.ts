@@ -1,7 +1,6 @@
 import { Injectable, Logger, Inject } from "@nestjs/common";
-import { InjectRepository } from "@nestjs/typeorm";
 import { getPersonFullName } from "src/crm/crm.helpers";
-import { Repository } from "typeorm";
+import { Repository, Connection } from "typeorm";
 import EventRegistrationSearchDto from "./dto/even-registration-search.dto";
 import EventRegistrationDto from "./dto/event-registration.dto";
 import EventRegistration from "./entities/eventRegistration.entity";
@@ -10,7 +9,7 @@ import EventRegistration from "./entities/eventRegistration.entity";
 export class EventRegistrationService {
   private readonly repository: Repository<EventRegistration>;
 
-  constructor(@Inject("CONNECTION") connection) {
+  constructor(@Inject("CONNECTION") connection: Connection) {
     this.repository = connection.getRepository(EventRegistration);
   }
   async create(data: EventRegistrationDto): Promise<any> {

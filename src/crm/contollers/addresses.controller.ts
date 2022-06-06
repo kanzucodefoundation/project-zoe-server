@@ -12,9 +12,8 @@ import {
   UseInterceptors,
 } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
-import { InjectRepository } from "@nestjs/typeorm";
 import Address from "../entities/address.entity";
-import { Repository } from "typeorm";
+import { Repository, Connection } from "typeorm";
 import SearchDto from "../../shared/dto/search.dto";
 import { JwtAuthGuard } from "../../auth/guards/jwt-auth.guard";
 import { AddressesService } from "../addresses.service";
@@ -28,7 +27,7 @@ export class AddressesController {
   private readonly repository: Repository<Address>;
 
   constructor(
-    @Inject("CONNECTION") connection,
+    @Inject("CONNECTION") connection: Connection,
     private readonly service: AddressesService,
   ) {
     this.repository = connection.getRepository(Address);

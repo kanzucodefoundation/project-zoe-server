@@ -1,8 +1,7 @@
 import { Injectable, Logger, Inject } from "@nestjs/common";
 import { CreateHelpDto } from "./dto/create-help.dto";
 import { UpdateHelpDto } from "./dto/update-help.dto";
-import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { Repository, Connection } from "typeorm";
 import Help from "./entities/help.entity";
 import HelpDto from "./dto/help.dto";
 import SearchDto from "../shared/dto/search.dto";
@@ -12,7 +11,7 @@ import { hasValue, isArray } from "../utils/validation";
 export class HelpService {
   private readonly repository: Repository<Help>;
 
-  constructor(@Inject("CONNECTION") connection) {
+  constructor(@Inject("CONNECTION") connection: Connection) {
     this.repository = connection.getRepository(Help);
   }
 

@@ -6,6 +6,7 @@ import {
   LessThanOrEqual,
   MoreThanOrEqual,
   Repository,
+  Connection,
   TreeRepository,
 } from "typeorm";
 import { GoogleService } from "../vendor/google.service";
@@ -32,7 +33,7 @@ export class EventsService {
   private readonly membershipRepository: Repository<GroupMembership>;
 
   constructor(
-    @Inject("CONNECTION") connection,
+    @Inject("CONNECTION") connection: Connection,
     private googleService: GoogleService,
   ) {
     this.repository = connection.getRepository(GroupEvent);

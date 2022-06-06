@@ -1,6 +1,6 @@
 import { HttpException, Injectable, Inject } from "@nestjs/common";
 import { FindConditions } from "typeorm/find-options/FindConditions";
-import { Repository } from "typeorm";
+import { Repository, Connection } from "typeorm";
 import GroupMembershipRequestSearchDto from "../dto/membershipRequest/search-request.dto";
 import GroupMembershipRequest from "../entities/groupMembershipRequest.entity";
 import { hasValue } from "src/utils/validation";
@@ -17,7 +17,7 @@ export class GroupMembershipRequestService {
   private readonly contactRepository: Repository<Contact>;
 
   constructor(
-    @Inject("CONNECTION") connection,
+    @Inject("CONNECTION") connection: Connection,
     private readonly contactService: ContactsService,
   ) {
     this.repository = connection.getRepository(GroupMembershipRequest);

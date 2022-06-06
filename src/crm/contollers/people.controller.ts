@@ -13,7 +13,7 @@ import {
 import { ApiTags } from "@nestjs/swagger";
 import { ContactsService } from "../contacts.service";
 import Person from "../entities/person.entity";
-import { Like, Repository } from "typeorm";
+import { Like, Repository, Connection } from "typeorm";
 import { ContactSearchDto } from "../dto/contact-search.dto";
 import { CreatePersonDto } from "../dto/create-person.dto";
 import { getPersonFullName } from "../crm.helpers";
@@ -36,7 +36,7 @@ export class PeopleController {
   private readonly userRepository: Repository<User>;
 
   constructor(
-    @Inject("CONNECTION") connection,
+    @Inject("CONNECTION") connection: Connection,
     private readonly service: ContactsService,
   ) {
     this.personRepository = connection.getRepository(Person);

@@ -2,7 +2,7 @@ import { BadRequestException, Injectable, Inject } from "@nestjs/common";
 import { roleAdmin } from "src/auth/constants";
 import SearchDto from "src/shared/dto/search.dto";
 import { hasValue } from "src/utils/validation";
-import { FindConditions, ILike, In, Repository } from "typeorm";
+import { FindConditions, ILike, In, Repository, Connection } from "typeorm";
 import { RolesDto } from "./dto/roles.dto";
 import Roles from "./entities/roles.entity";
 
@@ -10,7 +10,7 @@ import Roles from "./entities/roles.entity";
 export class RolesService {
   private readonly repository: Repository<Roles>;
 
-  constructor(@Inject("CONNECTION") connection) {
+  constructor(@Inject("CONNECTION") connection: Connection) {
     this.repository = connection.getRepository(Roles);
   }
 

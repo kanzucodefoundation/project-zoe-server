@@ -12,9 +12,8 @@ import {
 } from "@nestjs/common";
 import { JwtAuthGuard } from "../../auth/guards/jwt-auth.guard";
 import { ApiTags } from "@nestjs/swagger";
-import { InjectRepository } from "@nestjs/typeorm";
 import EventCategory from "../entities/eventCategory.entity";
-import { Repository } from "typeorm";
+import { Repository, Connection } from "typeorm";
 import { SentryInterceptor } from "src/utils/sentry.interceptor";
 
 @UseInterceptors(SentryInterceptor)
@@ -24,7 +23,7 @@ import { SentryInterceptor } from "src/utils/sentry.interceptor";
 export class EventsCategoriesController {
   private readonly repository: Repository<EventCategory>;
 
-  constructor(@Inject("CONNECTION") connection) {
+  constructor(@Inject("CONNECTION") connection: Connection) {
     this.repository = connection.getRepository(EventCategory);
   }
 

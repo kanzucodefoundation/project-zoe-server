@@ -1,5 +1,5 @@
 import { HttpException, Injectable, Inject } from "@nestjs/common";
-import { In, Repository } from "typeorm";
+import { In, Repository, Connection } from "typeorm";
 import { User } from "./entities/user.entity";
 import Email from "src/crm/entities/email.entity";
 import { RegisterUserDto } from "../auth/dto/register-user.dto";
@@ -27,7 +27,7 @@ export class UsersService {
   private readonly userRolesRepository: Repository<UserRoles>;
 
   constructor(
-    @Inject("CONNECTION") connection,
+    @Inject("CONNECTION") connection: Connection,
     private readonly contactsService: ContactsService,
     private readonly jwtHelperService: JwtHelperService,
   ) {
