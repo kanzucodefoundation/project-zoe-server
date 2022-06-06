@@ -9,6 +9,7 @@ import {
   Query,
   UseGuards,
   UseInterceptors,
+  Inject,
 } from "@nestjs/common";
 import { JwtAuthGuard } from "../../auth/guards/jwt-auth.guard";
 import { ApiTags } from "@nestjs/swagger";
@@ -25,10 +26,11 @@ import { SentryInterceptor } from "src/utils/sentry.interceptor";
 @ApiTags("Events Fields")
 @Controller("api/events/fields")
 export class EventsFieldsController {
-  constructor(
-    @InjectRepository(EventField)
-    private readonly repository: Repository<EventField>,
-  ) {}
+  private readonly repository: Repository<EventField>;
+
+  constructor(@Inject("CONNECTION") connection) {
+    this.repository = connection.getRepository(EventField);
+  }
 
   @Get()
   async findAll(@Query() search: EventFieldSearchDto): Promise<EventField[]> {

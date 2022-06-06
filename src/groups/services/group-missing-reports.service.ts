@@ -1,5 +1,4 @@
-import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
+import { Injectable, Inject } from "@nestjs/common";
 import {
   addDays,
   differenceInDays,
@@ -8,7 +7,7 @@ import {
   startOfQuarter,
   startOfWeek,
   startOfYear,
-} from 'date-fns';
+} from "date-fns";
 import {
   FindConditions,
   ILike,
@@ -17,31 +16,34 @@ import {
   MoreThanOrEqual,
   Repository,
   TreeRepository,
-} from 'typeorm';
-import { GetMissingReportDto } from '../dto/group-missing-report.dto';
-import Group from '../entities/group.entity';
-import GroupCategoryReport from '../entities/groupCategoryReport.entity';
-import GroupMembership from '../entities/groupMembership.entity';
-import { getArray, hasValue } from 'src/utils/validation';
-import GroupEvent from 'src/events/entities/event.entity';
-import { GroupCategoryReportFrequency } from '../enums/groupCategoryReportFrequency ';
-import { GroupSearchDto } from '../dto/group-search.dto';
-import { GroupMissingReportSearchDto } from '../dto/group-missing-report-search.dto';
-import { groupConstants } from '../../seed/data/groups';
-import { EventFrequencyDto } from '../dto/event-frequency-search.dto';
+} from "typeorm";
+import { GetMissingReportDto } from "../dto/group-missing-report.dto";
+import Group from "../entities/group.entity";
+import GroupCategoryReport from "../entities/groupCategoryReport.entity";
+import GroupMembership from "../entities/groupMembership.entity";
+import { getArray, hasValue } from "src/utils/validation";
+import GroupEvent from "src/events/entities/event.entity";
+import { GroupCategoryReportFrequency } from "../enums/groupCategoryReportFrequency ";
+import { GroupSearchDto } from "../dto/group-search.dto";
+import { GroupMissingReportSearchDto } from "../dto/group-missing-report-search.dto";
+import { groupConstants } from "../../seed/data/groups";
+import { EventFrequencyDto } from "../dto/event-frequency-search.dto";
 
 @Injectable()
 export class GroupMissingReportsService {
-  constructor(
-    @InjectRepository(Group)
-    private readonly groupRepository: TreeRepository<Group>,
-    @InjectRepository(GroupCategoryReport)
-    private readonly categoryReportRepository: Repository<GroupCategoryReport>,
-    @InjectRepository(GroupMembership)
-    private readonly groupMemberRepository: Repository<GroupMembership>,
-    @InjectRepository(GroupEvent)
-    private readonly groupEventRepository: Repository<GroupEvent>,
-  ) {}
+  private readonly groupRepository: TreeRepository<Group>;
+  private readonly categoryReportRepository: Repository<GroupCategoryReport>;
+  private readonly groupMemberRepository: Repository<GroupMembership>;
+  private readonly groupEventRepository: Repository<GroupEvent>;
+
+  constructor(@Inject("CONNECTION") connection) {
+    this.groupRepository = connection.getTreeRepository(Group);
+    this.categoryReportRepository = connection.getRepository(
+      GroupCategoryReport,
+    );
+    this.groupMemberRepository = connection.getRepository(GroupMembership);
+    this.groupEventRepository = connection.getRepository(GroupEvent);
+  }
 
   async findMissingReports(
     searchDto: GroupMissingReportSearchDto,
@@ -65,8 +67,8 @@ export class GroupMissingReportsService {
 
     if (hasValue(searchDto.from) && hasValue(searchDto.to)) {
       // Only add 1 day to 'searchDto.to' since it is an endDate. This will cater for events as expected
-      const from = searchDto.from
-      const to = addDays(new Date(searchDto.to),1)
+      const from = searchDto.from;
+      const to = addDays(new Date(searchDto.to), 1);
       //Calculate Days
       const days = differenceInDays(new Date(to), new Date(from));
       // Event filter Dates
@@ -87,7 +89,7 @@ export class GroupMissingReportsService {
 
       //// Load the groups and events relations
       const allGroups = await this.groupRepository.find({
-        relations: ['category', 'events'],
+        relations: ["category", "events"],
         where: groupFilter,
       });
 
@@ -98,8 +100,8 @@ export class GroupMissingReportsService {
 
       ////Get all group Leaders
       const groupLeaders = await this.groupMemberRepository.find({
-        relations: ['contact', 'contact.person'],
-        where: { role: 'Leader' },
+        relations: ["contact", "contact.person"],
+        where: { role: "Leader" },
       });
 
       /// Generate list of expected reports
@@ -115,7 +117,7 @@ export class GroupMissingReportsService {
 
       ///// Get the group Events
       const groupEvents = await this.groupEventRepository.find({
-        relations: ['group'],
+        relations: ["group"],
         where: eFilter,
       });
       /// Loop through expected reports
@@ -204,13 +206,13 @@ export class GroupMissingReportsService {
     for (const wk of weekArray) {
       for (const rep of reportCategories) {
         for (const group of allGroups) {
-          let myLeader = 'No Group Leader';
+          let myLeader = "No Group Leader";
           groupLeaders.map(
             (it) =>
               it.groupId === group.id &&
               (myLeader = `${it.contact.person.firstName} ${
                 it.contact.person.middleName && it.contact.person.middleName
-              } ${it.contact.person.lastName}`.replace(/\s+/g, ' ')),
+              } ${it.contact.person.lastName}`.replace(/\s+/g, " ")),
           );
           if (
             group.categoryId === rep.groupCategoryId &&
@@ -248,18 +250,20 @@ export class GroupMissingReportsService {
     return groupCombo;
   }
 
-  async getFrequencyByCategory(req: EventFrequencyDto): Promise<GroupCategoryReport[]> {
-    const filter: FindConditions<GroupCategoryReport> = {}; 
-    
-      if(hasValue(req.groupCategory)) {
-        filter.groupCategoryId = req.groupCategory
-      }
-      if(hasValue(req.eventCategory)) {
-        filter.eventCategoryId = req.eventCategory
-      }
+  async getFrequencyByCategory(
+    req: EventFrequencyDto,
+  ): Promise<GroupCategoryReport[]> {
+    const filter: FindConditions<GroupCategoryReport> = {};
+
+    if (hasValue(req.groupCategory)) {
+      filter.groupCategoryId = req.groupCategory;
+    }
+    if (hasValue(req.eventCategory)) {
+      filter.eventCategoryId = req.eventCategory;
+    }
 
     const frequency = await this.categoryReportRepository.find({
-      where: filter
+      where: filter,
     });
     return frequency;
   }

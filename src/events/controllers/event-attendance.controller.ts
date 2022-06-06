@@ -11,6 +11,7 @@ import {
   UseGuards,
   UseInterceptors,
   UsePipes,
+  Inject,
   ValidationPipe,
 } from "@nestjs/common";
 import { PrismaService } from "../../shared/prisma.service";
@@ -36,15 +37,15 @@ import { SentryInterceptor } from "src/utils/sentry.interceptor";
 @ApiTags("Events Attendance")
 @Controller("api/events/attendance")
 export class EventsAttendanceController {
-  constructor(
-    @InjectRepository(EventAttendance)
-    private readonly repository: Repository<EventAttendance>,
-    @InjectRepository(GroupEvent)
-    private readonly groupRepository: Repository<GroupEvent>,
-    @InjectRepository(GroupMembership)
-    private readonly membershipRepository: Repository<GroupMembership>,
-    private prisma: PrismaService,
-  ) {}
+  private readonly repository: Repository<EventAttendance>;
+  private readonly groupRepository: Repository<GroupEvent>;
+  private readonly membershipRepository: Repository<GroupMembership>;
+
+  constructor(@Inject("CONNECTION") connection, private prisma: PrismaService) {
+    this.repository = connection.getRepository(EventAttendance);
+    this.groupRepository = connection.getRepository(GroupEvent);
+    this.membershipRepository = connection.getRepository(GroupMembership);
+  }
 
   @Get()
   async findAll(

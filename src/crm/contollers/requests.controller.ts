@@ -8,24 +8,27 @@ import {
   Put,
   Query,
   UseGuards,
+  Inject,
   UseInterceptors,
-} from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
-import { InjectRepository } from '@nestjs/typeorm';
-import Request from '../entities/request.entity';
-import { Repository } from 'typeorm';
-import SearchDto from '../../shared/dto/search.dto';
-import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
-import { SentryInterceptor } from 'src/utils/sentry.interceptor';
+} from "@nestjs/common";
+import { ApiTags } from "@nestjs/swagger";
+import { InjectRepository } from "@nestjs/typeorm";
+import Request from "../entities/request.entity";
+import { Repository } from "typeorm";
+import SearchDto from "../../shared/dto/search.dto";
+import { JwtAuthGuard } from "../../auth/guards/jwt-auth.guard";
+import { SentryInterceptor } from "src/utils/sentry.interceptor";
 
 @UseInterceptors(SentryInterceptor)
 @UseGuards(JwtAuthGuard)
-@ApiTags('Crm Requests')
-@Controller('api/crm/requests')
+@ApiTags("Crm Requests")
+@Controller("api/crm/requests")
 export class RequestsController {
-  constructor(
-    @InjectRepository(Request) private readonly repository: Repository<Request>,
-  ) {}
+  private readonly repository: Repository<Request>;
+
+  constructor(@Inject("CONNECTION") connection) {
+    this.repository = connection.getRepository(Request);
+  }
 
   @Get()
   async findAll(@Query() req: SearchDto): Promise<Request[]> {
@@ -45,13 +48,13 @@ export class RequestsController {
     return await this.repository.save(data);
   }
 
-  @Get(':id')
-  async findOne(@Param('id') id: number): Promise<Request> {
+  @Get(":id")
+  async findOne(@Param("id") id: number): Promise<Request> {
     return await this.repository.findOne(id);
   }
 
-  @Delete(':id')
-  async remove(@Param('id') id: number): Promise<void> {
+  @Delete(":id")
+  async remove(@Param("id") id: number): Promise<void> {
     await this.repository.delete(id);
   }
 }

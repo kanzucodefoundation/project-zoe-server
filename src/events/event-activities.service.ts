@@ -1,4 +1,4 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, Inject } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { CreateEventActivityDto } from "./dto/create-event-activity.dto";
@@ -8,10 +8,11 @@ import { EventActivity } from "./entities/event-activity.entity";
 
 @Injectable()
 export class EventActivitiesService {
-  constructor(
-    @InjectRepository(EventActivity)
-    private readonly repository: Repository<EventActivity>,
-  ) {}
+  private readonly repository: Repository<EventActivity>;
+
+  constructor(@Inject("CONNECTION") connection) {
+    this.repository = connection.getRepository(EventActivity);
+  }
 
   async create(data: EventActivity): Promise<EventActivity> {
     //console.log(data);

@@ -1,4 +1,4 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, Inject } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Connection, In, Repository, TreeRepository } from "typeorm";
 import { FindConditions } from "typeorm/find-options/FindConditions";
@@ -16,13 +16,15 @@ import { groupConstants } from "../../seed/data/groups";
 
 @Injectable()
 export class GroupsMembershipService {
-  constructor(
-    @InjectRepository(GroupMembership)
-    private readonly repository: Repository<GroupMembership>,
-    @InjectRepository(Group)
-    private readonly groupTreeRepository: TreeRepository<Group>,
-    private connection: Connection,
-  ) {}
+  private readonly repository: Repository<GroupMembership>;
+  private readonly groupTreeRepository: TreeRepository<Group>;
+  private readonly connection: Connection;
+
+  constructor(@Inject("CONNECTION") connection) {
+    this.repository = connection.getRepository(GroupMembership);
+    this.groupTreeRepository = connection.getTreeRepository(Group);
+    this.connection = connection;
+  }
 
   async findAll(req: GroupMembershipSearchDto): Promise<GroupMembershipDto[]> {
     const filter: FindConditions<GroupMembership> = {};

@@ -26,10 +26,7 @@ import { InjectRepository } from "@nestjs/typeorm";
 @ApiTags("Help")
 @Controller("api/help")
 export class HelpController {
-  constructor(
-    //@InjectRepository(Help)
-    private readonly helpService: HelpService,
-  ) {}
+  constructor(private readonly helpService: HelpService) {}
 
   @Get()
   async findAll(@Query() req: SearchDto): Promise<HelpDto[]> {

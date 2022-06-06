@@ -1,4 +1,4 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, Inject } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { getPersonFullName } from "src/crm/crm.helpers";
 import { Repository } from "typeorm";
@@ -8,10 +8,11 @@ import EventRegistration from "./entities/eventRegistration.entity";
 
 @Injectable()
 export class EventRegistrationService {
-  constructor(
-    @InjectRepository(EventRegistration)
-    private readonly repository: Repository<EventRegistration>,
-  ) {}
+  private readonly repository: Repository<EventRegistration>;
+
+  constructor(@Inject("CONNECTION") connection) {
+    this.repository = connection.getRepository(EventRegistration);
+  }
   async create(data: EventRegistrationDto): Promise<any> {
     const result = await this.repository
       .createQueryBuilder()

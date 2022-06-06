@@ -1,4 +1,4 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, Inject } from "@nestjs/common";
 import { CreateHelpDto } from "./dto/create-help.dto";
 import { UpdateHelpDto } from "./dto/update-help.dto";
 import { InjectRepository } from "@nestjs/typeorm";
@@ -10,10 +10,11 @@ import { hasValue, isArray } from "../utils/validation";
 
 @Injectable()
 export class HelpService {
-  constructor(
-    @InjectRepository(Help)
-    private readonly repository: Repository<Help>,
-  ) {}
+  private readonly repository: Repository<Help>;
+
+  constructor(@Inject("CONNECTION") connection) {
+    this.repository = connection.getRepository(Help);
+  }
 
   async create(data: CreateHelpDto): Promise<HelpDto> {
     return this.repository.save(data);

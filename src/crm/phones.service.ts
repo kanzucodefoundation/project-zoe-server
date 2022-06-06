@@ -1,14 +1,16 @@
-import { Body, Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import Phone from './entities/phone.entity';
-import { Repository } from 'typeorm';
-import { PhoneDto } from './dto/phone.dto';
+import { Body, Injectable, Inject } from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import Phone from "./entities/phone.entity";
+import { Repository } from "typeorm";
+import { PhoneDto } from "./dto/phone.dto";
 
 @Injectable()
 export class PhonesService {
-  constructor(
-    @InjectRepository(Phone) private readonly repository: Repository<Phone>,
-  ) {}
+  private readonly repository: Repository<Phone>;
+
+  constructor(@Inject("CONNECTION") connection) {
+    this.repository = connection.getRepository(Phone);
+  }
 
   async create(@Body() data: PhoneDto): Promise<Phone[]> {
     const getIsPrimary = await this.repository.find({

@@ -1,4 +1,9 @@
-import { BadRequestException, Injectable, Logger } from "@nestjs/common";
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  Inject,
+} from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { intersection } from "lodash";
 import {
@@ -46,29 +51,32 @@ import { GroupFinderService } from "./group-finder/group-finder.service";
 
 @Injectable()
 export class ContactsService {
+  private readonly repository: Repository<Contact>;
+  private readonly personRepository: Repository<Person>;
+  private readonly companyRepository: Repository<Company>;
+  private readonly phoneRepository: Repository<Phone>;
+  private readonly emailRepository: Repository<Email>;
+  private readonly addressRepository: Repository<Address>;
+  private readonly membershipRepository: Repository<GroupMembership>;
+  private readonly groupRepository: TreeRepository<Group>;
+  private readonly gmRequestRepository: Repository<GroupMembershipRequest>;
+
   constructor(
-    @InjectRepository(Contact)
-    private readonly repository: Repository<Contact>,
-    @InjectRepository(Person)
-    private readonly personRepository: Repository<Person>,
-    @InjectRepository(Company)
-    private readonly companyRepository: Repository<Company>,
-    @InjectRepository(Phone)
-    private readonly phoneRepository: Repository<Phone>,
-    @InjectRepository(Email)
-    private readonly emailRepository: Repository<Email>,
-    @InjectRepository(Address)
-    private readonly addressRepository: Repository<Address>,
-    @InjectRepository(GroupMembership)
-    private readonly membershipRepository: Repository<GroupMembership>,
-    @InjectRepository(Group)
-    private readonly groupRepository: TreeRepository<Group>,
-    @InjectRepository(GroupMembershipRequest)
-    private readonly gmRequestRepository: Repository<GroupMembershipRequest>,
+    @Inject("CONNECTION") connection,
     private googleService: GoogleService,
     private prisma: PrismaService,
     private groupFinderService: GroupFinderService,
-  ) {}
+  ) {
+    this.repository = connection.getRepository(Contact);
+    this.personRepository = connection.getRepository(Person);
+    this.companyRepository = connection.getRepository(Company);
+    this.phoneRepository = connection.getRepository(Phone);
+    this.emailRepository = connection.getRepository(Email);
+    this.addressRepository = connection.getRepository(Address);
+    this.membershipRepository = connection.getRepository(GroupMembership);
+    this.groupRepository = connection.getTreeRepository(Group);
+    this.gmRequestRepository = connection.getRepository(GroupMembershipRequest);
+  }
 
   async findAll(req: ContactSearchDto): Promise<ContactListDto[]> {
     try {

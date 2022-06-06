@@ -1,5 +1,4 @@
-import { HttpException, Injectable } from "@nestjs/common";
-import { InjectRepository } from "@nestjs/typeorm";
+import { HttpException, Injectable, Inject } from "@nestjs/common";
 import { FindConditions } from "typeorm/find-options/FindConditions";
 import { Repository } from "typeorm";
 import GroupMembershipRequestSearchDto from "../dto/membershipRequest/search-request.dto";
@@ -14,13 +13,16 @@ import { IEmail, sendEmail } from "src/utils/mailerTest";
 
 @Injectable()
 export class GroupMembershipRequestService {
+  private readonly repository: Repository<GroupMembershipRequest>;
+  private readonly contactRepository: Repository<Contact>;
+
   constructor(
-    @InjectRepository(GroupMembershipRequest)
-    private readonly repository: Repository<GroupMembershipRequest>,
-    @InjectRepository(Contact)
-    private readonly contactRepository: Repository<Contact>,
+    @Inject("CONNECTION") connection,
     private readonly contactService: ContactsService,
-  ) {}
+  ) {
+    this.repository = connection.getRepository(GroupMembershipRequest);
+    this.contactRepository = connection.getRepository(Contact);
+  }
 
   async findAll(
     req: GroupMembershipRequestSearchDto,
