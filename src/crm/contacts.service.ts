@@ -40,7 +40,7 @@ import { GoogleService } from "src/vendor/google.service";
 import GooglePlaceDto from "src/vendor/google-place.dto";
 import { getPreciseDistance } from "geolib";
 import GroupMembershipRequest from "src/groups/entities/groupMembershipRequest.entity";
-import { IEmail, sendEmail } from "src/utils/mailerTest";
+import { IEmail, sendEmail } from "src/utils/mailer";
 import {
   GetClosestGroupDto,
   GetGroupResponseDto,

@@ -9,7 +9,7 @@ import { NewRequestDto } from "../dto/membershipRequest/new-request.dto";
 import { getPersonFullName } from "src/crm/crm.helpers";
 import { ContactsService } from "src/crm/contacts.service";
 import Contact from "src/crm/entities/contact.entity";
-import { IEmail, sendEmail } from "src/utils/mailerTest";
+import { IEmail, sendEmail } from "src/utils/mailer";
 
 @Injectable()
 export class GroupMembershipRequestService {

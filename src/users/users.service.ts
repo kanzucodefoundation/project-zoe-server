@@ -12,7 +12,7 @@ import { getPersonFullName } from "../crm/crm.helpers";
 import * as bcrypt from "bcrypt";
 import { QueryDeepPartialEntity } from "typeorm/query-builder/QueryPartialEntity";
 import { CreateUserDto } from "./dto/create-user.dto";
-import { IEmail, sendEmail } from "src/utils/mailerTest";
+import { IEmail, sendEmail } from "src/utils/mailer";
 import { hasValue, isArray } from "../utils/validation";
 import { JwtHelperService } from "src/auth/jwt-helpers.service";
 import Roles from "./entities/roles.entity";

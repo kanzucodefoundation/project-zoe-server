@@ -1,6 +1,6 @@
 import { Injectable, Logger, Inject } from "@nestjs/common";
 import Email from "src/crm/entities/email.entity";
-import { IEmail, sendEmail } from "src/utils/mailerTest";
+import { IEmail, sendEmail } from "src/utils/mailer";
 import { Repository, Connection } from "typeorm";
 import mailChatDto from "./dto/sendMail.dto";
 import { UpdateChatDto } from "./dto/update-chat.dto";

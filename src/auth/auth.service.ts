@@ -2,7 +2,7 @@ import { HttpException, Injectable, Logger } from "@nestjs/common";
 import { UsersService } from "../users/users.service";
 import { cleanUpUser, createUserDto } from "./auth.helpers";
 import { UserDto } from "./dto/user.dto";
-import { IEmail, sendEmail } from "src/utils/mailerTest";
+import { IEmail, sendEmail } from "src/utils/mailer";
 import { ForgotPasswordResponseDto } from "./dto/forgot-password-response.dto";
 import { ResetPasswordResponseDto } from "./dto/reset-password-response.dto";
 import { UpdateUserDto } from "../users/dto/update-user.dto";
