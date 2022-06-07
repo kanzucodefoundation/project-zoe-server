@@ -11,48 +11,33 @@ import { Tenant } from "./entities/tenant.entity";
 const connectionFactory = {
   provide: "CONNECTION",
   scope: Scope.REQUEST,
-  useFactory: async (req) => {
+  useFactory: async (req, dbservice: DbService) => {
     const tenantName = req.headers["tenant"];
-    const connectionManager = getConnectionManager();
-    const connectionPublic = connectionManager.get("default");
-    const allTenants = ["demo", "worshipharvest", "vive"];
-
-    //const tenantDetails = await connectionPublic.getRepository(Tenant).findOne({code: tenantName})
+    const connectionPublic = await dbservice.getConnection();
+    const isCreatingNewTenant =
+      req.originalUrl == "/api/tenants" && req.method == "POST";
+    let tenantDetails: Tenant;
+    if (isCreatingNewTenant) {
+      tenantDetails = await dbservice.createTenant({ name: tenantName });
+    } else {
+      tenantDetails = await connectionPublic
+        .getRepository(Tenant)
+        .findOne({ name: tenantName });
+    }
 
     if (!tenantName) {
       throw new BadRequestException(
         "No church name provided. A valid church name must be provided.",
       );
     }
-    if (!allTenants.includes(tenantName)) {
+
+    if (!tenantDetails) {
       throw new BadRequestException("Invalid church name provided.");
     }
 
-    //const tenancy = tenantDetails.code
-
-    const connectionName = `${process.env.DB_DATABASE}_${tenantName}`;
-    if (connectionManager.has(connectionName)) {
-      const connection = await connectionManager.get(connectionName);
-      return Promise.resolve(
-        connection.isConnected ? connection : connection.connect(),
-      );
-    } else {
-      const dbEntities = tenantName == "public" ? [Tenant] : appEntities;
-      await createConnection({
-        ...config.database,
-        name: connectionName,
-        type: "postgres",
-        entities: dbEntities,
-        schema: tenantName,
-      });
-
-      const connection = await connectionManager.get(connectionName);
-      return Promise.resolve(
-        connection.isConnected ? connection : connection.connect(),
-      );
-    }
+    return dbservice.getConnection(tenantName);
   },
-  inject: [REQUEST],
+  inject: [REQUEST, DbService],
 };
 
 @Global()

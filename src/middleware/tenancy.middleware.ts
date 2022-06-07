@@ -10,7 +10,8 @@ export class TenancyMiddleware implements NestMiddleware {
     if (
       (req.originalUrl == "/api/auth/login" &&
         req.body.hasOwnProperty("churchName")) ||
-      req.originalUrl == "/api/tenants"
+      req.originalUrl == "/api/tenants" ||
+      req.originalUrl == "/api/tenants/seed"
     ) {
       tenant = req.body["churchName"].toLowerCase().replace(/\s/g, "");
     } else {
@@ -22,7 +23,7 @@ export class TenancyMiddleware implements NestMiddleware {
           : "";
     }
     req.headers.tenant = tenant;
-    Logger.log(`New request received. Church: ${tenant}`);
+    Logger.log(`New request received from church: ${tenant}`);
 
     next();
   }

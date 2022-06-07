@@ -18,7 +18,12 @@ export class TenantsController {
   @Post()
   create(@Body() tenantDto: TenantDto) {
     // @TODO Check if user has permission to do this
-    // @TODO If 'seed' boolean is set, seed the new tenant
     return this.tenantsService.create(tenantDto);
+  }
+
+  @Post("seed")
+  seed(@Body() tenantDto: TenantDto) {
+    // @TODO Check if user has permission to do this
+    return this.tenantsService.seed(tenantDto);
   }
 }

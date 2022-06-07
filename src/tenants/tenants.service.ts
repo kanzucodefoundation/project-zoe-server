@@ -13,12 +13,18 @@ export class TenantsService {
 
   async create(tenantData: TenantDto): Promise<Tenant> {
     // @TODO Wrap this in try-catch and in a transaction
-    const connection = await this.dbService.getConnection();
     // @TODO Validate tenantData.name, then strip and trim it
-    await connection.query(`CREATE SCHEMA IF NOT EXISTS ${tenantData.name}`);
+    const connectionPublic = await this.dbService.getConnection();
+    return await connectionPublic
+      .getRepository(Tenant)
+      .findOne({ name: tenantData.name });
+  }
+
+  async seed(tenantData: TenantDto): Promise<string> {
+    // @TODO Wrap this in try-catch and in a transaction
     if (tenantData.seed) {
       await this.seedService.createAll();
     }
-    return await connection.getRepository(Tenant).save(tenantData);
+    return "Successfully seeded the tenant";
   }
 }
