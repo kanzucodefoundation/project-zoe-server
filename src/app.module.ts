@@ -62,7 +62,12 @@ export class AppModule {
   public configure(consumer: MiddlewareConsumer): void {
     consumer
       .apply(JwtTenantHeaderMiddleware)
-      .exclude("api/tenants", "api/tenants/seed", "/api/auth/login")
+      .exclude(
+        "api/tenants",
+        "api/tenants/seed",
+        "/api/auth/login",
+        "api/register",
+      )
       .forRoutes("*");
   }
 }
