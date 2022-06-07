@@ -1,4 +1,10 @@
-import { Module, Scope, Global, BadRequestException } from "@nestjs/common";
+import {
+  Module,
+  Scope,
+  Global,
+  BadRequestException,
+  MiddlewareConsumer,
+} from "@nestjs/common";
 import { getConnectionManager, createConnection } from "typeorm";
 import { REQUEST } from "@nestjs/core";
 import config, { appEntities } from "../config";
@@ -8,7 +14,8 @@ import * as dotenv from "dotenv";
 import { DbService } from "src/shared/db.service";
 import { SeedModule } from "src/seed/seed.module";
 import { Tenant } from "./entities/tenant.entity";
-import { Request } from "express";
+import { nameTenantHeaderMiddleware } from "src/middleware/nameTenantHeader.middleware";
+
 const connectionFactory = {
   provide: "CONNECTION",
   scope: Scope.REQUEST,
@@ -18,7 +25,9 @@ const connectionFactory = {
     const isCreatingNewTenant =
       req.originalUrl == "/api/tenants" && req.method == "POST";
     let tenantDetails: Tenant;
+
     if (isCreatingNewTenant) {
+      // @TODO Move this
       tenantDetails = await dbservice.createTenant({ name: tenantName });
     } else {
       tenantDetails = await connectionPublic
@@ -48,4 +57,8 @@ const connectionFactory = {
   exports: ["CONNECTION"],
   controllers: [TenantsController],
 })
-export class TenantsModule {}
+export class TenantsModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(nameTenantHeaderMiddleware).forRoutes("api/tenants");
+  }
+}

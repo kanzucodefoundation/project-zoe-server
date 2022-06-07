@@ -24,7 +24,7 @@ import { EventsModule } from "./events/events.module";
 import { ChatModule } from "./chat/chat.module";
 import { HelpModule } from "./help/help.module";
 import { TenantsModule } from "./tenants/tenants.module";
-import { TenancyMiddleware } from "./middleware/tenancy.middleware";
+import { JwtTenantHeaderMiddleware } from "./middleware/jwtTenantHeader.middleware";
 
 @Global()
 @Module({
@@ -60,6 +60,9 @@ import { TenancyMiddleware } from "./middleware/tenancy.middleware";
 })
 export class AppModule {
   public configure(consumer: MiddlewareConsumer): void {
-    consumer.apply(TenancyMiddleware).forRoutes("*");
+    consumer
+      .apply(JwtTenantHeaderMiddleware)
+      .exclude("api/tenants", "api/tenants/seed", "/api/auth/login")
+      .forRoutes("*");
   }
 }
