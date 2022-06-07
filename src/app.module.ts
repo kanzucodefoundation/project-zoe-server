@@ -67,6 +67,7 @@ export class AppModule {
         "api/tenants/seed",
         "/api/auth/login",
         "api/register",
+        "api/groups/combo",
       )
       .forRoutes("*");
   }
