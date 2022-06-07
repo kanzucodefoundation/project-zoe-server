@@ -1,5 +1,6 @@
 import { Injectable, Logger, NestMiddleware } from "@nestjs/common";
 import { JwtHelperService } from "src/auth/jwt-helpers.service";
+import { lowerCaseRemoveSpaces } from "src/utils/stringHelpers";
 
 @Injectable()
 export class TenancyMiddleware implements NestMiddleware {
@@ -13,7 +14,8 @@ export class TenancyMiddleware implements NestMiddleware {
       req.originalUrl == "/api/tenants" ||
       req.originalUrl == "/api/tenants/seed"
     ) {
-      tenant = req.body["churchName"].toLowerCase().replace(/\s/g, "");
+      //@TODO Move this to custom middleware
+      tenant = lowerCaseRemoveSpaces(req.body["churchName"]);
     } else {
       const jwtToken = req.headers.authorization.slice(7);
       const tokenPayload = await this.jwtService.decodeToken(jwtToken);

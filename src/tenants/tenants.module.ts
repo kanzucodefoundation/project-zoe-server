@@ -8,10 +8,11 @@ import * as dotenv from "dotenv";
 import { DbService } from "src/shared/db.service";
 import { SeedModule } from "src/seed/seed.module";
 import { Tenant } from "./entities/tenant.entity";
+import { Request } from "express";
 const connectionFactory = {
   provide: "CONNECTION",
   scope: Scope.REQUEST,
-  useFactory: async (req, dbservice: DbService) => {
+  useFactory: async (req: any, dbservice: DbService) => {
     const tenantName = req.headers["tenant"];
     const connectionPublic = await dbservice.getConnection();
     const isCreatingNewTenant =

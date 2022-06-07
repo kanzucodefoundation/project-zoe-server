@@ -25,6 +25,7 @@ import { ResetPasswordResponseDto } from "./dto/reset-password-response.dto";
 import { isValidPassword } from "src/utils/validation";
 import { SentryInterceptor } from "src/utils/sentry.interceptor";
 import { SeedService } from "../seed/seed.service";
+import { lowerCaseRemoveSpaces } from "src/utils/stringHelpers";
 
 @UseInterceptors(SentryInterceptor)
 @ApiTags("Index")
@@ -37,7 +38,7 @@ export class AuthController {
   @Post("login")
   async login(@Request() req): Promise<LoginResponseDto> {
     const tenant = req.body.hasOwnProperty("churchName")
-      ? req.body["churchName"].toLowerCase().replace(/\s/g, "")
+      ? lowerCaseRemoveSpaces(req.body["churchName"])
       : "default";
     return this.authService.generateToken(req.user, tenant);
   }
