@@ -1,4 +1,3 @@
-import { contact } from "@prisma/client";
 import Contact from "src/crm/entities/contact.entity";
 import {
   Column,
