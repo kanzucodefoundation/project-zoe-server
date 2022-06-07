@@ -74,7 +74,7 @@ jobs:
           DO_HOST: ${{ secrets.DO_HOST }}
           
       - name: Deploy the app
-        run: rsync -rtvO ./dist/ project-zoe-prod-1:/opt/project-zoe-server/dist/
+        run: rsync -rtvO --delete ./dist/ project-zoe-prod-1:/opt/project-zoe-server/dist/
 
       - name: Run the app
         run: ssh project-zoe-prod-1 'cd /opt/project-zoe-server/dist/ && pm2 delete zoeServer  2> /dev/null || true && production=true pm2 start main.js --name zoeServer'
