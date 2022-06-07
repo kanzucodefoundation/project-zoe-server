@@ -35,7 +35,14 @@ jobs:
 #
     #- name: Upload coverage to Codecov
     #  uses: codecov/codecov-action@v1
-          
+
+      # See README.md on how to create the PROD_ENV_FILE file
+      - name: Create an .env file
+        env:
+          PROD_ENV_FILE: ${{ secrets.PROD_ENV_FILE }}
+        run: |
+          echo $PROD_ENV_FILE | base64 --decode > ./dist/.env
+
       # Temporarily skip eslint by using DISABLE_ESLINT_PLUGIN
       - name: Build
         run: |
@@ -65,12 +72,6 @@ jobs:
           DO_USERNAME: ${{ secrets.DO_USERNAME }}
           DO_PRIVATE_KEY: ${{ secrets.DO_PRIVATE_KEY }}
           DO_HOST: ${{ secrets.DO_HOST }}
-
-      - name: Create an .env file
-        env:
-          PROD_ENV_FILE: ${{ secrets.PROD_ENV_FILE }}
-        run: |
-          echo $PROD_ENV_FILE | base64 --decode > ./dist/.env
           
       - name: Deploy the app
         run: rsync -rtvO ./dist/ project-zoe-prod-1:/opt/project-zoe-server/dist/
