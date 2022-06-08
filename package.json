@@ -40,7 +40,7 @@
     "@nestjs/swagger": "^4.7.15",
     "@nestjs/typeorm": "^7.1.5",
     "@nestjs/websockets": "^8.2.3",
-    "@prisma/client": "^2.18.0",
+    "@prisma/client": "^2.30.3",
     "@sentry/node": "^6.7.2",
     "@sentry/tracing": "^6.7.2",
     "bcrypt": "^5.0.1",
