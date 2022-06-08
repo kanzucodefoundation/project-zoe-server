@@ -1,4 +1,4 @@
-# Angie Contributing Guide
+# Project Zoe Contributing Guide
 # Table of Contents
 1. [Git Workflow](#git-workflow)
 
