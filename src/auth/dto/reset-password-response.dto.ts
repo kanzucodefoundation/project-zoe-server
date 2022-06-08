@@ -11,8 +11,3 @@ export class ResetPasswordResponseDto {
   @ApiProperty()
   user: UserListDto;
 }
-
-
-
-
-

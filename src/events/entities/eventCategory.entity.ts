@@ -20,5 +20,4 @@ export default class EventCategory {
     cascade: ['insert', 'remove'],
   })
   fields: EventField[];
-
- }
+}

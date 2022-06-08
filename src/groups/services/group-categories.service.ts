@@ -1,12 +1,12 @@
-import { Injectable, Inject } from "@nestjs/common";
-import { Repository, Connection } from "typeorm";
-import SearchDto from "../../shared/dto/search.dto";
-import GroupCategory from "../entities/groupCategory.entity";
+import { Injectable, Inject } from '@nestjs/common';
+import { Repository, Connection } from 'typeorm';
+import SearchDto from '../../shared/dto/search.dto';
+import GroupCategory from '../entities/groupCategory.entity';
 
 @Injectable()
 export class GroupCategoriesService {
   private readonly repository: Repository<GroupCategory>;
-  constructor(@Inject("CONNECTION") connection: Connection) {
+  constructor(@Inject('CONNECTION') connection: Connection) {
     this.repository = connection.getRepository(GroupCategory);
   }
 

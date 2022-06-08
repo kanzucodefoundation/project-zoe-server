@@ -1,4 +1,4 @@
-import { URLCategory } from "../enums/URLCategory";
+import { URLCategory } from '../enums/URLCategory';
 
 export class CreateHelpDto {
   id: number;

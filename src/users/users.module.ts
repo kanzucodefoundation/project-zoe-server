@@ -23,7 +23,13 @@ import { JwtHelperService } from 'src/auth/jwt-helpers.service';
       signOptions: { expiresIn: '60m' },
     }),
   ],
-  providers: [UsersService, AppService, JwtStrategy, RolesService, JwtHelperService],
+  providers: [
+    UsersService,
+    AppService,
+    JwtStrategy,
+    RolesService,
+    JwtHelperService,
+  ],
   exports: [UsersService],
   controllers: [UsersController, RolesController],
 })

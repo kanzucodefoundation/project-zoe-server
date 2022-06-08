@@ -32,7 +32,7 @@ export class GoogleService {
 
     const parts = addressParts
       .split(',')
-      .map(it => it.trim())
+      .map((it) => it.trim())
       .reverse();
 
     const [country, ...rest] = parts;

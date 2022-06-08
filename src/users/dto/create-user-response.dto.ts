@@ -5,7 +5,3 @@ export class CreateUserResponseDto {
   mailURL: string;
   user: UserListDto;
 }
-
-
-
-

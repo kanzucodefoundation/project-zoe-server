@@ -1,4 +1,4 @@
-import { Injectable, Inject } from "@nestjs/common";
+import { Injectable, Inject } from '@nestjs/common';
 import {
   addDays,
   differenceInDays,
@@ -7,7 +7,7 @@ import {
   startOfQuarter,
   startOfWeek,
   startOfYear,
-} from "date-fns";
+} from 'date-fns';
 import {
   FindConditions,
   ILike,
@@ -17,18 +17,18 @@ import {
   MoreThanOrEqual,
   Repository,
   TreeRepository,
-} from "typeorm";
-import { GetMissingReportDto } from "../dto/group-missing-report.dto";
-import Group from "../entities/group.entity";
-import GroupCategoryReport from "../entities/groupCategoryReport.entity";
-import GroupMembership from "../entities/groupMembership.entity";
-import { getArray, hasValue } from "src/utils/validation";
-import GroupEvent from "src/events/entities/event.entity";
-import { GroupCategoryReportFrequency } from "../enums/groupCategoryReportFrequency ";
-import { GroupSearchDto } from "../dto/group-search.dto";
-import { GroupMissingReportSearchDto } from "../dto/group-missing-report-search.dto";
-import { groupConstants } from "../../seed/data/groups";
-import { EventFrequencyDto } from "../dto/event-frequency-search.dto";
+} from 'typeorm';
+import { GetMissingReportDto } from '../dto/group-missing-report.dto';
+import Group from '../entities/group.entity';
+import GroupCategoryReport from '../entities/groupCategoryReport.entity';
+import GroupMembership from '../entities/groupMembership.entity';
+import { getArray, hasValue } from 'src/utils/validation';
+import GroupEvent from 'src/events/entities/event.entity';
+import { GroupCategoryReportFrequency } from '../enums/groupCategoryReportFrequency ';
+import { GroupSearchDto } from '../dto/group-search.dto';
+import { GroupMissingReportSearchDto } from '../dto/group-missing-report-search.dto';
+import { groupConstants } from '../../seed/data/groups';
+import { EventFrequencyDto } from '../dto/event-frequency-search.dto';
 
 @Injectable()
 export class GroupMissingReportsService {
@@ -37,7 +37,7 @@ export class GroupMissingReportsService {
   private readonly groupMemberRepository: Repository<GroupMembership>;
   private readonly groupEventRepository: Repository<GroupEvent>;
 
-  constructor(@Inject("CONNECTION") connection: Connection) {
+  constructor(@Inject('CONNECTION') connection: Connection) {
     this.groupRepository = connection.getTreeRepository(Group);
     this.categoryReportRepository = connection.getRepository(
       GroupCategoryReport,
@@ -90,7 +90,7 @@ export class GroupMissingReportsService {
 
       //// Load the groups and events relations
       const allGroups = await this.groupRepository.find({
-        relations: ["category", "events"],
+        relations: ['category', 'events'],
         where: groupFilter,
       });
 
@@ -101,8 +101,8 @@ export class GroupMissingReportsService {
 
       ////Get all group Leaders
       const groupLeaders = await this.groupMemberRepository.find({
-        relations: ["contact", "contact.person"],
-        where: { role: "Leader" },
+        relations: ['contact', 'contact.person'],
+        where: { role: 'Leader' },
       });
 
       /// Generate list of expected reports
@@ -118,7 +118,7 @@ export class GroupMissingReportsService {
 
       ///// Get the group Events
       const groupEvents = await this.groupEventRepository.find({
-        relations: ["group"],
+        relations: ['group'],
         where: eFilter,
       });
       /// Loop through expected reports
@@ -207,13 +207,13 @@ export class GroupMissingReportsService {
     for (const wk of weekArray) {
       for (const rep of reportCategories) {
         for (const group of allGroups) {
-          let myLeader = "No Group Leader";
+          let myLeader = 'No Group Leader';
           groupLeaders.map(
             (it) =>
               it.groupId === group.id &&
               (myLeader = `${it.contact.person.firstName} ${
                 it.contact.person.middleName && it.contact.person.middleName
-              } ${it.contact.person.lastName}`.replace(/\s+/g, " ")),
+              } ${it.contact.person.lastName}`.replace(/\s+/g, ' ')),
           );
           if (
             group.categoryId === rep.groupCategoryId &&

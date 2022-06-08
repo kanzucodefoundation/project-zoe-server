@@ -24,8 +24,7 @@ import { SentryInterceptor } from './../../utils/sentry.interceptor';
 @ApiTags('Groups')
 @Controller('api/groups/group')
 export class GroupController {
-  constructor(private readonly service: GroupsService) {
-  }
+  constructor(private readonly service: GroupsService) {}
 
   @Get()
   async findAll(@Query() req: SearchDto): Promise<GroupListDto[]> {
@@ -33,12 +32,12 @@ export class GroupController {
   }
 
   @Post()
-  async create(@Body()data: CreateGroupDto): Promise<GroupListDto> {
+  async create(@Body() data: CreateGroupDto): Promise<GroupListDto> {
     return await this.service.create(data);
   }
 
   @Put()
-  async update(@Body()data: UpdateGroupDto): Promise<GroupListDto> {
+  async update(@Body() data: UpdateGroupDto): Promise<GroupListDto> {
     return await this.service.update(data);
   }
 

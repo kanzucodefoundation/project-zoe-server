@@ -1,17 +1,17 @@
-import { Injectable, Logger, Inject } from "@nestjs/common";
-import { CreateHelpDto } from "./dto/create-help.dto";
-import { UpdateHelpDto } from "./dto/update-help.dto";
-import { Repository, Connection } from "typeorm";
-import Help from "./entities/help.entity";
-import HelpDto from "./dto/help.dto";
-import SearchDto from "../shared/dto/search.dto";
-import { hasValue, isArray } from "../utils/validation";
+import { Injectable, Logger, Inject } from '@nestjs/common';
+import { CreateHelpDto } from './dto/create-help.dto';
+import { UpdateHelpDto } from './dto/update-help.dto';
+import { Repository, Connection } from 'typeorm';
+import Help from './entities/help.entity';
+import HelpDto from './dto/help.dto';
+import SearchDto from '../shared/dto/search.dto';
+import { hasValue, isArray } from '../utils/validation';
 
 @Injectable()
 export class HelpService {
   private readonly repository: Repository<Help>;
 
-  constructor(@Inject("CONNECTION") connection: Connection) {
+  constructor(@Inject('CONNECTION') connection: Connection) {
     this.repository = connection.getRepository(Help);
   }
 
@@ -21,14 +21,14 @@ export class HelpService {
 
   async findAll(req: SearchDto): Promise<HelpDto[]> {
     const data = await this.repository.find({
-      select: ["id", "title", "category", "url"],
+      select: ['id', 'title', 'category', 'url'],
     });
     return data;
   }
 
   async findOne(id: number): Promise<HelpDto> {
     const data = await this.repository.findOne({
-      select: ["id", "title", "category", "url"],
+      select: ['id', 'title', 'category', 'url'],
     });
     return data;
   }
@@ -40,7 +40,7 @@ export class HelpService {
       .set({
         ...data,
       })
-      .where("id = :id", { id: data.id })
+      .where('id = :id', { id: data.id })
       .execute();
 
     if (newFile.affected)

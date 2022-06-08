@@ -9,21 +9,21 @@ import {
   UseGuards,
   Inject,
   UseInterceptors,
-} from "@nestjs/common";
-import { JwtAuthGuard } from "../../auth/guards/jwt-auth.guard";
-import { ApiTags } from "@nestjs/swagger";
-import EventCategory from "../entities/eventCategory.entity";
-import { Repository, Connection } from "typeorm";
-import { SentryInterceptor } from "src/utils/sentry.interceptor";
+} from '@nestjs/common';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { ApiTags } from '@nestjs/swagger';
+import EventCategory from '../entities/eventCategory.entity';
+import { Repository, Connection } from 'typeorm';
+import { SentryInterceptor } from 'src/utils/sentry.interceptor';
 
 @UseInterceptors(SentryInterceptor)
 @UseGuards(JwtAuthGuard)
-@ApiTags("Events Categories")
-@Controller("api/events/category")
+@ApiTags('Events Categories')
+@Controller('api/events/category')
 export class EventsCategoriesController {
   private readonly repository: Repository<EventCategory>;
 
-  constructor(@Inject("CONNECTION") connection: Connection) {
+  constructor(@Inject('CONNECTION') connection: Connection) {
     this.repository = connection.getRepository(EventCategory);
   }
 
@@ -43,15 +43,15 @@ export class EventsCategoriesController {
     return this.repository.findOne({ where: { id } });
   }
 
-  @Get(":id")
-  async findOne(@Param("id") id: any): Promise<EventCategory> {
+  @Get(':id')
+  async findOne(@Param('id') id: any): Promise<EventCategory> {
     return await this.repository.findOne(id, {
-      relations: ["fields"],
+      relations: ['fields'],
     });
   }
 
-  @Delete(":id")
-  async remove(@Param("id") id: any): Promise<void> {
+  @Delete(':id')
+  async remove(@Param('id') id: any): Promise<void> {
     await this.repository.delete(id);
   }
 }

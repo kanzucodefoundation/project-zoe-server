@@ -10,5 +10,4 @@ export const groupEntities = [
   GroupCategory,
   GroupMembershipRequest,
   GroupCategoryReport,
-
 ];

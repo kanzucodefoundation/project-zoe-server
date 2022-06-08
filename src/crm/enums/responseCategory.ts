@@ -1,8 +1,4 @@
 export enum UserResponse {
-    Yes = 'Yes',
-    No = 'No',
+  Yes = 'Yes',
+  No = 'No',
 }
-
-
-
-

@@ -1,4 +1,4 @@
-import { Injectable, Logger, Inject } from "@nestjs/common";
+import { Injectable, Logger, Inject } from '@nestjs/common';
 import {
   FindConditions,
   ILike,
@@ -8,23 +8,23 @@ import {
   Repository,
   Connection,
   TreeRepository,
-} from "typeorm";
-import Group from "../entities/group.entity";
-import GroupEvent from "../../events/entities/event.entity";
-import SearchDto from "../../shared/dto/search.dto";
-import { GroupSearchDto } from "../dto/group-search.dto";
-import GroupListDto from "../dto/group-list.dto";
-import CreateGroupDto from "../dto/create-group.dto";
-import UpdateGroupDto from "../dto/update-group.dto";
-import { GroupDetailDto } from "../dto/group-detail.dto";
-import GooglePlaceDto from "../../vendor/google-place.dto";
-import { GoogleService } from "../../vendor/google.service";
-import ClientFriendlyException from "../../shared/exceptions/client-friendly.exception";
-import GroupMembership from "../entities/groupMembership.entity";
-import { GroupRole } from "../enums/groupRole";
-import { hasValue } from "../../utils/validation";
-import GroupCategoryReport from "../entities/groupCategoryReport.entity";
-import { endOfMonth, startOfMonth } from "date-fns";
+} from 'typeorm';
+import Group from '../entities/group.entity';
+import GroupEvent from '../../events/entities/event.entity';
+import SearchDto from '../../shared/dto/search.dto';
+import { GroupSearchDto } from '../dto/group-search.dto';
+import GroupListDto from '../dto/group-list.dto';
+import CreateGroupDto from '../dto/create-group.dto';
+import UpdateGroupDto from '../dto/update-group.dto';
+import { GroupDetailDto } from '../dto/group-detail.dto';
+import GooglePlaceDto from '../../vendor/google-place.dto';
+import { GoogleService } from '../../vendor/google.service';
+import ClientFriendlyException from '../../shared/exceptions/client-friendly.exception';
+import GroupMembership from '../entities/groupMembership.entity';
+import { GroupRole } from '../enums/groupRole';
+import { hasValue } from '../../utils/validation';
+import GroupCategoryReport from '../entities/groupCategoryReport.entity';
+import { endOfMonth, startOfMonth } from 'date-fns';
 
 @Injectable()
 export class GroupsService {
@@ -35,7 +35,7 @@ export class GroupsService {
   private readonly eventRepository: Repository<GroupEvent>;
 
   constructor(
-    @Inject("CONNECTION") connection: Connection,
+    @Inject('CONNECTION') connection: Connection,
     private googleService: GoogleService,
   ) {
     this.repository = connection.getRepository(Group);
@@ -80,7 +80,7 @@ export class GroupsService {
   }
 
   async combo(req: GroupSearchDto): Promise<Group[]> {
-    console.log("GroupSearchDto", req);
+    console.log('GroupSearchDto', req);
     const findOps: FindConditions<Group> = {};
     if (hasValue(req.categories)) {
       findOps.categoryId = In(req.categories);
@@ -88,9 +88,9 @@ export class GroupsService {
     if (hasValue(req.query)) {
       findOps.name = ILike(`%${req.query}%`);
     }
-    console.log("findOps", findOps);
+    console.log('findOps', findOps);
     return await this.treeRepository.find({
-      select: ["id", "name", "categoryId", "parent"],
+      select: ['id', 'name', 'categoryId', 'parent'],
       where: findOps,
       skip: req.skip,
       take: req.limit,
@@ -122,7 +122,7 @@ export class GroupsService {
 
   async findOne(id: number, full = true) {
     const data = await this.treeRepository.findOne(id, {
-      relations: ["category", "parent"],
+      relations: ['category', 'parent'],
     });
     Logger.log(`Read.Group success id:${id}`);
     if (full) {
@@ -144,7 +144,7 @@ export class GroupsService {
         totalMem = 0;
       await (
         await this.eventRepository.find({
-          relations: ["attendance", "group", "group.members"],
+          relations: ['attendance', 'group', 'group.members'],
           where: filter,
         })
       ).forEach((it) => {
@@ -156,14 +156,14 @@ export class GroupsService {
 
       const membership = await this.membershipRepository.find({
         where: { role: GroupRole.Leader, groupId: id },
-        select: ["contactId"],
+        select: ['contactId'],
       });
       groupData.leaders = membership.map((it) => it.contactId);
 
       groupData.reports = await this.eventRepository.find({
-        relations: ["category", "attendance"],
+        relations: ['category', 'attendance'],
         where: { groupId: In(groupData.children) },
-        select: ["id", "name", "startDate"],
+        select: ['id', 'name', 'startDate'],
       });
 
       return groupData;
@@ -178,7 +178,7 @@ export class GroupsService {
 
     const currGroup = await this.repository
       .createQueryBuilder()
-      .where("id = :id", { id: dto.id })
+      .where('id = :id', { id: dto.id })
       .getOne();
 
     if (!currGroup)
@@ -209,7 +209,7 @@ export class GroupsService {
         categoryId: dto.categoryId,
         address: place,
       })
-      .where("id = :id", { id: dto.id })
+      .where('id = :id', { id: dto.id })
       .execute();
     if (result.affected)
       Logger.log(

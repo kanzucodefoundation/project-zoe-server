@@ -1,19 +1,19 @@
-import { Injectable, Inject } from "@nestjs/common";
-import Group from "../../groups/entities/group.entity";
-import { In, Repository, Connection, TreeRepository } from "typeorm";
+import { Injectable, Inject } from '@nestjs/common';
+import Group from '../../groups/entities/group.entity';
+import { In, Repository, Connection, TreeRepository } from 'typeorm';
 import {
   GetClosestGroupDto,
   GetMissingReportDto,
-} from "../../groups/dto/membershipRequest/new-request.dto";
-import { groupConstants } from "../../seed/data/groups";
-import GroupCategoryReport from "../../groups/entities/groupCategoryReport.entity";
+} from '../../groups/dto/membershipRequest/new-request.dto';
+import { groupConstants } from '../../seed/data/groups';
+import GroupCategoryReport from '../../groups/entities/groupCategoryReport.entity';
 
 @Injectable()
 export class GroupFinderService {
   private readonly groupRepository: TreeRepository<Group>;
   private readonly categoryReportRepository: Repository<GroupCategoryReport>;
 
-  constructor(@Inject("CONNECTION") connection: Connection) {
+  constructor(@Inject('CONNECTION') connection: Connection) {
     this.groupRepository = connection.getTreeRepository(Group);
     this.categoryReportRepository = connection.getRepository(
       GroupCategoryReport,
@@ -25,7 +25,7 @@ export class GroupFinderService {
       where: { id: data.parentGroupId },
     });
     const childGroups = await this.groupRepository
-      .createDescendantsQueryBuilder("group", "group_closure", parentGroup)
+      .createDescendantsQueryBuilder('group', 'group_closure', parentGroup)
       .andWhere(`group.categoryId = '${groupConstants.mc}'`)
       .getMany();
     return childGroups;

@@ -9,5 +9,3 @@ export class CreateCompanyDto {
   @IsNotEmpty()
   name: string;
 }
-
-

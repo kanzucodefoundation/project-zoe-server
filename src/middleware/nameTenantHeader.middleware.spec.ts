@@ -1,7 +1,7 @@
-import { nameTenantHeaderMiddleware } from "./nameTenantHeader.middleware";
+import { nameTenantHeaderMiddleware } from './nameTenantHeader.middleware';
 
-describe("nameTenantHeaderMiddleware", () => {
-  it("should be defined", () => {
+describe('nameTenantHeaderMiddleware', () => {
+  it('should be defined', () => {
     expect(new nameTenantHeaderMiddleware()).toBeDefined();
   });
 });

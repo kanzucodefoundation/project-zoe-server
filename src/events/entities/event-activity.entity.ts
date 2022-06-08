@@ -1,4 +1,4 @@
-import { MemberEventActivities } from "./member-event-activities.entity";
+import { MemberEventActivities } from './member-event-activities.entity';
 import {
   Column,
   Entity,
@@ -7,8 +7,8 @@ import {
   OneToMany,
   PrimaryGeneratedColumn,
   Unique,
-} from "typeorm";
-import GroupEvent from "./event.entity";
+} from 'typeorm';
+import GroupEvent from './event.entity';
 
 @Entity()
 export class EventActivity {
@@ -23,7 +23,7 @@ export class EventActivity {
   eventId: number;
 
   @ManyToOne((type) => MemberEventActivities, (it) => it.activity, {
-    cascade: ["insert"],
+    cascade: ['insert'],
   })
   member: MemberEventActivities[];
 }

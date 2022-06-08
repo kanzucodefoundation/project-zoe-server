@@ -1,19 +1,19 @@
-import { MemberEventActivities } from "./entities/member-event-activities.entity";
-import { Injectable, Logger, Inject } from "@nestjs/common";
-import { In, Repository, Connection } from "typeorm";
+import { MemberEventActivities } from './entities/member-event-activities.entity';
+import { Injectable, Logger, Inject } from '@nestjs/common';
+import { In, Repository, Connection } from 'typeorm';
 
-import { UpdateMemberEventActivitiesDto } from "./dto/update-member-event-activities.dto";
-import { EventActivity } from "./entities/event-activity.entity";
-import MemberEventActivitiesSearchDto from "./dto/member-event-activities-search.dto";
-import { MemberEventActivitiesDto } from "./dto/member-event-activities.dto";
-import { CreateMemberEventActivitiesDto } from "./dto/create-member-event-activities.dto";
+import { UpdateMemberEventActivitiesDto } from './dto/update-member-event-activities.dto';
+import { EventActivity } from './entities/event-activity.entity';
+import MemberEventActivitiesSearchDto from './dto/member-event-activities-search.dto';
+import { MemberEventActivitiesDto } from './dto/member-event-activities.dto';
+import { CreateMemberEventActivitiesDto } from './dto/create-member-event-activities.dto';
 
 @Injectable()
 export class MemberEventActivitiesService {
   private readonly repository: Repository<MemberEventActivities>;
   private readonly eventActivityrepository: Repository<EventActivity>;
 
-  constructor(@Inject("CONNECTION") connection: Connection) {
+  constructor(@Inject('CONNECTION') connection: Connection) {
     this.repository = connection.getRepository(MemberEventActivities);
     this.eventActivityrepository = connection.getRepository(EventActivity);
   }
@@ -22,7 +22,7 @@ export class MemberEventActivitiesService {
     data: MemberEventActivitiesDto,
   ): Promise<MemberEventActivitiesDto> {
     for (let i = 0; i < data.contactId.length; i++) {
-      let toSave = new MemberEventActivities();
+      const toSave = new MemberEventActivities();
 
       toSave.activityId = data.activityId;
 
@@ -35,7 +35,7 @@ export class MemberEventActivitiesService {
   }
 
   async findAll(): Promise<any> {
-    console.log("finding all");
+    console.log('finding all');
     const allActivities = await this.eventActivityrepository.find({});
 
     const toDto = [];
@@ -44,7 +44,7 @@ export class MemberEventActivitiesService {
       const data = await this.repository.find({
         where: { activityId: allActivities[i].id },
 
-        relations: ["activity", "contact", "contact.person"],
+        relations: ['activity', 'contact', 'contact.person'],
       });
 
       const member = [];
@@ -72,7 +72,7 @@ export class MemberEventActivitiesService {
   async update(
     data: UpdateMemberEventActivitiesDto,
   ): Promise<UpdateMemberEventActivitiesDto | any> {
-    console.log("updating members", data.memberIds);
+    console.log('updating members', data.memberIds);
     for (let i = 0; i < data.memberIds.length; i++) {
       await this.repository.delete(data.memberIds[i]);
     }
@@ -80,7 +80,7 @@ export class MemberEventActivitiesService {
   }
 
   async remove(id: number): Promise<void> {
-    console.log("removing an member from an activity");
+    console.log('removing an member from an activity');
     await this.repository.delete(id);
   }
 }

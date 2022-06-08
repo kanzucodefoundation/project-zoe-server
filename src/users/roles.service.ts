@@ -1,16 +1,16 @@
-import { BadRequestException, Injectable, Inject } from "@nestjs/common";
-import { roleAdmin } from "src/auth/constants";
-import SearchDto from "src/shared/dto/search.dto";
-import { hasValue } from "src/utils/validation";
-import { FindConditions, ILike, In, Repository, Connection } from "typeorm";
-import { RolesDto } from "./dto/roles.dto";
-import Roles from "./entities/roles.entity";
+import { BadRequestException, Injectable, Inject } from '@nestjs/common';
+import { roleAdmin } from 'src/auth/constants';
+import SearchDto from 'src/shared/dto/search.dto';
+import { hasValue } from 'src/utils/validation';
+import { FindConditions, ILike, In, Repository, Connection } from 'typeorm';
+import { RolesDto } from './dto/roles.dto';
+import Roles from './entities/roles.entity';
 
 @Injectable()
 export class RolesService {
   private readonly repository: Repository<Roles>;
 
-  constructor(@Inject("CONNECTION") connection: Connection) {
+  constructor(@Inject('CONNECTION') connection: Connection) {
     this.repository = connection.getRepository(Roles);
   }
 
@@ -25,7 +25,7 @@ export class RolesService {
     if (checkRole) {
       throw new BadRequestException({
         message:
-          "Duplicate role or permission entry detected. Contact your administrator",
+          'Duplicate role or permission entry detected. Contact your administrator',
       });
     }
     return await this.repository.save(userRole);
@@ -53,7 +53,7 @@ export class RolesService {
     });
     if (checkRole.role === roleAdmin.role) {
       throw new BadRequestException({
-        message: "Unable to edit an Admin role. Contact your administrator",
+        message: 'Unable to edit an Admin role. Contact your administrator',
       });
     }
     return await this.repository.save(userRole);
@@ -65,14 +65,14 @@ export class RolesService {
     });
     if (checkRole.role === roleAdmin.role) {
       throw new BadRequestException({
-        message: "Unable to delete an Admin role. Contact your administrator",
+        message: 'Unable to delete an Admin role. Contact your administrator',
       });
     }
 
     if (checkRole.isActive) {
       throw new BadRequestException({
         message:
-          "Unable to delete an active role. Make sure no users have been assigned this role",
+          'Unable to delete an active role. Make sure no users have been assigned this role',
       });
     }
     await this.repository.delete(roleId);

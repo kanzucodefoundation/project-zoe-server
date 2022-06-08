@@ -1,4 +1,4 @@
-import Contact from "src/crm/entities/contact.entity";
+import Contact from 'src/crm/entities/contact.entity';
 import {
   Column,
   JoinColumn,
@@ -6,8 +6,8 @@ import {
   PrimaryGeneratedColumn,
   OneToMany,
   Entity,
-} from "typeorm";
-import { EventActivity } from "./event-activity.entity";
+} from 'typeorm';
+import { EventActivity } from './event-activity.entity';
 
 @Entity()
 export class MemberEventActivities {

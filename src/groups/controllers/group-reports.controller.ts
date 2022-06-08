@@ -1,4 +1,11 @@
-import { Controller, Get, Query, Request, UseGuards, UseInterceptors } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Query,
+  Request,
+  UseGuards,
+  UseInterceptors,
+} from '@nestjs/common';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { ApiTags } from '@nestjs/swagger';
 import { GroupMissingReportsService } from '../services/group-missing-reports.service';

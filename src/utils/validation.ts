@@ -28,12 +28,12 @@ export function getArray(data: any) {
 }
 
 export function removeDuplicates(data: any) {
-  var result = [];
+  const result = [];
   data.forEach((i) => {
-    if(result.indexOf(i) < 0) {
-      result.push(i)
+    if (result.indexOf(i) < 0) {
+      result.push(i);
     }
-  })
+  });
   return result;
 }
 

@@ -3,5 +3,5 @@ export enum PhoneCategory {
   Office = 'Office',
   Home = 'Home',
   Fax = 'Fax',
-  Other = 'Other'
+  Other = 'Other',
 }

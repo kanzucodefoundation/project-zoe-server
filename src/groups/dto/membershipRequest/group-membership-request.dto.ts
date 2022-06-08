@@ -17,5 +17,3 @@ export default class GroupMembershipRequestDto {
     avatar: string;
   };
 }
-
-

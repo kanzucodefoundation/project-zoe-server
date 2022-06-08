@@ -1,9 +1,9 @@
-import { Injectable } from "@nestjs/common";
-import { DbService } from "src/shared/db.service";
-import { Tenant } from "./entities/tenant.entity";
-import { TenantDto } from "./dto/tenant.dto";
-import { SeedService } from "src/seed/seed.service";
-import { lowerCaseRemoveSpaces } from "src/utils/stringHelpers";
+import { Injectable } from '@nestjs/common';
+import { DbService } from 'src/shared/db.service';
+import { Tenant } from './entities/tenant.entity';
+import { TenantDto } from './dto/tenant.dto';
+import { SeedService } from 'src/seed/seed.service';
+import { lowerCaseRemoveSpaces } from 'src/utils/stringHelpers';
 
 @Injectable()
 export class TenantsService {
@@ -25,6 +25,6 @@ export class TenantsService {
     if (tenantData.seed) {
       await this.seedService.createAll();
     }
-    return "Successfully seeded the tenant";
+    return 'Successfully seeded the tenant';
   }
 }

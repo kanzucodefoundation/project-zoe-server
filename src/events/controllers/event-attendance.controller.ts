@@ -13,35 +13,35 @@ import {
   UsePipes,
   Inject,
   ValidationPipe,
-} from "@nestjs/common";
-import { PrismaService } from "../../shared/prisma.service";
-import { JwtAuthGuard } from "../../auth/guards/jwt-auth.guard";
-import { ApiTags } from "@nestjs/swagger";
-import { Repository, Connection } from "typeorm";
-import EventAttendance from "../entities/eventAttendance.entity";
-import GroupEvent from "../entities/event.entity";
-import { FindConditions } from "typeorm/find-options/FindConditions";
-import { hasValue } from "../../utils/validation";
-import GroupMembership from "../../groups/entities/groupMembership.entity";
-import GroupMembershipDto from "../../groups/dto/membership/group-membership.dto";
-import { getPersonFullName } from "../../crm/crm.helpers";
-import { GroupRole } from "../../groups/enums/groupRole";
-import EventAttendanceSearchDto from "../dto/event-attendance-search.dto";
-import { EventAttendanceDto } from "../dto/event-attendance.dto";
-import { EventAttendanceCreateDto } from "../dto/event-attendance-create.dto";
-import { SentryInterceptor } from "src/utils/sentry.interceptor";
+} from '@nestjs/common';
+import { PrismaService } from '../../shared/prisma.service';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { ApiTags } from '@nestjs/swagger';
+import { Repository, Connection } from 'typeorm';
+import EventAttendance from '../entities/eventAttendance.entity';
+import GroupEvent from '../entities/event.entity';
+import { FindConditions } from 'typeorm/find-options/FindConditions';
+import { hasValue } from '../../utils/validation';
+import GroupMembership from '../../groups/entities/groupMembership.entity';
+import GroupMembershipDto from '../../groups/dto/membership/group-membership.dto';
+import { getPersonFullName } from '../../crm/crm.helpers';
+import { GroupRole } from '../../groups/enums/groupRole';
+import EventAttendanceSearchDto from '../dto/event-attendance-search.dto';
+import { EventAttendanceDto } from '../dto/event-attendance.dto';
+import { EventAttendanceCreateDto } from '../dto/event-attendance-create.dto';
+import { SentryInterceptor } from 'src/utils/sentry.interceptor';
 
 @UseInterceptors(SentryInterceptor)
 @UseGuards(JwtAuthGuard)
-@ApiTags("Events Attendance")
-@Controller("api/events/attendance")
+@ApiTags('Events Attendance')
+@Controller('api/events/attendance')
 export class EventsAttendanceController {
   private readonly repository: Repository<EventAttendance>;
   private readonly groupRepository: Repository<GroupEvent>;
   private readonly membershipRepository: Repository<GroupMembership>;
 
   constructor(
-    @Inject("CONNECTION") connection: Connection,
+    @Inject('CONNECTION') connection: Connection,
     private prisma: PrismaService,
   ) {
     this.repository = connection.getRepository(EventAttendance);
@@ -58,7 +58,7 @@ export class EventsAttendanceController {
   }> {
     const filter = {};
     if (req.groupId) {
-      filter["groupId"] = { equals: req.groupId };
+      filter['groupId'] = { equals: req.groupId };
     }
     const data = await this.prisma.group_membership.findMany({
       include: {
@@ -136,13 +136,13 @@ export class EventsAttendanceController {
     @Body() { id, ...data }: EventAttendanceCreateDto,
   ): Promise<EventAttendanceDto> {
     const groupData = await this.groupRepository
-      .createQueryBuilder("groupId")
-      .where("Id =:Id", { Id: data.eventId })
+      .createQueryBuilder('groupId')
+      .where('Id =:Id', { Id: data.eventId })
       .getOne();
 
     const checkVisitor = await this.repository
       .createQueryBuilder()
-      .leftJoin("events", "event", '"eventId"="event".Id')
+      .leftJoin('events', 'event', '"eventId"="event".Id')
       .where(
         '"contactId"=:contactId AND "isVisitor"=:isVisitor AND "groupId"=:groupId',
         {
@@ -166,7 +166,7 @@ export class EventsAttendanceController {
         .set({
           ...data,
         })
-        .where("id = :id", { id })
+        .where('id = :id', { id })
         .execute();
       return this.findOne(id);
     } else {
@@ -181,9 +181,9 @@ export class EventsAttendanceController {
     return this.findOne(id);
   }
 
-  @Get(":id")
+  @Get(':id')
   async findOne(
-    @Param("id", ParseIntPipe) id: number,
+    @Param('id', ParseIntPipe) id: number,
   ): Promise<EventAttendanceDto> {
     const it = await this.prisma.event_attendance.findFirst({
       include: {
@@ -211,8 +211,8 @@ export class EventsAttendanceController {
     };
   }
 
-  @Delete(":id")
-  async remove(@Param("id") id: any): Promise<void> {
+  @Delete(':id')
+  async remove(@Param('id') id: any): Promise<void> {
     await this.repository.delete(id);
   }
 }

@@ -10,22 +10,22 @@ import {
   UseGuards,
   Inject,
   UseInterceptors,
-} from "@nestjs/common";
-import { ApiTags } from "@nestjs/swagger";
-import Occasion from "../entities/occasion.entity";
-import { Repository, Connection } from "typeorm";
-import SearchDto from "../../shared/dto/search.dto";
-import { JwtAuthGuard } from "../../auth/guards/jwt-auth.guard";
-import { SentryInterceptor } from "src/utils/sentry.interceptor";
+} from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
+import Occasion from '../entities/occasion.entity';
+import { Repository, Connection } from 'typeorm';
+import SearchDto from '../../shared/dto/search.dto';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { SentryInterceptor } from 'src/utils/sentry.interceptor';
 
 @UseInterceptors(SentryInterceptor)
 @UseGuards(JwtAuthGuard)
-@ApiTags("Crm Occasions")
-@Controller("api/crm/occasions")
+@ApiTags('Crm Occasions')
+@Controller('api/crm/occasions')
 export class OccasionsController {
   private readonly repository: Repository<Occasion>;
 
-  constructor(@Inject("CONNECTION") connection: Connection) {
+  constructor(@Inject('CONNECTION') connection: Connection) {
     this.repository = connection.getRepository(Occasion);
   }
 
@@ -47,13 +47,13 @@ export class OccasionsController {
     return await this.repository.save(data);
   }
 
-  @Get(":id")
-  async findOne(@Param("id") id: number): Promise<Occasion> {
+  @Get(':id')
+  async findOne(@Param('id') id: number): Promise<Occasion> {
     return await this.repository.findOne(id);
   }
 
-  @Delete(":id")
-  async remove(@Param("id") id: number): Promise<void> {
+  @Delete(':id')
+  async remove(@Param('id') id: number): Promise<void> {
     await this.repository.delete(id);
   }
 }

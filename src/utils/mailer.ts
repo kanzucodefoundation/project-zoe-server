@@ -1,6 +1,6 @@
-import { Logger } from "@nestjs/common";
-import { MessageSendingResponse } from "postmark/dist/client/models";
-import * as postmark from "postmark";
+import { Logger } from '@nestjs/common';
+import { MessageSendingResponse } from 'postmark/dist/client/models';
+import * as postmark from 'postmark';
 
 export interface IEmail {
   to: string;
@@ -10,7 +10,7 @@ export interface IEmail {
 
 export async function sendEmail(data: IEmail): Promise<string> {
   const serverToken = process.env.POSTMARK_SERVER_TOKEN;
-  let client = new postmark.ServerClient(serverToken);
+  const client = new postmark.ServerClient(serverToken);
 
   const emailResponse: MessageSendingResponse = await client.sendEmail({
     From: process.env.EMAIL_SENDER,
