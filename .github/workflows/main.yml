@@ -79,8 +79,11 @@ jobs:
       - name: Deploy the node modules folder
         run: rsync -rtvO --delete ./node_modules/ project-zoe-prod-1:/opt/project-zoe-server/node_modules/
       
+      # Looks like the DB gets configs from dist/, the rest from /. To fix this
       - name: Deploy the .env file
-        run: rsync -rtvO --delete ./.env project-zoe-prod-1:/opt/project-zoe-server/
+        run: |
+          rsync -rtvO ./.env project-zoe-prod-1:/opt/project-zoe-server/
+          rsync -rtvO ./.env project-zoe-prod-1:/opt/project-zoe-server/dist
 
       - name: Run the app
         run: ssh project-zoe-prod-1 'cd /opt/project-zoe-server/dist/ && pm2 delete zoeServer  2> /dev/null || true && production=true pm2 start main.js --name zoeServer'
