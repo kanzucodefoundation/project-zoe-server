@@ -25,6 +25,7 @@ import { ChatModule } from "./chat/chat.module";
 import { HelpModule } from "./help/help.module";
 import { TenantsModule } from "./tenants/tenants.module";
 import { JwtTenantHeaderMiddleware } from "./middleware/jwtTenantHeader.middleware";
+import { nameTenantHeaderMiddleware } from "./middleware/nameTenantHeader.middleware";
 
 @Global()
 @Module({
@@ -72,5 +73,17 @@ export class AppModule {
         "api/groups/combo",
       )
       .forRoutes("*");
+
+    consumer
+      .apply(nameTenantHeaderMiddleware)
+      .forRoutes(
+        "api/tenants",
+        "api/tenants/seed",
+        "api/auth/login",
+        "api/auth/forgot-password",
+        "api/auth/reset-password/:token",
+        "api/register",
+        "api/groups/combo",
+      );
   }
 }

@@ -1,4 +1,4 @@
-import { HttpModule, Module, MiddlewareConsumer } from "@nestjs/common";
+import { HttpModule, Module } from "@nestjs/common";
 import { GroupsService } from "./services/groups.service";
 import { GroupCategoriesService } from "./services/group-categories.service";
 import { GroupController } from "./controllers/group.controller";
@@ -19,7 +19,6 @@ import { GroupMissingReportsService } from "./services/group-missing-reports.ser
 import { GroupReportsController } from "./controllers/group-reports.controller";
 import { GroupReportFrequencyController } from "./controllers/group-frequency.controller";
 import { GroupCategoryComboController } from "./controllers/group-category-combo.controller";
-import { nameTenantHeaderMiddleware } from "src/middleware/nameTenantHeader.middleware";
 
 @Module({
   imports: [
@@ -50,8 +49,4 @@ import { nameTenantHeaderMiddleware } from "src/middleware/nameTenantHeader.midd
   ],
   exports: [GroupsService, GroupCategoriesService],
 })
-export class GroupsModule {
-  configure(consumer: MiddlewareConsumer) {
-    consumer.apply(nameTenantHeaderMiddleware).forRoutes("api/groups/combo");
-  }
-}
+export class GroupsModule {}

@@ -1,4 +1,4 @@
-import { Module, MiddlewareConsumer } from "@nestjs/common";
+import { Module } from "@nestjs/common";
 import { AuthService } from "./auth.service";
 import { LocalStrategy } from "./strategies/local.strategy";
 import { JwtStrategy } from "./strategies/jwt.strategy";
@@ -9,7 +9,6 @@ import { jwtConstants } from "./constants";
 import { JwtHelperService } from "./jwt-helpers.service";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import Roles from "src/users/entities/roles.entity";
-import { nameTenantHeaderMiddleware } from "src/middleware/nameTenantHeader.middleware";
 
 @Module({
   imports: [
@@ -24,14 +23,4 @@ import { nameTenantHeaderMiddleware } from "src/middleware/nameTenantHeader.midd
   providers: [AuthService, LocalStrategy, JwtStrategy, JwtHelperService],
   exports: [AuthService, JwtHelperService],
 })
-export class AuthModule {
-  configure(consumer: MiddlewareConsumer) {
-    consumer
-      .apply(nameTenantHeaderMiddleware)
-      .forRoutes(
-        "api/auth/login",
-        "api/auth/forgot-password",
-        "api/auth/reset-password/:token",
-      );
-  }
-}
+export class AuthModule {}

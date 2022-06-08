@@ -1,20 +1,11 @@
-import {
-  Module,
-  Scope,
-  Global,
-  BadRequestException,
-  MiddlewareConsumer,
-} from "@nestjs/common";
-import { getConnectionManager, createConnection } from "typeorm";
+import { Module, Scope, Global, BadRequestException } from "@nestjs/common";
 import { REQUEST } from "@nestjs/core";
-import config, { appEntities } from "../config";
 import { TenantsController } from "./tenants.controller";
 import { TenantsService } from "./tenants.service";
 import * as dotenv from "dotenv";
 import { DbService } from "src/shared/db.service";
 import { SeedModule } from "src/seed/seed.module";
 import { Tenant } from "./entities/tenant.entity";
-import { nameTenantHeaderMiddleware } from "src/middleware/nameTenantHeader.middleware";
 
 const connectionFactory = {
   provide: "CONNECTION",
@@ -57,8 +48,4 @@ const connectionFactory = {
   exports: ["CONNECTION"],
   controllers: [TenantsController],
 })
-export class TenantsModule {
-  configure(consumer: MiddlewareConsumer) {
-    consumer.apply(nameTenantHeaderMiddleware).forRoutes("api/tenants");
-  }
-}
+export class TenantsModule {}

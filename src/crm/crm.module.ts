@@ -1,4 +1,4 @@
-import { Global, HttpModule, Module, MiddlewareConsumer } from "@nestjs/common";
+import { Global, HttpModule, Module } from "@nestjs/common";
 import { ContactsService } from "./contacts.service";
 import { ContactsController } from "./contollers/contacts.controller";
 import { TypeOrmModule } from "@nestjs/typeorm";
@@ -20,7 +20,6 @@ import { GroupFinderService } from "./group-finder/group-finder.service";
 import { appEntities } from "../config";
 import { PhonesService } from "./phones.service";
 import { AddressesService } from "./addresses.service";
-import { nameTenantHeaderMiddleware } from "src/middleware/nameTenantHeader.middleware";
 
 @Global()
 @Module({
@@ -49,8 +48,4 @@ import { nameTenantHeaderMiddleware } from "src/middleware/nameTenantHeader.midd
   ],
   exports: [ContactsService, GroupFinderService],
 })
-export class CrmModule {
-  configure(consumer: MiddlewareConsumer) {
-    consumer.apply(nameTenantHeaderMiddleware).forRoutes("api/register");
-  }
-}
+export class CrmModule {}
