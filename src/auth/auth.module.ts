@@ -28,6 +28,10 @@ export class AuthModule {
   configure(consumer: MiddlewareConsumer) {
     consumer
       .apply(nameTenantHeaderMiddleware)
-      .forRoutes("/api/auth/login", "api/auth/forgot-password");
+      .forRoutes(
+        "api/auth/login",
+        "api/auth/forgot-password",
+        "api/auth/reset-password/:token",
+      );
   }
 }

@@ -65,8 +65,9 @@ export class AppModule {
       .exclude(
         "api/tenants",
         "api/tenants/seed",
-        "/api/auth/login",
-        "/api/auth/forgot-password",
+        "api/auth/login",
+        "api/auth/forgot-password",
+        "api/auth/reset-password/:token",
         "api/register",
         "api/groups/combo",
       )
