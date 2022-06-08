@@ -73,8 +73,14 @@ jobs:
           DO_PRIVATE_KEY: ${{ secrets.DO_PRIVATE_KEY }}
           DO_HOST: ${{ secrets.DO_HOST }}
           
-      - name: Deploy the app
+      - name: Deploy the built app folder
         run: rsync -rtvO --delete ./dist/ project-zoe-prod-1:/opt/project-zoe-server/dist/
+      
+      - name: Deploy the node modules folder
+        run: rsync -rtvO --delete ./node_modules/ project-zoe-prod-1:/opt/project-zoe-server/node_modules/
+      
+      - name: Deploy the .env file
+        run: rsync -rtvO --delete ./.env project-zoe-prod-1:/opt/project-zoe-server/
 
       - name: Run the app
         run: ssh project-zoe-prod-1 'cd /opt/project-zoe-server/dist/ && pm2 delete zoeServer  2> /dev/null || true && production=true pm2 start main.js --name zoeServer'
