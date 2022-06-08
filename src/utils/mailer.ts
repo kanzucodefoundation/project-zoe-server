@@ -16,6 +16,7 @@ export async function sendEmail(data: IEmail): Promise<string> {
     To: data.to,
     Subject: data.subject,
     HtmlBody: data.html,
+    MessageStream: process.env.POSTMARK_MESSAGE_STREAM,
   });
 
   Logger.log(
