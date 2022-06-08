@@ -5,5 +5,3 @@ export default class GroupMembershipRequestSearchDto extends SearchDto {
   groupId?: number;
   contactId?: number;
 }
-
-

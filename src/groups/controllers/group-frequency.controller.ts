@@ -15,7 +15,9 @@ export class GroupReportFrequencyController {
   constructor(private readonly service: GroupMissingReportsService) {}
 
   @Get()
-  async findAll(@Query() dto: EventFrequencyDto): Promise<GroupCategoryReport[]> {
-    return await this.service.getFrequencyByCategory(dto)
+  async findAll(
+    @Query() dto: EventFrequencyDto,
+  ): Promise<GroupCategoryReport[]> {
+    return await this.service.getFrequencyByCategory(dto);
   }
 }

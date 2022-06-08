@@ -24,20 +24,23 @@ import { ForgotPasswordResponseDto } from './dto/forgot-password-response.dto';
 import { ResetPasswordResponseDto } from './dto/reset-password-response.dto';
 import { isValidPassword } from 'src/utils/validation';
 import { SentryInterceptor } from 'src/utils/sentry.interceptor';
+import { SeedService } from '../seed/seed.service';
+import { lowerCaseRemoveSpaces } from 'src/utils/stringHelpers';
 
 @UseInterceptors(SentryInterceptor)
 @ApiTags('Index')
 @Controller('api/auth')
 export class AuthController {
-  constructor(
-    private readonly authService: AuthService,
-  ) {}
+  constructor(private readonly authService: AuthService) {}
 
   @ApiBody({ type: LoginDto })
   @UseGuards(LocalAuthGuard)
   @Post('login')
   async login(@Request() req): Promise<LoginResponseDto> {
-    return this.authService.generateToken(req.user);
+    const tenant = req.body.hasOwnProperty('churchName')
+      ? lowerCaseRemoveSpaces(req.body['churchName'])
+      : 'default';
+    return this.authService.generateToken(req.user, tenant);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -67,7 +70,3 @@ export class AuthController {
     );
   }
 }
-
-
-
-

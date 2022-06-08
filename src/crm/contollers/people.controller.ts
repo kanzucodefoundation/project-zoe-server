@@ -7,13 +7,13 @@ import {
   Query,
   UploadedFile,
   UseGuards,
+  Inject,
   UseInterceptors,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { ContactsService } from '../contacts.service';
-import { InjectRepository } from '@nestjs/typeorm';
 import Person from '../entities/person.entity';
-import { Like, Repository } from 'typeorm';
+import { Like, Repository, Connection } from 'typeorm';
 import { ContactSearchDto } from '../dto/contact-search.dto';
 import { CreatePersonDto } from '../dto/create-person.dto';
 import { getPersonFullName } from '../crm.helpers';
@@ -32,13 +32,16 @@ import { SentryInterceptor } from 'src/utils/sentry.interceptor';
 @Controller('api/crm/people')
 @UseGuards(JwtAuthGuard)
 export class PeopleController {
+  private readonly personRepository: Repository<Person>;
+  private readonly userRepository: Repository<User>;
+
   constructor(
+    @Inject('CONNECTION') connection: Connection,
     private readonly service: ContactsService,
-    @InjectRepository(Person)
-    private readonly personRepository: Repository<Person>,
-    @InjectRepository(User)
-    private readonly userRepository: Repository<User>,
-  ) {}
+  ) {
+    this.personRepository = connection.getRepository(Person);
+    this.userRepository = connection.getRepository(User);
+  }
 
   @Get()
   async findAll(@Query() req: ContactSearchDto): Promise<Person[]> {

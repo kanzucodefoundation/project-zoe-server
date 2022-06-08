@@ -1,6 +1,5 @@
-import { HttpException, Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { HttpException, Injectable, Inject } from '@nestjs/common';
+import { In, Repository, Connection } from 'typeorm';
 import { User } from './entities/user.entity';
 import Email from 'src/crm/entities/email.entity';
 import { RegisterUserDto } from '../auth/dto/register-user.dto';
@@ -13,7 +12,7 @@ import { getPersonFullName } from '../crm/crm.helpers';
 import * as bcrypt from 'bcrypt';
 import { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
 import { CreateUserDto } from './dto/create-user.dto';
-import { IEmail, sendEmail } from 'src/utils/mailerTest';
+import { IEmail, sendEmail } from 'src/utils/mailer';
 import { hasValue, isArray } from '../utils/validation';
 import { JwtHelperService } from 'src/auth/jwt-helpers.service';
 import Roles from './entities/roles.entity';
@@ -22,18 +21,21 @@ import { differenceBy } from 'lodash';
 
 @Injectable()
 export class UsersService {
+  private readonly repository: Repository<User>;
+  private readonly emailRepository: Repository<Email>;
+  private readonly rolesRepository: Repository<Roles>;
+  private readonly userRolesRepository: Repository<UserRoles>;
+
   constructor(
-    @InjectRepository(User)
-    private readonly repository: Repository<User>,
-    @InjectRepository(Email)
-    private readonly emailRepository: Repository<Email>,
+    @Inject('CONNECTION') connection: Connection,
     private readonly contactsService: ContactsService,
     private readonly jwtHelperService: JwtHelperService,
-    @InjectRepository(Roles)
-    private readonly rolesRepository: Repository<Roles>,
-    @InjectRepository(UserRoles)
-    private readonly userRolesRepository: Repository<UserRoles>,
-  ) {}
+  ) {
+    this.repository = connection.getRepository(User);
+    this.emailRepository = connection.getRepository(Email);
+    this.rolesRepository = connection.getRepository(Roles);
+    this.userRolesRepository = connection.getRepository(UserRoles);
+  }
 
   async findAll(req: SearchDto): Promise<UserListDto[]> {
     const data = await this.repository.find({

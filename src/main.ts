@@ -9,7 +9,7 @@ import config from './config';
 import { ValidationPipe } from '@nestjs/common';
 import { HttpExceptionFilter } from './auth/http-exception.filter';
 import * as Sentry from '@sentry/node';
-import { Integrations } from "@sentry/tracing";
+import { Integrations } from '@sentry/tracing';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -36,8 +36,8 @@ async function bootstrap() {
     }),
   );
   const options = new DocumentBuilder()
-    .setTitle('Angie API')
-    .setDescription('API for ANGIE frontend systems')
+    .setTitle('Project Zoe API')
+    .setDescription('API for Project Zoe frontend systems')
     .setVersion('1.0')
     .build();
   const document = SwaggerModule.createDocument(app, options);

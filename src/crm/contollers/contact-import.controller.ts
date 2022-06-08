@@ -5,14 +5,14 @@ import {
   Res,
   UploadedFile,
   UseGuards,
+  Inject,
   UseInterceptors,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { CsvParser } from 'nest-csv-parser';
 import { ContactsService } from '../contacts.service';
-import { InjectRepository } from '@nestjs/typeorm';
 import { Express } from 'express';
-import { Repository } from 'typeorm';
+import { Repository, Connection } from 'typeorm';
 import Company from '../entities/company.entity';
 import CompanyListDto from '../dto/company-list.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -20,9 +20,10 @@ import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { parseContact } from '../utils/importUtils';
 import { SentryInterceptor } from 'src/utils/sentry.interceptor';
 
+// eslint-disable-next-line @typescript-eslint/no-var-requires
 const Duplex = require('stream').Duplex; // core NodeJS API
 function bufferToStream(buffer) {
-  let stream = new Duplex();
+  const stream = new Duplex();
   stream.push(buffer);
   stream.push(null);
   return stream;
@@ -39,12 +40,15 @@ class Entity {
 @ApiTags('Crm Contacts')
 @Controller('api/crm/import')
 export class ContactImportController {
+  private readonly companyRepository: Repository<Company>;
+
   constructor(
+    @Inject('CONNECTION') connection: Connection,
     private readonly service: ContactsService,
-    @InjectRepository(Company)
-    private readonly personRepository: Repository<Company>,
     private readonly csvParser: CsvParser,
-  ) {}
+  ) {
+    this.companyRepository = connection.getRepository(Company);
+  }
 
   @Get()
   async GetSample(@Res() res): Promise<CompanyListDto[]> {

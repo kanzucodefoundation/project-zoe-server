@@ -4,10 +4,10 @@ import {
   PrimaryGeneratedColumn,
   CreateDateColumn,
   UpdateDateColumn,
-} from "typeorm";
-import { URLCategory } from "../enums/URLCategory";
+} from 'typeorm';
+import { URLCategory } from '../enums/URLCategory';
 
-@Entity({ name: "help" })
+@Entity({ name: 'help' })
 export default class Help {
   @PrimaryGeneratedColumn()
   id: number;
@@ -19,20 +19,20 @@ export default class Help {
   url?: string;
 
   @Column({
-    type: "enum",
+    type: 'enum',
     enum: URLCategory,
     nullable: true,
   })
   category: URLCategory;
 
   @CreateDateColumn({
-    default: () => "NOW()",
+    default: () => 'NOW()',
     nullable: false,
   })
   createdOn: Date;
 
   @UpdateDateColumn({
-    default: () => "NOW()",
+    default: () => 'NOW()',
     nullable: false,
   })
   modifiedOn: Date;

@@ -10,7 +10,3 @@ export class ValidateEmailDto {
   @IsEmail()
   username: string;
 }
-
-
-
-

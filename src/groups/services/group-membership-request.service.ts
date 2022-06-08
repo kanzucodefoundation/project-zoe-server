@@ -1,26 +1,28 @@
-import { HttpException, Injectable } from "@nestjs/common";
-import { InjectRepository } from "@nestjs/typeorm";
-import { FindConditions } from "typeorm/find-options/FindConditions";
-import { Repository } from "typeorm";
-import GroupMembershipRequestSearchDto from "../dto/membershipRequest/search-request.dto";
-import GroupMembershipRequest from "../entities/groupMembershipRequest.entity";
-import { hasValue } from "src/utils/validation";
-import GroupMembershipRequestDto from "../dto/membershipRequest/group-membership-request.dto";
-import { NewRequestDto } from "../dto/membershipRequest/new-request.dto";
-import { getPersonFullName } from "src/crm/crm.helpers";
-import { ContactsService } from "src/crm/contacts.service";
-import Contact from "src/crm/entities/contact.entity";
-import { IEmail, sendEmail } from "src/utils/mailerTest";
+import { HttpException, Injectable, Inject } from '@nestjs/common';
+import { FindConditions } from 'typeorm/find-options/FindConditions';
+import { Repository, Connection } from 'typeorm';
+import GroupMembershipRequestSearchDto from '../dto/membershipRequest/search-request.dto';
+import GroupMembershipRequest from '../entities/groupMembershipRequest.entity';
+import { hasValue } from 'src/utils/validation';
+import GroupMembershipRequestDto from '../dto/membershipRequest/group-membership-request.dto';
+import { NewRequestDto } from '../dto/membershipRequest/new-request.dto';
+import { getPersonFullName } from 'src/crm/crm.helpers';
+import { ContactsService } from 'src/crm/contacts.service';
+import Contact from 'src/crm/entities/contact.entity';
+import { IEmail, sendEmail } from 'src/utils/mailer';
 
 @Injectable()
 export class GroupMembershipRequestService {
+  private readonly repository: Repository<GroupMembershipRequest>;
+  private readonly contactRepository: Repository<Contact>;
+
   constructor(
-    @InjectRepository(GroupMembershipRequest)
-    private readonly repository: Repository<GroupMembershipRequest>,
-    @InjectRepository(Contact)
-    private readonly contactRepository: Repository<Contact>,
+    @Inject('CONNECTION') connection: Connection,
     private readonly contactService: ContactsService,
-  ) {}
+  ) {
+    this.repository = connection.getRepository(GroupMembershipRequest);
+    this.contactRepository = connection.getRepository(Contact);
+  }
 
   async findAll(
     req: GroupMembershipRequestSearchDto,
@@ -32,7 +34,7 @@ export class GroupMembershipRequestService {
     if (hasValue(req.groupId)) filter.groupId = req.groupId;
 
     const data = await this.repository.find({
-      relations: ["contact", "contact.person", "group"],
+      relations: ['contact', 'contact.person', 'group'],
       skip: req.skip,
       take: req.limit,
       where: filter,
@@ -60,16 +62,16 @@ export class GroupMembershipRequestService {
   }
 
   async create(data: NewRequestDto): Promise<GroupMembershipRequestDto | any> {
-    console.log("%%%", data);
+    console.log('%%%', data);
     const user = await this.contactRepository.findOne(data.contactId, {
-      relations: ["person"],
+      relations: ['person'],
     });
 
     const isPendingRequest = await this.repository.count({
       where: { contactId: data.contactId },
     });
     if (isPendingRequest > 0) {
-      throw new HttpException("User already has a pending request", 400);
+      throw new HttpException('User already has a pending request', 400);
     }
 
     const groupDetails = {
@@ -93,7 +95,7 @@ export class GroupMembershipRequestService {
     const closestCellData = JSON.parse(info.groupMeta);
     const mailerData: IEmail = {
       to: `${closestCellData.email}`,
-      subject: "Join MC Request",
+      subject: 'Join MC Request',
       html: `
             <h3>Hello ${closestCellData.leaders},</h3></br>
             <h4>I hope all is well on your end.<h4></br>
@@ -108,19 +110,19 @@ export class GroupMembershipRequestService {
     return (
       await this.repository.find({
         where: { contactId: data.contactId },
-        relations: ["contact", "contact.person", "group"],
+        relations: ['contact', 'contact.person', 'group'],
       })
     ).map(this.toDto);
   }
 
   async update(): Promise<any> {
-    return "Not Yet Implemented";
+    return 'Not Yet Implemented';
   }
 
   async findOne(id: number): Promise<GroupMembershipRequestDto> {
     return this.toDto(
       await this.repository.findOne(id, {
-        relations: ["contact", "contact.person", "group"],
+        relations: ['contact', 'contact.person', 'group'],
       }),
     );
   }

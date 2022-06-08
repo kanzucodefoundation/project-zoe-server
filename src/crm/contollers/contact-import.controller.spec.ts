@@ -5,8 +5,6 @@ import {
 } from '../utils/importUtils';
 
 describe('ContactImportController', () => {
-  beforeEach(async () => {});
-
   it('parseContacts create a person', async () => {
     const data = {
       name: 'Full Name',

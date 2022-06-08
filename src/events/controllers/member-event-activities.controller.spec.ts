@@ -1,11 +1,11 @@
 // import { EventsMembershipService } from '../member-event-activities.service';
-import { Test, TestingModule } from "@nestjs/testing";
-import { MemberEventActivitiesService } from "../member-event-activities.service";
+import { Test, TestingModule } from '@nestjs/testing';
+import { MemberEventActivitiesService } from '../member-event-activities.service';
 // import { EventsMembershipController } from './member-event-activities.controller';
 
-import { MemberEventActivitiesController } from "./member-event-activities.controller";
+import { MemberEventActivitiesController } from './member-event-activities.controller';
 
-describe("MembershipController", () => {
+describe('MembershipController', () => {
   let controller: MemberEventActivitiesController;
 
   beforeEach(async () => {
@@ -19,7 +19,7 @@ describe("MembershipController", () => {
     );
   });
 
-  it("should be defined", () => {
+  it('should be defined', () => {
     expect(controller).toBeDefined();
   });
 });

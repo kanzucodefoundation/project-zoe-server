@@ -1,5 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
+import { Injectable, Logger, Inject } from '@nestjs/common';
 import {
   FindConditions,
   ILike,
@@ -7,6 +6,7 @@ import {
   LessThanOrEqual,
   MoreThanOrEqual,
   Repository,
+  Connection,
   TreeRepository,
 } from 'typeorm';
 import { GoogleService } from '../vendor/google.service';
@@ -27,17 +27,20 @@ import GroupMembership from 'src/groups/entities/groupMembership.entity';
 
 @Injectable()
 export class EventsService {
+  private readonly repository: Repository<GroupEvent>;
+  private readonly categoryRepository: Repository<EventCategory>;
+  private readonly groupRepository: TreeRepository<Group>;
+  private readonly membershipRepository: Repository<GroupMembership>;
+
   constructor(
-    @InjectRepository(GroupEvent)
-    private readonly repository: Repository<GroupEvent>,
-    @InjectRepository(EventCategory)
-    private readonly categoryRepository: Repository<EventCategory>,
-    @InjectRepository(Group)
-    private readonly groupRepository: TreeRepository<Group>,
-    @InjectRepository(GroupMembership)
-    private readonly membershipRepository: Repository<GroupMembership>,
+    @Inject('CONNECTION') connection: Connection,
     private googleService: GoogleService,
-  ) {}
+  ) {
+    this.repository = connection.getRepository(GroupEvent);
+    this.categoryRepository = connection.getRepository(EventCategory);
+    this.groupRepository = connection.getTreeRepository(Group);
+    this.membershipRepository = connection.getRepository(GroupMembership);
+  }
 
   async findAll(
     req: GroupEventSearchDto,
@@ -93,7 +96,7 @@ export class EventsService {
       const parents = await this.groupRepository.find({
         where: { id: In(getArray(req.groupIdList)) },
       });
-      let _children = [];
+      const _children = [];
       for (let i = 0; i < parents.length; i++) {
         const single = await this.groupRepository.findDescendants(parents[i]);
         single.forEach((g) => {

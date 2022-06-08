@@ -3,7 +3,6 @@ import { eventsCategories } from './eventCategories';
 import { GroupCategoryReportFrequency } from 'src/groups/enums/groupCategoryReportFrequency ';
 import CrGroupCatReportDto from 'src/groups/dto/create-group-category-report.dto';
 
-
 const seedGrReportCategory: CrGroupCatReportDto[] = [];
 
 function seedGroupReportCategories(): CrGroupCatReportDto[] {

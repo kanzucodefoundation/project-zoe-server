@@ -1,22 +1,31 @@
-import { Global, HttpModule, Logger, Module } from "@nestjs/common";
-import { AuthController } from "./auth/auth.controller";
-import { AppService } from "./app.service";
-import { UsersModule } from "./users/users.module";
-import { ConfigModule } from "@nestjs/config";
-import { TypeOrmModule } from "@nestjs/typeorm";
-import { AuthModule } from "./auth/auth.module";
-import { CrmModule } from "./crm/crm.module";
-import { GroupsModule } from "./groups/groups.module";
-import config, { appEntities } from "./config";
-import { ServeStaticModule } from "@nestjs/serve-static";
-import { join } from "path";
-import { SeedModule } from "./seed/seed.module";
-import { SeedService } from "./seed/seed.service";
-import { VendorModule } from "./vendor/vendor.module";
-import { EventsModule } from "./events/events.module";
+import {
+  Global,
+  HttpModule,
+  Logger,
+  Module,
+  MiddlewareConsumer,
+} from '@nestjs/common';
+import { AuthController } from './auth/auth.controller';
+import { AppService } from './app.service';
+import { UsersModule } from './users/users.module';
+import { ConfigModule } from '@nestjs/config';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { AuthModule } from './auth/auth.module';
+import { CrmModule } from './crm/crm.module';
+import { GroupsModule } from './groups/groups.module';
+import config, { appEntities } from './config';
+import { ServeStaticModule } from '@nestjs/serve-static';
+import { join } from 'path';
+import { SeedModule } from './seed/seed.module';
+import { SeedService } from './seed/seed.service';
+import { VendorModule } from './vendor/vendor.module';
+import { EventsModule } from './events/events.module';
 
-import { ChatModule } from "./chat/chat.module";
-import { HelpModule } from "./help/help.module";
+import { ChatModule } from './chat/chat.module';
+import { HelpModule } from './help/help.module';
+import { TenantsModule } from './tenants/tenants.module';
+import { JwtTenantHeaderMiddleware } from './middleware/jwtTenantHeader.middleware';
+import { nameTenantHeaderMiddleware } from './middleware/nameTenantHeader.middleware';
 
 @Global()
 @Module({
@@ -24,7 +33,7 @@ import { HelpModule } from "./help/help.module";
     HttpModule,
 
     ServeStaticModule.forRoot({
-      rootPath: join(__dirname, "..", "public"),
+      rootPath: join(__dirname, '..', 'public'),
     }),
     ConfigModule.forRoot({
       isGlobal: true,
@@ -44,22 +53,37 @@ import { HelpModule } from "./help/help.module";
 
     ChatModule,
     HelpModule,
+    TenantsModule,
   ],
   exports: [AppService],
   controllers: [AuthController],
   providers: [AppService],
 })
 export class AppModule {
-  constructor(private readonly seedService: SeedService) {}
+  public configure(consumer: MiddlewareConsumer): void {
+    consumer
+      .apply(JwtTenantHeaderMiddleware)
+      .exclude(
+        'api/tenants',
+        'api/tenants/seed',
+        'api/auth/login',
+        'api/auth/forgot-password',
+        'api/auth/reset-password/:token',
+        'api/register',
+        'api/groups/combo',
+      )
+      .forRoutes('*');
 
-  async onModuleInit(): Promise<void> {
-    Logger.log("#########Initializing application############");
-    await this.seedService.createRoleAdmin();
-    await this.seedService.createUsers();
-    await this.seedService.createGroupCategories();
-    await this.seedService.createEventCategories();
-    await this.seedService.createGroups();
-    await this.seedService.createGroupCategoryReports();
-    Logger.log("#########Initialization complete############");
+    consumer
+      .apply(nameTenantHeaderMiddleware)
+      .forRoutes(
+        'api/tenants',
+        'api/tenants/seed',
+        'api/auth/login',
+        'api/auth/forgot-password',
+        'api/auth/reset-password/:token',
+        'api/register',
+        'api/groups/combo',
+      );
   }
 }

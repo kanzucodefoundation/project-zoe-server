@@ -10,14 +10,13 @@ describe('AuthController', () => {
       return {
         token: String(Date.now()),
         user: {
-          ...dto
-        }
-      }
+          ...dto,
+        },
+      };
     }),
-  }
+  };
 
   beforeEach(async () => {
-
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AuthController],
       providers: [AuthService],
@@ -30,16 +29,16 @@ describe('AuthController', () => {
   });
 
   it('should be defined', () => {
-    expect(controller).toBeDefined(); 
-  })
+    expect(controller).toBeDefined();
+  });
 
   it('should log user in', async () => {
     const usr = {
       id: Date.now(),
       contactId: Date.now(),
-      username: "johndoe@test.com",
-      email: "johndoe@test.com",
-      fullName: "John Doe",
+      username: 'johndoe@test.com',
+      email: 'johndoe@test.com',
+      fullName: 'John Doe',
       role: ['RoleAdmin'],
       isActive: true,
     };
@@ -47,9 +46,8 @@ describe('AuthController', () => {
     expect(result).toEqual({
       token: expect.any(String),
       user: {
-        ...usr
-      }
-    })
-  })
-})
-
+        ...usr,
+      },
+    });
+  });
+});

@@ -2,7 +2,7 @@ import { HttpException, Injectable, Logger } from '@nestjs/common';
 import { UsersService } from '../users/users.service';
 import { cleanUpUser, createUserDto } from './auth.helpers';
 import { UserDto } from './dto/user.dto';
-import { IEmail, sendEmail } from 'src/utils/mailerTest';
+import { IEmail, sendEmail } from 'src/utils/mailer';
 import { ForgotPasswordResponseDto } from './dto/forgot-password-response.dto';
 import { ResetPasswordResponseDto } from './dto/reset-password-response.dto';
 import { UpdateUserDto } from '../users/dto/update-user.dto';
@@ -10,6 +10,7 @@ import { JwtHelperService } from './jwt-helpers.service';
 import { UserListDto } from 'src/users/dto/user-list.dto';
 import Roles from 'src/users/entities/roles.entity';
 import { In, Repository } from 'typeorm';
+import { Inject } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { JwtService } from '@nestjs/jwt';
 import { LoginResponseDto } from './dto/login-response.dto';
@@ -17,11 +18,11 @@ import { LoginResponseDto } from './dto/login-response.dto';
 @Injectable()
 export class AuthService {
   constructor(
+    @InjectRepository(Roles)
+    private readonly rolesRepository: Repository<Roles>,
     private readonly usersService: UsersService,
     private readonly jwtHelperService: JwtHelperService,
     private readonly jwtService: JwtService,
-    @InjectRepository(Roles)
-    private readonly rolesRepository: Repository<Roles>,
   ) {}
 
   async validateUser(username: string, pass: string): Promise<UserDto | null> {
@@ -50,10 +51,18 @@ export class AuthService {
     }
   }
 
-  async generateToken(user: UserDto | UserListDto): Promise<LoginResponseDto> {
+  async generateToken(
+    user: UserDto | UserListDto,
+    tenant: string,
+  ): Promise<LoginResponseDto> {
     const userPermissions = await this.getPermissions(user.roles);
     user.permissions = userPermissions;
-    const payload = { ...user, sub: user.id, permissions: userPermissions };
+    const payload = {
+      ...user,
+      sub: user.id,
+      aud: tenant,
+      permissions: userPermissions,
+    };
     const token = await this.jwtService.signAsync(payload);
     return { token, user };
   }

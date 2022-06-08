@@ -1,7 +1,6 @@
-import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
+import { Injectable, Inject } from '@nestjs/common';
 import Group from '../../groups/entities/group.entity';
-import { In, Repository, TreeRepository } from 'typeorm';
+import { In, Repository, Connection, TreeRepository } from 'typeorm';
 import {
   GetClosestGroupDto,
   GetMissingReportDto,
@@ -11,12 +10,15 @@ import GroupCategoryReport from '../../groups/entities/groupCategoryReport.entit
 
 @Injectable()
 export class GroupFinderService {
-  constructor(
-    @InjectRepository(Group)
-    private readonly groupRepository: TreeRepository<Group>,
-    @InjectRepository(GroupCategoryReport)
-    private readonly categoryReportRepository: Repository<GroupCategoryReport>,
-  ) {}
+  private readonly groupRepository: TreeRepository<Group>;
+  private readonly categoryReportRepository: Repository<GroupCategoryReport>;
+
+  constructor(@Inject('CONNECTION') connection: Connection) {
+    this.groupRepository = connection.getTreeRepository(Group);
+    this.categoryReportRepository = connection.getRepository(
+      GroupCategoryReport,
+    );
+  }
 
   public async findClosestGroup(data: GetClosestGroupDto): Promise<any> {
     const parentGroup = await this.groupRepository.findOne({

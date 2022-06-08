@@ -11,7 +11,3 @@ export class ForgotPasswordResponseDto {
   @ApiProperty()
   user: UserListDto;
 }
-
-
-
-

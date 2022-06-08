@@ -8,12 +8,12 @@ import {
   Put,
   Query,
   UseGuards,
+  Inject,
   UseInterceptors,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
-import { InjectRepository } from '@nestjs/typeorm';
 import Identification from '../entities/identification.entity';
-import { Repository } from 'typeorm';
+import { Repository, Connection } from 'typeorm';
 import SearchDto from '../../shared/dto/search.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { SentryInterceptor } from 'src/utils/sentry.interceptor';
@@ -23,10 +23,11 @@ import { SentryInterceptor } from 'src/utils/sentry.interceptor';
 @ApiTags('Crm Identifications')
 @Controller('api/crm/identifications')
 export class IdentificationsController {
-  constructor(
-    @InjectRepository(Identification)
-    private readonly repository: Repository<Identification>,
-  ) {}
+  private readonly repository: Repository<Identification>;
+
+  constructor(@Inject('CONNECTION') connection: Connection) {
+    this.repository = connection.getRepository(Identification);
+  }
 
   @Get()
   async findAll(@Query() req: SearchDto): Promise<Identification[]> {

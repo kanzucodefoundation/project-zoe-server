@@ -12,7 +12,7 @@ export class ContactSearchDto extends SearchDto {
   @IsOptional()
   @IsArray()
   cellGroups?: number[];
-  
+
   @Type(() => Number)
   @IsNumber({}, { each: true })
   @IsOptional()

@@ -1,5 +1,4 @@
-import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
+import { Injectable, Inject } from '@nestjs/common';
 import {
   addDays,
   differenceInDays,
@@ -14,6 +13,7 @@ import {
   ILike,
   In,
   LessThanOrEqual,
+  Connection,
   MoreThanOrEqual,
   Repository,
   TreeRepository,
@@ -32,16 +32,19 @@ import { EventFrequencyDto } from '../dto/event-frequency-search.dto';
 
 @Injectable()
 export class GroupMissingReportsService {
-  constructor(
-    @InjectRepository(Group)
-    private readonly groupRepository: TreeRepository<Group>,
-    @InjectRepository(GroupCategoryReport)
-    private readonly categoryReportRepository: Repository<GroupCategoryReport>,
-    @InjectRepository(GroupMembership)
-    private readonly groupMemberRepository: Repository<GroupMembership>,
-    @InjectRepository(GroupEvent)
-    private readonly groupEventRepository: Repository<GroupEvent>,
-  ) {}
+  private readonly groupRepository: TreeRepository<Group>;
+  private readonly categoryReportRepository: Repository<GroupCategoryReport>;
+  private readonly groupMemberRepository: Repository<GroupMembership>;
+  private readonly groupEventRepository: Repository<GroupEvent>;
+
+  constructor(@Inject('CONNECTION') connection: Connection) {
+    this.groupRepository = connection.getTreeRepository(Group);
+    this.categoryReportRepository = connection.getRepository(
+      GroupCategoryReport,
+    );
+    this.groupMemberRepository = connection.getRepository(GroupMembership);
+    this.groupEventRepository = connection.getRepository(GroupEvent);
+  }
 
   async findMissingReports(
     searchDto: GroupMissingReportSearchDto,
@@ -65,8 +68,8 @@ export class GroupMissingReportsService {
 
     if (hasValue(searchDto.from) && hasValue(searchDto.to)) {
       // Only add 1 day to 'searchDto.to' since it is an endDate. This will cater for events as expected
-      const from = searchDto.from
-      const to = addDays(new Date(searchDto.to),1)
+      const from = searchDto.from;
+      const to = addDays(new Date(searchDto.to), 1);
       //Calculate Days
       const days = differenceInDays(new Date(to), new Date(from));
       // Event filter Dates
@@ -248,18 +251,20 @@ export class GroupMissingReportsService {
     return groupCombo;
   }
 
-  async getFrequencyByCategory(req: EventFrequencyDto): Promise<GroupCategoryReport[]> {
-    const filter: FindConditions<GroupCategoryReport> = {}; 
-    
-      if(hasValue(req.groupCategory)) {
-        filter.groupCategoryId = req.groupCategory
-      }
-      if(hasValue(req.eventCategory)) {
-        filter.eventCategoryId = req.eventCategory
-      }
+  async getFrequencyByCategory(
+    req: EventFrequencyDto,
+  ): Promise<GroupCategoryReport[]> {
+    const filter: FindConditions<GroupCategoryReport> = {};
+
+    if (hasValue(req.groupCategory)) {
+      filter.groupCategoryId = req.groupCategory;
+    }
+    if (hasValue(req.eventCategory)) {
+      filter.eventCategoryId = req.eventCategory;
+    }
 
     const frequency = await this.categoryReportRepository.find({
-      where: filter
+      where: filter,
     });
     return frequency;
   }

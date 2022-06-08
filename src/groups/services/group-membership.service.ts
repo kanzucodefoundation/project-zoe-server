@@ -1,28 +1,29 @@
-import { Injectable, Logger } from "@nestjs/common";
-import { InjectRepository } from "@nestjs/typeorm";
-import { Connection, In, Repository, TreeRepository } from "typeorm";
-import { FindConditions } from "typeorm/find-options/FindConditions";
-import GroupMembership from "../entities/groupMembership.entity";
-import GroupMembershipDto from "../dto/membership/group-membership.dto";
-import { getPersonFullName } from "../../crm/crm.helpers";
-import GroupMembershipSearchDto from "../dto/membership/group-membership-search.dto";
-import ClientFriendlyException from "../../shared/exceptions/client-friendly.exception";
-import UpdateGroupMembershipDto from "../dto/membership/update-group-membership.dto";
-import BatchGroupMembershipDto from "../dto/membership/batch-group-membership.dto";
-import { QueryDeepPartialEntity } from "typeorm/query-builder/QueryPartialEntity";
-import { hasNoValue, hasValue } from "../../utils/validation";
-import Group from "../entities/group.entity";
-import { groupConstants } from "../../seed/data/groups";
+import { Injectable, Logger, Inject } from '@nestjs/common';
+import { Connection, In, Repository, TreeRepository } from 'typeorm';
+import { FindConditions } from 'typeorm/find-options/FindConditions';
+import GroupMembership from '../entities/groupMembership.entity';
+import GroupMembershipDto from '../dto/membership/group-membership.dto';
+import { getPersonFullName } from '../../crm/crm.helpers';
+import GroupMembershipSearchDto from '../dto/membership/group-membership-search.dto';
+import ClientFriendlyException from '../../shared/exceptions/client-friendly.exception';
+import UpdateGroupMembershipDto from '../dto/membership/update-group-membership.dto';
+import BatchGroupMembershipDto from '../dto/membership/batch-group-membership.dto';
+import { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
+import { hasNoValue, hasValue } from '../../utils/validation';
+import Group from '../entities/group.entity';
+import { groupConstants } from '../../seed/data/groups';
 
 @Injectable()
 export class GroupsMembershipService {
-  constructor(
-    @InjectRepository(GroupMembership)
-    private readonly repository: Repository<GroupMembership>,
-    @InjectRepository(Group)
-    private readonly groupTreeRepository: TreeRepository<Group>,
-    private connection: Connection,
-  ) {}
+  private readonly repository: Repository<GroupMembership>;
+  private readonly groupTreeRepository: TreeRepository<Group>;
+  private readonly connection: Connection;
+
+  constructor(@Inject('CONNECTION') connection: Connection) {
+    this.repository = connection.getRepository(GroupMembership);
+    this.groupTreeRepository = connection.getTreeRepository(Group);
+    this.connection = connection;
+  }
 
   async findAll(req: GroupMembershipSearchDto): Promise<GroupMembershipDto[]> {
     const filter: FindConditions<GroupMembership> = {};
@@ -43,9 +44,9 @@ export class GroupsMembershipService {
       filter.groupId = In([...idList.values()]);
     }
     if (hasNoValue(filter))
-      throw new ClientFriendlyException("Please groupID or contactId");
+      throw new ClientFriendlyException('Please groupID or contactId');
     const data = await this.repository.find({
-      relations: ["contact", "contact.person", "group", "group.category"],
+      relations: ['contact', 'contact.person', 'group', 'group.category'],
       skip: req.skip,
       take: req.limit,
       where: filter,
@@ -83,7 +84,7 @@ export class GroupsMembershipService {
 
   async findOne(id: number): Promise<GroupMembershipDto> {
     const data = await this.repository.findOne(id, {
-      relations: ["group", "contact", "contact.person"],
+      relations: ['group', 'contact', 'contact.person'],
     });
     return this.toDto(data, 0);
   }
@@ -95,7 +96,7 @@ export class GroupsMembershipService {
       .set({
         role: dto.role,
       })
-      .where("id = :id", { id: dto.id })
+      .where('id = :id', { id: dto.id })
       .execute();
     Logger.log(`Updated data ${update.affected} ${JSON.stringify(update.raw)}`);
     return await this.findOne(dto.id);

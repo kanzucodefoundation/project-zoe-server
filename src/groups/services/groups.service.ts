@@ -1,13 +1,12 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
+import { Injectable, Logger, Inject } from '@nestjs/common';
 import {
-  Connection,
   FindConditions,
   ILike,
   In,
   LessThanOrEqual,
   MoreThanOrEqual,
   Repository,
+  Connection,
   TreeRepository,
 } from 'typeorm';
 import Group from '../entities/group.entity';
@@ -29,20 +28,22 @@ import { endOfMonth, startOfMonth } from 'date-fns';
 
 @Injectable()
 export class GroupsService {
+  private readonly repository: Repository<Group>;
+  private readonly treeRepository: TreeRepository<Group>;
+  private readonly membershipRepository: Repository<GroupMembership>;
+  private readonly groupReportRepository: Repository<GroupCategoryReport>;
+  private readonly eventRepository: Repository<GroupEvent>;
+
   constructor(
-    @InjectRepository(Group)
-    private readonly repository: Repository<Group>,
-    @InjectRepository(Group)
-    private readonly treeRepository: TreeRepository<Group>,
-    private readonly connection: Connection,
-    @InjectRepository(GroupMembership)
-    private readonly membershipRepository: Repository<GroupMembership>,
-    @InjectRepository(GroupCategoryReport)
-    private readonly groupReportRepository: Repository<GroupCategoryReport>,
+    @Inject('CONNECTION') connection: Connection,
     private googleService: GoogleService,
-    @InjectRepository(GroupEvent)
-    private readonly eventRepository: Repository<GroupEvent>,
-  ) {}
+  ) {
+    this.repository = connection.getRepository(Group);
+    this.treeRepository = connection.getTreeRepository(Group);
+    this.membershipRepository = connection.getRepository(GroupMembership);
+    this.groupReportRepository = connection.getRepository(GroupCategoryReport);
+    this.eventRepository = connection.getRepository(GroupEvent);
+  }
 
   async findAll(req: SearchDto): Promise<any[]> {
     return await this.treeRepository.findTrees();
@@ -161,10 +162,10 @@ export class GroupsService {
 
       groupData.reports = await this.eventRepository.find({
         relations: ['category', 'attendance'],
-        where: {groupId: In(groupData.children)},
+        where: { groupId: In(groupData.children) },
         select: ['id', 'name', 'startDate'],
       });
-    
+
       return groupData;
     }
     return this.toListView(data);

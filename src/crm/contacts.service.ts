@@ -1,74 +1,82 @@
-import { BadRequestException, Injectable, Logger } from "@nestjs/common";
-import { InjectRepository } from "@nestjs/typeorm";
-import { intersection } from "lodash";
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  Inject,
+} from '@nestjs/common';
+import { intersection } from 'lodash';
 import {
   getRepository,
   ILike,
   In,
   Like,
   Repository,
+  Connection,
   TreeRepository,
-} from "typeorm";
-import Contact from "./entities/contact.entity";
-import { CreatePersonDto } from "./dto/create-person.dto";
+} from 'typeorm';
+import Contact from './entities/contact.entity';
+import { CreatePersonDto } from './dto/create-person.dto';
 import {
   getCellGroup,
   getEmail,
   getLocation,
   getPersonFullName,
   getPhone,
-} from "./crm.helpers";
-import { ContactSearchDto } from "./dto/contact-search.dto";
-import Phone from "./entities/phone.entity";
-import Email from "./entities/email.entity";
-import Person from "./entities/person.entity";
-import Company from "./entities/company.entity";
-import { CreateCompanyDto } from "./dto/create-company.dto";
-import { hasNoValue, hasValue } from "src/utils/validation";
-import Address from "./entities/address.entity";
-import GroupMembership from "../groups/entities/groupMembership.entity";
-import { GroupRole } from "../groups/enums/groupRole";
-import ContactListDto from "./dto/contact-list.dto";
-import { FindConditions } from "typeorm/find-options/FindConditions";
-import Group from "../groups/entities/group.entity";
-import { GoogleService } from "src/vendor/google.service";
-import GooglePlaceDto from "src/vendor/google-place.dto";
-import { getPreciseDistance } from "geolib";
-import GroupMembershipRequest from "src/groups/entities/groupMembershipRequest.entity";
-import { IEmail, sendEmail } from "src/utils/mailerTest";
+} from './crm.helpers';
+import { ContactSearchDto } from './dto/contact-search.dto';
+import Phone from './entities/phone.entity';
+import Email from './entities/email.entity';
+import Person from './entities/person.entity';
+import Company from './entities/company.entity';
+import { CreateCompanyDto } from './dto/create-company.dto';
+import { hasNoValue, hasValue } from 'src/utils/validation';
+import Address from './entities/address.entity';
+import GroupMembership from '../groups/entities/groupMembership.entity';
+import { GroupRole } from '../groups/enums/groupRole';
+import ContactListDto from './dto/contact-list.dto';
+import { FindConditions } from 'typeorm/find-options/FindConditions';
+import Group from '../groups/entities/group.entity';
+import { GoogleService } from 'src/vendor/google.service';
+import GooglePlaceDto from 'src/vendor/google-place.dto';
+import { getPreciseDistance } from 'geolib';
+import GroupMembershipRequest from 'src/groups/entities/groupMembershipRequest.entity';
+import { IEmail, sendEmail } from 'src/utils/mailer';
 import {
   GetClosestGroupDto,
   GetGroupResponseDto,
-} from "src/groups/dto/membershipRequest/new-request.dto";
-import { PrismaService } from "../shared/prisma.service";
-import { getContactModel } from "./utils/creationUtils";
-import { GroupFinderService } from "./group-finder/group-finder.service";
+} from 'src/groups/dto/membershipRequest/new-request.dto';
+import { PrismaService } from '../shared/prisma.service';
+import { getContactModel } from './utils/creationUtils';
+import { GroupFinderService } from './group-finder/group-finder.service';
 
 @Injectable()
 export class ContactsService {
+  private readonly repository: Repository<Contact>;
+  private readonly personRepository: Repository<Person>;
+  private readonly companyRepository: Repository<Company>;
+  private readonly phoneRepository: Repository<Phone>;
+  private readonly emailRepository: Repository<Email>;
+  private readonly addressRepository: Repository<Address>;
+  private readonly membershipRepository: Repository<GroupMembership>;
+  private readonly groupRepository: TreeRepository<Group>;
+  private readonly gmRequestRepository: Repository<GroupMembershipRequest>;
+
   constructor(
-    @InjectRepository(Contact)
-    private readonly repository: Repository<Contact>,
-    @InjectRepository(Person)
-    private readonly personRepository: Repository<Person>,
-    @InjectRepository(Company)
-    private readonly companyRepository: Repository<Company>,
-    @InjectRepository(Phone)
-    private readonly phoneRepository: Repository<Phone>,
-    @InjectRepository(Email)
-    private readonly emailRepository: Repository<Email>,
-    @InjectRepository(Address)
-    private readonly addressRepository: Repository<Address>,
-    @InjectRepository(GroupMembership)
-    private readonly membershipRepository: Repository<GroupMembership>,
-    @InjectRepository(Group)
-    private readonly groupRepository: TreeRepository<Group>,
-    @InjectRepository(GroupMembershipRequest)
-    private readonly gmRequestRepository: Repository<GroupMembershipRequest>,
+    @Inject('CONNECTION') connection: Connection,
     private googleService: GoogleService,
     private prisma: PrismaService,
     private groupFinderService: GroupFinderService,
-  ) {}
+  ) {
+    this.repository = connection.getRepository(Contact);
+    this.personRepository = connection.getRepository(Person);
+    this.companyRepository = connection.getRepository(Company);
+    this.phoneRepository = connection.getRepository(Phone);
+    this.emailRepository = connection.getRepository(Email);
+    this.addressRepository = connection.getRepository(Address);
+    this.membershipRepository = connection.getRepository(GroupMembership);
+    this.groupRepository = connection.getTreeRepository(Group);
+    this.gmRequestRepository = connection.getRepository(GroupMembershipRequest);
+  }
 
   async findAll(req: ContactSearchDto): Promise<ContactListDto[]> {
     try {
@@ -80,10 +88,10 @@ export class ContactsService {
         ...(req.churchLocations || []),
       ];
       if (hasValue(groups)) {
-        Logger.log(`searching by groups: ${groups.join(",")}`);
+        Logger.log(`searching by groups: ${groups.join(',')}`);
         hasFilter = true;
         const resp = await this.membershipRepository.find({
-          select: ["contactId"],
+          select: ['contactId'],
           where: { groupId: In(groups) },
         });
         if (hasValue(idList)) {
@@ -99,7 +107,7 @@ export class ContactsService {
       if (hasValue(req.query)) {
         hasFilter = true;
         const resp = await this.personRepository.find({
-          select: ["contactId"],
+          select: ['contactId'],
           where: [
             {
               firstName: ILike(`%${req.query.trim()}%`),
@@ -125,10 +133,10 @@ export class ContactsService {
       if (hasValue(req.phone)) {
         hasFilter = true;
         const resp = await this.phoneRepository.find({
-          select: ["contactId"],
+          select: ['contactId'],
           where: { value: Like(`%${req.phone}%`) },
         });
-        console.log("resp", resp);
+        console.log('resp', resp);
         if (hasValue(idList)) {
           idList = intersection(
             idList,
@@ -142,10 +150,10 @@ export class ContactsService {
       if (hasValue(req.email)) {
         hasFilter = true;
         const resp = await this.emailRepository.find({
-          select: ["contactId"],
+          select: ['contactId'],
           where: { value: ILike(`%${req.email.trim().toLowerCase()}%`) },
         });
-        Logger.log(`searching by email: ${resp.join(",")}`);
+        Logger.log(`searching by email: ${resp.join(',')}`);
         if (hasValue(idList)) {
           idList = intersection(
             idList,
@@ -156,7 +164,7 @@ export class ContactsService {
         }
       }
 
-      console.log("IdList", idList);
+      console.log('IdList', idList);
       if (hasFilter && hasNoValue(idList)) {
         return [];
       }
@@ -166,11 +174,11 @@ export class ContactsService {
       }
       const data = await this.repository.find({
         relations: [
-          "person",
-          "emails",
-          "phones",
-          "groupMemberships",
-          "groupMemberships.group",
+          'person',
+          'emails',
+          'phones',
+          'groupMemberships',
+          'groupMemberships.group',
         ],
         skip: req.skip,
         take: req.limit,
@@ -221,7 +229,7 @@ export class ContactsService {
     if (checkEmailExist.length > 0) {
       throw new BadRequestException({
         message:
-          "Email already exists. It is possible that you are already registered",
+          'Email already exists. It is possible that you are already registered',
       });
     }
 
@@ -241,7 +249,7 @@ export class ContactsService {
   async getGroupRequest(createPersonDto: CreatePersonDto): Promise<void> {
     try {
       const groupMembershipRequests: GroupMembershipRequest[] = [];
-      if (createPersonDto.joinCell === "Yes") {
+      if (createPersonDto.joinCell === 'Yes') {
         Logger.log(`Attempt to add person to mc`);
         const groupRequest = new GroupMembershipRequest();
         const details = {
@@ -263,7 +271,7 @@ export class ContactsService {
         }
       }
     } catch (e) {
-      console.log("Failed to attach to group");
+      console.log('Failed to attach to group');
     }
   }
 
@@ -279,8 +287,8 @@ export class ContactsService {
       }
 
       const groupsAtLocation = await getRepository(Group)
-        .createQueryBuilder("group")
-        .where("group.parentId = :churchLocationId", {
+        .createQueryBuilder('group')
+        .where('group.parentId = :churchLocationId', {
           churchLocationId: parentGroupId,
         })
         .andWhere("group.categoryId = 'MC'")
@@ -330,7 +338,7 @@ export class ContactsService {
       };
     } catch (e) {
       console.log(e);
-      Logger.error("Failed to create member request", e);
+      Logger.error('Failed to create member request', e);
       return [];
     }
   }
@@ -360,7 +368,7 @@ export class ContactsService {
       const closestCellData = JSON.parse(closestGroup.groupMeta);
       const mailerData: IEmail = {
         to: `${closestCellData.email}`,
-        subject: "Join MC Request",
+        subject: 'Join MC Request',
         html: `
           <h3>Hello ${closestCellData.leaders},</h3></br>
           <h4>I hope all is well on your end.<h4></br>
@@ -372,22 +380,22 @@ export class ContactsService {
       };
       await sendEmail(mailerData);
     } catch (e) {
-      Logger.error("Failed to notify leader");
+      Logger.error('Failed to notify leader');
     }
   }
 
   async findOne(id: number): Promise<Contact> {
     return await this.repository.findOne(id, {
       relations: [
-        "person",
-        "emails",
-        "phones",
-        "addresses",
-        "identifications",
-        "requests",
-        "relationships",
-        "groupMemberships",
-        "groupMemberships.group",
+        'person',
+        'emails',
+        'phones',
+        'addresses',
+        'identifications',
+        'requests',
+        'relationships',
+        'groupMemberships',
+        'groupMemberships.group',
       ],
     });
   }
@@ -399,11 +407,11 @@ export class ContactsService {
   async findByName(username: string): Promise<Contact | undefined> {
     return await this.repository.findOne({
       where: { username },
-      relations: ["contact.person"],
+      relations: ['contact.person'],
     });
   }
 
   async createCompany(data: CreateCompanyDto): Promise<Contact> {
-    throw "Not yet implemented";
+    throw 'Not yet implemented';
   }
 }

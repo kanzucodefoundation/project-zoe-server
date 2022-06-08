@@ -3,5 +3,5 @@ export enum OccasionCategory {
   Anniversary = 'Anniversary',
   Salvation = 'Salvation',
   Engaged = 'Engaged',
-  Other = 'Other'
+  Other = 'Other',
 }

@@ -1,5 +1,5 @@
-import { Type } from "class-transformer";
-import { IsBoolean, IsNotEmpty, IsNumber, Min } from "class-validator";
+import { Type } from 'class-transformer';
+import { IsBoolean, IsNotEmpty, IsNumber, Min } from 'class-validator';
 
 export class EventActivititiesDto {
   @Type(() => Number)

@@ -3,5 +3,5 @@ export class RolesDto {
   role: string;
   description: string;
   permissions: string[];
-  isActive: Boolean;
+  isActive: boolean;
 }

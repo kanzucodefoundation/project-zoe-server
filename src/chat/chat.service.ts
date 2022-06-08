@@ -1,17 +1,17 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
+import { Injectable, Logger, Inject } from '@nestjs/common';
 import Email from 'src/crm/entities/email.entity';
-import { IEmail, sendEmail } from 'src/utils/mailerTest';
-import { Repository } from 'typeorm';
+import { IEmail, sendEmail } from 'src/utils/mailer';
+import { Repository, Connection } from 'typeorm';
 import mailChatDto from './dto/sendMail.dto';
 import { UpdateChatDto } from './dto/update-chat.dto';
 
 @Injectable()
 export class ChatService {
-  constructor(
-    @InjectRepository(Email)
-    private readonly emailRepository: Repository<Email>,
-  ) {}
+  private readonly emailRepository: Repository<Email>;
+
+  constructor(@Inject('CONNECTION') connection: Connection) {
+    this.emailRepository = connection.getRepository(Email);
+  }
   async mailAll(data: mailChatDto): Promise<void> {
     try {
       for (let i = 0; i < data.recipientId.length; i++) {

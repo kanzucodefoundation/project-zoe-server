@@ -5,6 +5,6 @@ export default class LoginDto {
   username: string;
   @ApiProperty()
   password: string;
+  @ApiProperty()
+  churchName: string;
 }
-
-

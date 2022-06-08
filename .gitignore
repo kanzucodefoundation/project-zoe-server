@@ -2,9 +2,6 @@
 /dist
 /node_modules
 
-# Package-lock.json
-package-lock.json
-
 # Logs
 logs
 *.log
@@ -42,8 +39,5 @@ lerna-debug.log*
 
 #Eslint cache file
 .eslintcache
-
-package-lock.json
-
 
 

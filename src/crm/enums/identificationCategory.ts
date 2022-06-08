@@ -4,5 +4,5 @@ export enum IdentificationCategory {
   DrivingPermit = 'DrivingPermit',
   VillageCard = 'VillageCard',
   Nssf = 'Nssf',
-  Other = 'Other'
+  Other = 'Other',
 }
