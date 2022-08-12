@@ -6,27 +6,41 @@ Angie is a church management centered on what's at the heart of all ministry - p
 
 This repo holds the Angie church relationship management system (RMS) server. 
 
-## Getting started
+## Project Setup / Installation 🚀
 
-Clone the repository:
-`git clone git@github.com:kanzucode/angie-client.git`
+1. Clone the repository:
 
-Install the dependencies:
-`npm install`
+    > `git clone https://github.com/kanzucodefoundation/project-zoe-server.git`
 
-**PS:** If you don't have `npm` installed, check out this guide https://www.npmjs.com/get-npm
+2. Checkout to the Develop branch
 
-For your development environment, add some "dummy" (seed) data:
+    > `git checkout develop`
 
-```
-cd src/data
-node seed.ts
-```
+3. Install dependencies with npm version 6.14.5:
 
-Finally, start the party:
-`npm start`
+    > `npx npm@6.14.5 install`
 
-This repo works with the server at https://github.com/kanzucode/angie-client so be sure to set that up too.
+4. Create a `.env` file based on the `.env.sample`.
+
+    Set these environment variables in the `env` file as follows 
+
+    > `APP_ENVIRONMENT=local` - If you are running the app locally.
+
+    > `DB_USERNAME=<your-local-postgres-db-username>`
+
+    > `DB_PASSWORD=<your-local-postgres-db-password>`
+
+    > `DB_DATABASE=projectzoe-db`
+
+5. Go ahead and manually create an new postgreSQL database called: `projectzoe-db`
+
+6. Finally, spin up the project with:
+
+    > `npm run start:dev`
+
+**Please Note:** 
+- If you don't have `node.js` installed, check out this guide https://nodejs.org/en/
+- This repo works with the client at https://github.com/kanzucodefoundation/project-zoe-client so be sure to set that up too.
 
 
 ### Installation errors

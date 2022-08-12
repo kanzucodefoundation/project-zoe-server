@@ -44,9 +44,11 @@ async function bootstrap() {
   SwaggerModule.setup("docs", app, document, {});
 
   // Sentry Implementation
-  Sentry.init({
-    dsn: process.env.REACT_APP_SENTRY_DSN,
-  });
+  if(process.env.APP_ENVIRONMENT === 'production'){
+    Sentry.init({
+      dsn: process.env.REACT_APP_SENTRY_DSN,
+    });
+  }
 
   await app.listen(config.app.port);
 }
