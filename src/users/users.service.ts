@@ -85,7 +85,7 @@ export class UsersService {
     toSave.contactId = data.contactId;
     toSave.password = data.password;
     toSave.isActive = data.isActive;
-    toSave.hashPassword();
+    // toSave.hashPassword(); this is being duplicated in line 70!
 
     const saveUser = await this.create(toSave);
 

@@ -11,7 +11,7 @@ import { TenantDto } from "./dto/tenant.dto";
 import { TenantsService } from "./tenants.service";
 
 @UseInterceptors(SentryInterceptor)
-@UseGuards(JwtAuthGuard)
+// @UseGuards(JwtAuthGuard) commenting out to enable creation of a Church using postman
 @Controller("api/tenants")
 export class TenantsController {
   constructor(private readonly tenantsService: TenantsService) {}

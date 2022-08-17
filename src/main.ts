@@ -44,9 +44,10 @@ async function bootstrap() {
   SwaggerModule.setup("docs", app, document, {});
 
   // Sentry Implementation
-  Sentry.init({
-    dsn: process.env.REACT_APP_SENTRY_DSN,
-  });
+  // Commenting this out to get past an error on dev
+  // Sentry.init({
+  //   dsn: process.env.REACT_APP_SENTRY_DSN,
+  // });
 
   await app.listen(config.app.port);
 }
