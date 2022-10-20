@@ -19,6 +19,9 @@ import { FileInterceptor } from "@nestjs/platform-express";
 import { JwtAuthGuard } from "../../auth/guards/jwt-auth.guard";
 import { parseContact } from "../utils/importUtils";
 import { SentryInterceptor } from "src/utils/sentry.interceptor";
+import { GroupsMembershipService } from "src/groups/services/group-membership.service";
+import { GroupRole } from "src/groups/enums/groupRole";
+import { AddressCategory } from "../enums/addressCategory";
 
 const Duplex = require("stream").Duplex; // core NodeJS API
 function bufferToStream(buffer) {
@@ -45,6 +48,7 @@ export class ContactImportController {
     @Inject("CONNECTION") connection: Connection,
     private readonly service: ContactsService,
     private readonly csvParser: CsvParser,
+    private readonly groupMembershipService: GroupsMembershipService,
   ) {
     this.companyRepository = connection.getRepository(Company);
   }
@@ -69,8 +73,21 @@ export class ContactImportController {
     for (const it of list) {
       const model = parseContact(it);
       if (model) {
-        const saved = await this.service.createPerson(model);
-        created.push(saved);
+        model["residence"] = {
+          category: AddressCategory.Home,
+          isPrimary: true,
+          country: it.country,
+          district: it.district,
+          freeForm: it.address,
+        };
+        const newPerson = await this.service.createPerson(model);
+        const newPersonsGroup = {
+          groupId: it.groupid,
+          members: [newPerson.id],
+          role: GroupRole.Member,
+        };
+        await this.groupMembershipService.create(newPersonsGroup);
+        created.push(newPerson);
       }
     }
     return created.map((it) => it.id);

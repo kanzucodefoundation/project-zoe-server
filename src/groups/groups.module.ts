@@ -20,6 +20,7 @@ import { GroupReportsController } from "./controllers/group-reports.controller";
 import { GroupReportFrequencyController } from "./controllers/group-frequency.controller";
 import { GroupCategoryComboController } from "./controllers/group-category-combo.controller";
 import { nameTenantHeaderMiddleware } from "src/middleware/nameTenantHeader.middleware";
+import { AddressesService } from "src/crm/addresses.service";
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { nameTenantHeaderMiddleware } from "src/middleware/nameTenantHeader.midd
     GroupMembershipRequestService,
     ContactsService,
     GoogleService,
+    AddressesService,
     PrismaService,
     EventsService,
     GroupMissingReportsService,
@@ -50,8 +52,4 @@ import { nameTenantHeaderMiddleware } from "src/middleware/nameTenantHeader.midd
   ],
   exports: [GroupsService, GroupCategoriesService],
 })
-export class GroupsModule {
-  configure(consumer: MiddlewareConsumer) {
-    consumer.apply(nameTenantHeaderMiddleware).forRoutes("api/groups/combo");
-  }
-}
+export class GroupsModule {}

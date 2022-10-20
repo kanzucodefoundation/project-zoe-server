@@ -69,7 +69,6 @@ export class AppModule {
         "api/auth/forgot-password",
         "api/auth/reset-password/:token",
         "api/register",
-        "api/groups/combo",
       )
       .forRoutes("*");
   }

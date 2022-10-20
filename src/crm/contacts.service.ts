@@ -48,6 +48,7 @@ import {
 import { PrismaService } from "../shared/prisma.service";
 import { getContactModel } from "./utils/creationUtils";
 import { GroupFinderService } from "./group-finder/group-finder.service";
+import { AddressesService } from "./addresses.service";
 
 @Injectable()
 export class ContactsService {
@@ -66,6 +67,7 @@ export class ContactsService {
     private googleService: GoogleService,
     private prisma: PrismaService,
     private groupFinderService: GroupFinderService,
+    private addressesService: AddressesService,
   ) {
     this.repository = connection.getRepository(Contact);
     this.personRepository = connection.getRepository(Person);
@@ -233,24 +235,21 @@ export class ContactsService {
       });
     }
 
-    let place: GooglePlaceDto;
-
-    //Make a call to the Google API to get coordinates
-    if (hasValue(createPersonDto.residence?.placeId)) {
-      place = await this.googleService.getPlaceDetails(
-        createPersonDto.residence?.placeId,
-      );
-    }
-    const model = getContactModel(createPersonDto, place);
+    const model = getContactModel(createPersonDto);
     await this.getGroupRequest(createPersonDto);
-    return await this.repository.save(model, { reload: true });
+    const newPerson = await this.repository.save(model, { reload: true });
+    if (hasValue(createPersonDto.residence)) {
+      createPersonDto.residence.contactId = newPerson.id;
+      await this.addressesService.create(createPersonDto.residence);
+    }
+    return newPerson;
   }
 
   async getGroupRequest(createPersonDto: CreatePersonDto): Promise<void> {
     try {
       const groupMembershipRequests: GroupMembershipRequest[] = [];
       if (createPersonDto.joinCell === "Yes") {
-        Logger.log(`Attempt to add person to mc`);
+        Logger.log(`Attempt to add person to MC`);
         const groupRequest = new GroupMembershipRequest();
         const details = {
           placeId: createPersonDto.residence.placeId,
