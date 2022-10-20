@@ -1,3 +1,3 @@
-name,phone,email,gender,birthday
-Timothy Kasasa,0700106164,,m,20/Dec
-Eva Kasasa,0700106164,eva@gmail.com,f,31/3
+name,phone,email,gender,birthday,address,placeOfWork,ageGroup,groupid,country,district
+Abraham Noah Owamanyi,0772123456,,m,20/Dec,Kyebando,Goshen Fire Logistics,21 - 30,8,Uganda,Kampala
+Faithful Ruth Talekebwa,0701234567,thefaithfulonetalekebwa@gmail.com,f,31/3,Ntinda,Stone Quary Limited,31 - 40,9,Uganda,Kampala
