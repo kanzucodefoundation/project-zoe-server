@@ -21,6 +21,7 @@ import { appEntities } from "../config";
 import { PhonesService } from "./phones.service";
 import { AddressesService } from "./addresses.service";
 import { nameTenantHeaderMiddleware } from "src/middleware/nameTenantHeader.middleware";
+import { GroupsMembershipService } from "src/groups/services/group-membership.service";
 
 @Global()
 @Module({
@@ -29,6 +30,7 @@ import { nameTenantHeaderMiddleware } from "src/middleware/nameTenantHeader.midd
     ContactsService,
     GoogleService,
     PrismaService,
+    GroupsMembershipService,
     GroupFinderService,
     PhonesService,
     AddressesService,
