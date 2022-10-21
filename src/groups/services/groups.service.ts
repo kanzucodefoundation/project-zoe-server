@@ -25,6 +25,7 @@ import { GroupRole } from "../enums/groupRole";
 import { hasValue } from "../../utils/validation";
 import GroupCategoryReport from "../entities/groupCategoryReport.entity";
 import { endOfMonth, startOfMonth } from "date-fns";
+import { GroupPermissionsService } from "./group-permissions.service";
 
 @Injectable()
 export class GroupsService {
@@ -36,6 +37,7 @@ export class GroupsService {
 
   constructor(
     @Inject("CONNECTION") connection: Connection,
+    private groupsPermissionsService: GroupPermissionsService,
     private googleService: GoogleService,
   ) {
     this.repository = connection.getRepository(Group);
@@ -46,6 +48,7 @@ export class GroupsService {
   }
 
   async findAll(req: SearchDto): Promise<any[]> {
+    console.log(req);
     return await this.treeRepository.findTrees();
   }
 
@@ -79,9 +82,15 @@ export class GroupsService {
     } as any;
   }
 
-  async combo(req: GroupSearchDto): Promise<Group[]> {
-    console.log("GroupSearchDto", req);
+  async combo(req: GroupSearchDto, user: any): Promise<Group[]> {
     const findOps: FindConditions<Group> = {};
+
+    if (hasValue(user)) {
+      const groupIds = await this.groupsPermissionsService.getUserGroupIds(
+        user,
+      );
+      findOps.id = In(groupIds);
+    }
     if (hasValue(req.categories)) {
       findOps.categoryId = In(req.categories);
     }
@@ -98,11 +107,18 @@ export class GroupsService {
     });
   }
 
-  async create(data: CreateGroupDto) {
+  async create(data: CreateGroupDto, user: any) {
     Logger.log(`Create.Group starting ${data.name}`);
     let place: GooglePlaceDto = null;
     if (data.address?.placeId) {
       place = await this.googleService.getPlaceDetails(data.address.placeId);
+    }
+
+    if (hasValue(data.parentId)) {
+      await this.groupsPermissionsService.assertPermissionForGroup(
+        user,
+        data.parentId,
+      );
     }
 
     const toSave = new Group();
@@ -173,8 +189,11 @@ export class GroupsService {
 
   async update(
     dto: UpdateGroupDto,
+    user: any,
   ): Promise<GroupListDto | GroupDetailDto | any> {
     Logger.log(`Update.Group groupID:${dto.id} starting`);
+
+    await this.groupsPermissionsService.assertPermissionForGroup(user, dto.id);
 
     const currGroup = await this.repository
       .createQueryBuilder()
@@ -183,7 +202,7 @@ export class GroupsService {
 
     if (!currGroup)
       throw new ClientFriendlyException(`Invalid group ID:${dto.id}`);
-    let place: GooglePlaceDto = null;
+    let place: GooglePlaceDto;
     if (dto.address && dto.address.placeId !== currGroup.address?.placeId) {
       Logger.log(`Update.Group groupID:${dto.id} fetching coordinates`);
       place = await this.googleService.getPlaceDetails(dto.address.placeId);
@@ -218,7 +237,8 @@ export class GroupsService {
     return await this.findOne(dto.id, true);
   }
 
-  async remove(id: number): Promise<void> {
+  async remove(id: number, user: any): Promise<void> {
+    await this.groupsPermissionsService.assertPermissionForGroup(user, id);
     await this.treeRepository.delete(id);
   }
 

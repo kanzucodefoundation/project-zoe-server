@@ -5,22 +5,21 @@ import {
   BadRequestException,
   MiddlewareConsumer,
 } from "@nestjs/common";
-import { getConnectionManager, createConnection } from "typeorm";
 import { REQUEST } from "@nestjs/core";
-import config, { appEntities } from "../config";
 import { TenantsController } from "./tenants.controller";
 import { TenantsService } from "./tenants.service";
-import * as dotenv from "dotenv";
 import { DbService } from "src/shared/db.service";
 import { SeedModule } from "src/seed/seed.module";
 import { Tenant } from "./entities/tenant.entity";
 import { nameTenantHeaderMiddleware } from "src/middleware/nameTenantHeader.middleware";
+import { TENANT_HEADER } from "../constants";
 
 const connectionFactory = {
   provide: "CONNECTION",
   scope: Scope.REQUEST,
   useFactory: async (req: any, dbservice: DbService) => {
-    const tenantName = req.headers["tenant"];
+    console.log("req.headers", req.headers);
+    const tenantName = req.headers[TENANT_HEADER];
     const connectionPublic = await dbservice.getConnection();
     const isCreatingNewTenant =
       req.originalUrl == "/api/tenants" && req.method == "POST";
