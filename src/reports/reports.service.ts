@@ -14,9 +14,15 @@ export class ReportsService {
 
   async getReport(name: string, user: UserDto): Promise<any> {
     const filter: FindConditions<GroupEvent> = {};
+    let metadataKey: string = "";
     switch (name) {
       case "service-attendance":
         filter.categoryId = EventCategories.Garage;
+        metadataKey = "numberOfAdults";
+        break;
+      case "small-group-attendance":
+        filter.categoryId = EventCategories.MC;
+        metadataKey = "numberOfGuests";
         break;
       default:
       // Nothing to see here
@@ -69,27 +75,27 @@ export class ReportsService {
         locationIndices[locationName] = currentLocationIndex;
         rowData = {
           location: locationName,
-          [reportDate]: report.metaData.numberOfAdults,
-          average: report.metaData.numberOfAdults,
+          [reportDate]: report.metaData[metadataKey],
+          average: report.metaData[metadataKey],
         };
         reportResponse.data.push(rowData);
       } else {
         // We have previous data on this location. Update it.
         reportResponse.data[locationIndices[locationName]][reportDate] =
-          report.metaData.numberOfAdults;
+          report.metaData[metadataKey];
         let numberOfDateEntries: number =
           Object.keys(reportResponse.data[locationIndices[locationName]])
             .length - 2;
         let locationAverage: number =
           (reportResponse.data[locationIndices[locationName]].average +=
-            report.metaData.numberOfAdults) / numberOfDateEntries;
+            report.metaData[metadataKey]) / numberOfDateEntries;
         reportResponse.data[
           locationIndices[locationName]
         ].average = locationAverage;
       }
       dateReportTotals[reportDate] = dateReportTotals.hasOwnProperty(reportDate)
-        ? (dateReportTotals[reportDate] += report.metaData.numberOfAdults)
-        : report.metaData.numberOfAdults;
+        ? (dateReportTotals[reportDate] += report.metaData[metadataKey])
+        : report.metaData[metadataKey];
     });
     reportResponse.metadata.columns.push({
       name: "average",
