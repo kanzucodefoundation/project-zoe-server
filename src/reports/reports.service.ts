@@ -3,7 +3,6 @@ import GroupEvent from "src/events/entities/event.entity";
 import { Connection, Repository, FindConditions } from "typeorm";
 import { UserDto } from "src/auth/dto/user.dto";
 import { EventCategories } from "src/events/enums/EventCategories";
-import { lowerCaseRemoveSpaces } from "src/utils/stringHelpers";
 
 @Injectable()
 export class ReportsService {
@@ -28,6 +27,7 @@ export class ReportsService {
         columns: [],
       },
       data: [],
+      summaryStatistics: [],
     };
     const dbReports = await this.repository.find({
       select: ["name", "categoryId", "metaData", "id", "startDate"],
@@ -39,17 +39,53 @@ export class ReportsService {
       name: "location",
       label: "Location",
     });
-    for (const report of dbReports) {
-      let reportDateLabel = report.startDate.toISOString().split("T")[0];
-      let reportDate = reportDateLabel.replace(/-/g, ""); // Remove hyphens
-      let rowData = {
-        location: report.group.name,
-        [reportDate]: report.metaData.numberOfAdults,
-      };
-      reportResponse.data.push(rowData);
-      reportResponse.metaData.columns.push({
-        name: reportDate,
-        label: reportDateLabel,
+    reportResponse.summaryStatistics.push({
+      location: { value: "", details: {} },
+    });
+
+    let dateReportTotals = {};
+    let locationIndices = {}; // Save indices of locations in report.data
+    dbReports.forEach(function (report, currentLocationIndex) {
+      let reportDateLabel: string = report.startDate
+        .toISOString()
+        .split("T")[0];
+      let reportDate: string = reportDateLabel.replace(/-/g, ""); // Remove hyphens
+      let locationName: string = report.group.name;
+      let rowData = {};
+      if (!locationIndices.hasOwnProperty(locationName)) {
+        // We have no prior data on this location
+        locationIndices[locationName] = currentLocationIndex;
+        rowData = {
+          location: locationName,
+          [reportDate]: report.metaData.numberOfAdults,
+          average: report.metaData.numberOfAdults,
+        };
+        reportResponse.data.push(rowData);
+        reportResponse.metaData.columns.push({
+          name: reportDate,
+          label: reportDateLabel,
+        });
+      } else {
+        // We have previous data on this location. Update it.
+        reportResponse.data[locationIndices[locationName]][reportDate] =
+          report.metaData.numberOfAdults;
+        let numberOfDateEntries: number =
+          Object.keys(reportResponse.data[locationIndices[locationName]])
+            .length - 2;
+        let locationAverage: number =
+          (reportResponse.data[locationIndices[locationName]].average +=
+            report.metaData.numberOfAdults) / numberOfDateEntries;
+        reportResponse.data[
+          locationIndices[locationName]
+        ].average = locationAverage;
+      }
+      dateReportTotals[reportDate] = dateReportTotals.hasOwnProperty(reportDate)
+        ? (dateReportTotals[reportDate] += report.metaData.numberOfAdults)
+        : report.metaData.numberOfAdults;
+    });
+    for (const [reportDate, dateTotal] of Object.entries(dateReportTotals)) {
+      reportResponse.summaryStatistics.push({
+        [reportDate]: { value: dateTotal, details: {} },
       });
     }
     return reportResponse;
