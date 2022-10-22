@@ -22,7 +22,7 @@ export class ReportsService {
       // Nothing to see here
     }
     let reportResponse = {
-      metaData: {
+      metadata: {
         name: name,
         columns: [],
       },
@@ -35,7 +35,7 @@ export class ReportsService {
       where: filter,
     });
     // Service Attendance report info
-    reportResponse.metaData.columns.push({
+    reportResponse.metadata.columns.push({
       name: "location",
       label: "Location",
     });
@@ -45,13 +45,25 @@ export class ReportsService {
 
     let dateReportTotals = {};
     let locationIndices = {}; // Save indices of locations in report.data
+    let reportDateArray = []; // Tracks which dates we've added to the columns array
     dbReports.forEach(function (report, currentLocationIndex) {
       let reportDateLabel: string = report.startDate
         .toISOString()
         .split("T")[0];
-      let reportDate: string = reportDateLabel.replace(/-/g, ""); // Remove hyphens
+      let reportDate: string = report.startDate
+        .toDateString()
+        .replace(/ /g, ""); // Remove hyphens
       let locationName: string = report.group.name;
       let rowData = {};
+
+      if (!reportDateArray.includes(reportDate)) {
+        reportResponse.metadata.columns.push({
+          name: reportDate,
+          label: reportDateLabel,
+        });
+        reportDateArray.push(reportDate);
+      }
+
       if (!locationIndices.hasOwnProperty(locationName)) {
         // We have no prior data on this location
         locationIndices[locationName] = currentLocationIndex;
@@ -61,10 +73,6 @@ export class ReportsService {
           average: report.metaData.numberOfAdults,
         };
         reportResponse.data.push(rowData);
-        reportResponse.metaData.columns.push({
-          name: reportDate,
-          label: reportDateLabel,
-        });
       } else {
         // We have previous data on this location. Update it.
         reportResponse.data[locationIndices[locationName]][reportDate] =
@@ -82,6 +90,10 @@ export class ReportsService {
       dateReportTotals[reportDate] = dateReportTotals.hasOwnProperty(reportDate)
         ? (dateReportTotals[reportDate] += report.metaData.numberOfAdults)
         : report.metaData.numberOfAdults;
+    });
+    reportResponse.metadata.columns.push({
+      name: "average",
+      label: "Average",
     });
     for (const [reportDate, dateTotal] of Object.entries(dateReportTotals)) {
       reportResponse.summaryStatistics.push({
