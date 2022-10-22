@@ -1,24 +1,16 @@
-import { FieldType } from '../../events/entities/eventField.entity';
-
-export const eventsCategories = {
-  garage: 'garage',
-  evangelism: 'evangelism',
-  wedding: 'wedding',
-  baptism: 'baptism',
-  mc: 'mc',
-  frontier: 'frontier',
-};
+import { FieldType } from "../../events/entities/eventField.entity";
+import { EventCategories } from "src/events/enums/EventCategories";
 
 const baseReportFields = [
   {
-    label: 'Praise Report',
-    name: 'praiseReport',
+    label: "Praise Report",
+    name: "praiseReport",
     type: FieldType.Text,
     isRequired: true,
   },
   {
-    label: 'Challenges',
-    name: 'challenges',
+    label: "Challenges",
+    name: "challenges",
     type: FieldType.Text,
     isRequired: true,
   },
@@ -26,8 +18,8 @@ const baseReportFields = [
 
 const reportFields = [
   {
-    label: 'No. of Salvation',
-    name: 'noOfSalvations',
+    label: "No. of Salvation",
+    name: "noOfSalvations",
     type: FieldType.Number,
     isRequired: true,
   },
@@ -35,37 +27,37 @@ const reportFields = [
 ];
 const categories: any[] = [
   {
-    id: eventsCategories.garage,
-    name: 'Garage',
+    id: EventCategories.Garage,
+    name: "Garage",
     events: [],
     fields: [
       {
-        label: 'No. of Adults',
-        name: 'numberOfAdults',
+        label: "No. of Adults",
+        name: "numberOfAdults",
         type: FieldType.Number,
         isRequired: true,
       },
       {
-        label: 'No. of Children',
-        name: 'numberOfChildren',
+        label: "No. of Children",
+        name: "numberOfChildren",
         type: FieldType.Number,
         isRequired: true,
       },
       {
-        label: 'No. of Teens',
-        name: 'numberOfTeens',
+        label: "No. of Teens",
+        name: "numberOfTeens",
         type: FieldType.Number,
         isRequired: true,
       },
       {
-        label: 'Total Giving',
-        name: 'totalGiving',
+        label: "Total Giving",
+        name: "totalGiving",
         type: FieldType.Number,
         isRequired: true,
       },
       {
-        label: 'No. of Mechanics',
-        name: 'noOfMechanics',
+        label: "No. of Mechanics",
+        name: "noOfMechanics",
         type: FieldType.Number,
         isRequired: true,
       },
@@ -73,33 +65,19 @@ const categories: any[] = [
     ],
   },
   {
-    id: eventsCategories.mc,
-    name: 'MC Meeting',
+    id: EventCategories.MC,
+    name: "MC Meeting",
     events: [],
     fields: [
       {
-        label: 'No. of children',
-        name: 'numberOfChildren',
+        label: "No. of children",
+        name: "numberOfChildren",
         type: FieldType.Number,
         isRequired: true,
       },
       {
-        label: 'No. of Guests',
-        name: 'numberOfGuests',
-        type: FieldType.Number,
-        isRequired: true,
-      },
-      ...reportFields,
-    ],
-  },
-  {
-    id: eventsCategories.frontier,
-    name: 'Frontier',
-    events: [],
-    fields: [
-      {
-        label: 'Total Cost',
-        name: 'totalCost',
+        label: "No. of Guests",
+        name: "numberOfGuests",
         type: FieldType.Number,
         isRequired: true,
       },
@@ -107,13 +85,27 @@ const categories: any[] = [
     ],
   },
   {
-    id: eventsCategories.baptism,
-    name: 'Baptism',
+    id: EventCategories.Frontier,
+    name: "Frontier",
     events: [],
     fields: [
       {
-        label: 'No. of Baptisms',
-        name: 'noOfBaptisms',
+        label: "Total Cost",
+        name: "totalCost",
+        type: FieldType.Number,
+        isRequired: true,
+      },
+      ...reportFields,
+    ],
+  },
+  {
+    id: EventCategories.Baptism,
+    name: "Baptism",
+    events: [],
+    fields: [
+      {
+        label: "No. of Baptisms",
+        name: "noOfBaptisms",
         type: FieldType.Number,
         isRequired: true,
       },
@@ -121,13 +113,13 @@ const categories: any[] = [
     ],
   },
   {
-    id: eventsCategories.evangelism,
-    name: 'Evangelism',
+    id: EventCategories.Evangelism,
+    name: "Evangelism",
     events: [],
     fields: [
       {
-        label: 'Re-commitments',
-        name: 'noOfRecommitments',
+        label: "Re-commitments",
+        name: "noOfRecommitments",
         type: FieldType.Number,
         isRequired: true,
       },
@@ -135,13 +127,13 @@ const categories: any[] = [
     ],
   },
   {
-    id: eventsCategories.wedding,
-    name: 'Wedding',
+    id: EventCategories.Wedding,
+    name: "Wedding",
     events: [],
     fields: [
       {
-        label: 'No. of Weddings',
-        name: 'noOfWeddings',
+        label: "No. of Weddings",
+        name: "noOfWeddings",
         type: FieldType.Number,
         isRequired: true,
       },
