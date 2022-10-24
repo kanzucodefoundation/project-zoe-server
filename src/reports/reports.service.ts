@@ -24,6 +24,10 @@ export class ReportsService {
         filter.categoryId = EventCategories.MC;
         metadataKey = "numberOfGuests";
         break;
+      case "salvations":
+        filter.categoryId = EventCategories.Evangelism;
+        metadataKey = "noOfRecommitments";
+        break;
       default:
       // Nothing to see here
     }
