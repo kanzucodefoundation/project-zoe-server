@@ -1,4 +1,4 @@
-import { HttpModule, Module, MiddlewareConsumer } from "@nestjs/common";
+import { HttpModule, Module } from "@nestjs/common";
 import { GroupsService } from "./services/groups.service";
 import { GroupCategoriesService } from "./services/group-categories.service";
 import { GroupController } from "./controllers/group.controller";
@@ -19,8 +19,10 @@ import { GroupMissingReportsService } from "./services/group-missing-reports.ser
 import { GroupReportsController } from "./controllers/group-reports.controller";
 import { GroupReportFrequencyController } from "./controllers/group-frequency.controller";
 import { GroupCategoryComboController } from "./controllers/group-category-combo.controller";
-import { nameTenantHeaderMiddleware } from "src/middleware/nameTenantHeader.middleware";
 import { AddressesService } from "src/crm/addresses.service";
+import { GroupPermissionsService } from "./services/group-permissions.service";
+import { nameTenantHeaderMiddleware } from "src/middleware/nameTenantHeader.middleware";
+import { MiddlewareConsumer } from "@nestjs/common";
 
 @Module({
   imports: [
@@ -39,6 +41,7 @@ import { AddressesService } from "src/crm/addresses.service";
     PrismaService,
     EventsService,
     GroupMissingReportsService,
+    GroupPermissionsService,
   ],
   controllers: [
     GroupController,
@@ -50,7 +53,7 @@ import { AddressesService } from "src/crm/addresses.service";
     GroupReportFrequencyController,
     GroupCategoryComboController,
   ],
-  exports: [GroupsService, GroupCategoriesService],
+  exports: [GroupsService, GroupCategoriesService, GroupPermissionsService],
 })
 export class GroupsModule {
   configure(consumer: MiddlewareConsumer) {
