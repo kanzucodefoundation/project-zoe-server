@@ -1,8 +1,7 @@
-import { groupConstants } from './groups';
-import { eventsCategories } from './eventCategories';
-import { GroupCategoryReportFrequency } from 'src/groups/enums/groupCategoryReportFrequency ';
-import CrGroupCatReportDto from 'src/groups/dto/create-group-category-report.dto';
-
+import { groupConstants } from "./groups";
+import { GroupCategoryReportFrequency } from "src/groups/enums/groupCategoryReportFrequency ";
+import CrGroupCatReportDto from "src/groups/dto/create-group-category-report.dto";
+import { EventCategories } from "src/events/enums/EventCategories";
 
 const seedGrReportCategory: CrGroupCatReportDto[] = [];
 
@@ -15,17 +14,17 @@ function seedGroupReportCategories(): CrGroupCatReportDto[] {
       ) {
         seedGrReportCategory.push({
           groupCategoryId: groupConstants.mc,
-          eventCategoryId: eventsCategories.mc,
+          eventCategoryId: EventCategories.MC,
           frequency: freq,
         });
         seedGrReportCategory.push({
           groupCategoryId: groupConstants.mc,
-          eventCategoryId: eventsCategories.garage,
+          eventCategoryId: EventCategories.Garage,
           frequency: freq,
         });
         seedGrReportCategory.push({
           groupCategoryId: groupConstants.mc,
-          eventCategoryId: eventsCategories.evangelism,
+          eventCategoryId: EventCategories.Evangelism,
           frequency: freq,
         });
       }
@@ -35,22 +34,22 @@ function seedGroupReportCategories(): CrGroupCatReportDto[] {
       ) {
         seedGrReportCategory.push({
           groupCategoryId: groupConstants.mc,
-          eventCategoryId: eventsCategories.wedding,
+          eventCategoryId: EventCategories.Wedding,
           frequency: freq,
         });
         seedGrReportCategory.push({
           groupCategoryId: groupConstants.mc,
-          eventCategoryId: eventsCategories.baptism,
+          eventCategoryId: EventCategories.Baptism,
           frequency: freq,
         });
         seedGrReportCategory.push({
           groupCategoryId: groupConstants.mc,
-          eventCategoryId: eventsCategories.frontier,
+          eventCategoryId: EventCategories.Frontier,
           frequency: freq,
         });
       }
     }
-    if (groupConstants.location === 'Location') {
+    if (groupConstants.location === "Location") {
       for (const freq in GroupCategoryReportFrequency) {
         if (
           freq === GroupCategoryReportFrequency.Weekly &&
@@ -58,12 +57,12 @@ function seedGroupReportCategories(): CrGroupCatReportDto[] {
         ) {
           seedGrReportCategory.push({
             groupCategoryId: groupConstants.location,
-            eventCategoryId: eventsCategories.mc,
+            eventCategoryId: EventCategories.MC,
             frequency: freq,
           });
           seedGrReportCategory.push({
             groupCategoryId: groupConstants.location,
-            eventCategoryId: eventsCategories.garage,
+            eventCategoryId: EventCategories.Garage,
             frequency: freq,
           });
         }
@@ -73,17 +72,17 @@ function seedGroupReportCategories(): CrGroupCatReportDto[] {
         ) {
           seedGrReportCategory.push({
             groupCategoryId: groupConstants.location,
-            eventCategoryId: eventsCategories.wedding,
+            eventCategoryId: EventCategories.Wedding,
             frequency: freq,
           });
           seedGrReportCategory.push({
             groupCategoryId: groupConstants.location,
-            eventCategoryId: eventsCategories.baptism,
+            eventCategoryId: EventCategories.Baptism,
             frequency: freq,
           });
           seedGrReportCategory.push({
             groupCategoryId: groupConstants.location,
-            eventCategoryId: eventsCategories.frontier,
+            eventCategoryId: EventCategories.Frontier,
             frequency: freq,
           });
         }
