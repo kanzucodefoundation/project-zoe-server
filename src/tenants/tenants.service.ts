@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 import { DbService } from "src/shared/db.service";
 import { Tenant } from "./entities/tenant.entity";
 import { TenantDto } from "./dto/tenant.dto";
@@ -23,7 +23,10 @@ export class TenantsService {
 
   async seed(tenantData: TenantDto): Promise<string> {
     if (tenantData.seed) {
+      Logger.log("seeding database");
       await this.seedService.createAll();
+    } else {
+      Logger.log("skip seeding database");
     }
     return "Successfully seeded the tenant";
   }

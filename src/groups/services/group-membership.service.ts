@@ -11,7 +11,6 @@ import BatchGroupMembershipDto from "../dto/membership/batch-group-membership.dt
 import { QueryDeepPartialEntity } from "typeorm/query-builder/QueryPartialEntity";
 import { hasNoValue, hasValue } from "../../utils/validation";
 import Group from "../entities/group.entity";
-import { groupConstants } from "../../seed/data/groups";
 
 @Injectable()
 export class GroupsMembershipService {
