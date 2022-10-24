@@ -18,7 +18,6 @@ const connectionFactory = {
   provide: "CONNECTION",
   scope: Scope.REQUEST,
   useFactory: async (req: any, dbservice: DbService) => {
-    console.log("req.headers", req.headers);
     const tenantName = req.headers[TENANT_HEADER];
     const connectionPublic = await dbservice.getConnection();
     const isCreatingNewTenant =
