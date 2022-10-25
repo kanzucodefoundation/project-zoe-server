@@ -1,16 +1,18 @@
-import { GroupPrivacy } from '../../groups/enums/groupPrivacy';
-import GroupCategory from '../../groups/entities/groupCategory.entity';
-import CreateGroupDto from '../../groups/dto/create-group.dto';
-import { mcData } from './mclist';
+import { GroupPrivacy } from "../../groups/enums/groupPrivacy";
+import GroupCategory from "../../groups/entities/groupCategory.entity";
+import CreateGroupDto from "../../groups/dto/create-group.dto";
+import { mcData } from "./mclist";
+import { GroupCategoryNames } from "src/groups/enums/groups";
 
 export const groupConstants = {
-  mc: 'MC',
-  cluster: 'Cluster',
-  location: 'Location',
-  zone: 'Zone',
-  cohort: 'Cohort',
-  huddle: 'Huddle',
-  garageTeam: 'GarageTeam',
+  mc: GroupCategoryNames.MC,
+  cluster: GroupCategoryNames.CLUSTER,
+  location: GroupCategoryNames.LOCATION,
+  zone: GroupCategoryNames.ZONE,
+  cohort: GroupCategoryNames.COHORT,
+  network: GroupCategoryNames.NETWORK,
+  huddle: GroupCategoryNames.HUDDLE,
+  garageTeam: GroupCategoryNames.GARAGETEAM,
 };
 
 const createLocation = ({
@@ -28,7 +30,7 @@ const createLocation = ({
     privacy: GroupPrivacy.Public,
     details: details,
     name: name,
-    categoryId: groupConstants.location,
+    categoryId: GroupCategoryNames.LOCATION,
   };
 };
 
@@ -44,40 +46,45 @@ export const createMc = ({
     privacy: GroupPrivacy.Public,
     details: details,
     name: name,
-    categoryId: groupConstants.mc,
+    categoryId: GroupCategoryNames.MC,
     metaData,
   };
 };
 
 export const seedGroupCategories: GroupCategory[] = [
   {
-    id: groupConstants.cluster,
-    name: 'Cluster',
+    id: GroupCategoryNames.NETWORK,
+    name: "Network",
     groups: [],
   },
   {
-    id: groupConstants.location,
-    name: 'Church Location',
+    id: GroupCategoryNames.CLUSTER,
+    name: "Cluster",
     groups: [],
   },
   {
-    id: groupConstants.cohort,
-    name: 'Cohort',
+    id: GroupCategoryNames.LOCATION,
+    name: "Church Location",
     groups: [],
   },
   {
-    id: groupConstants.mc,
-    name: 'Missional Community',
+    id: GroupCategoryNames.COHORT,
+    name: "Cohort",
     groups: [],
   },
   {
-    id: groupConstants.huddle,
-    name: 'Huddle',
+    id: GroupCategoryNames.MC,
+    name: "Missional Community",
     groups: [],
   },
   {
-    id: 'GarageTeam',
-    name: 'GarageTeam',
+    id: GroupCategoryNames.HUDDLE,
+    name: "Huddle",
+    groups: [],
+  },
+  {
+    id: GroupCategoryNames.GARAGETEAM,
+    name: "GarageTeam",
     groups: [],
   },
 ];

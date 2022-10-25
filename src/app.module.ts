@@ -69,7 +69,7 @@ export class AppModule {
         "api/tenants/seed",
         "api/auth/login",
         "api/auth/forgot-password",
-        "api/groups/combo",
+        "api/groups/combo/locations",
         "api/auth/reset-password/:token",
         "api/register",
       )

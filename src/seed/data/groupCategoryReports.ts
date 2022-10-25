@@ -2,6 +2,7 @@ import { groupConstants } from "./groups";
 import { GroupCategoryReportFrequency } from "src/groups/enums/groupCategoryReportFrequency ";
 import CrGroupCatReportDto from "src/groups/dto/create-group-category-report.dto";
 import { EventCategories } from "src/events/enums/EventCategories";
+import { GroupCategoryNames } from "src/groups/enums/groups";
 
 const seedGrReportCategory: CrGroupCatReportDto[] = [];
 
@@ -10,40 +11,40 @@ function seedGroupReportCategories(): CrGroupCatReportDto[] {
     for (const freq in GroupCategoryReportFrequency) {
       if (
         freq === GroupCategoryReportFrequency.Weekly &&
-        groupConstants[group] === groupConstants.mc
+        groupConstants[group] === GroupCategoryNames.MC
       ) {
         seedGrReportCategory.push({
-          groupCategoryId: groupConstants.mc,
+          groupCategoryId: GroupCategoryNames.MC,
           eventCategoryId: EventCategories.MC,
           frequency: freq,
         });
         seedGrReportCategory.push({
-          groupCategoryId: groupConstants.mc,
+          groupCategoryId: GroupCategoryNames.MC,
           eventCategoryId: EventCategories.Garage,
           frequency: freq,
         });
         seedGrReportCategory.push({
-          groupCategoryId: groupConstants.mc,
+          groupCategoryId: GroupCategoryNames.MC,
           eventCategoryId: EventCategories.Evangelism,
           frequency: freq,
         });
       }
       if (
         freq === GroupCategoryReportFrequency.Monthly &&
-        groupConstants[group] === groupConstants.mc
+        groupConstants[group] === GroupCategoryNames.MC
       ) {
         seedGrReportCategory.push({
-          groupCategoryId: groupConstants.mc,
+          groupCategoryId: GroupCategoryNames.MC,
           eventCategoryId: EventCategories.Wedding,
           frequency: freq,
         });
         seedGrReportCategory.push({
-          groupCategoryId: groupConstants.mc,
+          groupCategoryId: GroupCategoryNames.MC,
           eventCategoryId: EventCategories.Baptism,
           frequency: freq,
         });
         seedGrReportCategory.push({
-          groupCategoryId: groupConstants.mc,
+          groupCategoryId: GroupCategoryNames.MC,
           eventCategoryId: EventCategories.Frontier,
           frequency: freq,
         });

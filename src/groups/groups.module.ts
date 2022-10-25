@@ -57,6 +57,8 @@ import { MiddlewareConsumer } from "@nestjs/common";
 })
 export class GroupsModule {
   configure(consumer: MiddlewareConsumer) {
-    consumer.apply(nameTenantHeaderMiddleware).forRoutes("api/groups/combo");
+    consumer
+      .apply(nameTenantHeaderMiddleware)
+      .forRoutes("api/groups/combo/locations");
   }
 }
