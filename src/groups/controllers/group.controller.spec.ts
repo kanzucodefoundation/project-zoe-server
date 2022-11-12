@@ -7,6 +7,26 @@ describe('GroupController', () => {
     let controller: GroupController;
 
     const mockGroupService = {
+        findAll: jest.fn((req) => {
+            return [
+                {
+                    id: Date.now(),
+                    privacy: "Public",
+                    name: "Group A",
+                    details: "Details of Group A",
+                    categoryId: "A Category",
+                    category: {
+                        id: "A Category",
+                        name: "A Category"
+                    },
+                    parentId: Date.now(),
+                    parent: {
+                        id: Date.now(),
+                        name: "Parent A"
+                    }
+                },
+            ]
+        }),
         update: jest.fn((dto) => {
             return {
                 id: dto.id,
@@ -42,6 +62,30 @@ describe('GroupController', () => {
     it('should be defined', () => {
         expect(controller).toBeDefined();
     })
+
+    it('should display a list of public groups', async () => {
+
+        const expectedObj = {
+            id: expect.any(Number),
+            privacy: expect.any(String),
+            name: expect.any(String),
+            details: expect.any(String),
+            categoryId: expect.any(String),
+            category: { 
+                id: expect.any(String),
+                name: expect.any(String)
+            },
+            parentId: expect.any(Number),
+            parent: { 
+                id: expect.any(Number),
+                name: expect.any(String)
+            },
+        }
+        const req = {};
+        const result = await controller.findAll(req);
+        result.forEach((it) => {
+            expect(it).toMatchObject(expectedObj)
+        })
 
     it('should update a team/group', async () => {
         const dto = {
