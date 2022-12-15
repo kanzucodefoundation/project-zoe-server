@@ -72,32 +72,35 @@ export class ContactImportController {
     const { list } = parsedData;
     const created = [];
     const notCreated = [];
-    for (const uploadedContact of list) {
-      //try{
-      const contactModel = parseContact(uploadedContact);
-      if (contactModel) {
-        contactModel["residence"] = {
-          category: AddressCategory.Home,
-          isPrimary: true,
-          country: uploadedContact.country,
-          district: uploadedContact.district,
-          freeForm: uploadedContact.address,
-        };
-        const newPerson = await this.service.createPerson(contactModel);
-        const newPersonsGroup = {
-          groupId: uploadedContact.groupid,
-          members: [newPerson.id],
-          role: GroupRole.Member,
-        };
-        await this.groupMembershipService.create(newPersonsGroup);
-        created.push(newPerson);
+    for (const [index, uploadedContact] of list.entries()) {
+      try {
+        const contactModel = parseContact(uploadedContact);
+        if (contactModel) {
+          contactModel["residence"] = {
+            category: AddressCategory.Home,
+            isPrimary: true,
+            country: uploadedContact.country,
+            district: uploadedContact.district,
+            freeForm: uploadedContact.address,
+          };
+          const newPerson = await this.service.createPerson(contactModel);
+          const newPersonsGroup = {
+            groupId: uploadedContact.groupid,
+            members: [newPerson.id],
+            role: GroupRole.Member,
+          };
+          await this.groupMembershipService.create(newPersonsGroup);
+          created.push(newPerson);
+        }
+      } catch (err) {
+        notCreated.push(uploadedContact);
+        Logger.error(
+          `Contact ${uploadedContact.name} at position ${index + 1} out of ${
+            list.length - 1
+          } contacts not created. Error message: ${err.message}`,
+        );
+        break; // End the loop
       }
-      //}catch(err){
-      //  notCreated.push(uploadedContact.name)
-      //  console.log('we are here')
-      //  console.log(notCreated)
-      //  Logger.error(err.message);
-      //}
     }
     return created.map((it) => it.id);
   }
