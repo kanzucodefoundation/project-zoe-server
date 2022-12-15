@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Logger,
   Res,
   UploadedFile,
   UseGuards,
@@ -70,25 +71,33 @@ export class ContactImportController {
     );
     const { list } = parsedData;
     const created = [];
-    for (const it of list) {
-      const model = parseContact(it);
-      if (model) {
-        model["residence"] = {
+    const notCreated = [];
+    for (const uploadedContact of list) {
+      //try{
+      const contactModel = parseContact(uploadedContact);
+      if (contactModel) {
+        contactModel["residence"] = {
           category: AddressCategory.Home,
           isPrimary: true,
-          country: it.country,
-          district: it.district,
-          freeForm: it.address,
+          country: uploadedContact.country,
+          district: uploadedContact.district,
+          freeForm: uploadedContact.address,
         };
-        const newPerson = await this.service.createPerson(model);
+        const newPerson = await this.service.createPerson(contactModel);
         const newPersonsGroup = {
-          groupId: it.groupid,
+          groupId: uploadedContact.groupid,
           members: [newPerson.id],
           role: GroupRole.Member,
         };
         await this.groupMembershipService.create(newPersonsGroup);
         created.push(newPerson);
       }
+      //}catch(err){
+      //  notCreated.push(uploadedContact.name)
+      //  console.log('we are here')
+      //  console.log(notCreated)
+      //  Logger.error(err.message);
+      //}
     }
     return created.map((it) => it.id);
   }
