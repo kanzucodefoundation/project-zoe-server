@@ -1,5 +1,6 @@
 import {
   Controller,
+  BadRequestException,
   Get,
   Post,
   Logger,
@@ -94,12 +95,15 @@ export class ContactImportController {
         }
       } catch (err) {
         notCreated.push(uploadedContact);
-        Logger.error(
-          `Contact ${uploadedContact.name} at position ${index + 1} out of ${
-            list.length - 1
-          } contacts not created. Error message: ${err.message}`,
-        );
-        break; // End the loop
+        const userErrorMessage = `Contact ${uploadedContact.name} at position ${
+          index + 1
+        } out of ${list.length - 1} contacts not created. Error message: ${
+          err.message
+        }`;
+        Logger.error(userErrorMessage);
+        throw new BadRequestException({
+          message: `${userErrorMessage}. Every contact from this one onwards has not been created. Fix this error, remove the contacts before this one and re-upload.`,
+        });
       }
     }
     return created.map((it) => it.id);
