@@ -50,16 +50,21 @@ export const parseGender = (value?: string): Gender | null => {
   }
 };
 
-export const parseDateOfBirth = (name?: string): string | null => {
+export const parseDateOfBirth = (dateOfBirthRaw?: string): string | null => {
   try {
     const dateFormats = ["dd/MM/yyyy", "dd/MMM/yyyy", "dd/MMMM/yyyy"];
-    const cleanData = removeEmptySpaces(name);
-    const dateString = `${cleanData}/1900`;
-    const dateRef = new Date(1900, 1, 1, 12, 0, 0);
+    const dateOfBirthArray = removeEmptySpaces(dateOfBirthRaw).split(/[\s-]+/); // Split on space & hyphen
+    if (/st|nd|rd|th/.test(dateOfBirthArray[0])) {
+      // Support ordinal numbers, e.g. 1st, 2nd
+      dateOfBirthArray[0] = dateOfBirthArray[0].replace(/st|nd|rd|th/gi, "");
+    }
+    const formattedDayMonth = dateOfBirthArray.join("/");
+    const dateString = `${formattedDayMonth}/1900`;
+    const referenceDate = new Date(1900, 1, 1, 12, 0, 0);
     let dateOfBirth = null;
     for (const dateFormat of dateFormats) {
       try {
-        dateOfBirth = parse(dateString, dateFormat, dateRef);
+        dateOfBirth = parse(dateString, dateFormat, referenceDate);
         if (isValid(dateOfBirth)) break;
       } catch (e) {}
     }
