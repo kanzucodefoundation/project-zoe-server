@@ -140,6 +140,9 @@ export class GroupsService {
     const data = await this.treeRepository.findOne(id, {
       relations: ["category", "parent"],
     });
+    if (!data) {
+      return null;
+    }
     Logger.log(`Read.Group success id:${id}`);
     if (full) {
       Logger.log(`Read.Group loading full scope id:${id}`);

@@ -225,13 +225,13 @@ export class ContactsService {
 
   async createPerson(createPersonDto: CreatePersonDto): Promise<Contact> {
     //First check if email address exists
-    const checkEmailExist = await this.emailRepository.find({
+    const emailData = await this.emailRepository.find({
       where: [{ value: createPersonDto.email }],
     });
-    if (checkEmailExist.length > 0) {
+    if (emailData.length > 0) {
       throw new BadRequestException({
         message:
-          "Email already exists. It is possible that you are already registered",
+          "Email already exists. This email has already been registered.",
       });
     }
 

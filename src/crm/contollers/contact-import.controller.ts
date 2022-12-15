@@ -24,6 +24,7 @@ import { SentryInterceptor } from "src/utils/sentry.interceptor";
 import { GroupsMembershipService } from "src/groups/services/group-membership.service";
 import { GroupRole } from "src/groups/enums/groupRole";
 import { AddressCategory } from "../enums/addressCategory";
+import { GroupsService } from "src/groups/services/groups.service";
 
 const Duplex = require("stream").Duplex; // core NodeJS API
 function bufferToStream(buffer) {
@@ -51,6 +52,7 @@ export class ContactImportController {
     private readonly service: ContactsService,
     private readonly csvParser: CsvParser,
     private readonly groupMembershipService: GroupsMembershipService,
+    private readonly groupsService: GroupsService,
   ) {
     this.companyRepository = connection.getRepository(Company);
   }
@@ -84,6 +86,17 @@ export class ContactImportController {
             district: uploadedContact.district,
             freeForm: uploadedContact.address,
           };
+
+          const groupData = await this.groupsService.findOne(
+            uploadedContact.groupid,
+            false,
+          );
+          if (!groupData) {
+            throw new BadRequestException({
+              message: `Specified Group with ID ${uploadedContact.groupid} does not exist. Please specify a valid group ID.`,
+            });
+          }
+
           const newPerson = await this.service.createPerson(contactModel);
           const newPersonsGroup = {
             groupId: uploadedContact.groupid,

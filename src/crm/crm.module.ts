@@ -22,6 +22,8 @@ import { PhonesService } from "./phones.service";
 import { AddressesService } from "./addresses.service";
 import { nameTenantHeaderMiddleware } from "src/middleware/nameTenantHeader.middleware";
 import { GroupsMembershipService } from "src/groups/services/group-membership.service";
+import { GroupsService } from "src/groups/services/groups.service";
+import { GroupPermissionsService } from "src/groups/services/group-permissions.service";
 
 @Global()
 @Module({
@@ -31,6 +33,8 @@ import { GroupsMembershipService } from "src/groups/services/group-membership.se
     GoogleService,
     PrismaService,
     GroupsMembershipService,
+    GroupsService,
+    GroupPermissionsService,
     GroupFinderService,
     PhonesService,
     AddressesService,
