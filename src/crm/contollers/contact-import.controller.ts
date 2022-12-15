@@ -1,7 +1,9 @@
 import {
   Controller,
+  BadRequestException,
   Get,
   Post,
+  Logger,
   Res,
   UploadedFile,
   UseGuards,
@@ -22,6 +24,7 @@ import { SentryInterceptor } from "src/utils/sentry.interceptor";
 import { GroupsMembershipService } from "src/groups/services/group-membership.service";
 import { GroupRole } from "src/groups/enums/groupRole";
 import { AddressCategory } from "../enums/addressCategory";
+import { GroupsService } from "src/groups/services/groups.service";
 
 const Duplex = require("stream").Duplex; // core NodeJS API
 function bufferToStream(buffer) {
@@ -49,6 +52,7 @@ export class ContactImportController {
     private readonly service: ContactsService,
     private readonly csvParser: CsvParser,
     private readonly groupMembershipService: GroupsMembershipService,
+    private readonly groupsService: GroupsService,
   ) {
     this.companyRepository = connection.getRepository(Company);
   }
@@ -70,24 +74,49 @@ export class ContactImportController {
     );
     const { list } = parsedData;
     const created = [];
-    for (const it of list) {
-      const model = parseContact(it);
-      if (model) {
-        model["residence"] = {
-          category: AddressCategory.Home,
-          isPrimary: true,
-          country: it.country,
-          district: it.district,
-          freeForm: it.address,
-        };
-        const newPerson = await this.service.createPerson(model);
-        const newPersonsGroup = {
-          groupId: it.groupid,
-          members: [newPerson.id],
-          role: GroupRole.Member,
-        };
-        await this.groupMembershipService.create(newPersonsGroup);
-        created.push(newPerson);
+    const notCreated = [];
+    for (const [index, uploadedContact] of list.entries()) {
+      try {
+        const contactModel = parseContact(uploadedContact);
+        if (contactModel) {
+          contactModel["residence"] = {
+            category: AddressCategory.Home,
+            isPrimary: true,
+            country: uploadedContact.country,
+            district: uploadedContact.district,
+            freeForm: uploadedContact.address,
+          };
+
+          const groupData = await this.groupsService.findOne(
+            uploadedContact.groupid,
+            false,
+          );
+          if (!groupData) {
+            throw new BadRequestException({
+              message: `Specified Group with ID ${uploadedContact.groupid} does not exist. Please specify a valid group ID.`,
+            });
+          }
+
+          const newPerson = await this.service.createPerson(contactModel);
+          const newPersonsGroup = {
+            groupId: uploadedContact.groupid,
+            members: [newPerson.id],
+            role: GroupRole.Member,
+          };
+          await this.groupMembershipService.create(newPersonsGroup);
+          created.push(newPerson);
+        }
+      } catch (err) {
+        notCreated.push(uploadedContact);
+        const userErrorMessage = `Contact ${uploadedContact.name} at position ${
+          index + 1
+        } out of ${list.length - 1} contacts not created. Error message: ${
+          err.message
+        }`;
+        Logger.error(userErrorMessage);
+        throw new BadRequestException({
+          message: `${userErrorMessage}. Every contact from this one onwards has not been created. Fix this error, remove the contacts before this one and re-upload.`,
+        });
       }
     }
     return created.map((it) => it.id);
