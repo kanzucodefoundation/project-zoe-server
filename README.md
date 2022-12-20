@@ -16,11 +16,13 @@ This repo holds the Project Zoe church relationship management system (RMS) serv
 
     > `git checkout develop`
 
-3. Install dependencies with npm version 6.14.5:
+3. Temporarily change `binaryTargets = ["debian-openssl-1.1.x"]` to `binaryTargets = ["native"]` in `prisma/schema.prisma`
+
+4. Install dependencies with npm version 6.14.5:
 
     > `npx npm@6.14.5 install`
 
-4. Create a `.env` file based on the `.env.sample`.
+5. Create a `.env` file based on the `.env.sample`.
 
     Set these environment variables in the `env` file as follows 
 
@@ -32,11 +34,13 @@ This repo holds the Project Zoe church relationship management system (RMS) serv
 
     > `DB_DATABASE=projectzoe-db`
 
-5. Go ahead and manually create an new postgreSQL database called: `projectzoe-db`
+6. Go ahead and manually create an new postgreSQL database called: `projectzoe-db`
 
-6. Finally, spin up the project with:
+7. Finally, spin up the project with:
 
     > `npm run start:dev`
+
+8. Revert the changes in `prisma/schema.prisma`. Change `binaryTargets = ["native"]` to `binaryTargets = ["debian-openssl-1.1.x"]`
 
 **Please Note:** 
 - If you don't have `node.js` installed, check out this guide https://nodejs.org/en/
