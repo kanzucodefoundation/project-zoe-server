@@ -62,8 +62,7 @@ openssl base64 -A -in .env -out .env.prod.encrypted
 
 We then get the contents of `.env.prod.encrypted` and add them as a Github Action variable called `PROD_ENV_FILE`
 
-ERRORS:
-@TODO Temporarily disabled `"postinstall": "prisma generate"` in `package.json`. Github Action Error: `Error: Unknown binaryTarget debian-openssl-3.0.x and no custom binaries were provided`
+
 
 
 
