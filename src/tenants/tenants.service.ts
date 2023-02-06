@@ -4,30 +4,22 @@ import { Tenant } from "./entities/tenant.entity";
 import { TenantDto } from "./dto/tenant.dto";
 import { SeedService } from "src/seed/seed.service";
 import { lowerCaseRemoveSpaces } from "src/utils/stringHelpers";
+import { Db } from "typeorm";
+import { Connection } from "typeorm";
+import { UsersService } from "src/users/users.service";
 
 @Injectable()
 export class TenantsService {
-  constructor(
-    private readonly dbService: DbService,
-    private readonly seedService: SeedService,
-  ) {}
-
-  async create(tenantData: TenantDto): Promise<Tenant> {
-    // The creation is done in the middleware
+  async create(
+    tenantData: TenantDto,
+    dbService: DbService,
+    seedService: SeedService,
+    usersService: UsersService,
+  ): Promise<Tenant> {
     const tenantName = lowerCaseRemoveSpaces(tenantData.name);
-    const connectionPublic = await this.dbService.getConnection();
-    return await connectionPublic
-      .getRepository(Tenant)
-      .findOne({ name: tenantName });
-  }
-
-  async seed(tenantData: TenantDto): Promise<string> {
-    if (tenantData.seed) {
-      Logger.log("seeding database");
-      await this.seedService.createAll();
-    } else {
-      Logger.log("skip seeding database");
-    }
-    return "Successfully seeded the tenant";
+    const tenantDetails = await dbService.createTenant({ name: tenantName });
+    const connection: Connection = await dbService.getConnection(tenantName);
+    await seedService.createAll(connection, usersService);
+    return tenantDetails;
   }
 }

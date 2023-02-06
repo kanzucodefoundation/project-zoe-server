@@ -26,7 +26,8 @@
     "cm": "cz",
     "pre-commit": "npm test",
     "prepare": "husky install",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "execute": "ts-node ./src/console.ts"
   },
   "dependencies": {
     "@nestjs/common": "^7.6.13",
