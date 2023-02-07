@@ -42,6 +42,11 @@ This repo holds the Project Zoe church relationship management system (RMS) serv
 
 8. Revert the changes in `prisma/schema.prisma`. Change `binaryTargets = ["native"]` to `binaryTargets = ["debian-openssl-1.1.x"]`
 
+9. Create and seed data for a new tenant by running:
+    > `npm run command create-tenant demo `
+
+This will create a tenant named `demo`. You can login to that tenant using the credentials found in `src/seed/data/users.ts`
+
 **Please Note:** 
 - If you don't have `node.js` installed, check out this guide https://nodejs.org/en/
 - This repo works with the client at https://github.com/kanzucodefoundation/project-zoe-client so be sure to set that up too.

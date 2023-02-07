@@ -65,8 +65,6 @@ export class AppModule {
     consumer
       .apply(JwtTenantHeaderMiddleware)
       .exclude(
-        "api/tenants",
-        "api/tenants/seed",
         "api/auth/login",
         "api/auth/forgot-password",
         "api/groups/combo/locations",

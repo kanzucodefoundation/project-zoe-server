@@ -1,17 +1,9 @@
-import {
-  Module,
-  Scope,
-  Global,
-  BadRequestException,
-  MiddlewareConsumer,
-} from "@nestjs/common";
+import { Module, Scope, Global, BadRequestException } from "@nestjs/common";
 import { REQUEST } from "@nestjs/core";
-import { TenantsController } from "./tenants.controller";
 import { TenantsService } from "./tenants.service";
 import { DbService } from "src/shared/db.service";
 import { SeedModule } from "src/seed/seed.module";
 import { Tenant } from "./entities/tenant.entity";
-import { nameTenantHeaderMiddleware } from "src/middleware/nameTenantHeader.middleware";
 import { TENANT_HEADER } from "../constants";
 import { UsersModule } from "src/users/users.module";
 
@@ -21,18 +13,7 @@ const connectionFactory = {
   useFactory: async (req: any, dbservice: DbService) => {
     const tenantName = req.headers[TENANT_HEADER];
     const connectionPublic = await dbservice.getConnection();
-    const isCreatingNewTenant =
-      req.originalUrl == "/api/tenants" && req.method == "POST";
     let tenantDetails: Tenant;
-
-    if (isCreatingNewTenant) {
-      // @TODO Move this
-      tenantDetails = await dbservice.createTenant({ name: tenantName });
-    } else {
-      tenantDetails = await connectionPublic
-        .getRepository(Tenant)
-        .findOne({ name: tenantName });
-    }
 
     if (!tenantName) {
       throw new BadRequestException(
@@ -40,8 +21,14 @@ const connectionFactory = {
       );
     }
 
+    tenantDetails = await connectionPublic
+      .getRepository(Tenant)
+      .findOne({ name: tenantName });
+
     if (!tenantDetails) {
-      throw new BadRequestException("Invalid church name provided.");
+      throw new BadRequestException(
+        "Invalid church name provided. Please provide a valid church name",
+      );
     }
 
     return dbservice.getConnection(tenantName);
@@ -54,10 +41,5 @@ const connectionFactory = {
   imports: [SeedModule, UsersModule],
   providers: [connectionFactory, TenantsService, DbService],
   exports: ["CONNECTION"],
-  controllers: [TenantsController],
 })
-export class TenantsModule {
-  configure(consumer: MiddlewareConsumer) {
-    consumer.apply(nameTenantHeaderMiddleware).forRoutes("api/tenants");
-  }
-}
+export class TenantsModule {}

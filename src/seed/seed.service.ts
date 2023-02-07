@@ -88,7 +88,7 @@ export class SeedService {
       Logger.debug(`${count} Groups already exist`);
     } else {
       for (const rec of seedGroups) {
-        await this.groupsService.create(rec, {});
+        await this.groupsService.create(rec, {}, true);
       }
     }
   }
