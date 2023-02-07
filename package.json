@@ -27,7 +27,7 @@
     "pre-commit": "npm test",
     "prepare": "husky install",
     "postinstall": "prisma generate",
-    "execute": "ts-node ./src/console.ts"
+    "command": "ts-node -r tsconfig-paths/register src/commands.ts"
   },
   "dependencies": {
     "@nestjs/common": "^7.6.13",

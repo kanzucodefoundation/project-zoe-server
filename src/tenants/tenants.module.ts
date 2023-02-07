@@ -13,6 +13,7 @@ import { SeedModule } from "src/seed/seed.module";
 import { Tenant } from "./entities/tenant.entity";
 import { nameTenantHeaderMiddleware } from "src/middleware/nameTenantHeader.middleware";
 import { TENANT_HEADER } from "../constants";
+import { UsersModule } from "src/users/users.module";
 
 const connectionFactory = {
   provide: "CONNECTION",
@@ -50,7 +51,7 @@ const connectionFactory = {
 
 @Global()
 @Module({
-  imports: [SeedModule],
+  imports: [SeedModule, UsersModule],
   providers: [connectionFactory, TenantsService, DbService],
   exports: ["CONNECTION"],
   controllers: [TenantsController],

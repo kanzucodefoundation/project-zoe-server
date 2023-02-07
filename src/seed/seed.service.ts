@@ -11,6 +11,10 @@ import GroupCategoryReport from "src/groups/entities/groupCategoryReport.entity"
 import seedGroupReportCategories from "./data/groupCategoryReports";
 import Roles from "src/users/entities/roles.entity";
 import { roleAdmin } from "src/auth/constants";
+import { ContactsService } from "src/crm/contacts.service";
+import { JwtHelperService } from "src/auth/jwt-helpers.service";
+import { GoogleService } from "src/vendor/google.service";
+import { GroupPermissionsService } from "src/groups/services/group-permissions.service";
 
 @Injectable()
 export class SeedService {
@@ -18,17 +22,32 @@ export class SeedService {
   private gCatReportRepository: Repository<GroupCategoryReport>;
   private rolesRepository: Repository<Roles>;
   private usersService: UsersService;
+  private groupsService: GroupsService;
+  private groupCategoriesService: GroupCategoriesService;
 
-  constructor(
-    private readonly groupsService: GroupsService,
-    private readonly groupCategoriesService: GroupCategoriesService,
-  ) {}
-
-  async createAll(connection: Connection, usersService: UsersService) {
-    this.usersService = usersService;
+  async createAll(
+    connection: Connection,
+    contactsService: ContactsService,
+    jwtHelperservice: JwtHelperService,
+    groupsPermissionsService: GroupPermissionsService,
+    groupCategoriesService: GroupCategoriesService,
+    googleService: GoogleService,
+  ) {
     this.eventCategoryRepository = connection.getRepository(EventCategory);
     this.gCatReportRepository = connection.getRepository(GroupCategoryReport);
     this.rolesRepository = connection.getRepository(Roles);
+
+    this.usersService = new UsersService(
+      connection,
+      contactsService,
+      jwtHelperservice,
+    );
+    this.groupsService = new GroupsService(
+      connection,
+      groupsPermissionsService,
+      googleService,
+    );
+    this.groupCategoriesService = groupCategoriesService;
 
     await this.createRoleAdmin();
     await this.createUsers();
@@ -37,6 +56,7 @@ export class SeedService {
     await this.createGroups();
     await this.createGroupCategoryReports();
   }
+
   async createUsers() {
     Logger.log(`Seeding ${seedUsers.length} users`);
     for (const user of seedUsers) {

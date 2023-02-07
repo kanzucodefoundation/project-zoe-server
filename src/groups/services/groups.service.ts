@@ -107,14 +107,18 @@ export class GroupsService {
     });
   }
 
-  async create(data: CreateGroupDto, user: any) {
+  async create(
+    data: CreateGroupDto,
+    user: any,
+    seedingDatabase: boolean = false,
+  ) {
     Logger.log(`Create.Group starting ${data.name}`);
     let place: GooglePlaceDto = null;
     if (data.address?.placeId) {
       place = await this.googleService.getPlaceDetails(data.address.placeId);
     }
 
-    if (hasValue(data.parentId)) {
+    if (hasValue(data.parentId) && !seedingDatabase) {
       await this.groupsPermissionsService.assertPermissionForGroup(
         user,
         data.parentId,
