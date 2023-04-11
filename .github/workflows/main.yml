@@ -75,6 +75,9 @@ jobs:
           
       - name: Deploy the built app folder
         run: rsync -rtvO --delete ./dist/ project-zoe-prod-1:/opt/project-zoe-server/dist/
+        
+      - name: Deploy the entire app folder
+        run: rsync -rtvO --delete ./ project-zoe-prod-1:/opt/project-zoe-server/raw/        
       
       - name: Deploy the node modules folder
         run: rsync -rtvO --delete ./node_modules/ project-zoe-prod-1:/opt/project-zoe-server/node_modules/
