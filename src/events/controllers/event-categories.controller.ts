@@ -42,10 +42,9 @@ export class EventsCategoriesController {
 
   @Patch()
   async update(
-    @Body() { id, data }: { id: number; data: { name: string } },
+    @Body() { id, name }: { id: number; name: string },
   ): Promise<EventCategory> {
-    this.logger.log(data);
-    const { name } = data;
+    this.logger.log(name);
     await this.repository.update(id, { name });
     return this.repository.findOne({ where: { id } });
   }
