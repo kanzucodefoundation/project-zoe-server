@@ -1,5 +1,5 @@
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
   binaryTargets = ["debian-openssl-1.1.x"]
 }
 
@@ -75,21 +75,22 @@ model event_attendance {
 }
 
 model event_category {
-  id          String        @id @db.VarChar(40)
+  id          Int           @id @default(autoincrement())
   name        String        @db.VarChar(200)
   event_field event_field[]
   events      events[]
 }
 
 model event_field {
-  id             Int            @id @default(autoincrement())
-  name           String         @db.VarChar(40)
-  label          String         @db.VarChar(100)
-  details        String         @db.VarChar(200)
-  type           String         @db.VarChar(25)
-  isRequired     Boolean
-  categoryId     String         @db.VarChar(40)
-  event_category event_category @relation(fields: [categoryId], references: [id])
+  id               Int            @id @default(autoincrement())
+  name             String         @db.VarChar(40)
+  label            String         @db.VarChar(100)
+  details          String         @db.VarChar(200)
+  type             String         @db.VarChar(25)
+  isRequired       Boolean
+  categoryId       String         @db.VarChar(40)
+  event_category   event_category @relation(fields: [event_categoryId], references: [id])
+  event_categoryId Int
 }
 
 model events {
@@ -99,15 +100,16 @@ model events {
   startDate        DateTime?            @db.Timestamp(6)
   endDate          DateTime?            @db.Timestamp(6)
   submittedAt      DateTime?            @db.Timestamp(6)
-  submittedById      Int?
+  submittedById    Int?
   details          String               @db.VarChar(500)
   venue            Json?
   groupId          Int?
   metaData         Json?
   categoryId       String               @db.VarChar(40)
-  event_category   event_category       @relation(fields: [categoryId], references: [id])
+  event_category   event_category       @relation(fields: [event_categoryId], references: [id])
   group            group?               @relation(fields: [groupId], references: [id])
   event_attendance event_attendance[]
+  event_categoryId Int
 }
 
 model group {
@@ -123,16 +125,17 @@ model group {
   geoCoordinates           Unsupported("point")?
   placeId                  String?                    @db.VarChar
   categoryId               String                     @db.VarChar(40)
-  group_category           group_category             @relation(fields: [categoryId], references: [id])
+  group_category           group_category             @relation(fields: [group_categoryId], references: [id])
   group                    group?                     @relation("groupTogroup_parentId", fields: [parentId], references: [id])
   events                   events[]
   other_group              group[]                    @relation("groupTogroup_parentId")
   group_membership         group_membership[]
   group_membership_request group_membership_request[]
+  group_categoryId         Int
 }
 
 model group_category {
-  id    String  @id @db.VarChar(40)
+  id    Int     @id @default(autoincrement())
   name  String  @db.VarChar(200)
   group group[]
 }

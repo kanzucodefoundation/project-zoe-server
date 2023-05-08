@@ -1,7 +1,7 @@
-import { EventPrivacy } from '../enums/EventPrivacy';
-import InternalAddressDto from '../../shared/dto/internal-address-dto';
-import ComboDto from 'src/shared/dto/combo.dto';
-import EventField from '../entities/eventField.entity';
+import { EventPrivacy } from "../enums/EventPrivacy";
+import InternalAddressDto from "../../shared/dto/internal-address-dto";
+import ComboDto from "src/shared/dto/combo.dto";
+import EventField from "../entities/eventField.entity";
 
 export default class GroupEventDto {
   id: number;
@@ -26,7 +26,7 @@ export default class GroupEventDto {
   venue?: InternalAddressDto;
   attendancePercentage?: string;
 
-  categoryId: string;
+  categoryId: number;
   category?: ComboDto;
   categoryFields?: EventField[];
 

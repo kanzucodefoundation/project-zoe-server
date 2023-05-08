@@ -17,15 +17,15 @@ export class ReportsService {
     let metadataKey: string = "";
     switch (name) {
       case "service-attendance":
-        filter.categoryId = EventCategories.Garage;
+        filter.categoryId = 1;
         metadataKey = "numberOfAdults";
         break;
       case "small-group-attendance":
-        filter.categoryId = EventCategories.MC;
+        filter.categoryId = 2;
         metadataKey = "numberOfGuests";
         break;
       case "salvations":
-        filter.categoryId = EventCategories.Evangelism;
+        filter.categoryId = 3;
         metadataKey = "noOfRecommitments";
         break;
       default:

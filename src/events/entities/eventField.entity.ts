@@ -5,11 +5,11 @@ import {
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
-} from 'typeorm';
-import EventCategory from './eventCategory.entity';
+} from "typeorm";
+import EventCategory from "./eventCategory.entity";
 
 @Entity()
-@Index(['name', 'categoryId'], { unique: true })
+@Index(["name", "categoryId"], { unique: true })
 export default class EventField {
   @PrimaryGeneratedColumn()
   id: number;
@@ -32,15 +32,15 @@ export default class EventField {
   @ManyToOne((type) => EventCategory, (it) => it.fields)
   @JoinColumn()
   category?: EventCategory;
-  @Column()
-  categoryId: string;
+  @Column({ nullable: true })
+  categoryId: number;
   @Column({ nullable: true })
   order: number;
 }
 
 export enum FieldType {
-  Text = 'text',
-  Number = 'number',
-  Date = 'bate',
-  Array = 'array',
+  Text = "text",
+  Number = "number",
+  Date = "bate",
+  Array = "array",
 }

@@ -33,8 +33,8 @@ export class GroupCategoriesService {
     await this.repository.delete(id);
   }
 
-  async exits(name: string): Promise<boolean> {
-    const count = await this.repository.count({ where: { id: name } });
+  async exits(id: number): Promise<boolean> {
+    const count = await this.repository.count({ where: { id: id } });
     return count > 0;
   }
 }
