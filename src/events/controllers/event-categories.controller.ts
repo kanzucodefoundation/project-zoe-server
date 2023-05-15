@@ -37,10 +37,8 @@ export class EventsCategoriesController {
 
   @Post()
   async create(@Body() { name }: { name: string }): Promise<EventCategory> {
-    this.logger.log(name);
     const eventCategory = new EventCategory();
     eventCategory.name = name;
-
     return this.repository.save(eventCategory);
   }
 

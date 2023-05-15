@@ -5,10 +5,11 @@ import {
   Get,
   Param,
   Post,
-  Put,
   Query,
   UseGuards,
   UseInterceptors,
+  Patch,
+  Logger,
 } from "@nestjs/common";
 import { GroupCategoriesService } from "../services/group-categories.service";
 import GroupCategory from "../entities/groupCategory.entity";
@@ -22,6 +23,7 @@ import { SentryInterceptor } from "src/utils/sentry.interceptor";
 @ApiTags("Group Categories")
 @Controller("api/groups/category")
 export class GroupCategoryController {
+  private readonly logger = new Logger(GroupCategoryController.name);
   constructor(private readonly service: GroupCategoriesService) {}
 
   @Get()
@@ -31,10 +33,11 @@ export class GroupCategoryController {
 
   @Post()
   async create(@Body() data: GroupCategory): Promise<GroupCategory> {
+    this.logger.log(data);
     return await this.service.create(data);
   }
 
-  @Put()
+  @Patch()
   async update(@Body() data: GroupCategory): Promise<GroupCategory> {
     return await this.service.update(data);
   }
