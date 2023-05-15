@@ -36,15 +36,18 @@ export class EventsCategoriesController {
   }
 
   @Post()
-  async create(@Body() data: EventCategory): Promise<EventCategory> {
-    return this.repository.save(data);
+  async create(@Body() { name }: { name: string }): Promise<EventCategory> {
+    this.logger.log(name);
+    const eventCategory = new EventCategory();
+    eventCategory.name = name;
+
+    return this.repository.save(eventCategory);
   }
 
   @Patch()
   async update(
     @Body() { id, name }: { id: number; name: string },
   ): Promise<EventCategory> {
-    this.logger.log(name);
     await this.repository.update(id, { name });
     return this.repository.findOne({ where: { id } });
   }
