@@ -30,7 +30,7 @@ const createLocation = ({
     privacy: GroupPrivacy.Public,
     details: details,
     name: name,
-    categoryId: GroupCategoryNames.LOCATION,
+    categoryId: 1,
   };
 };
 
@@ -46,44 +46,44 @@ export const createMc = ({
     privacy: GroupPrivacy.Public,
     details: details,
     name: name,
-    categoryId: GroupCategoryNames.MC,
+    categoryId: 2,
     metaData,
   };
 };
 
 export const seedGroupCategories: GroupCategory[] = [
   {
-    id: GroupCategoryNames.NETWORK,
+    id: 1,
     name: "Network",
     groups: [],
   },
   {
-    id: GroupCategoryNames.CLUSTER,
+    id: 2,
     name: "Cluster",
     groups: [],
   },
   {
-    id: GroupCategoryNames.LOCATION,
+    id: 3,
     name: "Church Location",
     groups: [],
   },
   {
-    id: GroupCategoryNames.COHORT,
+    id: 4,
     name: "Cohort",
     groups: [],
   },
   {
-    id: GroupCategoryNames.MC,
+    id: 5,
     name: "Missional Community",
     groups: [],
   },
   {
-    id: GroupCategoryNames.HUDDLE,
+    id: 6,
     name: "Huddle",
     groups: [],
   },
   {
-    id: GroupCategoryNames.GARAGETEAM,
+    id: 7,
     name: "GarageTeam",
     groups: [],
   },

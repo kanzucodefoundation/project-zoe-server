@@ -4,9 +4,9 @@ import {
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
-} from 'typeorm';
-import { GroupCategoryReportFrequency } from '../enums/groupCategoryReportFrequency ';
-import GroupCategory from './groupCategory.entity';
+} from "typeorm";
+import { GroupCategoryReportFrequency } from "../enums/groupCategoryReportFrequency ";
+import GroupCategory from "./groupCategory.entity";
 
 @Entity()
 export default class GroupCategoryReport {
@@ -18,14 +18,14 @@ export default class GroupCategoryReport {
   @JoinColumn()
   groupCategory: GroupCategory;
 
-  @Column()
+  @Column({ nullable: true })
   groupCategoryId: string;
 
-  @Column()
+  @Column({ nullable: true })
   eventCategoryId: string;
 
   @Column({
-    type: 'enum',
+    type: "enum",
     enum: GroupCategoryReportFrequency,
     nullable: true,
   })

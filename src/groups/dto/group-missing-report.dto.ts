@@ -1,7 +1,7 @@
 export class GetMissingReportDto {
   id?: number;
   week: any;
-  groupCategory: string;
+  groupCategory: number;
   eventCategory: string;
   reportType: string;
   group: any;

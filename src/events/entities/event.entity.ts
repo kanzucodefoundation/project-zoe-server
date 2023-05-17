@@ -60,8 +60,8 @@ export default class GroupEvent {
   @JoinColumn()
   category: EventCategory;
 
-  @Column({ nullable: false, length: 40 })
-  categoryId: string;
+  @Column({ nullable: false })
+  categoryId: number;
 
   @ManyToOne((type) => Group, (it) => it.children)
   group: Group;

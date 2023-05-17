@@ -5,10 +5,11 @@ import {
   Get,
   Param,
   Post,
-  Put,
+  Patch,
   UseGuards,
   Inject,
   UseInterceptors,
+  Logger,
 } from "@nestjs/common";
 import { JwtAuthGuard } from "../../auth/guards/jwt-auth.guard";
 import { ApiTags } from "@nestjs/swagger";
@@ -22,6 +23,7 @@ import { SentryInterceptor } from "src/utils/sentry.interceptor";
 @Controller("api/events/category")
 export class EventsCategoriesController {
   private readonly repository: Repository<EventCategory>;
+  private readonly logger = new Logger(EventsCategoriesController.name);
 
   constructor(@Inject("CONNECTION") connection: Connection) {
     this.repository = connection.getRepository(EventCategory);
@@ -33,13 +35,17 @@ export class EventsCategoriesController {
   }
 
   @Post()
-  async create(@Body() data: EventCategory): Promise<EventCategory> {
-    return this.repository.save(data);
+  async create(@Body() { name }: { name: string }): Promise<EventCategory> {
+    const eventCategory = new EventCategory();
+    eventCategory.name = name;
+    return this.repository.save(eventCategory);
   }
 
-  @Put()
-  async update(@Body() { id, ...data }: EventCategory): Promise<EventCategory> {
-    await this.repository.update(id, data);
+  @Patch()
+  async update(
+    @Body() { id, name }: { id: number; name: string },
+  ): Promise<EventCategory> {
+    await this.repository.update(id, { name });
     return this.repository.findOne({ where: { id } });
   }
 

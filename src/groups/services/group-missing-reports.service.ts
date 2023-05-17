@@ -131,7 +131,7 @@ export class GroupMissingReportsService {
           if (
             eventStartDate === exp.week &&
             event.group.categoryId === exp.groupCategory &&
-            event.categoryId === exp.eventCategory &&
+            // event.categoryId === exp.eventCategory &&
             event.group.name === exp.group.name
           ) {
             eventExist = true;
