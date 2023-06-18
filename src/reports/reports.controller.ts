@@ -6,6 +6,7 @@ import {
   Query,
   Param,
   Request,
+  ParseIntPipe,
   UseGuards,
   Body,
   UseInterceptors,
@@ -18,6 +19,10 @@ import { Repository, Connection } from "typeorm";
 import { ReportSubmissionDto } from "./dto/report-submission.dto";
 import { ReportDto } from "./dto/report.dto";
 import { Report } from "./entities/report.entity";
+import {
+  ApiResponse,
+  ReportSubmissionsApiResponse,
+} from "./types/report-api.types";
 
 @UseInterceptors(SentryInterceptor)
 @UseGuards(JwtAuthGuard)
@@ -28,6 +33,7 @@ export class ReportsController {
 
   @Post()
   createReport(@Body() reportDto: any, @Request() request): Promise<Report> {
+    //@TODO Use ReportDto for reportDto type and fix validation error
     return this.reportService.createReport(reportDto, request.user);
   }
 
@@ -39,12 +45,31 @@ export class ReportsController {
     await this.reportService.submitReport(submissionDto, request.user);
   }
 
-  @Get()
-  async getReports(
-    @Query("group") groupId: number,
-    @Query("date") submissionDate: string,
-  ): Promise<any[]> {
-    return this.reportService.getReports(groupId, submissionDate);
+  //@Get('/:reportId')
+  //async getReport(): Promise<ApiResponse<ReportApiResponse[]>> {
+  //  const startDate = new Date();
+  //  const endDate = new Date();
+  //  return await this.reportService.getReport(6, startDate, endDate);
+  //}
+
+  @Get(":reportId")
+  async getReport(@Param("reportId") reportId: number): Promise<Report> {
+    return await this.reportService.getReport(reportId);
+  }
+
+  @Get(":reportId/submissions")
+  async getReportSubmissions(
+    @Param("reportId", ParseIntPipe) reportId: number,
+    @Query("startDate") startDate?: string,
+    @Query("endDate") endDate?: string,
+  ): Promise<ReportSubmissionsApiResponse> {
+    const formattedStartDate = startDate ? new Date(startDate) : undefined;
+    const formattedEndDate = endDate ? new Date(endDate) : undefined;
+    return await this.reportService.getReportSubmissions(
+      reportId,
+      formattedStartDate,
+      formattedEndDate,
+    );
   }
 
   //@Patch(':id')

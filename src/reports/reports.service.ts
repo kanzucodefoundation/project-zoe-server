@@ -9,6 +9,7 @@ import { ReportSubmissionDto } from "./dto/report-submission.dto";
 import { ReportDto } from "./dto/report.dto";
 import { UpdateDto } from "./dto/update.dto";
 import { User } from "src/users/entities/user.entity";
+import { ReportSubmissionsApiResponse } from "./types/report-api.types";
 
 @Injectable()
 export class ReportsService {
@@ -58,46 +59,53 @@ export class ReportsService {
     await this.reportSubmissionRepository.save(reportSubmission);
   }
 
-  async getReports(groupId?: number, submissionDate?: string): Promise<any[]> {
-    const query = this.reportRepository.createQueryBuilder("report");
-
-    if (groupId) {
-      query
-        .innerJoin("report.tenant", "tenant")
-        .where("tenant.group = :groupId", { groupId });
+  async getReport(reportId: number): Promise<Report> {
+    const report = await this.reportRepository.findOne(reportId);
+    if (!report) {
+      throw new NotFoundException(`Report with ID ${reportId} not found`);
     }
+    return report;
+  }
 
-    if (submissionDate) {
-      const start = new Date(submissionDate);
-      const end = new Date(submissionDate);
-      end.setDate(end.getDate() + 1);
-      query
-        .innerJoin("report.submissions", "submission")
-        .where("submission.submittedAt >= :start", { start })
-        .andWhere("submission.submittedAt < :end", { end });
+  async getReportSubmissions(
+    reportId: number,
+    startDate?: Date,
+    endDate?: Date,
+  ): Promise<ReportSubmissionsApiResponse> {
+    const report = await this.reportRepository.findOne(reportId);
+    if (!report) {
+      throw new NotFoundException(`Report with ID ${reportId} not found`);
     }
+    let query = this.reportSubmissionRepository
+      .createQueryBuilder("submission")
+      .leftJoinAndSelect("submission.report", "report")
+      .where("report.id = :reportId", { reportId });
 
-    const reports = await query.getMany();
-    const response = [];
-
-    for (const report of reports) {
-      const submissions = await this.reportSubmissionRepository.find({
-        report: report,
+    if (startDate && endDate) {
+      query = query.andWhere(
+        "submission.submittedAt BETWEEN :startDate AND :endDate",
+        { startDate, endDate },
+      );
+    } else if (startDate) {
+      query = query.andWhere("submission.submittedAt >= :startDate", {
+        startDate,
       });
-      const reportData = {
-        id: report.id,
-        name: report.name,
-        type: report.type,
-        submissions: submissions.map((submission) => ({
-          id: submission.id,
-          data: submission.data,
-          submittedAt: submission.submittedAt,
-        })),
-      };
-      response.push(reportData);
+    } else if (endDate) {
+      query = query.andWhere("submission.submittedAt <= :endDate", { endDate });
     }
 
-    return response;
+    const submissions = await query.getMany();
+
+    const responseData = {
+      data: submissions.map((submission) => submission.data),
+      columns: report.fields.map((field) => ({
+        fieldName: field.name,
+        label: field.label,
+      })),
+      footer: report.footer,
+    };
+
+    return responseData;
   }
 
   //async updateReport(id: number, updateDto: Partial<ReportDto>): Promise<void> {
