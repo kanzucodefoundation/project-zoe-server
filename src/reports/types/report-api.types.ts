@@ -8,11 +8,6 @@ export interface ApiResponse<T> {
 
 export interface ReportSubmissionsApiResponse {
   data: Record<string, any>[];
-  columns: ColumnDto[];
+  columns: Record<string, any>;
   footer: string[];
-}
-
-export interface ColumnDto {
-  fieldName: string;
-  label: string;
 }

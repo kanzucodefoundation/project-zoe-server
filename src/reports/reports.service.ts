@@ -94,18 +94,22 @@ export class ReportsService {
       query = query.andWhere("submission.submittedAt <= :endDate", { endDate });
     }
 
-    const submissions = await query.getMany();
+    const submissions: ReportSubmission[] = await query.getMany();
 
-    const responseData = {
-      data: submissions.map((submission) => submission.data),
-      columns: report.fields.map((field) => ({
-        fieldName: field.name,
-        label: field.label,
-      })),
+    const submissionResponses = submissions.map((submission) => {
+      const { id, data, submittedAt, user } = submission;
+      return {
+        id,
+        data,
+        submittedAt,
+      };
+    });
+
+    return {
+      data: submissionResponses,
+      columns: report.columns,
       footer: report.footer,
     };
-
-    return responseData;
   }
 
   //async updateReport(id: number, updateDto: Partial<ReportDto>): Promise<void> {
