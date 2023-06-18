@@ -3,113 +3,92 @@ import GroupEvent from "src/events/entities/event.entity";
 import { Connection, Repository, FindConditions } from "typeorm";
 import { UserDto } from "src/auth/dto/user.dto";
 import { EventCategories } from "src/events/enums/EventCategories";
+import { Report } from "./entities/report.entity";
+import { ReportSubmission } from "./entities/report.submission.entity";
+import { ReportSubmissionDto } from "./dto/report-submission.dto";
+import { ReportDto } from "./dto/report.dto";
+import { UpdateDto } from "./dto/update.dto";
+import { User } from "src/users/entities/user.entity";
 
 @Injectable()
 export class ReportsService {
-  private readonly repository: Repository<GroupEvent>;
+  private readonly reportRepository: Repository<Report>;
+  private readonly reportSubmissionRepository: Repository<ReportSubmission>;
+  private readonly userRepository: Repository<User>;
 
   constructor(@Inject("CONNECTION") connection: Connection) {
-    this.repository = connection.getRepository(GroupEvent);
+    this.reportRepository = connection.getRepository(Report);
+    this.reportSubmissionRepository = connection.getRepository(
+      ReportSubmission,
+    );
+    this.userRepository = connection.getRepository(User);
   }
 
-  async getReport(name: string, user: UserDto): Promise<any> {
-    const filter: FindConditions<GroupEvent> = {};
-    let metadataKey: string = "";
-    switch (name) {
-      case "service-attendance":
-        filter.categoryId = EventCategories.Garage;
-        metadataKey = "numberOfAdults";
-        break;
-      case "small-group-attendance":
-        filter.categoryId = EventCategories.MC;
-        metadataKey = "numberOfGuests";
-        break;
-      case "salvations":
-        filter.categoryId = EventCategories.Evangelism;
-        metadataKey = "noOfRecommitments";
-        break;
-      default:
-      // Nothing to see here
+  async createReport(reportDto: ReportDto): Promise<Report> {
+    const report = new Report();
+    report.name = reportDto.name;
+    report.type = reportDto.type;
+    report.fields = reportDto.fields;
+    report.headers = reportDto.headers;
+    report.footer = reportDto.footer;
+
+    return this.reportRepository.save(report);
+  }
+
+  async submitReport(
+    submissionDto: ReportSubmissionDto,
+    user: UserDto,
+  ): Promise<void> {
+    const reportSubmission = new ReportSubmission();
+    reportSubmission.data = submissionDto.data;
+    reportSubmission.submittedAt = new Date();
+    reportSubmission.user = await this.userRepository.findOne(user.id);
+    await this.reportSubmissionRepository.save(reportSubmission);
+  }
+
+  async getReports(groupId?: number, submissionDate?: string): Promise<any[]> {
+    const query = this.reportRepository.createQueryBuilder("report");
+
+    if (groupId) {
+      query
+        .innerJoin("report.tenant", "tenant")
+        .where("tenant.group = :groupId", { groupId });
     }
-    let reportResponse = {
-      metadata: {
-        name: name,
-        columns: [],
-      },
-      data: [],
-      summaryStatistics: [],
-    };
-    const dbReports = await this.repository.find({
-      select: ["name", "categoryId", "metaData", "id", "startDate"],
-      relations: ["category", "group", "group.members", "attendance"],
-      where: filter,
-    });
-    // Service Attendance report info
-    reportResponse.metadata.columns.push({
-      name: "location",
-      label: "Location",
-    });
-    reportResponse.summaryStatistics.push({
-      location: { value: "", details: {} },
-    });
 
-    let dateReportTotals = {};
-    let locationIndices = {}; // Save indices of locations in report.data
-    let reportDateArray = []; // Tracks which dates we've added to the columns array
-    dbReports.forEach(function (report, currentLocationIndex) {
-      let reportDateLabel: string = report.startDate
-        .toISOString()
-        .split("T")[0];
-      let reportDate: string = report.startDate
-        .toDateString()
-        .replace(/ /g, ""); // Remove hyphens
-      let locationName: string = report.group.name;
-      let rowData = {};
+    if (submissionDate) {
+      const start = new Date(submissionDate);
+      const end = new Date(submissionDate);
+      end.setDate(end.getDate() + 1);
+      query
+        .innerJoin("report.submissions", "submission")
+        .where("submission.submittedAt >= :start", { start })
+        .andWhere("submission.submittedAt < :end", { end });
+    }
 
-      if (!reportDateArray.includes(reportDate)) {
-        reportResponse.metadata.columns.push({
-          name: reportDate,
-          label: reportDateLabel,
-        });
-        reportDateArray.push(reportDate);
-      }
+    const reports = await query.getMany();
+    const response = [];
 
-      if (!locationIndices.hasOwnProperty(locationName)) {
-        // We have no prior data on this location
-        locationIndices[locationName] = currentLocationIndex;
-        rowData = {
-          location: locationName,
-          [reportDate]: report.metaData[metadataKey],
-          average: report.metaData[metadataKey],
-        };
-        reportResponse.data.push(rowData);
-      } else {
-        // We have previous data on this location. Update it.
-        reportResponse.data[locationIndices[locationName]][reportDate] =
-          report.metaData[metadataKey];
-        let numberOfDateEntries: number =
-          Object.keys(reportResponse.data[locationIndices[locationName]])
-            .length - 2;
-        let locationAverage: number =
-          (reportResponse.data[locationIndices[locationName]].average +=
-            report.metaData[metadataKey]) / numberOfDateEntries;
-        reportResponse.data[
-          locationIndices[locationName]
-        ].average = locationAverage;
-      }
-      dateReportTotals[reportDate] = dateReportTotals.hasOwnProperty(reportDate)
-        ? (dateReportTotals[reportDate] += report.metaData[metadataKey])
-        : report.metaData[metadataKey];
-    });
-    reportResponse.metadata.columns.push({
-      name: "average",
-      label: "Average",
-    });
-    for (const [reportDate, dateTotal] of Object.entries(dateReportTotals)) {
-      reportResponse.summaryStatistics.push({
-        [reportDate]: { value: dateTotal, details: {} },
+    for (const report of reports) {
+      const submissions = await this.reportSubmissionRepository.find({
+        id: report.id,
       });
+      const reportData = {
+        id: report.id,
+        name: report.name,
+        type: report.type,
+        submissions: submissions.map((submission) => ({
+          id: submission.id,
+          data: submission.data,
+          submittedAt: submission.submittedAt,
+        })),
+      };
+      response.push(reportData);
     }
-    return reportResponse;
+
+    return response;
   }
+
+  //async updateReport(id: number, updateDto: Partial<ReportDto>): Promise<void> {
+  //  await this.reportRepository.update(id, updateDto);
+  //}
 }
