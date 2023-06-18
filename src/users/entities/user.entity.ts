@@ -13,7 +13,7 @@ import Contact from "../../crm/entities/contact.entity";
 import { hasValue } from "../../utils/validation";
 import UserRoles from "./userRoles.entity";
 import { ReportSubmission } from "src/reports/entities/report.submission.entity";
-
+import { Report } from "src/reports/entities/report.entity";
 // authentication will take approximately 13 seconds
 // https://pthree.org/wp-content/uploads/2016/06/bcrypt.png
 const hashCost = 10;
@@ -48,6 +48,9 @@ export class User {
     (reportSubmission) => reportSubmission.user,
   )
   reportSubmissions: ReportSubmission[];
+
+  @OneToMany(() => Report, (report) => report.user)
+  reports: Report[];
 
   hashPassword() {
     if (hasValue(this.password)) {

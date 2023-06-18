@@ -1,4 +1,4 @@
-import { Injectable, Inject } from "@nestjs/common";
+import { Injectable, Inject, NotFoundException } from "@nestjs/common";
 import GroupEvent from "src/events/entities/event.entity";
 import { Connection, Repository, FindConditions } from "typeorm";
 import { UserDto } from "src/auth/dto/user.dto";
@@ -39,9 +39,18 @@ export class ReportsService {
     submissionDto: ReportSubmissionDto,
     user: UserDto,
   ): Promise<void> {
+    const { reportId, data } = submissionDto;
+    // Retrieve the report by its ID
+    const report = await this.reportRepository.findOne(reportId);
+    // Check if the report exists
+    if (!report) {
+      throw new NotFoundException(`Report with ID ${reportId} not found`);
+    }
+
     const reportSubmission = new ReportSubmission();
     reportSubmission.data = submissionDto.data;
     reportSubmission.submittedAt = new Date();
+    reportSubmission.report = report;
     reportSubmission.user = await this.userRepository.findOne(user.id);
     await this.reportSubmissionRepository.save(reportSubmission);
   }
@@ -70,7 +79,7 @@ export class ReportsService {
 
     for (const report of reports) {
       const submissions = await this.reportSubmissionRepository.find({
-        id: report.id,
+        report: report,
       });
       const reportData = {
         id: report.id,

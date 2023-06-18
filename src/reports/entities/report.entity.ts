@@ -1,5 +1,12 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne } from "typeorm";
-
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  OneToMany,
+} from "typeorm";
+import { ReportSubmission } from "./report.submission.entity";
+import { User } from "src/users/entities/user.entity";
 @Entity()
 export class Report {
   @PrimaryGeneratedColumn()
@@ -54,4 +61,10 @@ export class Report {
 
   @Column({ type: "enum", enum: ["daily", "weekly", "monthly", "custom"] })
   submissionFrequency: "daily" | "weekly" | "monthly" | "custom";
+
+  @OneToMany(() => ReportSubmission, (submission) => submission.report)
+  submissions: ReportSubmission[];
+
+  @ManyToOne(() => User, (user) => user.reports)
+  user: User;
 }
