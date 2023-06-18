@@ -4,6 +4,6 @@ export class ReportDto {
   name: string;
   type: ReportType;
   fields: string[];
-  headers: string[];
+  columns: string[];
   footer?: string[];
 }

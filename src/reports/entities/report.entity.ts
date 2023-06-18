@@ -15,6 +15,9 @@ export class Report {
   @Column()
   name: string;
 
+  @Column({ nullable: true })
+  description: string | null;
+
   @Column({
     type: "enum",
     enum: [
@@ -44,10 +47,10 @@ export class Report {
   sqlQuery: string;
 
   @Column({ type: "jsonb", nullable: true })
-  fields: string[];
+  fields: Record<string, any>;
 
   @Column({ type: "jsonb", nullable: true })
-  headers: string[];
+  columns: Record<string, any>;
 
   @Column({ type: "jsonb", nullable: true })
   footer: string[];

@@ -24,13 +24,14 @@ export class ReportsService {
     this.userRepository = connection.getRepository(User);
   }
 
-  async createReport(reportDto: ReportDto): Promise<Report> {
+  async createReport(reportDto: ReportDto, user: UserDto): Promise<Report> {
     const report = new Report();
     report.name = reportDto.name;
     report.type = reportDto.type;
     report.fields = reportDto.fields;
-    report.headers = reportDto.headers;
+    report.columns = reportDto.columns;
     report.footer = reportDto.footer;
+    report.user = await this.userRepository.findOne(user.id);
 
     return this.reportRepository.save(report);
   }
