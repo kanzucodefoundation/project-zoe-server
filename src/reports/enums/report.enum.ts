@@ -4,3 +4,19 @@ export enum ReportType {
   BARGRAPH = "bargraph",
   LINECHART = "linechart",
 }
+
+export enum ReportFieldType {
+  Text = "text",
+  Number = "number",
+  Date = "date",
+  Boolean = "boolean",
+  Checkbox = "checkbox",
+  Radio = "radio",
+}
+
+export enum ReportSubmissionFrequency {
+  Daily = "daily",
+  Weekly = "weekly",
+  Monthly = "monthly",
+  Custom = "custom",
+}

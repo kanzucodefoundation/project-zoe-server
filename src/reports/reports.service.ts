@@ -27,10 +27,12 @@ export class ReportsService {
   async createReport(reportDto: ReportDto, user: UserDto): Promise<Report> {
     const report = new Report();
     report.name = reportDto.name;
+    report.description = reportDto.description;
     report.type = reportDto.type;
     report.fields = reportDto.fields;
     report.columns = reportDto.columns;
     report.footer = reportDto.footer;
+    report.submissionFrequency = reportDto.submissionFrequency;
     report.user = await this.userRepository.findOne(user.id);
 
     return this.reportRepository.save(report);
