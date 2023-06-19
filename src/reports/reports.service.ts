@@ -106,7 +106,7 @@ export class ReportsService {
     });
 
     return {
-      data: submissionResponses,
+      data: submissionResponses.map((submission) => submission.data),
       columns: report.columns,
       footer: report.footer,
     };
