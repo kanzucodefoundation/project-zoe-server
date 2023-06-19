@@ -72,6 +72,14 @@ export class ReportsController {
     );
   }
 
+  @Get(":reportId/submissions/:submissionId")
+  async getReportSubmission(
+    @Param("reportId") reportId: number,
+    @Param("submissionId") submissionId: number,
+  ) {
+    return this.reportService.getReportSubmission(reportId, submissionId);
+  }
+
   //@Patch(':id')
   //async updateReport(@Param('id') id: number, @Body() updateDto: Partial<ReportDto>): Promise<void> {
   //  await this.reportService.updateReport(id, updateDto);

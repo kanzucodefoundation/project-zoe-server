@@ -79,6 +79,7 @@ export class ReportsService {
     let query = this.reportSubmissionRepository
       .createQueryBuilder("submission")
       .leftJoinAndSelect("submission.report", "report")
+      .leftJoinAndSelect("submission.user", "user")
       .where("report.id = :reportId", { reportId });
 
     if (startDate && endDate) {
@@ -103,7 +104,7 @@ export class ReportsService {
         data: {
           ...data,
           submittedAt,
-          submittedBy: user ? user.username : "", //@TODO Fix relationships so this doesn't return empty
+          submittedBy: user ? user.username : "",
         },
       };
     });
@@ -122,6 +123,27 @@ export class ReportsService {
     };
   }
 
+  async getReportSubmission(reportId: number, submissionId: number) {
+    const submission = await this.reportSubmissionRepository.findOne({
+      where: { id: submissionId, report: { id: reportId } },
+      relations: ["user"],
+    });
+
+    if (!submission) {
+      throw new NotFoundException(
+        `Report submission with ID ${submissionId} not found`,
+      );
+    }
+
+    const { id, data, submittedAt, user } = submission;
+
+    return {
+      id,
+      data,
+      submittedAt,
+      submittedBy: user ? user.username : null,
+    };
+  }
   //async updateReport(id: number, updateDto: Partial<ReportDto>): Promise<void> {
   //  await this.reportRepository.update(id, updateDto);
   //}
