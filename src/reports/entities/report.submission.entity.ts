@@ -1,4 +1,10 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne } from "typeorm";
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  JoinColumn,
+} from "typeorm";
 import { User } from "src/users/entities/user.entity";
 import { Report } from "./report.entity";
 
@@ -10,10 +16,11 @@ export class ReportSubmission {
   @Column({ type: "jsonb" })
   data: Record<string, any>;
 
-  @Column({ type: "timestamp" })
-  submittedAt: Date;
+  @Column({ type: "timestamp", default: () => "CURRENT_TIMESTAMP" })
+  submittedAt: Date; //@TODO Add a key
 
   @ManyToOne(() => User, (user) => user.reportSubmissions)
+  @JoinColumn()
   user: User;
 
   @ManyToOne(() => Report, (report) => report.submissions)

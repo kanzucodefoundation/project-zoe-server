@@ -100,14 +100,24 @@ export class ReportsService {
       const { id, data, submittedAt, user } = submission;
       return {
         id,
-        data,
-        submittedAt,
+        data: {
+          ...data,
+          submittedAt,
+          submittedBy: user ? user.username : "", //@TODO Fix relationships so this doesn't return empty
+        },
       };
     });
 
+    const reportColumns = Object.values(report.columns); // Convert columns object to array
+
     return {
+      reportId,
       data: submissionResponses.map((submission) => submission.data),
-      columns: report.columns,
+      columns: [
+        ...reportColumns,
+        { label: "Submitted At", fieldName: "submittedAt" },
+        { label: "Submitted By", fieldName: "submittedBy" },
+      ],
       footer: report.footer,
     };
   }

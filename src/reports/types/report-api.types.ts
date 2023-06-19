@@ -7,6 +7,7 @@ export interface ApiResponse<T> {
 }
 
 export interface ReportSubmissionsApiResponse {
+  reportId: number;
   data: Record<string, any>[];
   columns: Record<string, any>;
   footer: string[];
