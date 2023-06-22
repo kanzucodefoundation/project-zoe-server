@@ -45,16 +45,14 @@ export class ReportsController {
     await this.reportService.submitReport(submissionDto, request.user);
   }
 
-  //@Get('/:reportId')
-  //async getReport(): Promise<ApiResponse<ReportApiResponse[]>> {
-  //  const startDate = new Date();
-  //  const endDate = new Date();
-  //  return await this.reportService.getReport(6, startDate, endDate);
-  //}
-
   @Get(":reportId")
   async getReport(@Param("reportId") reportId: number): Promise<Report> {
     return await this.reportService.getReport(reportId);
+  }
+
+  @Get()
+  async getAllReports(): Promise<Report[]> {
+    return await this.reportService.getAllReports();
   }
 
   @Get(":reportId/submissions")

@@ -59,6 +59,10 @@ export class ReportsService {
     await this.reportSubmissionRepository.save(reportSubmission);
   }
 
+  async getAllReports(): Promise<Report[]> {
+    return await this.reportRepository.find();
+  }
+
   async getReport(reportId: number): Promise<Report> {
     const report = await this.reportRepository.findOne(reportId);
     if (!report) {
@@ -116,8 +120,8 @@ export class ReportsService {
       data: submissionResponses.map((submission) => submission.data),
       columns: [
         ...reportColumns,
-        { label: "Submitted At", fieldName: "submittedAt" },
-        { label: "Submitted By", fieldName: "submittedBy" },
+        { label: "Submitted At", name: "submittedAt" },
+        { label: "Submitted By", name: "submittedBy" },
       ],
       footer: report.footer,
     };
