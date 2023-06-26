@@ -12,22 +12,22 @@ export class ReportFieldDto {
   options?: OptionDto[]; // Optional property for radio or checkbox options
 }
 
-export class ReportColumnDto {
-  fieldName: string;
-  label: string;
-}
-
 export class OptionDto {
   label: string;
   value: string;
 }
 
-export class ReportDto {
+export interface ReportDto {
   name: string;
-  description?: string;
+  description: string;
   type: ReportType;
   fields: ReportFieldDto[];
-  columns?: ReportColumnDto[];
-  footer?: string[];
+  columns: ReportColumn[];
+  footer: string[];
   submissionFrequency: ReportSubmissionFrequency;
+}
+
+interface ReportColumn {
+  name: string;
+  label: string;
 }

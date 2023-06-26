@@ -32,8 +32,10 @@ export class ReportsController {
   constructor(private readonly reportService: ReportsService) {}
 
   @Post()
-  createReport(@Body() reportDto: any, @Request() request): Promise<Report> {
-    //@TODO Use ReportDto for reportDto type and fix validation error
+  createReport(
+    @Body() reportDto: ReportDto,
+    @Request() request,
+  ): Promise<Report> {
     return this.reportService.createReport(reportDto, request.user);
   }
 
