@@ -27,7 +27,9 @@
     "pre-commit": "npm test",
     "prepare": "husky install",
     "postinstall": "prisma generate",
-    "command": "ts-node -r tsconfig-paths/register src/commands.ts"
+    "command": "ts-node -r tsconfig-paths/register src/commands.ts",
+    "migration:generate": "ts-node -r tsconfig-paths/register  ./node_modules/typeorm/cli.js migration:generate -n migration$(date +'%Y%m%d%H%M%S')  --config ormconfig.ts",
+    "migration:run": "ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli.js migration:run --config ormconfig.ts"
   },
   "dependencies": {
     "@nestjs/common": "^7.6.13",
@@ -130,8 +132,7 @@
   "lint-staged": {
     "*.js": "eslint --cache --fix",
     "*.{ts,tsx}": [
-      "prettier --write",
-      "eslint --ext .ts,.tsx --fix"
+      "prettier --write"
     ]
   }
 }
