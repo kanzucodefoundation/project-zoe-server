@@ -7,6 +7,7 @@ export enum ReportType {
 
 export enum ReportFieldType {
   Text = "text",
+  TextArea = "textarea",
   Number = "number",
   Date = "date",
   Boolean = "boolean",
