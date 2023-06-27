@@ -28,8 +28,7 @@
     "prepare": "husky install",
     "postinstall": "prisma generate",
     "command": "ts-node -r tsconfig-paths/register src/commands.ts",
-    "migration:generate": "ts-node -r tsconfig-paths/register  ./node_modules/typeorm/cli.js migration:generate -n migration$(date +'%Y%m%d%H%M%S')  --config ormconfig.ts",
-    "migration:run": "ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli.js migration:run --config ormconfig.ts"
+    "sync:schemas": "ts-node -r tsconfig-paths/register scripts/syncSchemas.ts"
   },
   "dependencies": {
     "@nestjs/common": "^7.6.13",
