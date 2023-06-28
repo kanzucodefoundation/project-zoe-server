@@ -10,7 +10,8 @@ async function syncSchemas() {
     const connection = await createConnection({
       ...config.database,
       type: "postgres",
-      entities: appEntities,
+      entities: [Tenant],
+      schema: "public",
     });
     const queryRunner = connection.createQueryRunner();
     const schemasQuery = await queryRunner.query(
