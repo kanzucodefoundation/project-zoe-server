@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Patch,
+  Put,
   Query,
   Param,
   Request,
@@ -52,6 +53,14 @@ export class ReportsController {
     return await this.reportService.getReport(reportId);
   }
 
+  @Put(":id")
+  async updateReport(
+    @Param("id") id: number,
+    @Body() updateDto: ReportDto,
+  ): Promise<void> {
+    return await this.reportService.updateReport(id, updateDto);
+  }
+
   @Get()
   async getAllReports(): Promise<Report[]> {
     return await this.reportService.getAllReports();
@@ -79,9 +88,4 @@ export class ReportsController {
   ) {
     return this.reportService.getReportSubmission(reportId, submissionId);
   }
-
-  //@Patch(':id')
-  //async updateReport(@Param('id') id: number, @Body() updateDto: Partial<ReportDto>): Promise<void> {
-  //  await this.reportService.updateReport(id, updateDto);
-  //}
 }

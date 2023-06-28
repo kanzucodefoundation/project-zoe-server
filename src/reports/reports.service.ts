@@ -148,7 +148,8 @@ export class ReportsService {
       submittedBy: user ? user.username : null,
     };
   }
-  //async updateReport(id: number, updateDto: Partial<ReportDto>): Promise<void> {
-  //  await this.reportRepository.update(id, updateDto);
-  //}
+
+  async updateReport(id: number, updateDto: ReportDto): Promise<Report | any> {
+    return await this.reportRepository.update(id, updateDto);
+  }
 }

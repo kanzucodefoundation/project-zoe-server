@@ -21,8 +21,8 @@ export interface ReportDto {
   name: string;
   description: string;
   type: ReportType;
-  fields: ReportFieldDto[];
-  columns: ReportColumn[];
+  fields: Record<string, any>;
+  columns: Record<string, any>;
   footer: string[];
   submissionFrequency: ReportSubmissionFrequency;
 }
