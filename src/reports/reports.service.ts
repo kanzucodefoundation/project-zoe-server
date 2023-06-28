@@ -100,12 +100,11 @@ export class ReportsService {
     }
 
     const submissions: ReportSubmission[] = await query.getMany();
-
     const submissionResponses = submissions.map((submission) => {
       const { id, data, submittedAt, user } = submission;
       return {
-        id,
         data: {
+          id,
           ...data,
           submittedAt,
           submittedBy: user ? user.username : "",
