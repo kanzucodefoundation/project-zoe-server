@@ -52,8 +52,11 @@ export class GroupController {
   }
 
   @Get(":id")
-  async findOne(@Param("id") id: number): Promise<GroupListDto> {
-    return await this.service.findOne(id);
+  async findOne(
+    @Param("id") id: number,
+    @Request() rawRequest: any,
+  ): Promise<GroupListDto> {
+    return await this.service.findOne(id, true, rawRequest.user);
   }
 
   @Delete(":id")

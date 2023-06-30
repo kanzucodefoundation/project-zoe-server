@@ -140,7 +140,7 @@ export class GroupsService {
     return this.findOne(result.id, true);
   }
 
-  async findOne(id: number, full = true) {
+  async findOne(id: number, full = true, user: any = null) {
     const data = await this.treeRepository.findOne(id, {
       relations: ["category", "parent"],
     });
@@ -182,7 +182,10 @@ export class GroupsService {
         select: ["contactId"],
       });
       groupData.leaders = membership.map((it) => it.contactId);
-
+      groupData.canEditGroup = await this.groupsPermissionsService.hasPermissionForGroup(
+        user,
+        id,
+      );
       groupData.reports = await this.eventRepository.find({
         relations: ["category", "attendance"],
         where: { groupId: In(groupData.children) },
