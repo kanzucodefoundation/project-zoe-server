@@ -54,7 +54,7 @@ export class SeedService {
     await this.createGroupCategories();
     await this.createEventCategories();
     await this.createGroups();
-    await this.createGroupCategoryReports();
+    //await this.createGroupCategoryReports(); TODO Re-enable this after updating eventCategory IDs to be integers
   }
 
   async createUsers() {
@@ -72,9 +72,9 @@ export class SeedService {
   async createGroupCategories() {
     Logger.log(`Seeding ${seedGroupCategories.length} Group Categories`);
     for (const rec of seedGroupCategories) {
-      const exists = await this.groupCategoriesService.exits(rec.id);
+      const exists = await this.groupCategoriesService.exists(rec.name);
       if (exists) {
-        Logger.debug(`Group Cat: ${rec.id} already exists`);
+        Logger.debug(`Group Cat: ${rec.name} already exists`);
       } else {
         await this.groupCategoriesService.create(rec);
       }

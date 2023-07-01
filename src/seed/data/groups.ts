@@ -12,25 +12,22 @@ export const groupConstants = {
   cohort: GroupCategoryNames.COHORT,
   network: GroupCategoryNames.NETWORK,
   huddle: GroupCategoryNames.HUDDLE,
-  garageTeam: GroupCategoryNames.GARAGETEAM,
+  garageTeam: GroupCategoryNames.GARAGE_TEAM,
 };
 
 const createLocation = ({
   name,
-  id,
   details,
 }: {
   name: string;
-  id: number;
   details?: string;
 }): CreateGroupDto => {
   return {
-    id: id,
     parentId: null,
     privacy: GroupPrivacy.Public,
     details: details,
     name: name,
-    categoryId: GroupCategoryNames.LOCATION,
+    categoryName: GroupCategoryNames.LOCATION,
   };
 };
 
@@ -41,50 +38,49 @@ export const createMc = ({
   metaData,
 }: any): CreateGroupDto => {
   return {
-    id: 0,
     parentId: parentId,
     privacy: GroupPrivacy.Public,
     details: details,
     name: name,
-    categoryId: GroupCategoryNames.MC,
+    categoryName: GroupCategoryNames.MC,
     metaData,
   };
 };
 
 export const seedGroupCategories: GroupCategory[] = [
   {
-    id: GroupCategoryNames.NETWORK,
-    name: "Network",
+    id: 1,
+    name: GroupCategoryNames.NETWORK,
     groups: [],
   },
   {
-    id: GroupCategoryNames.CLUSTER,
-    name: "Cluster",
+    id: 2,
+    name: GroupCategoryNames.CLUSTER,
     groups: [],
   },
   {
-    id: GroupCategoryNames.LOCATION,
-    name: "Church Location",
+    id: 3,
+    name: GroupCategoryNames.LOCATION,
     groups: [],
   },
   {
-    id: GroupCategoryNames.COHORT,
-    name: "Cohort",
+    id: 4,
+    name: GroupCategoryNames.COHORT,
     groups: [],
   },
   {
-    id: GroupCategoryNames.MC,
-    name: "Missional Community",
+    id: 5,
+    name: GroupCategoryNames.MC,
     groups: [],
   },
   {
-    id: GroupCategoryNames.HUDDLE,
-    name: "Huddle",
+    id: 6,
+    name: GroupCategoryNames.HUDDLE,
     groups: [],
   },
   {
-    id: GroupCategoryNames.GARAGETEAM,
-    name: "GarageTeam",
+    id: 7,
+    name: GroupCategoryNames.GARAGE_TEAM,
     groups: [],
   },
 ];
@@ -94,7 +90,8 @@ const seedCells: CreateGroupDto[] = [];
 
 mcData.forEach((location: any, index: number) => {
   const id = index + 1;
-  const loc = createLocation({ name: location.name, id });
+
+  const loc = createLocation({ name: location.name });
   seedLocations.push(loc);
   location.list.forEach((mc: any) => {
     seedCells.push(

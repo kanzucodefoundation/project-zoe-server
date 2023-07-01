@@ -1,5 +1,5 @@
-import { EventPrivacy } from '../enums/EventPrivacy';
-import InternalAddressDto from '../../shared/dto/internal-address-dto';
+import { EventPrivacy } from "../enums/EventPrivacy";
+import InternalAddressDto from "../../shared/dto/internal-address-dto";
 
 export default class CreateEventDto {
   privacy: EventPrivacy;
@@ -16,7 +16,8 @@ export default class CreateEventDto {
 
   venue?: InternalAddressDto;
 
-  categoryId: string;
+  categoryId?: number;
+  categoryName?: string;
   groupId?: number;
 
   metaData?: any;

@@ -26,7 +26,7 @@ export class GroupFinderService {
     });
     const childGroups = await this.groupRepository
       .createDescendantsQueryBuilder("group", "group_closure", parentGroup)
-      .andWhere(`group.categoryId = '${groupConstants.mc}'`)
+      .andWhere(`group.category.name = '${groupConstants.mc}'`)
       .getMany();
     return childGroups;
   }

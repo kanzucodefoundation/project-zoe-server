@@ -66,7 +66,7 @@ export class EventsService {
     }
 
     if (hasValue(req.categoryIdList))
-      filter.categoryId = In(getArray(req.categoryIdList));
+      filter.category = In(getArray(req.categoryIdList));
     if (hasValue(req.parentIdList))
       filter.parentId = In(getArray(req.parentIdList));
     if (hasValue(req.from)) {
@@ -114,7 +114,7 @@ export class EventsService {
       filter.endDate = LessThanOrEqual(req.to);
     }
     const data = await this.repository.find({
-      select: ["name", "categoryId", "metaData", "id"],
+      select: ["name", "metaData", "category", "id"],
       relations: ["category", "group", "group.members", "attendance"],
       where: filter,
     });
@@ -191,7 +191,6 @@ export class EventsService {
       .createQueryBuilder()
       .insert()
       .values({
-        id: 0,
         ...data,
         venue: place,
         attendance: [],

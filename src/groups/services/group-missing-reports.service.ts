@@ -55,7 +55,7 @@ export class GroupMissingReportsService {
     const reportFilter: FindConditions<GroupCategoryReport> = {};
     // TODO use user object to filter reports
     if (hasValue(searchDto.categoryIdList))
-      groupFilter.categoryId = In(getArray(searchDto.categoryIdList));
+      groupFilter.category = In(getArray(searchDto.categoryIdList));
 
     if (hasValue(searchDto.reportFreqList))
       reportFilter.frequency = In(getArray(searchDto.reportFreqList));
@@ -130,8 +130,8 @@ export class GroupMissingReportsService {
           }).toDateString();
           if (
             eventStartDate === exp.week &&
-            event.group.categoryId === exp.groupCategory &&
-            event.categoryId === exp.eventCategory &&
+            event.group.category.name === exp.groupCategory &&
+            event.category.name === exp.eventCategory &&
             event.group.name === exp.group.name
           ) {
             eventExist = true;

@@ -1,10 +1,10 @@
 export enum GroupCategoryNames {
-  MC = "MC",
+  MC = "Missional Community",
   CLUSTER = "Cluster",
   LOCATION = "Location",
   ZONE = "Zone",
   COHORT = "Cohort",
   NETWORK = "Network",
   HUDDLE = "Huddle",
-  GARAGETEAM = "GarageTeam",
+  GARAGE_TEAM = "Garage Team",
 }

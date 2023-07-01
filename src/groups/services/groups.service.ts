@@ -26,6 +26,7 @@ import { hasValue } from "../../utils/validation";
 import GroupCategoryReport from "../entities/groupCategoryReport.entity";
 import { endOfMonth, startOfMonth } from "date-fns";
 import { GroupPermissionsService } from "./group-permissions.service";
+import GroupCategory from "../entities/groupCategory.entity";
 
 @Injectable()
 export class GroupsService {
@@ -34,6 +35,7 @@ export class GroupsService {
   private readonly membershipRepository: Repository<GroupMembership>;
   private readonly groupReportRepository: Repository<GroupCategoryReport>;
   private readonly eventRepository: Repository<GroupEvent>;
+  private readonly groupCategoryRepository: Repository<GroupCategory>;
 
   constructor(
     @Inject("CONNECTION") connection: Connection,
@@ -45,6 +47,7 @@ export class GroupsService {
     this.membershipRepository = connection.getRepository(GroupMembership);
     this.groupReportRepository = connection.getRepository(GroupCategoryReport);
     this.eventRepository = connection.getRepository(GroupEvent);
+    this.groupCategoryRepository = connection.getRepository(GroupCategory);
   }
 
   async findAll(req: SearchDto): Promise<any[]> {
@@ -92,14 +95,14 @@ export class GroupsService {
       findOps.id = In(groupIds);
     }
     if (hasValue(req.categories)) {
-      findOps.categoryId = In(req.categories);
+      findOps.category = In(req.categories);
     }
     if (hasValue(req.query)) {
       findOps.name = ILike(`%${req.query}%`);
     }
     console.log("findOps", findOps);
     return await this.treeRepository.find({
-      select: ["id", "name", "categoryId", "parent"],
+      select: ["id", "name", "category", "parent"],
       where: findOps,
       skip: req.skip,
       take: req.limit,
@@ -125,19 +128,21 @@ export class GroupsService {
       );
     }
 
-    const toSave = new Group();
-    toSave.name = data.name;
-    toSave.privacy = data.privacy;
-    toSave.metaData = data.metaData;
-    toSave.categoryId = data.categoryId;
-    toSave.address = place;
-    toSave.details = data.details;
-    toSave.parent = data.parentId
+    const newGroupCategory = await this.groupCategoryRepository.findOne({
+      name: data.categoryName,
+    });
+    const newGroup = new Group();
+    newGroup.name = data.name;
+    newGroup.privacy = data.privacy;
+    newGroup.metaData = data.metaData;
+    newGroup.category = newGroupCategory;
+    newGroup.address = place;
+    newGroup.details = data.details;
+    newGroup.parent = data.parentId
       ? await this.treeRepository.findOne(data.parentId)
       : null;
-    const result = await this.treeRepository.save(toSave);
 
-    return this.findOne(result.id, true);
+    return await this.treeRepository.save(newGroup);
   }
 
   async findOne(id: number, full = true, user: any = null) {
@@ -225,6 +230,17 @@ export class GroupsService {
     if (hasValue(dto.parentId)) {
       parentGroup = await this.treeRepository.findOne(dto.parentId);
     }
+    let category = currGroup.category;
+    if (hasValue(dto.categoryId)) {
+      category = await this.groupCategoryRepository.findOne({
+        id: dto.categoryId,
+      });
+    }
+    if (hasValue(dto.categoryName)) {
+      category = await this.groupCategoryRepository.findOne({
+        name: dto.categoryName,
+      });
+    }
 
     console.log(`Update.Group Id:${dto.parentId} parentGroup: `, parentGroup);
     const result = await this.repository
@@ -235,7 +251,7 @@ export class GroupsService {
         parent: parentGroup,
         details: dto.details,
         privacy: dto.privacy,
-        categoryId: dto.categoryId,
+        category: category,
         address: place,
       })
       .where("id = :id", { id: dto.id })

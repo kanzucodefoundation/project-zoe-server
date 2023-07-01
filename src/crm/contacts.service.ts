@@ -49,6 +49,8 @@ import { PrismaService } from "../shared/prisma.service";
 import { getContactModel } from "./utils/creationUtils";
 import { GroupFinderService } from "./group-finder/group-finder.service";
 import { AddressesService } from "./addresses.service";
+import GroupCategory from "src/groups/entities/groupCategory.entity";
+import { groupCategories } from "src/groups/groups.constants";
 
 @Injectable()
 export class ContactsService {
@@ -285,12 +287,21 @@ export class ContactsService {
         place = await this.googleService.getPlaceDetails(placeId);
       }
 
+      const groupCategory = getRepository(GroupCategory)
+        .createQueryBuilder("groupCategory")
+        .where("groupCategory.name = :groupCategoryName", {
+          groupCategoryName: groupCategories.MC,
+        })
+        .getOne();
+
       const groupsAtLocation = await getRepository(Group)
         .createQueryBuilder("group")
         .where("group.parentId = :churchLocationId", {
           churchLocationId: parentGroupId,
         })
-        .andWhere("group.categoryId = 'MC'")
+        .andWhere("group.category = :groupCategory", {
+          groupCategory: groupCategory,
+        })
         .getMany();
 
       if (groupsAtLocation.length === 0) {

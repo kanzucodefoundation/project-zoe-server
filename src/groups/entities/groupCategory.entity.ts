@@ -1,10 +1,11 @@
-import { Column, Entity, OneToMany, PrimaryColumn } from "typeorm";
+import { Column, Entity, OneToMany, PrimaryGeneratedColumn } from "typeorm";
 import Group from "./group.entity";
 
 @Entity()
 export default class GroupCategory {
-  @PrimaryColumn({ length: 40 })
-  id: string;
+  @Column()
+  @PrimaryGeneratedColumn()
+  id: number;
 
   @Column({ length: 200 })
   name: string;

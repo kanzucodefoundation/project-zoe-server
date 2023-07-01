@@ -1,6 +1,6 @@
-import { GroupPrivacy } from '../enums/groupPrivacy';
-import { IsNotEmpty, IsOptional } from 'class-validator';
-import InternalAddress from '../../shared/entity/InternalAddress';
+import { GroupPrivacy } from "../enums/groupPrivacy";
+import { IsNotEmpty, IsOptional } from "class-validator";
+import InternalAddress from "../../shared/entity/InternalAddress";
 
 export default class CreateGroupDto {
   @IsOptional()
@@ -11,8 +11,10 @@ export default class CreateGroupDto {
   name: string;
   @IsNotEmpty()
   details: string;
+  @IsOptional()
+  categoryId?: number;
   @IsNotEmpty()
-  categoryId: string;
+  categoryName: string;
   @IsOptional()
   parentId?: number;
   @IsOptional()
