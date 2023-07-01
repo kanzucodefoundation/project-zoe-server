@@ -34,7 +34,7 @@ export class GroupComboController {
     @Query() req: GroupSearchDto,
     @Request() rawRequest: any,
   ): Promise<Group[]> {
-    req.categories = [GroupCategoryNames.LOCATION];
+    //req.categories = [GroupCategoryNames.LOCATION]; @TODO Re-introduce this
     return this.service.combo(req, rawRequest.user);
   }
 }

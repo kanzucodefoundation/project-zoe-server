@@ -7,8 +7,6 @@ import { GroupsService } from "../groups/services/groups.service";
 import { Repository, Connection } from "typeorm";
 import EventCategory from "../events/entities/eventCategory.entity";
 import eventCategories from "./data/eventCategories";
-import GroupCategoryReport from "src/groups/entities/groupCategoryReport.entity";
-import seedGroupReportCategories from "./data/groupCategoryReports";
 import Roles from "src/users/entities/roles.entity";
 import { roleAdmin } from "src/auth/constants";
 import { ContactsService } from "src/crm/contacts.service";
@@ -19,7 +17,6 @@ import { GroupPermissionsService } from "src/groups/services/group-permissions.s
 @Injectable()
 export class SeedService {
   private eventCategoryRepository: Repository<EventCategory>;
-  private gCatReportRepository: Repository<GroupCategoryReport>;
   private rolesRepository: Repository<Roles>;
   private usersService: UsersService;
   private groupsService: GroupsService;
@@ -34,7 +31,6 @@ export class SeedService {
     googleService: GoogleService,
   ) {
     this.eventCategoryRepository = connection.getRepository(EventCategory);
-    this.gCatReportRepository = connection.getRepository(GroupCategoryReport);
     this.rolesRepository = connection.getRepository(Roles);
 
     this.usersService = new UsersService(
@@ -54,7 +50,6 @@ export class SeedService {
     await this.createGroupCategories();
     await this.createEventCategories();
     await this.createGroups();
-    //await this.createGroupCategoryReports(); TODO Re-enable this after updating eventCategory IDs to be integers
   }
 
   async createUsers() {
@@ -103,23 +98,6 @@ export class SeedService {
         await this.eventCategoryRepository.save(rec);
       }
       Logger.debug(`${eventCategories.length} EventCategories created`);
-    }
-  }
-
-  async createGroupCategoryReports() {
-    Logger.log(
-      `Seeding ${seedGroupReportCategories.length} GroupReportCategories`,
-    );
-    const count = await this.gCatReportRepository.count();
-    if (count > 0) {
-      Logger.debug(`${count} GroupReportCategories already exist`);
-    } else {
-      for (const rec of seedGroupReportCategories) {
-        await this.gCatReportRepository.save(rec);
-      }
-      Logger.debug(
-        `${seedGroupReportCategories.length} GroupReportCategories created`,
-      );
     }
   }
 

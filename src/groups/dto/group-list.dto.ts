@@ -6,7 +6,7 @@ export default class GroupListDto {
   privacy: GroupPrivacy;
   name: string;
   details?: string;
-  categoryId?: string;
+  categoryId?: number;
   category?: ComboDto;
   parentId?: number;
   parent?: ComboDto;

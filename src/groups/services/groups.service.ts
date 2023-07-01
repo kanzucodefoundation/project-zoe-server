@@ -23,7 +23,6 @@ import ClientFriendlyException from "../../shared/exceptions/client-friendly.exc
 import GroupMembership from "../entities/groupMembership.entity";
 import { GroupRole } from "../enums/groupRole";
 import { hasValue } from "../../utils/validation";
-import GroupCategoryReport from "../entities/groupCategoryReport.entity";
 import { endOfMonth, startOfMonth } from "date-fns";
 import { GroupPermissionsService } from "./group-permissions.service";
 import GroupCategory from "../entities/groupCategory.entity";
@@ -33,7 +32,6 @@ export class GroupsService {
   private readonly repository: Repository<Group>;
   private readonly treeRepository: TreeRepository<Group>;
   private readonly membershipRepository: Repository<GroupMembership>;
-  private readonly groupReportRepository: Repository<GroupCategoryReport>;
   private readonly eventRepository: Repository<GroupEvent>;
   private readonly groupCategoryRepository: Repository<GroupCategory>;
 
@@ -45,7 +43,6 @@ export class GroupsService {
     this.repository = connection.getRepository(Group);
     this.treeRepository = connection.getTreeRepository(Group);
     this.membershipRepository = connection.getRepository(GroupMembership);
-    this.groupReportRepository = connection.getRepository(GroupCategoryReport);
     this.eventRepository = connection.getRepository(GroupEvent);
     this.groupCategoryRepository = connection.getRepository(GroupCategory);
   }

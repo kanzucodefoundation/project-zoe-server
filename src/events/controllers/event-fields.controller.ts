@@ -35,7 +35,7 @@ export class EventsFieldsController {
   async findAll(@Query() search: EventFieldSearchDto): Promise<EventField[]> {
     const query: FindConditions<EventField> = {};
     if (hasValue(search.category)) {
-      query.categoryId = search.category;
+      query.category = search.category;
     }
     return await this.repository.find({ where: query });
   }

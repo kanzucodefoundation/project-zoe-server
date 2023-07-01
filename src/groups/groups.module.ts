@@ -15,10 +15,6 @@ import { GoogleService } from "../vendor/google.service";
 import { PrismaService } from "../shared/prisma.service";
 import { EventsService } from "src/events/events.service";
 import { appEntities } from "../config";
-import { GroupMissingReportsService } from "./services/group-missing-reports.service";
-import { GroupReportsController } from "./controllers/group-reports.controller";
-import { GroupReportFrequencyController } from "./controllers/group-frequency.controller";
-import { GroupCategoryComboController } from "./controllers/group-category-combo.controller";
 import { AddressesService } from "src/crm/addresses.service";
 import { GroupPermissionsService } from "./services/group-permissions.service";
 import { nameTenantHeaderMiddleware } from "src/middleware/nameTenantHeader.middleware";
@@ -40,7 +36,6 @@ import { MiddlewareConsumer } from "@nestjs/common";
     AddressesService,
     PrismaService,
     EventsService,
-    GroupMissingReportsService,
     GroupPermissionsService,
   ],
   controllers: [
@@ -49,9 +44,6 @@ import { MiddlewareConsumer } from "@nestjs/common";
     GroupComboController,
     GroupMembershipController,
     GroupMembershipReqeustController,
-    GroupReportsController,
-    GroupReportFrequencyController,
-    GroupCategoryComboController,
   ],
   exports: [GroupsService, GroupCategoriesService, GroupPermissionsService],
 })
