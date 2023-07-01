@@ -89,32 +89,70 @@ export class ReportsController {
     return this.reportService.getReportSubmission(reportId, submissionId);
   }
 
-  @Get(":reportId/weekly-mc-reports")
+  // Small Group Weekly Attendance  Report
+  // @TODO Get this with the above method of reportId, but do a check on the name and then call this logic instead
+  @Get(":reportId/weekly-small-group-attendance")
   async getWeeklyMCReports(@Param("reportId") reportId: number): Promise<any> {
     const submissions = await this.reportService.getReportSubmissions(reportId);
+    const dateColumns = [];
 
     // Intermediate data structure to organize the data
     const mcDataMap: Record<string, any> = {};
 
-    // Process submissions and organize the data by mcName and month-Sunday
+    // Intermediate data structure to store mcName averages
+    const mcNameAverages: Record<string, number> = {};
+
+    // Get the start and end dates of the month
+    const currentDate = new Date();
+    const startOfMonth = new Date(
+      currentDate.getFullYear(),
+      currentDate.getMonth(),
+      1,
+    );
+    const endOfMonth = new Date(
+      currentDate.getFullYear(),
+      currentDate.getMonth() + 1,
+      0,
+    );
+
+    // Iterate through the Sundays in the month
+    let currentSunday = new Date(startOfMonth);
+    currentSunday.setDate(startOfMonth.getDate() + (7 - startOfMonth.getDay()));
+
+    while (currentSunday <= endOfMonth) {
+      const sundayKey = currentSunday
+        .toISOString()
+        .slice(0, 10)
+        .replace(/-/g, "");
+      const sundayLabel = currentSunday.toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      });
+
+      // Add the Sunday column to the columns array
+      dateColumns.push({ name: sundayKey, label: sundayLabel });
+
+      // Move to the next Sunday
+      currentSunday.setDate(currentSunday.getDate() + 7);
+    }
+
+    // Process submissions and organize the data by mcName and Sunday
     submissions.data.forEach((submission: any) => {
-      const mcName = submission.mcName;
-      const mcMemberCount = submission.mcMemberCount;
-      const mcParticipantCount = parseInt(submission.mcParticipantCount);
-      const submittedAt = submission.submittedAt.toISOString();
+      const mcName = submission.mcName; // @TODO Change mcName to smallGroupName
+      const mcMemberCount = submission.mcMemberCount; // @TODO change to smallGroupNumberOfMembers
+      const mcParticipantCount = parseInt(submission.mcParticipantCount); // @TODO change to smallGroupAttendanceCount. What differs from church to church is the labels
+      const submittedAt = submission.submittedAt.toISOString(); // @TODO Group by submittedAt or by the date of the meeting? I think the latter
       const submittedDate = new Date(submittedAt);
-      const year = submittedDate.getUTCFullYear();
-      const month = submittedDate.getUTCMonth();
-      const day = submittedDate.getUTCDay();
 
       // Find the next Sunday date after the submitted date
-      const sundayDate = new Date(submittedDate);
-      sundayDate.setDate(
+      const nextSunday = new Date(submittedDate);
+      nextSunday.setDate(
         submittedDate.getDate() + (7 - submittedDate.getDay()),
       );
 
       // Generate the key in the format "YYYYMMDD" for the Sunday date
-      const sundayKey = sundayDate.toISOString().slice(0, 10).replace(/-/g, "");
+      const sundayKey = nextSunday.toISOString().slice(0, 10).replace(/-/g, "");
 
       // Create the mcData object if it doesn't exist
       if (!mcDataMap[mcName]) {
@@ -126,21 +164,19 @@ export class ReportsController {
 
       // Store the mcParticipantCount for the corresponding Sunday
       mcDataMap[mcName][sundayKey] = mcParticipantCount;
+
+      // Update the sum for the mcName average
+      if (!mcNameAverages[mcName]) {
+        mcNameAverages[mcName] = 0;
+      }
+      mcNameAverages[mcName] += mcParticipantCount;
     });
 
-    // Calculate the average value for each mcData object
-    Object.values(mcDataMap).forEach((mcData: any) => {
-      const countValues = Object.values(mcData).slice(2);
-      if (countValues.length > 0) {
-        const sum: any = countValues.reduce(
-          (total: number, count: number) => total + count,
-          0,
-        );
-        const average: any = sum / countValues.length;
-        mcData.average = average.toFixed(2);
-      } else {
-        mcData.average = null; // or 0, depending on your preference
-      }
+    // Assign the average values to the corresponding mcData objects
+    Object.keys(mcNameAverages).forEach((mcName: string) => {
+      const average =
+        mcNameAverages[mcName] / (Object.keys(mcDataMap[mcName]).length - 2); // The 2 accounts for the extra columns mcMemberCount and mcName
+      mcDataMap[mcName].average = average.toFixed(2);
     });
 
     // Generate the final response in the desired format
@@ -148,14 +184,7 @@ export class ReportsController {
     const columns = [
       { name: "mcName", label: "MC Name" },
       { name: "mcMemberCount", label: "MC Members" },
-      ...submissions.data.map((submission: any) => ({
-        name: submission.submittedAt.toISOString(),
-        label: submission.submittedAt.toLocaleDateString("en-US", {
-          year: "numeric",
-          month: "short",
-          day: "numeric",
-        }),
-      })),
+      ...dateColumns,
       { name: "average", label: "Average" },
     ];
 
