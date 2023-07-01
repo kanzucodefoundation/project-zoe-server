@@ -1,8 +1,8 @@
 export enum EventCategories {
-  Garage = "garage",
-  Evangelism = "evangelism",
-  Wedding = "wedding",
-  Baptism = "baptism",
-  MC = "mc",
-  Frontier = "frontier",
+  Garage = "Garage",
+  Evangelism = "Evangelism",
+  Wedding = "Wedding",
+  Baptism = "Baptism",
+  MC = "Missional Community Meeting",
+  Frontier = "Frontier",
 }
