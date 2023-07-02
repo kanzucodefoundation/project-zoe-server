@@ -13,6 +13,7 @@ import { GroupFinderService } from "src/crm/group-finder/group-finder.service";
 import { AddressesService } from "src/crm/addresses.service";
 import { GroupCategoriesService } from "src/groups/services/group-categories.service";
 import { GroupPermissionsService } from "src/groups/services/group-permissions.service";
+import { GroupsMembershipService } from "src/groups/services/group-membership.service";
 
 @Injectable()
 export class TenantsService {
@@ -31,6 +32,7 @@ export class TenantsService {
     const tenantDetails = await dbService.createTenant({ name: tenantName });
     const connection: Connection = await dbService.getConnection(tenantName);
     const groupCategoriesService = new GroupCategoriesService(connection);
+    const groupMembershipService = new GroupsMembershipService(connection);
     const contactService: ContactsService = new ContactsService(
       connection,
       googleService,
@@ -45,6 +47,7 @@ export class TenantsService {
       groupsPermissionsService,
       groupCategoriesService,
       googleService,
+      groupMembershipService,
     );
     return tenantDetails;
   }

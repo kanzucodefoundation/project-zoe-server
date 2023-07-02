@@ -13,6 +13,8 @@ import { ContactsService } from "src/crm/contacts.service";
 import { JwtHelperService } from "src/auth/jwt-helpers.service";
 import { GoogleService } from "src/vendor/google.service";
 import { GroupPermissionsService } from "src/groups/services/group-permissions.service";
+import { GroupsMembershipService } from "src/groups/services/group-membership.service";
+import { GroupRole } from "src/groups/enums/groupRole";
 
 @Injectable()
 export class SeedService {
@@ -21,6 +23,7 @@ export class SeedService {
   private usersService: UsersService;
   private groupsService: GroupsService;
   private groupCategoriesService: GroupCategoriesService;
+  private groupMembershipService: GroupsMembershipService;
 
   async createAll(
     connection: Connection,
@@ -29,6 +32,7 @@ export class SeedService {
     groupsPermissionsService: GroupPermissionsService,
     groupCategoriesService: GroupCategoriesService,
     googleService: GoogleService,
+    groupMembershipService: GroupsMembershipService,
   ) {
     this.eventCategoryRepository = connection.getRepository(EventCategory);
     this.rolesRepository = connection.getRepository(Roles);
@@ -44,6 +48,7 @@ export class SeedService {
       googleService,
     );
     this.groupCategoriesService = groupCategoriesService;
+    this.groupMembershipService = groupMembershipService;
 
     await this.createRoleAdmin();
     await this.createUsers();
@@ -85,6 +90,11 @@ export class SeedService {
       for (const rec of seedGroups) {
         await this.groupsService.create(rec, {}, true);
       }
+      await this.groupMembershipService.create({
+        groupId: 1,
+        members: [1],
+        role: GroupRole.Leader,
+      });
     }
   }
 
