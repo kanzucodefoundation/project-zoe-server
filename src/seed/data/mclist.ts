@@ -1,13 +1,14 @@
 export const mcData = [
   {
-    name: 'WH Iganga',
+    name: "WH Naalya",
     details: null,
     list: [
       {
-        name: 'Iganga MC',
-        leaders: 'Bill & Christine Mukasa',
-        phone: '0775 374420/ 0774 432289',
-        email: 'bcmukasa@gmail.com / nkechristine@gmail.com',
+        name: "Jerusalem MC",
+        leaders: "Abraham & Sarah Doe",
+        phone: "0772 123456/ 0776 123456",
+        email:
+          "abraham@kanzucodefoundation.org / sarah@kanzucodefoundation.org",
         details: null,
       },
     ],

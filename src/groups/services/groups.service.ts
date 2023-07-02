@@ -92,7 +92,15 @@ export class GroupsService {
       findOps.id = In(groupIds);
     }
     if (hasValue(req.categories)) {
-      findOps.category = In(req.categories);
+      let categoryIds: number[] = [];
+      let groupCategory: GroupCategory;
+      for (const categoryName of req.categories) {
+        groupCategory = await this.groupCategoryRepository.findOne({
+          name: categoryName,
+        });
+        categoryIds.push(groupCategory.id);
+      }
+      findOps.category = { id: In(categoryIds) };
     }
     if (hasValue(req.query)) {
       findOps.name = ILike(`%${req.query}%`);

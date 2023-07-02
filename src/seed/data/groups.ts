@@ -15,35 +15,26 @@ export const groupConstants = {
   garageTeam: GroupCategoryNames.GARAGE_TEAM,
 };
 
-const createLocation = ({
+const createGroupObject = ({
   name,
   details,
+  parentId,
+  categoryName,
+  metaData,
 }: {
   name: string;
   details?: string;
+  parentId: number | null;
+  categoryName: string;
+  metaData?: any;
 }): CreateGroupDto => {
-  return {
-    parentId: null,
-    privacy: GroupPrivacy.Public,
-    details: details,
-    name: name,
-    categoryName: GroupCategoryNames.LOCATION,
-  };
-};
-
-export const createMc = ({
-  name,
-  parentId,
-  details,
-  metaData,
-}: any): CreateGroupDto => {
   return {
     parentId: parentId,
     privacy: GroupPrivacy.Public,
     details: details,
+    metaData: metaData,
     name: name,
-    categoryName: GroupCategoryNames.MC,
-    metaData,
+    categoryName: categoryName,
   };
 };
 
@@ -65,7 +56,7 @@ export const seedGroupCategories: GroupCategory[] = [
   },
   {
     id: 4,
-    name: GroupCategoryNames.COHORT,
+    name: GroupCategoryNames.ZONE,
     groups: [],
   },
   {
@@ -85,28 +76,59 @@ export const seedGroupCategories: GroupCategory[] = [
   },
 ];
 
+const seedNetworks: CreateGroupDto[] = [];
 const seedLocations: CreateGroupDto[] = [];
+const seedZones: CreateGroupDto[] = [];
 const seedCells: CreateGroupDto[] = [];
 
-mcData.forEach((location: any, index: number) => {
-  const id = index + 1;
-
-  const loc = createLocation({ name: location.name });
-  seedLocations.push(loc);
-  location.list.forEach((mc: any) => {
-    seedCells.push(
-      createMc({
-        name: `${location.name}-${mc.name}`,
-        parentId: index + 1,
-        metaData: JSON.stringify({
-          leaders: mc.leaders,
-          phone: mc.phone,
-          email: mc.email,
+/**
+ * Populate the seedNetworks, seedLocations, seedZones and seedCells arrays
+ */
+async function populateGroupArrays() {
+  for (const location of mcData) {
+    const newNetwork = createGroupObject({
+      name: "Champions Network",
+      categoryName: GroupCategoryNames.NETWORK,
+      parentId: null,
+    });
+    const networdId = 1;
+    const locationId = 2;
+    const zoneId = 3;
+    const newLocation = createGroupObject({
+      name: location.name,
+      parentId: networdId,
+      categoryName: GroupCategoryNames.LOCATION,
+    });
+    const newZone = createGroupObject({
+      name: "Najjera-Buwate Zone",
+      parentId: locationId,
+      categoryName: GroupCategoryNames.ZONE,
+    });
+    seedNetworks.push(newNetwork);
+    seedZones.push(newZone);
+    seedLocations.push(newLocation);
+    for (const mc of location.list) {
+      seedCells.push(
+        createGroupObject({
+          name: `${mc.name}`,
+          categoryName: GroupCategoryNames.MC,
+          parentId: zoneId,
+          metaData: JSON.stringify({
+            leaders: mc.leaders,
+            phone: mc.phone,
+            email: mc.email,
+          }),
         }),
-      }),
-    );
-  });
-});
+      );
+    }
+  }
+}
+populateGroupArrays();
 
-const seedGroups = [...seedLocations, ...seedCells];
+const seedGroups = [
+  ...seedNetworks,
+  ...seedLocations,
+  ...seedZones,
+  ...seedCells,
+];
 export default seedGroups;
