@@ -99,8 +99,8 @@ export class ReportsController {
     // Intermediate data structure to organize the data
     const mcDataMap: Record<string, any> = {};
 
-    // Intermediate data structure to store mcName averages
-    const mcNameAverages: Record<string, number> = {};
+    // Intermediate data structure to store smallGroupName averages
+    const smallGroupNameAverages: Record<string, number> = {};
 
     // Get the start and end dates of the month
     const currentDate = new Date();
@@ -137,11 +137,11 @@ export class ReportsController {
       currentSunday.setDate(currentSunday.getDate() + 7);
     }
 
-    // Process submissions and organize the data by mcName and Sunday
+    // Process submissions and organize the data by smallGroupName and Sunday
     submissions.data.forEach((submission: any) => {
-      const mcName = submission.mcName; // @TODO Change mcName to smallGroupName
-      const mcMemberCount = submission.mcMemberCount; // @TODO change to smallGroupNumberOfMembers
-      const mcParticipantCount = parseInt(submission.mcParticipantCount); // @TODO change to smallGroupAttendanceCount. What differs from church to church is the labels
+      const smallGroupName = submission.smallGroupName; // @TODO Change smallGroupName to smallGroupName
+      const smallGroupNumberOfMembers = submission.smallGroupNumberOfMembers; // @TODO change to smallGroupNumberOfMembers
+      const mcParticipantCount = parseInt(submission.smallGroupAttendanceCount); // @TODO change to smallGroupAttendanceCount. What differs from church to church is the labels
       const submittedAt = submission.submittedAt.toISOString(); // @TODO Group by submittedAt or by the date of the meeting? I think the latter
       const submittedDate = new Date(submittedAt);
 
@@ -155,35 +155,36 @@ export class ReportsController {
       const sundayKey = nextSunday.toISOString().slice(0, 10).replace(/-/g, "");
 
       // Create the mcData object if it doesn't exist
-      if (!mcDataMap[mcName]) {
-        mcDataMap[mcName] = {
-          mcName,
-          mcMemberCount,
+      if (!mcDataMap[smallGroupName]) {
+        mcDataMap[smallGroupName] = {
+          smallGroupName,
+          smallGroupNumberOfMembers,
         };
       }
 
       // Store the mcParticipantCount for the corresponding Sunday
-      mcDataMap[mcName][sundayKey] = mcParticipantCount;
+      mcDataMap[smallGroupName][sundayKey] = mcParticipantCount;
 
-      // Update the sum for the mcName average
-      if (!mcNameAverages[mcName]) {
-        mcNameAverages[mcName] = 0;
+      // Update the sum for the smallGroupName average
+      if (!smallGroupNameAverages[smallGroupName]) {
+        smallGroupNameAverages[smallGroupName] = 0;
       }
-      mcNameAverages[mcName] += mcParticipantCount;
+      smallGroupNameAverages[smallGroupName] += mcParticipantCount;
     });
 
     // Assign the average values to the corresponding mcData objects
-    Object.keys(mcNameAverages).forEach((mcName: string) => {
+    Object.keys(smallGroupNameAverages).forEach((smallGroupName: string) => {
       const average =
-        mcNameAverages[mcName] / (Object.keys(mcDataMap[mcName]).length - 2); // The 2 accounts for the extra columns mcMemberCount and mcName
-      mcDataMap[mcName].average = average.toFixed(2);
+        smallGroupNameAverages[smallGroupName] /
+        (Object.keys(mcDataMap[smallGroupName]).length - 2); // The 2 accounts for the extra columns smallGroupNumberOfMembers and smallGroupName
+      mcDataMap[smallGroupName].average = average.toFixed(2);
     });
 
     // Generate the final response in the desired format
     const data = Object.values(mcDataMap);
     const columns = [
-      { name: "mcName", label: "MC Name" },
-      { name: "mcMemberCount", label: "MC Members" },
+      { name: "smallGroupName", label: "MC Name" },
+      { name: "smallGroupNumberOfMembers", label: "MC Members" },
       ...dateColumns,
       { name: "average", label: "Average" },
     ];
