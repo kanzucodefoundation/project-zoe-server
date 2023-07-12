@@ -104,27 +104,31 @@ export class UsersService {
       throw new HttpException("Failed To Create User", 400);
     }
 
+    const tokenOptions = { expiresIn: "1d" };
     const token = (
-      await this.jwtHelperService.generateToken({
-        id: user.id,
-        contactId: user.contactId,
-        username: user.username,
-        email: user.username,
-        fullName: user.fullName,
-        roles: user.roles,
-        isActive: user.isActive,
-      })
+      await this.jwtHelperService.generateToken(
+        {
+          id: user.id,
+          contactId: user.contactId,
+          username: user.username,
+          email: user.username,
+          fullName: user.fullName,
+          roles: user.roles,
+          isActive: user.isActive,
+        },
+        tokenOptions,
+      )
     ).token;
 
     const resetLink = `${process.env.APP_URL}/#/reset-password/${token}`;
     const mailerData: IEmail = {
       to: `${(await user).username}`,
-      subject: "Account Activated!",
+      subject: "Project Zoe - Worship Harvest - Account Activated!",
       html: `
-                <h3>Hello ${user.fullName}</h3></br>
-                <h4>Your Account Has Been Created.<h4></br>
-                <h4>Follow This <a href=${resetLink}>Link</a> To Reset Your Password</h5>
-                <p>This link will expire in 10 minutes</p>
+                <p>Hello ${user.fullName},</p></br>
+                <p>The Lamb has won! So, your account has been created in the Project Zoe church management platform.<p></br>
+                <p>Follow this <a href=${resetLink}>link</a> to reset your password</p>
+                <p>This link will expire in 1 day</p>
             `,
     };
     const mailURL = await sendEmail(mailerData);
