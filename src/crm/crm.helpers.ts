@@ -11,6 +11,7 @@ import * as crypto from "crypto";
 import Relationship from "./entities/relationship.entity";
 import Request from "./entities/request.entity";
 import Group from "../groups/entities/group.entity";
+import { GroupCategoryNames } from "src/groups/enums/groups";
 
 export const getPersonFullName = (person: Partial<Person>): string => {
   if (hasNoValue(person)) {
@@ -87,7 +88,7 @@ export const getCellGroup = (data: Contact): Group | null => {
   const { groupMemberships } = data;
   if (hasValue(groupMemberships)) {
     const pri = groupMemberships.find(
-      (it) => it.group?.category.name.toLocaleLowerCase() === "mc",
+      (it) => it.group?.category.name === GroupCategoryNames.MC,
     );
     if (pri) {
       return pri.group;
@@ -100,7 +101,7 @@ export const getLocation = (data: Contact): Group | null => {
   const { groupMemberships } = data;
   if (hasValue(groupMemberships)) {
     const pri = groupMemberships.find(
-      (it) => it.group?.category.name.toLocaleLowerCase() === "location",
+      (it) => it.group?.category.name === GroupCategoryNames.LOCATION,
     );
     if (pri) {
       return pri.group;

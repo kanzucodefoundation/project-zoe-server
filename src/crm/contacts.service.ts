@@ -183,11 +183,13 @@ export class ContactsService {
           "phones",
           "groupMemberships",
           "groupMemberships.group",
+          "groupMemberships.group.category",
         ],
         skip: req.skip,
         take: req.limit,
         where: findOpts,
       });
+
       return data.map((it) => {
         return ContactsService.toListDto(it);
       });
