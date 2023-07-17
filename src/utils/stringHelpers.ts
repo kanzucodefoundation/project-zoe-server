@@ -14,3 +14,15 @@ export function generateRandomPassword(length) {
 
   return password;
 }
+
+/**
+ * Generate the current date in the YYYYMMDD format
+ * @param currentDate Date
+ * @returns string Date in the YYYYMMDD format
+ */
+export function getFormattedDateString(currentDate: Date) {
+  const year = currentDate.getFullYear();
+  const month = String(currentDate.getMonth() + 1).padStart(2, "0");
+  const day = String(currentDate.getDate()).padStart(2, "0");
+  return `${year}${month}${day}`;
+}

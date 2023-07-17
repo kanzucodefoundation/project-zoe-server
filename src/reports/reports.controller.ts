@@ -24,6 +24,7 @@ import {
   ApiResponse,
   ReportSubmissionsApiResponse,
 } from "./types/report-api.types";
+import { getFormattedDateString } from "src/utils/stringHelpers";
 
 @UseInterceptors(SentryInterceptor)
 @UseGuards(JwtAuthGuard)
@@ -120,10 +121,8 @@ export class ReportsController {
     currentSunday.setDate(startOfMonth.getDate() + (7 - startOfMonth.getDay()));
 
     while (currentSunday <= endOfMonth) {
-      const sundayKey = currentSunday
-        .toISOString()
-        .slice(0, 10)
-        .replace(/-/g, "");
+      const sundayKey = getFormattedDateString(currentSunday);
+
       const sundayLabel = currentSunday.toLocaleDateString("en-US", {
         year: "numeric",
         month: "short",
@@ -139,10 +138,10 @@ export class ReportsController {
 
     // Process submissions and organize the data by smallGroupName and Sunday
     submissions.data.forEach((submission: any) => {
-      const smallGroupName = submission.smallGroupName; // @TODO Change smallGroupName to smallGroupName
-      const smallGroupNumberOfMembers = submission.smallGroupNumberOfMembers; // @TODO change to smallGroupNumberOfMembers
-      const mcParticipantCount = parseInt(submission.smallGroupAttendanceCount); // @TODO change to smallGroupAttendanceCount. What differs from church to church is the labels
-      const submittedAt = submission.submittedAt.toISOString(); // @TODO Group by submittedAt or by the date of the meeting? I think the latter
+      const smallGroupName = submission.smallGroupName;
+      const smallGroupNumberOfMembers = submission.smallGroupNumberOfMembers;
+      const mcParticipantCount = parseInt(submission.smallGroupAttendanceCount);
+      const submittedAt = submission.date; // Group by the date of the meeting
       const submittedDate = new Date(submittedAt);
 
       // Find the next Sunday date after the submitted date
@@ -152,7 +151,7 @@ export class ReportsController {
       );
 
       // Generate the key in the format "YYYYMMDD" for the Sunday date
-      const sundayKey = nextSunday.toISOString().slice(0, 10).replace(/-/g, "");
+      const sundayKey = getFormattedDateString(nextSunday);
 
       // Create the mcData object if it doesn't exist
       if (!mcDataMap[smallGroupName]) {
