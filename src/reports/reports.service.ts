@@ -6,10 +6,11 @@ import { EventCategories } from "src/events/enums/EventCategories";
 import { Report } from "./entities/report.entity";
 import { ReportSubmission } from "./entities/report.submission.entity";
 import { ReportSubmissionDto } from "./dto/report-submission.dto";
-import { ReportDto } from "./dto/report.dto";
+import { ReportDto, ReportFieldDto } from "./dto/report.dto";
 import { UpdateDto } from "./dto/update.dto";
 import { User } from "src/users/entities/user.entity";
 import { ReportSubmissionsApiResponse } from "./types/report-api.types";
+import { ReportFieldType } from "./enums/report.enum";
 
 @Injectable()
 export class ReportsService {
@@ -138,11 +139,18 @@ export class ReportsService {
       );
     }
 
+    const reportDetails = await this.reportRepository.findOne(reportId);
+    const { fields } = reportDetails;
+
     const { id, data, submittedAt, user } = submission;
 
     return {
       id,
       data,
+      labels: fields.map((field: ReportFieldDto) => {
+        const { name, label } = field;
+        return { name, label };
+      }),
       submittedAt,
       submittedBy: user ? user.username : null,
     };
