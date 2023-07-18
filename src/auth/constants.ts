@@ -29,6 +29,7 @@ export const appPermissions = {
   roleEventEdit: "EVENT_EDIT",
 
   roleReportView: "REPORT_VIEW",
+  roleReportViewSubmissions: "REPORT_VIEW_SUBMISSIONS",
   roleReportEdit: "REPORT_EDIT",
 };
 
