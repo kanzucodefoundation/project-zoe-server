@@ -14,16 +14,20 @@ import { Inject } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { JwtService } from "@nestjs/jwt";
 import { LoginResponseDto } from "./dto/login-response.dto";
+import { Connection } from "typeorm";
 
 @Injectable()
 export class AuthService {
+  private readonly rolesRepository: Repository<Roles>;
+
   constructor(
-    @InjectRepository(Roles)
-    private readonly rolesRepository: Repository<Roles>,
-    private readonly usersService: UsersService,
-    private readonly jwtHelperService: JwtHelperService,
-    private readonly jwtService: JwtService,
-  ) {}
+    @Inject("CONNECTION") connection: Connection,
+    private usersService: UsersService,
+    private jwtHelperService: JwtHelperService,
+    private jwtService: JwtService,
+  ) {
+    this.rolesRepository = connection.getRepository(Roles);
+  }
 
   async validateUser(username: string, pass: string): Promise<UserDto | null> {
     const user = await this.usersService.findByName(username);
@@ -135,11 +139,11 @@ export class AuthService {
 
   async getPermissions(roles: string[]) {
     const permissions: string[] = [];
-
     const getPermissions = await this.rolesRepository.find({
       select: ["permissions"],
       where: { role: In(roles), isActive: true },
     });
+
     getPermissions.map((it: any) => permissions.push(...it.permissions));
     return [...new Set(permissions)];
   }
