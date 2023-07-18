@@ -153,7 +153,7 @@ export class ContactImportController {
           };
 
           const newGroup = {
-            parentId: uploadedContact.groupid,
+            parentId: uploadedContact.groupParentId,
             privacy: GroupPrivacy.Public,
             details: null,
             name: uploadedContact.groupName,
