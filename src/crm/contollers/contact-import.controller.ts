@@ -152,15 +152,27 @@ export class ContactImportController {
             freeForm: uploadedContact.address,
           };
 
-          const newGroup = {
-            parentId: uploadedContact.groupParentId,
-            privacy: GroupPrivacy.Public,
-            details: null,
-            name: uploadedContact.groupName,
-            categoryName: GroupCategoryNames.MC,
-          };
-
-          const groupData = await this.groupsService.create(newGroup, {}, true);
+          let groupData;
+          if (uploadedContact.groupid) {
+            groupData = await this.groupsService.findOne(
+              uploadedContact.groupid,
+              false,
+            );
+            if (!groupData) {
+              throw new BadRequestException({
+                message: `Specified Group with ID ${uploadedContact.groupid} does not exist. Please specify a valid group ID.`,
+              });
+            }
+          } else {
+            const newGroup = {
+              parentId: uploadedContact.groupParentId,
+              privacy: GroupPrivacy.Public,
+              details: null,
+              name: uploadedContact.groupName,
+              categoryName: GroupCategoryNames.MC,
+            };
+            groupData = await this.groupsService.create(newGroup, {}, true);
+          }
 
           if (!groupData) {
             throw new BadRequestException({
