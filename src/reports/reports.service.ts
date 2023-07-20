@@ -85,6 +85,8 @@ export class ReportsService {
       .createQueryBuilder("submission")
       .leftJoinAndSelect("submission.report", "report")
       .leftJoinAndSelect("submission.user", "user")
+      .leftJoinAndSelect("user.contact", "contact")
+      .leftJoinAndSelect("contact.person", "person")
       .where("report.id = :reportId", { reportId });
 
     if (startDate && endDate) {
@@ -103,12 +105,18 @@ export class ReportsService {
     const submissions: ReportSubmission[] = await query.getMany();
     const submissionResponses = submissions.map((submission) => {
       const { id, data, submittedAt, user } = submission;
+      const firstName = user?.contact?.person?.firstName ?? "";
+      const lastName = user?.contact?.person?.lastName ?? "";
+      const fullName = `${firstName} ${lastName}`;
+      const displayName =
+        fullName.trim() !== "" ? fullName : user ? user.username : "";
+
       return {
         data: {
           id,
           ...data,
           submittedAt,
-          submittedBy: user ? user.username : "",
+          submittedBy: displayName,
         },
       };
     });
