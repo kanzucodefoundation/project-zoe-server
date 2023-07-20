@@ -11,18 +11,22 @@ import { UpdateDto } from "./dto/update.dto";
 import { User } from "src/users/entities/user.entity";
 import { ReportSubmissionsApiResponse } from "./types/report-api.types";
 import { ReportFieldType } from "./enums/report.enum";
+import { TreeRepository } from "typeorm";
+import Group from "src/groups/entities/group.entity";
 
 @Injectable()
 export class ReportsService {
   private readonly reportRepository: Repository<Report>;
   private readonly reportSubmissionRepository: Repository<ReportSubmission>;
   private readonly userRepository: Repository<User>;
+  private readonly treeRepository: TreeRepository<Group>;
 
   constructor(@Inject("CONNECTION") connection: Connection) {
     this.reportRepository = connection.getRepository(Report);
     this.reportSubmissionRepository = connection.getRepository(
       ReportSubmission,
     );
+    this.treeRepository = connection.getTreeRepository(Group);
     this.userRepository = connection.getRepository(User);
   }
 
@@ -81,6 +85,21 @@ export class ReportsService {
     if (!report) {
       throw new NotFoundException(`Report with ID ${reportId} not found`);
     }
+
+    return this.getSmallGroupSummaryAttendance(
+      reportId,
+      report,
+      startDate,
+      endDate,
+    );
+  }
+
+  async getSmallGroupSummaryAttendance(
+    reportId: number,
+    report: Report,
+    startDate?: Date,
+    endDate?: Date,
+  ): Promise<ReportSubmissionsApiResponse> {
     let query = this.reportSubmissionRepository
       .createQueryBuilder("submission")
       .leftJoinAndSelect("submission.report", "report")
@@ -103,29 +122,37 @@ export class ReportsService {
     }
 
     const submissions: ReportSubmission[] = await query.getMany();
-    const submissionResponses = submissions.map((submission) => {
-      const { id, data, submittedAt, user } = submission;
-      const firstName = user?.contact?.person?.firstName ?? "";
-      const lastName = user?.contact?.person?.lastName ?? "";
-      const fullName = `${firstName} ${lastName}`;
-      const displayName =
-        fullName.trim() !== "" ? fullName : user ? user.username : "";
+    const submissionResponses = await Promise.all(
+      submissions.map(async (submission) => {
+        const { id, data, submittedAt, user } = submission;
+        const firstName = user?.contact?.person?.firstName ?? "";
+        const lastName = user?.contact?.person?.lastName ?? "";
+        const fullName = `${firstName} ${lastName}`;
+        const displayName =
+          fullName.trim() !== "" ? fullName : user ? user.username : "";
 
-      return {
-        data: {
+        const smallGroup = await this.treeRepository.findOne(
+          data.smallGroupId,
+          {
+            relations: ["parent"],
+          },
+        );
+
+        return {
           id,
           ...data,
           submittedAt,
           submittedBy: displayName,
-        },
-      };
-    });
+          parentGroupName: smallGroup?.parent?.name || "", // Use optional chaining to avoid potential errors
+        };
+      }),
+    );
 
     const reportColumns = Object.values(report.columns); // Convert columns object to array
 
     return {
       reportId,
-      data: submissionResponses.map((submission) => submission.data),
+      data: submissionResponses,
       columns: [
         ...reportColumns,
         { label: "Submitted At", name: "submittedAt" },

@@ -18,6 +18,9 @@ export class Report {
   @Column({ nullable: true })
   description: string | null;
 
+  @Column({ nullable: true })
+  functionName: string | null;
+
   @Column({
     type: "enum",
     enum: [
