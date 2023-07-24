@@ -1,5 +1,5 @@
 import { HttpException, Injectable, Inject } from "@nestjs/common";
-import { In, Repository, Connection } from "typeorm";
+import { In, Repository, Connection, ILike } from "typeorm";
 import { User } from "./entities/user.entity";
 import Email from "src/crm/entities/email.entity";
 import { RegisterUserDto } from "../auth/dto/register-user.dto";
@@ -240,7 +240,7 @@ export class UsersService {
 
   async findByName(username: string): Promise<User | undefined> {
     return this.repository.findOne({
-      where: { username },
+      where: { username: ILike(username) },
       relations: ["contact", "contact.person", "userRoles", "userRoles.roles"],
     });
   }

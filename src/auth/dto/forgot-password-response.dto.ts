@@ -1,5 +1,5 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { UserListDto } from 'src/users/dto/user-list.dto';
+import { ApiProperty } from "@nestjs/swagger";
+import { UserListDto } from "src/users/dto/user-list.dto";
 
 export class ForgotPasswordResponseDto {
   @ApiProperty()
@@ -9,9 +9,8 @@ export class ForgotPasswordResponseDto {
   mailURL: string;
 
   @ApiProperty()
-  user: UserListDto;
+  message?: string;
+
+  @ApiProperty()
+  user?: UserListDto;
 }
-
-
-
-

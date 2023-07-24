@@ -78,8 +78,11 @@ export class AuthService {
 
   async forgotPassword(username: string): Promise<ForgotPasswordResponseDto> {
     const userExists = await this.usersService.findByName(username);
+    const message =
+      "An email has been sent to the provided address if it exists in our system";
     if (!userExists) {
-      throw new HttpException("User Not Found", 404);
+      Logger.error("Provided email address not registered");
+      return { token: "", mailURL: "", message };
     }
 
     const user = await this.usersService.findOne(userExists.id);
@@ -88,12 +91,12 @@ export class AuthService {
 
     const mailerData: IEmail = {
       to: `${(await user).username}`,
-      subject: "Reset Password",
+      subject: "Project Zoe - Reset Password",
       html: `
-            <h3>Hello ${user.fullName}</h3></br>
-            <h4>Here is a link to reset your Password!<h4></br>
+            <p>Hello ${user.fullName}</p></br>
+            <p>Here is a link to reset your password!</p></br>
             <a href="${resetLink}">Reset Password</a>
-            <p>This link should expire in 10 minutes</p>
+            <p>This link will expire in 10 minutes.</p>
         `,
     };
     const mailURL = await sendEmail(mailerData);
