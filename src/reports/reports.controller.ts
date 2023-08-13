@@ -72,6 +72,7 @@ export class ReportsController {
     @Param("reportId", ParseIntPipe) reportId: number,
     @Query("from") startDate?: string,
     @Query("to") endDate?: string,
+    @Query("groupIdList") smallGroupIdList?: string,
   ): Promise<ReportSubmissionsApiResponse> {
     const formattedStartDate = startDate ? new Date(startDate) : undefined;
     const formattedEndDate = endDate ? new Date(endDate) : undefined;
@@ -79,6 +80,7 @@ export class ReportsController {
       reportId,
       formattedStartDate,
       formattedEndDate,
+      smallGroupIdList,
     );
   }
 

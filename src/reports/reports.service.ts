@@ -80,6 +80,7 @@ export class ReportsService {
     reportId: number,
     startDate?: Date,
     endDate?: Date,
+    smallGroupIdList?: string,
   ): Promise<ReportSubmissionsApiResponse> {
     const report = await this.reportRepository.findOne(reportId);
     if (!report) {
@@ -91,6 +92,7 @@ export class ReportsService {
       report,
       startDate,
       endDate,
+      smallGroupIdList,
     );
   }
 
@@ -99,6 +101,7 @@ export class ReportsService {
     report: Report,
     startDate?: Date,
     endDate?: Date,
+    smallGroupIdList?: string,
   ): Promise<ReportSubmissionsApiResponse> {
     let query = this.reportSubmissionRepository
       .createQueryBuilder("submission")
@@ -119,6 +122,15 @@ export class ReportsService {
       });
     } else if (endDate) {
       query = query.andWhere("submission.submittedAt <= :endDate", { endDate });
+    }
+    if (smallGroupIdList) {
+      const smallGroupIds = smallGroupIdList.split(",").map(Number); // Convert CSV to an array of numbers
+      query = query.andWhere(
+        "CAST(submission.data ->> 'smallGroupId' AS INTEGER) IN (:...smallGroupIds)",
+        {
+          smallGroupIds,
+        },
+      );
     }
 
     const submissions: ReportSubmission[] = await query.getMany();
