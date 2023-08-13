@@ -194,4 +194,14 @@ export class ReportsService {
   async updateReport(id: number, updateDto: ReportDto): Promise<Report | any> {
     return await this.reportRepository.update(id, updateDto);
   }
+
+  // @TODO Placeholder. Replace this logic.
+  getReportFunction(reportFunctionName: string, reportArgs: any) {
+    const reportFunctionsMap = new Map<string, (reportArgs: any) => any>();
+    //reportFunctionsMap.set('smallGroupWeeklyAttendanceMissingReports', this.generateReport1(reportArgs));
+  }
+
+  generateReport1(reportArgs: any) {
+    return [];
+  }
 }

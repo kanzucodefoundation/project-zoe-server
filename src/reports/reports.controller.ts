@@ -70,8 +70,8 @@ export class ReportsController {
   @Get(":reportId/submissions")
   async getReportSubmissions(
     @Param("reportId", ParseIntPipe) reportId: number,
-    @Query("startDate") startDate?: string,
-    @Query("endDate") endDate?: string,
+    @Query("from") startDate?: string,
+    @Query("to") endDate?: string,
   ): Promise<ReportSubmissionsApiResponse> {
     const formattedStartDate = startDate ? new Date(startDate) : undefined;
     const formattedEndDate = endDate ? new Date(endDate) : undefined;
