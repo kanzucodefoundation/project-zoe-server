@@ -15,6 +15,12 @@ import { ReportSubmissionDto } from "./dto/report-submission.dto";
 import { ReportDto, ReportFieldDto } from "./dto/report.dto";
 import { UpdateDto } from "./dto/update.dto";
 import { User } from "src/users/entities/user.entity";
+import { IEmail, sendEmail } from "src/utils/mailer";
+import {
+  getUserDisplayName,
+  getHumanReadableDate,
+} from "src/utils/stringHelpers";
+
 import {
   ReportSubmissionsApiResponse,
   ApiResponse,
@@ -92,6 +98,15 @@ export class ReportsService {
         status: HttpStatus.OK,
         message: "Report submitted successfully.",
       };
+      const formattedDate = getHumanReadableDate(
+        submissionSaveResult.submittedAt,
+      );
+      const fullName = getUserDisplayName(submissionSaveResult.user);
+      this.sendMail(
+        submissionSaveResult.user.username,
+        "Project Zoe - Report Submitted",
+        { submissionDate: formattedDate, fullName },
+      );
       return apiResponse;
     } catch (error) {
       // Handle and rethrow the exception
@@ -175,11 +190,7 @@ export class ReportsService {
     const submissionResponses = await Promise.all(
       submissions.map(async (submission) => {
         const { id, data, submittedAt, user } = submission;
-        const firstName = user?.contact?.person?.firstName ?? "";
-        const lastName = user?.contact?.person?.lastName ?? "";
-        const fullName = `${firstName} ${lastName}`;
-        const displayName =
-          fullName.trim() !== "" ? fullName : user ? user.username : "";
+        const displayName = getUserDisplayName(user);
 
         const smallGroup = await this.treeRepository.findOne(
           data.smallGroupId,
@@ -243,6 +254,18 @@ export class ReportsService {
 
   async updateReport(id: number, updateDto: ReportDto): Promise<Report | any> {
     return await this.reportRepository.update(id, updateDto);
+  }
+
+  sendMail(to: string, subject: string, mailArgs: any) {
+    const mailerData: IEmail = {
+      to: to,
+      subject: subject,
+      html: `
+            <p>Hello ${mailArgs.fullName},</p></br>
+            <p>Your report has been successfully submitted on ${mailArgs.submissionDate}!</p></br>
+        `,
+    };
+    return sendEmail(mailerData);
   }
 
   // @TODO Placeholder. Replace this logic.
