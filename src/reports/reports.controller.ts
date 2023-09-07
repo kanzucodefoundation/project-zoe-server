@@ -23,8 +23,10 @@ import { Report } from "./entities/report.entity";
 import {
   ApiResponse,
   ReportSubmissionsApiResponse,
+  ReportSubmissionData,
 } from "./types/report-api.types";
 import { getFormattedDateString } from "src/utils/stringHelpers";
+import { ReportSubmission } from "./entities/report.submission.entity";
 
 @UseInterceptors(SentryInterceptor)
 @UseGuards(JwtAuthGuard)
@@ -45,8 +47,8 @@ export class ReportsController {
   async submitReport(
     @Body() submissionDto: ReportSubmissionDto,
     @Request() request,
-  ): Promise<void> {
-    await this.reportService.submitReport(submissionDto, request.user);
+  ): Promise<ApiResponse<ReportSubmissionData>> {
+    return await this.reportService.submitReport(submissionDto, request.user);
   }
 
   @Get(":reportId")

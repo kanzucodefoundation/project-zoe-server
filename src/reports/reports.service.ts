@@ -1,4 +1,10 @@
-import { Injectable, Inject, NotFoundException } from "@nestjs/common";
+import {
+  Injectable,
+  Inject,
+  NotFoundException,
+  HttpException,
+  HttpStatus,
+} from "@nestjs/common";
 import GroupEvent from "src/events/entities/event.entity";
 import { Connection, Repository, FindConditions } from "typeorm";
 import { UserDto } from "src/auth/dto/user.dto";
@@ -9,7 +15,11 @@ import { ReportSubmissionDto } from "./dto/report-submission.dto";
 import { ReportDto, ReportFieldDto } from "./dto/report.dto";
 import { UpdateDto } from "./dto/update.dto";
 import { User } from "src/users/entities/user.entity";
-import { ReportSubmissionsApiResponse } from "./types/report-api.types";
+import {
+  ReportSubmissionsApiResponse,
+  ApiResponse,
+  ReportSubmissionData,
+} from "./types/report-api.types";
 import { ReportFieldType } from "./enums/report.enum";
 import { TreeRepository } from "typeorm";
 import Group from "src/groups/entities/group.entity";
@@ -47,7 +57,7 @@ export class ReportsService {
   async submitReport(
     submissionDto: ReportSubmissionDto,
     user: UserDto,
-  ): Promise<void> {
+  ): Promise<ApiResponse<ReportSubmissionData>> {
     const { reportId, data } = submissionDto;
     // Retrieve the report by its ID
     const report = await this.reportRepository.findOne(reportId);
@@ -61,7 +71,35 @@ export class ReportsService {
     reportSubmission.submittedAt = new Date();
     reportSubmission.report = report;
     reportSubmission.user = await this.userRepository.findOne(user.id);
-    await this.reportSubmissionRepository.save(reportSubmission);
+    try {
+      // Attempt to save the report submission
+      const submissionSaveResult = await this.reportSubmissionRepository.save(
+        reportSubmission,
+      );
+      if (!submissionSaveResult) {
+        throw new HttpException(
+          "Report submission was not saved.",
+          HttpStatus.INTERNAL_SERVER_ERROR,
+        );
+      }
+      const apiResponse: ApiResponse<ReportSubmissionData> = {
+        data: {
+          reportId: submissionSaveResult.report.id,
+          submissionId: submissionSaveResult.id,
+          submittedAt: submissionSaveResult.submittedAt,
+          submittedBy: submissionSaveResult.user.username,
+        },
+        status: HttpStatus.OK,
+        message: "Report submitted successfully.",
+      };
+      return apiResponse;
+    } catch (error) {
+      // Handle and rethrow the exception
+      throw new HttpException(
+        "Failed to save report submission.",
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
   }
 
   async getAllReports(): Promise<Report[]> {

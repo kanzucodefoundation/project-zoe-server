@@ -1,5 +1,12 @@
 import { ReportSubmissionDto } from "../dto/report-submission.dto";
 
+export interface ReportSubmissionData {
+  reportId: number;
+  submissionId: number;
+  submittedAt: Date;
+  submittedBy: string;
+}
+
 export interface ApiResponse<T> {
   data: T;
   status?: number;
