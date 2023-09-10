@@ -6,7 +6,7 @@ import {
   HttpStatus,
 } from "@nestjs/common";
 import GroupEvent from "src/events/entities/event.entity";
-import { Connection, Repository, FindConditions } from "typeorm";
+import { Connection, Repository, FindConditions, In } from "typeorm";
 import { UserDto } from "src/auth/dto/user.dto";
 import { EventCategories } from "src/events/enums/EventCategories";
 import { Report } from "./entities/report.entity";
@@ -134,6 +134,7 @@ export class ReportsService {
     startDate?: Date,
     endDate?: Date,
     smallGroupIdList?: string,
+    parentGroupIdList?: string,
   ): Promise<ReportSubmissionsApiResponse> {
     const report = await this.reportRepository.findOne(reportId);
     if (!report) {
@@ -146,6 +147,7 @@ export class ReportsService {
       startDate,
       endDate,
       smallGroupIdList,
+      parentGroupIdList,
     );
   }
 
@@ -155,6 +157,7 @@ export class ReportsService {
     startDate?: Date,
     endDate?: Date,
     smallGroupIdList?: string,
+    parentGroupIdList?: string,
   ): Promise<ReportSubmissionsApiResponse> {
     let query = this.reportSubmissionRepository
       .createQueryBuilder("submission")
@@ -178,6 +181,25 @@ export class ReportsService {
     }
     if (smallGroupIdList) {
       const smallGroupIds = smallGroupIdList.split(",").map(Number); // Convert CSV to an array of numbers
+      query = query.andWhere(
+        "CAST(submission.data ->> 'smallGroupId' AS INTEGER) IN (:...smallGroupIds)",
+        {
+          smallGroupIds,
+        },
+      );
+    }
+
+    if (parentGroupIdList && parentGroupIdList.length) {
+      const parentGroupIds = Array.isArray(parentGroupIdList)
+        ? parentGroupIdList
+        : [parentGroupIdList];
+      const smallGroupEntities = await this.treeRepository.find({
+        select: ["id"],
+        where: { parentId: In(parentGroupIds) },
+      });
+      const smallGroupIds = smallGroupEntities.map(
+        (smallGroup) => smallGroup.id,
+      );
       query = query.andWhere(
         "CAST(submission.data ->> 'smallGroupId' AS INTEGER) IN (:...smallGroupIds)",
         {

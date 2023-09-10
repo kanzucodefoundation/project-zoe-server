@@ -94,7 +94,11 @@ export class GroupsService {
     if (hasValue(req.categories)) {
       let categoryIds: number[] = [];
       let groupCategory: GroupCategory;
-      for (const categoryName of req.categories) {
+      const categories = Array.isArray(req.categories)
+        ? req.categories
+        : [req.categories];
+
+      for (const categoryName of categories) {
         groupCategory = await this.groupCategoryRepository.findOne({
           name: categoryName,
         });
