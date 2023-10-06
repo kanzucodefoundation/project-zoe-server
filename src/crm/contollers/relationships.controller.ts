@@ -49,7 +49,7 @@ export class RelationshipsController {
 
   @Get(":id")
   async findOne(@Param("id") id: number): Promise<Relationship> {
-    return await this.repository.findOne(id);
+    return await this.repository.findOne({ where: { id } });
   }
 
   @Delete(":id")

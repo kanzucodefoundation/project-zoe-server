@@ -1,4 +1,5 @@
-import { HttpModule, Module } from "@nestjs/common";
+import { Module } from "@nestjs/common";
+import { HttpModule } from "@nestjs/axios";
 import { HelpService } from "./help.service";
 import { HelpController } from "./help.controller";
 import { TypeOrmModule } from "@nestjs/typeorm";

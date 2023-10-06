@@ -54,7 +54,8 @@ export class EventRegistrationService {
 
   async findOne(id: number): Promise<any> {
     //Find particular record given the id
-    const data = await this.repository.findOne(id, {
+    const data = await this.repository.findOne({
+      where: { id },
       relations: ["event", "contact", "contact.person"],
     });
     //Refactoring into an array for Dto formatting

@@ -6,7 +6,7 @@ import {
   HttpStatus,
 } from "@nestjs/common";
 import GroupEvent from "src/events/entities/event.entity";
-import { Connection, Repository, FindConditions, In } from "typeorm";
+import { Connection, Repository, In } from "typeorm";
 import { UserDto } from "src/auth/dto/user.dto";
 import { EventCategories } from "src/events/enums/EventCategories";
 import { Report } from "./entities/report.entity";
@@ -39,9 +39,8 @@ export class ReportsService {
 
   constructor(@Inject("CONNECTION") connection: Connection) {
     this.reportRepository = connection.getRepository(Report);
-    this.reportSubmissionRepository = connection.getRepository(
-      ReportSubmission,
-    );
+    this.reportSubmissionRepository =
+      connection.getRepository(ReportSubmission);
     this.treeRepository = connection.getTreeRepository(Group);
     this.userRepository = connection.getRepository(User);
   }
@@ -55,7 +54,7 @@ export class ReportsService {
     report.columns = reportDto.columns;
     report.footer = reportDto.footer;
     report.submissionFrequency = reportDto.submissionFrequency;
-    report.user = await this.userRepository.findOne(user.id);
+    report.user = await this.userRepository.findOne({ where: { id: user.id } });
 
     return this.reportRepository.save(report);
   }
@@ -66,7 +65,9 @@ export class ReportsService {
   ): Promise<ApiResponse<ReportSubmissionData>> {
     const { reportId, data } = submissionDto;
     // Retrieve the report by its ID
-    const report = await this.reportRepository.findOne(reportId);
+    const report = await this.reportRepository.findOne({
+      where: { id: reportId },
+    });
     // Check if the report exists
     if (!report) {
       throw new NotFoundException(`Report with ID ${reportId} not found`);
@@ -76,12 +77,13 @@ export class ReportsService {
     reportSubmission.data = submissionDto.data;
     reportSubmission.submittedAt = new Date();
     reportSubmission.report = report;
-    reportSubmission.user = await this.userRepository.findOne(user.id);
+    reportSubmission.user = await this.userRepository.findOne({
+      where: { id: user.id },
+    });
     try {
       // Attempt to save the report submission
-      const submissionSaveResult = await this.reportSubmissionRepository.save(
-        reportSubmission,
-      );
+      const submissionSaveResult =
+        await this.reportSubmissionRepository.save(reportSubmission);
       if (!submissionSaveResult) {
         throw new HttpException(
           "Report submission was not saved.",
@@ -122,7 +124,9 @@ export class ReportsService {
   }
 
   async getReport(reportId: number): Promise<Report> {
-    const report = await this.reportRepository.findOne(reportId);
+    const report = await this.reportRepository.findOne({
+      where: { id: reportId },
+    });
     if (!report) {
       throw new NotFoundException(`Report with ID ${reportId} not found`);
     }
@@ -136,7 +140,9 @@ export class ReportsService {
     smallGroupIdList?: string,
     parentGroupIdList?: string,
   ): Promise<ReportSubmissionsApiResponse> {
-    const report = await this.reportRepository.findOne(reportId);
+    const report = await this.reportRepository.findOne({
+      where: { id: reportId },
+    });
     if (!report) {
       throw new NotFoundException(`Report with ID ${reportId} not found`);
     }
@@ -214,12 +220,10 @@ export class ReportsService {
         const { id, data, submittedAt, user } = submission;
         const displayName = getUserDisplayName(user);
 
-        const smallGroup = await this.treeRepository.findOne(
-          data.smallGroupId,
-          {
-            relations: ["parent"],
-          },
-        );
+        const smallGroup = await this.treeRepository.findOne({
+          where: { id: data.smallGroupId },
+          relations: ["parent"],
+        });
 
         return {
           id,
@@ -257,7 +261,9 @@ export class ReportsService {
       );
     }
 
-    const reportDetails = await this.reportRepository.findOne(reportId);
+    const reportDetails = await this.reportRepository.findOne({
+      where: { id: reportId },
+    });
     const { fields } = reportDetails;
 
     const { id, data, submittedAt, user } = submission;

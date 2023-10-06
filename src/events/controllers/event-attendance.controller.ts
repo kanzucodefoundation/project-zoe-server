@@ -20,8 +20,6 @@ import { ApiTags } from "@nestjs/swagger";
 import { Repository, Connection } from "typeorm";
 import EventAttendance from "../entities/eventAttendance.entity";
 import GroupEvent from "../entities/event.entity";
-import { FindConditions } from "typeorm/find-options/FindConditions";
-import { hasValue } from "../../utils/validation";
 import GroupMembership from "../../groups/entities/groupMembership.entity";
 import GroupMembershipDto from "../../groups/dto/membership/group-membership.dto";
 import { getPersonFullName } from "../../crm/crm.helpers";
@@ -50,9 +48,7 @@ export class EventsAttendanceController {
   }
 
   @Get()
-  async findAll(
-    @Query() req: EventAttendanceSearchDto,
-  ): Promise<{
+  async findAll(@Query() req: EventAttendanceSearchDto): Promise<{
     attendance: EventAttendance[];
     memberships: GroupMembershipDto[];
   }> {
@@ -89,10 +85,6 @@ export class EventsAttendanceController {
         role: GroupRole[it.role],
       };
     });
-    const opts: FindConditions<EventAttendance> = {};
-    if (hasValue(req.eventId)) {
-      opts.eventId = req.eventId;
-    }
 
     const attData = await this.prisma.event_attendance.findMany({
       include: {

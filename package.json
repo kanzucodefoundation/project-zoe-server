@@ -31,6 +31,7 @@
     "sync:schemas": "ts-node -r tsconfig-paths/register scripts/syncSchemas.ts"
   },
   "dependencies": {
+    "@nestjs/axios": "^3.0.0",
     "@nestjs/common": "^10.2.6",
     "@nestjs/config": "^3.1.1",
     "@nestjs/core": "^10.2.6",
@@ -44,8 +45,8 @@
     "@nestjs/typeorm": "^10.0.0",
     "@nestjs/websockets": "^10.2.6",
     "@prisma/client": "^5.3.1",
-    "@sentry/node": "^7.72.0",
-    "@sentry/tracing": "^7.72.0",
+    "@sentry/node": "^7.73.0",
+    "@sentry/tracing": "^7.73.0",
     "bcrypt": "^5.1.1",
     "bcryptjs": "^2.4.3",
     "class-transformer": "^0.5.1",

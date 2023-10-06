@@ -1,15 +1,14 @@
 import { NestFactory } from "@nestjs/core";
 import "reflect-metadata";
 import { AppModule } from "./app.module";
-import * as helmet from "helmet";
-import * as rateLimit from "express-rate-limit";
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
 import * as compression from "compression";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import config from "./config";
 import { ValidationPipe } from "@nestjs/common";
 import { HttpExceptionFilter } from "./auth/http-exception.filter";
 import * as Sentry from "@sentry/node";
-import { Integrations } from "@sentry/tracing";
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -44,7 +43,7 @@ async function bootstrap() {
   SwaggerModule.setup("docs", app, document, {});
 
   // Sentry Implementation
-  if(process.env.APP_ENVIRONMENT === 'production'){
+  if (process.env.APP_ENVIRONMENT === "production") {
     Sentry.init({
       dsn: process.env.REACT_APP_SENTRY_DSN,
     });

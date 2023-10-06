@@ -49,7 +49,7 @@ export class EmailsController {
 
   @Get(":id")
   async findOne(@Param("id") id: number): Promise<Email> {
-    return await this.repository.findOne(id);
+    return await this.repository.findOne({ where: { id } });
   }
 
   @Delete(":id")

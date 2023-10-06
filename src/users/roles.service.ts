@@ -2,7 +2,7 @@ import { BadRequestException, Injectable, Inject } from "@nestjs/common";
 import { roleAdmin } from "src/auth/constants";
 import SearchDto from "src/shared/dto/search.dto";
 import { hasValue } from "src/utils/validation";
-import { FindConditions, ILike, In, Repository, Connection } from "typeorm";
+import { ILike, Repository, Connection } from "typeorm";
 import { RolesDto } from "./dto/roles.dto";
 import Roles from "./entities/roles.entity";
 
@@ -32,7 +32,7 @@ export class RolesService {
   }
 
   async findAll(req: SearchDto): Promise<RolesDto[]> {
-    const filter: FindConditions<Roles> = {};
+    const filter: Record<string, any> = {};
 
     if (hasValue(req.query)) {
       filter.role = ILike(`%${req.query.trim().toLowerCase()}%`);
@@ -44,7 +44,7 @@ export class RolesService {
   }
 
   async findOne(id: number): Promise<RolesDto> {
-    return await this.repository.findOne(id);
+    return await this.repository.findOne({ where: { id } });
   }
 
   async update(userRole: RolesDto): Promise<RolesDto> {

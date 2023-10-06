@@ -1,4 +1,5 @@
-import { Global, HttpModule, Module, MiddlewareConsumer } from "@nestjs/common";
+import { Global, Module, MiddlewareConsumer } from "@nestjs/common";
+import { HttpModule } from "@nestjs/axios";
 import { ContactsService } from "./contacts.service";
 import { ContactsController } from "./contollers/contacts.controller";
 import { TypeOrmModule } from "@nestjs/typeorm";

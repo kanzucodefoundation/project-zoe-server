@@ -66,7 +66,7 @@ export class MemberEventActivitiesService {
   }
 
   async findOne(id: number): Promise<MemberEventActivities> {
-    return await this.repository.findOne(id);
+    return await this.repository.findOne({ where: { id } });
   }
 
   async update(

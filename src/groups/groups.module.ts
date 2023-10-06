@@ -1,4 +1,5 @@
-import { HttpModule, Module } from "@nestjs/common";
+import { Module } from "@nestjs/common";
+import { HttpModule } from "@nestjs/axios";
 import { GroupsService } from "./services/groups.service";
 import { GroupCategoriesService } from "./services/group-categories.service";
 import { GroupController } from "./controllers/group.controller";

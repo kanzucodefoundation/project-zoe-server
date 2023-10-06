@@ -34,7 +34,6 @@ import Address from "./entities/address.entity";
 import GroupMembership from "../groups/entities/groupMembership.entity";
 import { GroupRole } from "../groups/enums/groupRole";
 import ContactListDto from "./dto/contact-list.dto";
-import { FindConditions } from "typeorm/find-options/FindConditions";
 import Group from "../groups/entities/group.entity";
 import { GoogleService } from "src/vendor/google.service";
 import GooglePlaceDto from "src/vendor/google-place.dto";
@@ -172,10 +171,6 @@ export class ContactsService {
       if (hasFilter && hasNoValue(idList)) {
         return [];
       }
-      const findOpts: FindConditions<Contact> = {};
-      if (hasValue(idList)) {
-        findOpts.id = In(idList);
-      }
       const data = await this.repository.find({
         relations: [
           "person",
@@ -187,7 +182,7 @@ export class ContactsService {
         ],
         skip: req.skip,
         take: req.limit,
-        where: findOpts,
+        where: hasValue(idList) ? { id: In(idList) } : undefined,
       });
 
       return data.map((it) => {
@@ -397,7 +392,8 @@ export class ContactsService {
   }
 
   async findOne(id: number): Promise<Contact> {
-    return await this.repository.findOne(id, {
+    return await this.repository.findOne({
+      where: { id },
       relations: [
         "person",
         "emails",
@@ -418,7 +414,7 @@ export class ContactsService {
 
   async findByName(username: string): Promise<Contact | undefined> {
     return await this.repository.findOne({
-      where: { username },
+      where: { username: username },
       relations: ["contact.person"],
     });
   }

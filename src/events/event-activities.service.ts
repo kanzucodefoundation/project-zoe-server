@@ -39,7 +39,7 @@ export class EventActivitiesService {
   }
 
   async findOne(id: number): Promise<EventActivity> {
-    return await this.repository.findOne(id);
+    return await this.repository.findOne({ where: { id } });
   }
 
   async update(dto: UpdateEventActivityDto): Promise<UpdateEventActivityDto> {

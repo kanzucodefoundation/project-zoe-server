@@ -49,7 +49,7 @@ export class RequestsController {
 
   @Get(":id")
   async findOne(@Param("id") id: number): Promise<Request> {
-    return await this.repository.findOne(id);
+    return await this.repository.findOne({ where: { id } });
   }
 
   @Delete(":id")
