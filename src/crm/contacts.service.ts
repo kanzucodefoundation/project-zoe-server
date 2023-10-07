@@ -415,7 +415,7 @@ export class ContactsService {
   async findByName(username: string): Promise<Contact | undefined> {
     return await this.repository
       .createQueryBuilder("user")
-      .where("user.username = :username", { username }) // Replace 'username' with the actual field name
+      .where("user.username = :username", { username })
       .leftJoinAndSelect("user.contact", "contact")
       .leftJoinAndSelect("contact.person", "person")
       .getOne();
