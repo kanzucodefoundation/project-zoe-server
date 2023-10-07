@@ -413,10 +413,12 @@ export class ContactsService {
   }
 
   async findByName(username: string): Promise<Contact | undefined> {
-    return await this.repository.findOne({
-      where: { username: username },
-      relations: ["contact.person"],
-    });
+    return await this.repository
+      .createQueryBuilder("user")
+      .where("user.username = :username", { username }) // Replace 'username' with the actual field name
+      .leftJoinAndSelect("user.contact", "contact")
+      .leftJoinAndSelect("contact.person", "person")
+      .getOne();
   }
 
   async createCompany(data: CreateCompanyDto): Promise<Contact> {
