@@ -285,15 +285,27 @@ export class ReportsService {
     const endDate = new Date(startDate);
     endDate.setDate(startDate.getDate() + 6); // Adding 6 days to get to Sunday
 
-    const reportData = await this.getSmallGroupSummaryAttendance(
-      reportId,
-      startDate,
-      endDate,
-      smallGroupIdList,
-      parentGroupIdList,
-    );
+    const reportData: ReportSubmissionsApiResponse =
+      await this.getSmallGroupSummaryAttendance(
+        reportId,
+        startDate,
+        endDate,
+        smallGroupIdList,
+        parentGroupIdList,
+      );
     // Extract the columns from the reportData
     const columns = reportData.columns;
+
+    // Group the reports by zone
+    const reportsByZone: { [key: string]: Record<string, any>[] } = {};
+
+    reportData.data.forEach((report) => {
+      const zoneName = report.parentGroupName || "Other"; // Use 'Other' as the default zone name if not specified
+      if (!reportsByZone[zoneName]) {
+        reportsByZone[zoneName] = [];
+      }
+      reportsByZone[zoneName].push(report);
+    });
 
     // Initialize the table HTML
     let tableHTML = `
@@ -306,15 +318,18 @@ export class ReportsService {
         <tbody>
     `;
 
-    // Iterate through the reportData and populate the table rows
-    reportData.data.forEach((report) => {
-      tableHTML += `
+    // Iterate through the reports by zone and populate the table rows
+    Object.entries(reportsByZone).forEach(([zoneName, zoneReports]) => {
+      tableHTML += `<tr><th colspan="${columns.length}">${zoneName}</th></tr>`;
+      zoneReports.forEach((report) => {
+        tableHTML += `
           <tr>
             ${columns
               .map((column) => `<td>${report[column.name]}</td>`)
               .join("")}
           </tr>
-      `;
+        `;
+      });
     });
 
     // Close the table HTML
