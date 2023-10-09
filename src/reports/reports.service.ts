@@ -290,13 +290,13 @@ export class ReportsService {
     const currentDayOfWeek = currentDate.getDay();
 
     // Calculate the date for the Monday of the current week
-    const startDate = new Date("02-09-2023");
-    startDate.setDate(currentDate.getDate() - currentDayOfWeek + 1);
+    const startDate = new Date("2023-09-03");
+    //startDate.setDate(currentDate.getDate() - currentDayOfWeek + 1);
     startDate.setHours(0, 0, 0, 0); // Set to midnight
 
     // Calculate the date for the Sunday of the current week
     const endDate = new Date(startDate);
-    endDate.setDate(startDate.getDate() + 6); // Adding 6 days to get to Sunday
+    endDate.setDate(startDate.getDate() + 7);
 
     const reportData: ReportSubmissionsApiResponse =
       await this.getSmallGroupSummaryAttendance(
