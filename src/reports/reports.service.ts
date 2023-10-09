@@ -292,28 +292,43 @@ export class ReportsService {
       smallGroupIdList,
       parentGroupIdList,
     );
-    // Initialize an empty HTML string
-    let emailHTML = "";
+    // Extract the columns from the reportData
+    const columns = reportData.columns;
 
-    // Iterate through the reportData
+    // Initialize the table HTML
+    let tableHTML = `
+      <table>
+        <thead>
+          <tr>
+            ${columns.map((column) => `<th>${column.label}</th>`).join("")}
+          </tr>
+        </thead>
+        <tbody>
+    `;
+
+    // Iterate through the reportData and populate the table rows
     reportData.data.forEach((report) => {
-      // Add the report data to the email HTML
-      emailHTML += `
-        <p><strong>MC Name:</strong> ${report.smallGroupName}</p>
-        <p><strong>MC Members:</strong> ${report.smallGroupNumberOfMembers}</p>
-        <p><strong>MC Attendance:</strong> ${report.smallGroupAttendanceCount}</p>
-        <p><strong>Zone:</strong> ${report.parentGroupName}</p>
-        <p><strong>Submitted At:</strong> ${report.submittedAt}</p>
-        <p><strong>Submitted By:</strong> ${report.submittedBy}</p>
-        <hr />`;
+      tableHTML += `
+          <tr>
+            ${columns
+              .map((column) => `<td>${report[column.name]}</td>`)
+              .join("")}
+          </tr>
+      `;
     });
+
+    // Close the table HTML
+    tableHTML += `
+        </tbody>
+      </table>
+    `;
 
     // Create the complete HTML email content
     const fullHTML = `
       <html>
         <body>
           <h1>Weekly MC Reports</h1>
-          ${emailHTML}
+          ${tableHTML}
         </body>
       </html>
     `;
