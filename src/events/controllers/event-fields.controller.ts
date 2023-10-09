@@ -16,7 +16,6 @@ import { ApiTags } from "@nestjs/swagger";
 import { Repository, Connection } from "typeorm";
 import EventField from "../entities/eventField.entity";
 import EventFieldSearchDto from "../dto/event-field-search.dto";
-import { FindConditions } from "typeorm/find-options/FindConditions";
 import { hasValue } from "../../utils/validation";
 import { SentryInterceptor } from "src/utils/sentry.interceptor";
 
@@ -33,7 +32,8 @@ export class EventsFieldsController {
 
   @Get()
   async findAll(@Query() search: EventFieldSearchDto): Promise<EventField[]> {
-    const query: FindConditions<EventField> = {};
+    const query: Record<string, any> = {};
+
     if (hasValue(search.category)) {
       query.category = search.category;
     }

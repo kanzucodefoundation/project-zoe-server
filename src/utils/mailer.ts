@@ -11,7 +11,13 @@ export interface IEmail {
 export async function sendEmail(data: IEmail): Promise<string> {
   const serverToken = process.env.POSTMARK_SERVER_TOKEN;
   let client = new postmark.ServerClient(serverToken);
-
+  if (process.env.NODE_ENV === "development") {
+    // We don't send an actual email in dev mode
+    Logger.log(
+      `Sending email to: ${data.to}#Subject:${data.subject}#Message: ${data.html}`,
+    );
+    return;
+  }
   const emailResponse: MessageSendingResponse = await client.sendEmail({
     From: process.env.EMAIL_SENDER,
     To: data.to,

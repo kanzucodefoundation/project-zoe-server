@@ -6,7 +6,7 @@ import {
   HttpStatus,
 } from "@nestjs/common";
 import GroupEvent from "src/events/entities/event.entity";
-import { Connection, Repository, FindConditions, In } from "typeorm";
+import { Connection, Repository, In } from "typeorm";
 import { UserDto } from "src/auth/dto/user.dto";
 import { EventCategories } from "src/events/enums/EventCategories";
 import { Report } from "./entities/report.entity";
@@ -29,6 +29,7 @@ import {
 import { ReportFieldType } from "./enums/report.enum";
 import { TreeRepository } from "typeorm";
 import Group from "src/groups/entities/group.entity";
+import { UsersService } from "src/users/users.service";
 
 @Injectable()
 export class ReportsService {
@@ -37,11 +38,13 @@ export class ReportsService {
   private readonly userRepository: Repository<User>;
   private readonly treeRepository: TreeRepository<Group>;
 
-  constructor(@Inject("CONNECTION") connection: Connection) {
+  constructor(
+    @Inject("CONNECTION") connection: Connection,
+    private readonly usersService: UsersService,
+  ) {
     this.reportRepository = connection.getRepository(Report);
-    this.reportSubmissionRepository = connection.getRepository(
-      ReportSubmission,
-    );
+    this.reportSubmissionRepository =
+      connection.getRepository(ReportSubmission);
     this.treeRepository = connection.getTreeRepository(Group);
     this.userRepository = connection.getRepository(User);
   }
@@ -55,7 +58,7 @@ export class ReportsService {
     report.columns = reportDto.columns;
     report.footer = reportDto.footer;
     report.submissionFrequency = reportDto.submissionFrequency;
-    report.user = await this.userRepository.findOne(user.id);
+    report.user = await this.userRepository.findOne({ where: { id: user.id } });
 
     return this.reportRepository.save(report);
   }
@@ -66,7 +69,9 @@ export class ReportsService {
   ): Promise<ApiResponse<ReportSubmissionData>> {
     const { reportId, data } = submissionDto;
     // Retrieve the report by its ID
-    const report = await this.reportRepository.findOne(reportId);
+    const report = await this.reportRepository.findOne({
+      where: { id: reportId },
+    });
     // Check if the report exists
     if (!report) {
       throw new NotFoundException(`Report with ID ${reportId} not found`);
@@ -76,12 +81,13 @@ export class ReportsService {
     reportSubmission.data = submissionDto.data;
     reportSubmission.submittedAt = new Date();
     reportSubmission.report = report;
-    reportSubmission.user = await this.userRepository.findOne(user.id);
+    reportSubmission.user = await this.userRepository.findOne({
+      where: { id: user.id },
+    });
     try {
       // Attempt to save the report submission
-      const submissionSaveResult = await this.reportSubmissionRepository.save(
-        reportSubmission,
-      );
+      const submissionSaveResult =
+        await this.reportSubmissionRepository.save(reportSubmission);
       if (!submissionSaveResult) {
         throw new HttpException(
           "Report submission was not saved.",
@@ -122,43 +128,29 @@ export class ReportsService {
   }
 
   async getReport(reportId: number): Promise<Report> {
-    const report = await this.reportRepository.findOne(reportId);
+    const report = await this.reportRepository.findOne({
+      where: { id: reportId },
+    });
     if (!report) {
       throw new NotFoundException(`Report with ID ${reportId} not found`);
     }
     return report;
   }
 
-  async getReportSubmissions(
+  async getSmallGroupSummaryAttendance(
     reportId: number,
     startDate?: Date,
     endDate?: Date,
     smallGroupIdList?: string,
     parentGroupIdList?: string,
   ): Promise<ReportSubmissionsApiResponse> {
-    const report = await this.reportRepository.findOne(reportId);
+    const report = await this.reportRepository.findOne({
+      where: { id: reportId },
+    });
     if (!report) {
       throw new NotFoundException(`Report with ID ${reportId} not found`);
     }
 
-    return this.getSmallGroupSummaryAttendance(
-      reportId,
-      report,
-      startDate,
-      endDate,
-      smallGroupIdList,
-      parentGroupIdList,
-    );
-  }
-
-  async getSmallGroupSummaryAttendance(
-    reportId: number,
-    report: Report,
-    startDate?: Date,
-    endDate?: Date,
-    smallGroupIdList?: string,
-    parentGroupIdList?: string,
-  ): Promise<ReportSubmissionsApiResponse> {
     let query = this.reportSubmissionRepository
       .createQueryBuilder("submission")
       .leftJoinAndSelect("submission.report", "report")
@@ -214,12 +206,10 @@ export class ReportsService {
         const { id, data, submittedAt, user } = submission;
         const displayName = getUserDisplayName(user);
 
-        const smallGroup = await this.treeRepository.findOne(
-          data.smallGroupId,
-          {
-            relations: ["parent"],
-          },
-        );
+        const smallGroup = await this.treeRepository.findOne({
+          where: { id: data.smallGroupId },
+          relations: ["parent"],
+        });
 
         return {
           id,
@@ -257,7 +247,9 @@ export class ReportsService {
       );
     }
 
-    const reportDetails = await this.reportRepository.findOne(reportId);
+    const reportDetails = await this.reportRepository.findOne({
+      where: { id: reportId },
+    });
     const { fields } = reportDetails;
 
     const { id, data, submittedAt, user } = submission;
@@ -276,6 +268,143 @@ export class ReportsService {
 
   async updateReport(id: number, updateDto: ReportDto): Promise<Report | any> {
     return await this.reportRepository.update(id, updateDto);
+  }
+
+  /**
+   * Send an email with the reports submitted from
+   * Monday to Sunday of the current week
+   *
+   * @param reportId number
+   * @param smallGroupIdList number
+   * @param parentGroupIdList number
+   * @returns string
+   */
+  async sendWeeklyEmailSummary(
+    reportId: number,
+    smallGroupIdList?: string,
+    parentGroupIdList?: string,
+  ): Promise<string> {
+    const currentDate = new Date();
+
+    // Get the current day of the week (0 = Sunday, 1 = Monday, ..., 6 = Saturday)
+    const currentDayOfWeek = currentDate.getDay();
+
+    // Calculate the date for the Monday of the current week
+    const startDate = new Date(currentDate);
+    startDate.setDate(currentDate.getDate() - currentDayOfWeek + 1);
+    startDate.setHours(0, 0, 0, 0); // Set to midnight
+
+    // Calculate the date for the Sunday of the current week
+    const endDate = new Date(startDate);
+    endDate.setDate(startDate.getDate() + 6); // Adding 6 days to get to Sunday
+
+    const reportData: ReportSubmissionsApiResponse =
+      await this.getSmallGroupSummaryAttendance(
+        reportId,
+        startDate,
+        endDate,
+        smallGroupIdList,
+        parentGroupIdList,
+      );
+    // Extract the columns from the reportData
+    const columns = reportData.columns;
+
+    // Group the reports by zone
+    const reportsByZone: { [key: string]: Record<string, any>[] } = {};
+
+    reportData.data.forEach((report) => {
+      const zoneName = report.parentGroupName || "Other"; // Use 'Other' as the default zone name if not specified
+      if (!reportsByZone[zoneName]) {
+        reportsByZone[zoneName] = [];
+      }
+      reportsByZone[zoneName].push(report);
+    });
+
+    // Initialize the table HTML
+    let tableHTML = `
+      <table>
+        <thead>
+          <tr>
+            ${columns.map((column) => `<th>${column.label}</th>`).join("")}
+          </tr>
+        </thead>
+        <tbody>
+    `;
+
+    // Iterate through the reports by zone and populate the table rows
+    Object.entries(reportsByZone).forEach(([zoneName, zoneReports]) => {
+      tableHTML += `<tr><th colspan="${columns.length}">${zoneName}</th></tr>`;
+      zoneReports.forEach((report) => {
+        tableHTML += `
+          <tr>
+            ${columns
+              .map((column) => `<td>${report[column.name]}</td>`)
+              .join("")}
+          </tr>
+        `;
+      });
+    });
+
+    // Close the table HTML
+    tableHTML += `
+        </tbody>
+      </table>
+    `;
+
+    // Create the complete HTML email content
+    const fullHTML = `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Weekly MC Reports</title>
+        <style>
+            table {
+                font-family: Arial, sans-serif;
+                border-collapse: collapse;
+                width: 100%;
+            }
+    
+            th, td {
+                border: 1px solid #dddddd;
+                text-align: left;
+                padding: 8px;
+            }
+    
+            th {
+                background-color: #f2f2f2;
+            }
+    
+            tr:nth-child(even) {
+                background-color: #f2f2f2;
+            }
+    
+            h1 {
+                font-size: 24px;
+            }
+        </style>
+        </head>
+        <body>
+          <h1>Weekly MC Reports</h1>
+          ${tableHTML}
+        </body>
+      </html>
+    `;
+
+    const usersWithRole = await this.usersService.findByRole("Report Champion");
+    const emailAddresses = usersWithRole.map((user) => user.username);
+    if (!emailAddresses.length) {
+      return "Error | Weekly email not sent";
+    }
+    const mailerData = {
+      to: emailAddresses.join(", "),
+      subject: "Project Zoe | Weekly MC Reports Submitted",
+      html: fullHTML,
+    };
+
+    sendEmail(mailerData);
+    return "Weekly email sent successfully";
   }
 
   sendMail(to: string, subject: string, mailArgs: any) {

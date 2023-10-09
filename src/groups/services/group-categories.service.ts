@@ -22,7 +22,7 @@ export class GroupCategoriesService {
   }
 
   async findOne(id: number): Promise<GroupCategory> {
-    return await this.repository.findOne(id);
+    return await this.repository.findOne({ where: { id } });
   }
 
   async update(data: GroupCategory): Promise<GroupCategory> {

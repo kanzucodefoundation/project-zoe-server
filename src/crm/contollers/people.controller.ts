@@ -13,12 +13,11 @@ import {
 import { ApiTags } from "@nestjs/swagger";
 import { ContactsService } from "../contacts.service";
 import Person from "../entities/person.entity";
-import { Like, Repository, Connection } from "typeorm";
+import { Repository, Connection, Brackets } from "typeorm";
 import { ContactSearchDto } from "../dto/contact-search.dto";
 import { CreatePersonDto } from "../dto/create-person.dto";
 import { getPersonFullName } from "../crm.helpers";
 import { hasValue } from "src/utils/validation";
-import { FindConditions } from "typeorm/find-options/FindConditions";
 import { FileInterceptor } from "@nestjs/platform-express";
 import PersonListDto from "../dto/person-list.dto";
 import { JwtAuthGuard } from "../../auth/guards/jwt-auth.guard";
@@ -45,56 +44,59 @@ export class PeopleController {
 
   @Get()
   async findAll(@Query() req: ContactSearchDto): Promise<Person[]> {
-    let q: FindConditions<Person>[] = [];
+    const query = this.personRepository.createQueryBuilder("person");
+
     if (hasValue(req.query)) {
-      q = [
-        {
-          firstName: Like(`${req.query}%`),
-        },
-        {
-          middleName: Like(`${req.query}%`),
-        },
-        {
-          lastName: Like(`${req.query}%`),
-        },
-      ];
+      query.where(
+        new Brackets((qb) => {
+          qb.where("person.firstName LIKE :query", { query: `%${req.query}%` });
+          qb.orWhere("person.middleName LIKE :query", {
+            query: `%${req.query}%`,
+          });
+          qb.orWhere("person.lastName LIKE :query", {
+            query: `%${req.query}%`,
+          });
+        }),
+      );
     }
-    return await this.personRepository.find({
-      where: q,
-      skip: req.skip,
-      take: req.limit,
-    });
+
+    query.skip(req.skip).take(req.limit);
+
+    return await query.getMany();
   }
 
   @Get("combo")
   async findCombo(@Query() req: ContactSearchDto): Promise<PersonListDto[]> {
-    let q: FindConditions<Person>[] = [];
+    const query = this.personRepository.createQueryBuilder("person");
+
     if (hasValue(req.query)) {
-      q = [
-        {
-          firstName: Like(`${req.query}%`),
-        },
-        {
-          middleName: Like(`${req.query}%`),
-        },
-        {
-          lastName: Like(`${req.query}%`),
-        },
-      ];
+      query
+        .select([
+          "person.id",
+          "person.firstName",
+          "person.lastName",
+          "person.middleName",
+          "person.avatar",
+          "person.contactId",
+        ])
+        .where(
+          new Brackets((qb) => {
+            qb.where("person.firstName LIKE :query", {
+              query: `%${req.query}%`,
+            });
+            qb.orWhere("person.middleName LIKE :query", {
+              query: `%${req.query}%`,
+            });
+            qb.orWhere("person.lastName LIKE :query", {
+              query: `%${req.query}%`,
+            });
+          }),
+        );
     }
-    let data = await this.personRepository.find({
-      select: [
-        "id",
-        "firstName",
-        "lastName",
-        "middleName",
-        "avatar",
-        "contactId",
-      ],
-      where: q,
-      skip: req.skip,
-      take: req.limit,
-    });
+
+    query.skip(req.skip).take(req.limit);
+
+    let data = await query.getMany();
 
     if (req.skipUsers) {
       const users = await this.userRepository.find({

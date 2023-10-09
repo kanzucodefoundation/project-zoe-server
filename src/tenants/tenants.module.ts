@@ -23,7 +23,7 @@ const connectionFactory = {
 
     tenantDetails = await connectionPublic
       .getRepository(Tenant)
-      .findOne({ name: tenantName });
+      .findOne({ where: { name: tenantName } });
 
     if (!tenantDetails) {
       throw new BadRequestException(

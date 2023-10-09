@@ -1,5 +1,4 @@
 import { HttpException, Injectable, Inject } from "@nestjs/common";
-import { FindConditions } from "typeorm/find-options/FindConditions";
 import { Repository, Connection } from "typeorm";
 import GroupMembershipRequestSearchDto from "../dto/membershipRequest/search-request.dto";
 import GroupMembershipRequest from "../entities/groupMembershipRequest.entity";
@@ -27,11 +26,19 @@ export class GroupMembershipRequestService {
   async findAll(
     req: GroupMembershipRequestSearchDto,
   ): Promise<GroupMembershipRequestDto[]> {
-    const filter: FindConditions<GroupMembershipRequest> = {};
+    const filter: Record<string, any> = {};
 
-    if (hasValue(req.contactId)) filter.contactId = req.contactId;
-    if (hasValue(req.parentId)) filter.parentId = req.parentId;
-    if (hasValue(req.groupId)) filter.groupId = req.groupId;
+    if (hasValue(req.contactId)) {
+      filter.contactId = req.contactId;
+    }
+
+    if (hasValue(req.parentId)) {
+      filter.parentId = req.parentId;
+    }
+
+    if (hasValue(req.groupId)) {
+      filter.groupId = req.groupId;
+    }
 
     const data = await this.repository.find({
       relations: ["contact", "contact.person", "group"],
@@ -63,7 +70,8 @@ export class GroupMembershipRequestService {
 
   async create(data: NewRequestDto): Promise<GroupMembershipRequestDto | any> {
     console.log("%%%", data);
-    const user = await this.contactRepository.findOne(data.contactId, {
+    const user = await this.contactRepository.findOne({
+      where: { id: data.contactId },
       relations: ["person"],
     });
 
@@ -121,7 +129,8 @@ export class GroupMembershipRequestService {
 
   async findOne(id: number): Promise<GroupMembershipRequestDto> {
     return this.toDto(
-      await this.repository.findOne(id, {
+      await this.repository.findOne({
+        where: { id },
         relations: ["contact", "contact.person", "group"],
       }),
     );

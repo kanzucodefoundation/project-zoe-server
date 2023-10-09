@@ -1,10 +1,5 @@
-import {
-  Global,
-  HttpModule,
-  Logger,
-  Module,
-  MiddlewareConsumer,
-} from "@nestjs/common";
+import { Global, Logger, Module, MiddlewareConsumer } from "@nestjs/common";
+import { HttpModule } from "@nestjs/axios";
 import { AuthController } from "./auth/auth.controller";
 import { AppService } from "./app.service";
 import { UsersModule } from "./users/users.module";
@@ -20,7 +15,7 @@ import { SeedModule } from "./seed/seed.module";
 import { SeedService } from "./seed/seed.service";
 import { VendorModule } from "./vendor/vendor.module";
 import { EventsModule } from "./events/events.module";
-
+import { EmailSchedulerService } from "./shared/email-scheduler.service";
 import { ChatModule } from "./chat/chat.module";
 import { HelpModule } from "./help/help.module";
 import { TenantsModule } from "./tenants/tenants.module";
@@ -58,7 +53,7 @@ import { ReportsModule } from "./reports/reports.module";
   ],
   exports: [AppService],
   controllers: [AuthController],
-  providers: [AppService],
+  providers: [AppService, EmailSchedulerService],
 })
 export class AppModule {
   public configure(consumer: MiddlewareConsumer): void {

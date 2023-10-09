@@ -16,7 +16,6 @@ import { Like, Repository, Connection } from "typeorm";
 import { ContactSearchDto } from "../dto/contact-search.dto";
 
 import { hasValue } from "src/utils/validation";
-import { FindConditions } from "typeorm/find-options/FindConditions";
 import { CreateCompanyDto } from "../dto/create-company.dto";
 import Company from "../entities/company.entity";
 import CompanyListDto from "../dto/company-list.dto";
@@ -40,16 +39,12 @@ export class CompaniesController {
 
   @Get()
   async findAll(@Query() req: ContactSearchDto): Promise<Company[]> {
-    let q: FindConditions<Company>[] = [];
+    const query: any = {};
     if (hasValue(req.query)) {
-      q = [
-        {
-          name: Like(`${req.query}%`),
-        },
-      ];
+      query.name = Like(`${req.query}%`);
     }
     return await this.personRepository.find({
-      where: q,
+      where: query,
       skip: req.skip,
       take: req.limit,
     });

@@ -1,6 +1,5 @@
 import { Injectable, Logger, Inject } from "@nestjs/common";
 import {
-  FindConditions,
   ILike,
   In,
   LessThanOrEqual,
@@ -46,12 +45,14 @@ export class EventsService {
     req: GroupEventSearchDto,
     user: UserDto,
   ): Promise<GroupEventDto[]> {
-    const filter: FindConditions<GroupEvent> = {};
+    const filter: Record<string, any> = {};
     let descendants = [];
+
     const membership = await this.membershipRepository.findOne({
       where: { contactId: user.contactId },
       relations: ["group"],
     });
+
     if (membership?.group) {
       const _descendants = await this.groupRepository.findDescendants(
         membership.group,
@@ -65,16 +66,22 @@ export class EventsService {
       filter.groupId = In(getArray(descendants));
     }
 
-    if (hasValue(req.categoryIdList))
+    if (hasValue(req.categoryIdList)) {
       filter.category = In(getArray(req.categoryIdList));
-    if (hasValue(req.parentIdList))
+    }
+
+    if (hasValue(req.parentIdList)) {
       filter.parentId = In(getArray(req.parentIdList));
+    }
+
     if (hasValue(req.from)) {
       filter.startDate = MoreThanOrEqual(req.from);
     }
+
     if (hasValue(req.to)) {
       filter.endDate = LessThanOrEqual(req.to);
     }
+
     if (hasValue(req.query)) {
       filter.name = ILike(`%${req.query.trim().toLowerCase()}%`);
     }
@@ -89,35 +96,40 @@ export class EventsService {
   }
 
   async loadMetrics(req: EventMetricsDto, user: UserDto): Promise<any> {
-    const filter: FindConditions<GroupEvent> = {};
+    const filter: Record<string, any> = {};
 
-    // TODO use user object to filter reports
+    // TODO: Use user object to filter reports
+
     if (hasValue(req.groupIdList)) {
       const parents = await this.groupRepository.find({
         where: { id: In(getArray(req.groupIdList)) },
       });
-      let _children = [];
-      for (let i = 0; i < parents.length; i++) {
-        const single = await this.groupRepository.findDescendants(parents[i]);
-        single.forEach((g) => {
-          _children.push(g.id);
-        });
-      }
-      const children = removeDuplicates(_children);
+
+      const _children = await Promise.all(
+        parents.map(async (parent) => {
+          const single = await this.groupRepository.findDescendants(parent);
+          return single.map((g) => g.id);
+        }),
+      );
+
+      const children = removeDuplicates(_children.flat());
       filter.groupId = In(getArray(children));
     }
 
     if (isDate(req.from)) {
       filter.startDate = MoreThanOrEqual(req.from);
     }
+
     if (isDate(req.to)) {
       filter.endDate = LessThanOrEqual(req.to);
     }
+
     const data = await this.repository.find({
       select: ["name", "metaData", "category", "id"],
       relations: ["category", "group", "group.members", "attendance"],
       where: filter,
     });
+
     return data.map((it) => {
       const { group, attendance, ...rest } = it;
       let attendancePercentage = 0;
@@ -203,7 +215,8 @@ export class EventsService {
   }
 
   async findOne(id: number, full = true): Promise<GroupEventDto> {
-    const data = await this.repository.findOne(id, {
+    const data = await this.repository.findOne({
+      where: { id },
       relations: ["category", "group", "category.fields"],
     });
     Logger.log(`Read.Event success id:${id}`);

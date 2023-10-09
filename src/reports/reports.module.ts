@@ -1,4 +1,5 @@
-import { HttpModule, Module } from "@nestjs/common";
+import { Module } from "@nestjs/common";
+import { HttpModule } from "@nestjs/axios";
 import { ReportsController } from "./reports.controller";
 import { ReportsService } from "./reports.service";
 import { VendorModule } from "src/vendor/vendor.module";

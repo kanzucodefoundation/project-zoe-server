@@ -1,6 +1,5 @@
 import { Injectable, Logger, Inject } from "@nestjs/common";
 import {
-  FindConditions,
   ILike,
   In,
   LessThanOrEqual,
@@ -83,40 +82,44 @@ export class GroupsService {
   }
 
   async combo(req: GroupSearchDto, user: any): Promise<Group[]> {
-    const findOps: FindConditions<Group> = {};
+    const findOps: Record<string, any> = {};
 
     if (hasValue(user)) {
-      const groupIds = await this.groupsPermissionsService.getUserGroupIds(
-        user,
-      );
+      const groupIds =
+        await this.groupsPermissionsService.getUserGroupIds(user);
       findOps.id = In(groupIds);
     }
-    if (hasValue(req.categories)) {
-      let categoryIds: number[] = [];
-      let groupCategory: GroupCategory;
-      const categories = Array.isArray(req.categories)
-        ? req.categories
-        : [req.categories];
 
-      for (const categoryName of categories) {
-        groupCategory = await this.groupCategoryRepository.findOne({
-          name: categoryName,
+    if (hasValue(req.categories)) {
+      const categoryIds = [];
+
+      for (const categoryName of Array.isArray(req.categories)
+        ? req.categories
+        : [req.categories]) {
+        const groupCategory = await this.groupCategoryRepository.findOne({
+          where: { name: categoryName },
         });
         categoryIds.push(groupCategory.id);
       }
+
       findOps.category = { id: In(categoryIds) };
     }
+
     if (hasValue(req.query)) {
       findOps.name = ILike(`%${req.query}%`);
     }
+
     console.log("findOps", findOps);
-    return await this.treeRepository.find({
+
+    const data = await this.treeRepository.find({
       select: ["id", "name", "category", "parent"],
       where: findOps,
       skip: req.skip,
       take: req.limit,
       cache: true,
     });
+
+    return data;
   }
 
   async create(
@@ -138,7 +141,9 @@ export class GroupsService {
     }
 
     const newGroupCategory = await this.groupCategoryRepository.findOne({
-      name: data.categoryName,
+      where: {
+        name: data.categoryName,
+      },
     });
     const newGroup = new Group();
     newGroup.name = data.name;
@@ -148,14 +153,15 @@ export class GroupsService {
     newGroup.address = place;
     newGroup.details = data.details;
     newGroup.parent = data.parentId
-      ? await this.treeRepository.findOne(data.parentId)
+      ? await this.treeRepository.findOne({ where: { id: data.parentId } })
       : null;
 
     return await this.treeRepository.save(newGroup);
   }
 
   async findOne(id: number, full = true, user: any = null) {
-    const data = await this.treeRepository.findOne(id, {
+    const data = await this.treeRepository.findOne({
+      where: { id },
       relations: ["category", "parent"],
     });
     if (!data) {
@@ -196,10 +202,8 @@ export class GroupsService {
         select: ["contactId"],
       });
       groupData.leaders = membership.map((it) => it.contactId);
-      groupData.canEditGroup = await this.groupsPermissionsService.hasPermissionForGroup(
-        user,
-        id,
-      );
+      groupData.canEditGroup =
+        await this.groupsPermissionsService.hasPermissionForGroup(user, id);
       groupData.reports = await this.eventRepository.find({
         relations: ["category", "attendance"],
         where: { groupId: In(groupData.children) },
@@ -237,17 +241,23 @@ export class GroupsService {
 
     let parentGroup = null;
     if (hasValue(dto.parentId)) {
-      parentGroup = await this.treeRepository.findOne(dto.parentId);
+      parentGroup = await this.treeRepository.findOne({
+        where: { id: dto.parentId },
+      });
     }
     let category = currGroup.category;
     if (hasValue(dto.categoryId)) {
       category = await this.groupCategoryRepository.findOne({
-        id: dto.categoryId,
+        where: {
+          id: dto.categoryId,
+        },
       });
     }
     if (hasValue(dto.categoryName)) {
       category = await this.groupCategoryRepository.findOne({
-        name: dto.categoryName,
+        where: {
+          name: dto.categoryName,
+        },
       });
     }
 

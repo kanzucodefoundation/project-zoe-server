@@ -245,6 +245,30 @@ export class UsersService {
     });
   }
 
+  async findByRole(roleName: string): Promise<User[] | undefined> {
+    try {
+      // Find the role by its name
+      const role = await this.rolesRepository.findOne({
+        where: { role: roleName },
+      });
+
+      if (!role) {
+        throw new Error(`Role with name ${roleName} not found`);
+      }
+
+      // Find users with the specified role
+      return await this.repository
+        .createQueryBuilder("user")
+        .innerJoinAndSelect("user.userRoles", "userRoles")
+        .innerJoinAndSelect("userRoles.roles", "roles")
+        .leftJoinAndSelect("user.contact", "contact")
+        .where("roles.id = :roleId", { roleId: role.id })
+        .getMany();
+    } catch (error) {
+      throw error;
+    }
+  }
+
   async exists(username: string): Promise<boolean> {
     const count = await this.repository.count({ where: { username } });
     return count > 0;
