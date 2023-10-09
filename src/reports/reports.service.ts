@@ -340,7 +340,38 @@ export class ReportsService {
 
     // Create the complete HTML email content
     const fullHTML = `
-      <html>
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Weekly MC Reports</title>
+        <style>
+            table {
+                font-family: Arial, sans-serif;
+                border-collapse: collapse;
+                width: 100%;
+            }
+    
+            th, td {
+                border: 1px solid #dddddd;
+                text-align: left;
+                padding: 8px;
+            }
+    
+            th {
+                background-color: #f2f2f2;
+            }
+    
+            tr:nth-child(even) {
+                background-color: #f2f2f2;
+            }
+    
+            h1 {
+                font-size: 24px;
+            }
+        </style>
+        </head>
         <body>
           <h1>Weekly MC Reports</h1>
           ${tableHTML}
