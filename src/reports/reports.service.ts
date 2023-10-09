@@ -297,6 +297,7 @@ export class ReportsService {
     // Calculate the date for the Sunday of the current week
     const endDate = new Date(startDate);
     endDate.setDate(startDate.getDate() + 6); // Adding 6 days to get to Sunday
+    endDate.setHours(23, 59, 59, 999); // Set to 23:59:59.999
 
     const reportData: ReportSubmissionsApiResponse =
       await this.getSmallGroupSummaryAttendance(
