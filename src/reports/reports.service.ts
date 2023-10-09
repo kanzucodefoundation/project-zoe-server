@@ -290,7 +290,7 @@ export class ReportsService {
     const currentDayOfWeek = currentDate.getDay();
 
     // Calculate the date for the Monday of the current week
-    const startDate = new Date(currentDate);
+    const startDate = new Date("02-09-2023");
     startDate.setDate(currentDate.getDate() - currentDayOfWeek + 1);
     startDate.setHours(0, 0, 0, 0); // Set to midnight
 
@@ -392,7 +392,7 @@ export class ReportsService {
       </html>
     `;
 
-    const usersWithRole = await this.usersService.findByRole("Report Champion");
+    const usersWithRole = await this.usersService.findByRole("RoleAdmin");
     const emailAddresses = usersWithRole.map((user) => user.username);
     if (!emailAddresses.length) {
       return "Error | Weekly email not sent";
