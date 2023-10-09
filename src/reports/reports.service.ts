@@ -29,6 +29,7 @@ import {
 import { ReportFieldType } from "./enums/report.enum";
 import { TreeRepository } from "typeorm";
 import Group from "src/groups/entities/group.entity";
+import { UsersService } from "src/users/users.service";
 
 @Injectable()
 export class ReportsService {
@@ -37,7 +38,10 @@ export class ReportsService {
   private readonly userRepository: Repository<User>;
   private readonly treeRepository: TreeRepository<Group>;
 
-  constructor(@Inject("CONNECTION") connection: Connection) {
+  constructor(
+    @Inject("CONNECTION") connection: Connection,
+    private readonly usersService: UsersService,
+  ) {
     this.reportRepository = connection.getRepository(Report);
     this.reportSubmissionRepository =
       connection.getRepository(ReportSubmission);
@@ -266,14 +270,23 @@ export class ReportsService {
     return await this.reportRepository.update(id, updateDto);
   }
 
+  /**
+   * Send an email with the reports submitted from
+   * Monday to Sunday of the current week
+   *
+   * @param reportId number
+   * @param smallGroupIdList number
+   * @param parentGroupIdList number
+   * @returns string
+   */
   async sendWeeklyEmailSummary(
     reportId: number,
     smallGroupIdList?: string,
     parentGroupIdList?: string,
-  ): Promise<any> {
+  ): Promise<string> {
     const currentDate = new Date();
 
-    // Calculate the current day of the week (0 = Sunday, 1 = Monday, ..., 6 = Saturday)
+    // Get the current day of the week (0 = Sunday, 1 = Monday, ..., 6 = Saturday)
     const currentDayOfWeek = currentDate.getDay();
 
     // Calculate the date for the Monday of the current week
@@ -379,17 +392,19 @@ export class ReportsService {
       </html>
     `;
 
-    // Define your email data
+    const usersWithRole = await this.usersService.findByRole("Report Champion");
+    const emailAddresses = usersWithRole.map((user) => user.username);
+    if (!emailAddresses.length) {
+      return "Error | Weekly email not sent";
+    }
     const mailerData = {
-      to: "john.doe@test.test",
-      subject: "Weekly MC Reports",
+      to: emailAddresses.join(", "),
+      subject: "Project Zoe | Weekly MC Reports Submitted",
       html: fullHTML,
     };
 
-    // Send the email using your sendEmail function
     sendEmail(mailerData);
-    //return "Weekly email sent successfully";
-    return reportData;
+    return "Weekly email sent successfully";
   }
 
   sendMail(to: string, subject: string, mailArgs: any) {
