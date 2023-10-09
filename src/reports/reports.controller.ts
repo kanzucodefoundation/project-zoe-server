@@ -79,7 +79,7 @@ export class ReportsController {
   ): Promise<ReportSubmissionsApiResponse> {
     const formattedStartDate = startDate ? new Date(startDate) : undefined;
     const formattedEndDate = endDate ? new Date(endDate) : undefined;
-    return await this.reportService.getReportSubmissions(
+    return await this.reportService.getSmallGroupSummaryAttendance(
       reportId,
       formattedStartDate,
       formattedEndDate,
@@ -96,11 +96,25 @@ export class ReportsController {
     return this.reportService.getReportSubmission(reportId, submissionId);
   }
 
+  @Post(":reportId/send-weekly-email")
+  async sendReportSubmissionsWeeklyEmail(
+    @Param("reportId", ParseIntPipe) reportId: number,
+    @Query("groupIdList") smallGroupIdList?: string,
+    @Query("parentGroupIdList") parentGroupIdList?: string,
+  ): Promise<string> {
+    return await this.reportService.sendWeeklyEmailSummary(
+      reportId,
+      smallGroupIdList,
+      parentGroupIdList,
+    );
+  }
+
   // Small Group Weekly Attendance  Report
   // @TODO Get this with the above method of reportId, but do a check on the name and then call this logic instead
   @Get(":reportId/weekly-small-group-attendance")
   async getWeeklyMCReports(@Param("reportId") reportId: number): Promise<any> {
-    const submissions = await this.reportService.getReportSubmissions(reportId);
+    const submissions =
+      await this.reportService.getSmallGroupSummaryAttendance(reportId);
     const dateColumns = [];
 
     // Intermediate data structure to organize the data

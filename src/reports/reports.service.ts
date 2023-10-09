@@ -133,7 +133,7 @@ export class ReportsService {
     return report;
   }
 
-  async getReportSubmissions(
+  async getSmallGroupSummaryAttendance(
     reportId: number,
     startDate?: Date,
     endDate?: Date,
@@ -147,24 +147,6 @@ export class ReportsService {
       throw new NotFoundException(`Report with ID ${reportId} not found`);
     }
 
-    return this.getSmallGroupSummaryAttendance(
-      reportId,
-      report,
-      startDate,
-      endDate,
-      smallGroupIdList,
-      parentGroupIdList,
-    );
-  }
-
-  async getSmallGroupSummaryAttendance(
-    reportId: number,
-    report: Report,
-    startDate?: Date,
-    endDate?: Date,
-    smallGroupIdList?: string,
-    parentGroupIdList?: string,
-  ): Promise<ReportSubmissionsApiResponse> {
     let query = this.reportSubmissionRepository
       .createQueryBuilder("submission")
       .leftJoinAndSelect("submission.report", "report")
@@ -282,6 +264,71 @@ export class ReportsService {
 
   async updateReport(id: number, updateDto: ReportDto): Promise<Report | any> {
     return await this.reportRepository.update(id, updateDto);
+  }
+
+  async sendWeeklyEmailSummary(
+    reportId: number,
+    smallGroupIdList?: string,
+    parentGroupIdList?: string,
+  ): Promise<any> {
+    const currentDate = new Date();
+
+    // Calculate the current day of the week (0 = Sunday, 1 = Monday, ..., 6 = Saturday)
+    const currentDayOfWeek = currentDate.getDay();
+
+    // Calculate the date for the Monday of the current week
+    const startDate = new Date(currentDate);
+    startDate.setDate(currentDate.getDate() - currentDayOfWeek + 1);
+    startDate.setHours(0, 0, 0, 0); // Set to midnight
+
+    // Calculate the date for the Sunday of the current week
+    const endDate = new Date(startDate);
+    endDate.setDate(startDate.getDate() + 6); // Adding 6 days to get to Sunday
+
+    const reportData = await this.getSmallGroupSummaryAttendance(
+      reportId,
+      startDate,
+      endDate,
+      smallGroupIdList,
+      parentGroupIdList,
+    );
+    // Initialize an empty HTML string
+    let emailHTML = "";
+
+    // Iterate through the reportData
+    reportData.data.forEach((report) => {
+      // Add the report data to the email HTML
+      emailHTML += `
+        <p><strong>MC Name:</strong> ${report.smallGroupName}</p>
+        <p><strong>MC Members:</strong> ${report.smallGroupNumberOfMembers}</p>
+        <p><strong>MC Attendance:</strong> ${report.smallGroupAttendanceCount}</p>
+        <p><strong>Zone:</strong> ${report.parentGroupName}</p>
+        <p><strong>Submitted At:</strong> ${report.submittedAt}</p>
+        <p><strong>Submitted By:</strong> ${report.submittedBy}</p>
+        <hr />`;
+    });
+
+    // Create the complete HTML email content
+    const fullHTML = `
+      <html>
+        <body>
+          <h1>Weekly MC Reports</h1>
+          ${emailHTML}
+        </body>
+      </html>
+    `;
+
+    // Define your email data
+    const mailerData = {
+      to: "john.doe@test.test",
+      subject: "Weekly MC Reports",
+      html: fullHTML,
+    };
+
+    // Send the email using your sendEmail function
+    sendEmail(mailerData);
+    //return "Weekly email sent successfully";
+    return reportData;
   }
 
   sendMail(to: string, subject: string, mailArgs: any) {
