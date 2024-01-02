@@ -12,7 +12,6 @@ import config, { appEntities } from "./config";
 import { ServeStaticModule } from "@nestjs/serve-static";
 import { join } from "path";
 import { SeedModule } from "./seed/seed.module";
-import { SeedService } from "./seed/seed.service";
 import { VendorModule } from "./vendor/vendor.module";
 import { EventsModule } from "./events/events.module";
 import { EmailSchedulerService } from "./shared/email-scheduler.service";
