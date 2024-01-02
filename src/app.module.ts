@@ -1,4 +1,4 @@
-import { Global, Logger, Module, MiddlewareConsumer } from "@nestjs/common";
+import { Global, Module, MiddlewareConsumer } from "@nestjs/common";
 import { HttpModule } from "@nestjs/axios";
 import { AuthController } from "./auth/auth.controller";
 import { AppService } from "./app.service";

@@ -20,7 +20,7 @@ export class BotController {
   @Post("ussd/at")
   async africaZTalking(@Body() request: UssdRequestDto): Promise<string> {
     const requestData = { ...request, text: cleanUp(request.text) };
-    const response = await this.service.process(request);
+    const response = await this.service.process(requestData);
     const action = response.nodeAction === ChatAction.Prompt ? "CON " : "END ";
     return action + response.message;
   }

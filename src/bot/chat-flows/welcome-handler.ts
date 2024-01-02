@@ -1,11 +1,6 @@
 import { ChatSession } from "../entities/chat-session.entity";
 import { ChatNode } from "../entities/chat-node.entity";
-import {
-  ChatHandler,
-  chatStrings,
-  createNode,
-  ExitChatHandler,
-} from "./handler-interface";
+import { ChatHandler, chatStrings, createNode } from "./handler-interface";
 import { ChatAction } from "../dto/ussd-response.dto";
 import { Injectable } from "@nestjs/common";
 

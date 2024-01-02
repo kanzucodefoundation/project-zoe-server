@@ -30,7 +30,7 @@ export class ChatSession {
   @Column()
   sessionId: string;
 
-  @OneToMany((type) => ChatNode, (it) => it.session)
+  @OneToMany(() => ChatNode, (it) => it.session)
   nodes: ChatNode[];
 
   @Column("json", { default: {} })

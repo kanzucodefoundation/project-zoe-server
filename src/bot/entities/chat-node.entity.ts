@@ -7,7 +7,6 @@ import {
   ManyToOne,
 } from "typeorm";
 import { ChatAction } from "../dto/ussd-response.dto";
-import Contact from "../../crm/entities/contact.entity";
 import { ChatSession } from "./chat-session.entity";
 
 @Entity()
@@ -25,7 +24,7 @@ export class ChatNode {
   hasError: boolean;
 
   @JoinColumn()
-  @ManyToOne((type) => ChatSession, (it) => it.nodes)
+  @ManyToOne(() => ChatSession, (it) => it.nodes)
   session?: ChatSession;
 
   @Column()
