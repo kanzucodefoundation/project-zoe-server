@@ -24,12 +24,14 @@ import {
 import {
   ReportSubmissionsApiResponse,
   ApiResponse,
-  ReportSubmissionData,
+  ReportSubmissionDataDto,
 } from "./types/report-api.types";
 import { ReportFieldType } from "./enums/report.enum";
 import { TreeRepository } from "typeorm";
 import Group from "src/groups/entities/group.entity";
 import { UsersService } from "src/users/users.service";
+import { ReportField } from "./entities/report.field.entity";
+import { ReportSubmissionData } from "./entities/report.submission.data.entity";
 
 @Injectable()
 export class ReportsService {
@@ -53,12 +55,22 @@ export class ReportsService {
     const report = new Report();
     report.name = reportDto.name;
     report.description = reportDto.description;
-    report.type = reportDto.type;
-    report.fields = reportDto.fields;
-    report.columns = reportDto.columns;
-    report.footer = reportDto.footer;
     report.submissionFrequency = reportDto.submissionFrequency;
+    report.viewType = reportDto.viewType;
+    report.displayColumns = reportDto.displayColumns;
     report.user = await this.userRepository.findOne({ where: { id: user.id } });
+
+    // Create ReportField entities for each field in reportDto.fields
+    const fields = reportDto.fields.map((fieldDto) => {
+      const field = new ReportField();
+      field.name = fieldDto.name;
+      field.type = fieldDto.type;
+      field.label = fieldDto.label;
+      field.required = fieldDto.required;
+      field.options = fieldDto.options;
+      return field;
+    });
+    report.fields = fields;
 
     return this.reportRepository.save(report);
   }
@@ -66,7 +78,7 @@ export class ReportsService {
   async submitReport(
     submissionDto: ReportSubmissionDto,
     user: UserDto,
-  ): Promise<ApiResponse<ReportSubmissionData>> {
+  ): Promise<ApiResponse<ReportSubmissionDataDto>> {
     const { reportId, data } = submissionDto;
     // Retrieve the report by its ID
     const report = await this.reportRepository.findOne({
@@ -78,38 +90,63 @@ export class ReportsService {
     }
 
     const reportSubmission = new ReportSubmission();
-    reportSubmission.data = submissionDto.data;
-    reportSubmission.submittedAt = new Date();
     reportSubmission.report = report;
+    reportSubmission.submittedAt = new Date();
     reportSubmission.user = await this.userRepository.findOne({
       where: { id: user.id },
     });
+
     try {
-      // Attempt to save the report submission
-      const submissionSaveResult =
+      // Save the report submission
+      const savedSubmission =
         await this.reportSubmissionRepository.save(reportSubmission);
-      if (!submissionSaveResult) {
-        throw new HttpException(
-          "Report submission was not saved.",
-          HttpStatus.INTERNAL_SERVER_ERROR,
-        );
-      }
-      const apiResponse: ApiResponse<ReportSubmissionData> = {
+
+      // Retrieve all fields for the report to map field names to their IDs
+      const fields = await this.reportFieldRepository.find({
+        where: { report: report.id },
+      });
+      const fieldNameToIdMap = new Map(
+        fields.map((field) => [field.name, field.id]),
+      );
+
+      // Create SubmissionData entities for each field in the submission
+      const submissionDataEntities = await Promise.all(
+        Object.entries(data).map(async ([fieldName, fieldValue]) => {
+          const fieldId = fieldNameToIdMap.get(fieldName);
+          if (!fieldId) {
+            throw new Error(
+              `Field with name '${fieldName}' not found in report`,
+            );
+          }
+          const reportField = await this.reportFieldRepository.findOne({
+            where: { id: fieldId },
+          });
+
+          const submissionData = new ReportSubmissionData();
+          submissionData.reportSubmission = savedSubmission;
+          submissionData.reportField = reportField;
+          submissionData.fieldValue = fieldValue;
+          return submissionData;
+        }),
+      );
+
+      // Save all SubmissionData entities
+      await this.reportSubmissionDataRepository.save(submissionDataEntities);
+
+      const apiResponse: ApiResponse<ReportSubmissionDataDto> = {
         data: {
-          reportId: submissionSaveResult.report.id,
-          submissionId: submissionSaveResult.id,
-          submittedAt: submissionSaveResult.submittedAt,
-          submittedBy: submissionSaveResult.user.username,
+          reportId: savedSubmission.report.id,
+          submissionId: savedSubmission.id,
+          submittedAt: savedSubmission.submittedAt,
+          submittedBy: savedSubmission.user.username,
         },
         status: HttpStatus.OK,
         message: "Report submitted successfully.",
       };
-      const formattedDate = getHumanReadableDate(
-        submissionSaveResult.submittedAt,
-      );
-      const fullName = getUserDisplayName(submissionSaveResult.user);
+      const formattedDate = getHumanReadableDate(savedSubmission.submittedAt);
+      const fullName = getUserDisplayName(savedSubmission.user);
       this.sendMail(
-        submissionSaveResult.user.username,
+        savedSubmission.user.username,
         "Project Zoe - Report Submitted",
         { submissionDate: formattedDate, fullName },
       );

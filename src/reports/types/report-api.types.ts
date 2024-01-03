@@ -1,6 +1,6 @@
 import { ReportSubmissionDto } from "../dto/report-submission.dto";
 
-export interface ReportSubmissionData {
+export interface ReportSubmissionDataDto {
   reportId: number;
   submissionId: number;
   submittedAt: Date;

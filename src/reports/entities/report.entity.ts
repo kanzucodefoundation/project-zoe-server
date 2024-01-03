@@ -7,6 +7,8 @@ import {
 } from "typeorm";
 import { ReportSubmission } from "./report.submission.entity";
 import { User } from "src/users/entities/user.entity";
+import { ReportField } from "./report.field.entity";
+
 @Entity()
 export class Report {
   @PrimaryGeneratedColumn()
@@ -35,7 +37,7 @@ export class Report {
       "donutchart",
     ],
   })
-  type:
+  viewType:
     | "table"
     | "piechart"
     | "bargraph"
@@ -49,11 +51,11 @@ export class Report {
   @Column({ type: "text", nullable: true })
   sqlQuery: string;
 
-  @Column({ type: "jsonb", nullable: true })
-  fields: Record<string, any>;
+  @OneToMany(() => ReportField, (field) => field.report)
+  fields: ReportField[];
 
   @Column({ type: "jsonb", nullable: true })
-  columns: Record<string, any>;
+  displayColumns: Record<string, any>;
 
   @Column({ type: "jsonb", nullable: true })
   footer: string[];
