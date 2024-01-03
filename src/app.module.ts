@@ -1,4 +1,4 @@
-import { Global, Logger, Module, MiddlewareConsumer } from "@nestjs/common";
+import { Global, Module, MiddlewareConsumer } from "@nestjs/common";
 import { HttpModule } from "@nestjs/axios";
 import { AuthController } from "./auth/auth.controller";
 import { AppService } from "./app.service";
@@ -12,7 +12,6 @@ import config, { appEntities } from "./config";
 import { ServeStaticModule } from "@nestjs/serve-static";
 import { join } from "path";
 import { SeedModule } from "./seed/seed.module";
-import { SeedService } from "./seed/seed.service";
 import { VendorModule } from "./vendor/vendor.module";
 import { EventsModule } from "./events/events.module";
 import { EmailSchedulerService } from "./shared/email-scheduler.service";
@@ -21,6 +20,7 @@ import { HelpModule } from "./help/help.module";
 import { TenantsModule } from "./tenants/tenants.module";
 import { JwtTenantHeaderMiddleware } from "./middleware/jwtTenantHeader.middleware";
 import { ReportsModule } from "./reports/reports.module";
+import { BotModule } from "./bot/bot.module";
 
 @Global()
 @Module({
@@ -50,6 +50,7 @@ import { ReportsModule } from "./reports/reports.module";
     HelpModule,
     TenantsModule,
     ReportsModule,
+    BotModule,
   ],
   exports: [AppService],
   controllers: [AuthController],
