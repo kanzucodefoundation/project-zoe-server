@@ -5,15 +5,29 @@ import { BotService } from "./bot.service";
 import { UssdRequestDto } from "./dto/ussd-request.dto";
 import { ChatAction } from "./dto/ussd-response.dto";
 import { cleanUp } from "./bot.helpers";
+import { GoogleSheetsService } from "./google-sheets.service";
+import { format } from "date-fns";
 
 @Controller("api/bot")
 @UseInterceptors(SentryInterceptor)
 @ApiTags("USSD")
 export class BotController {
-  constructor(private readonly service: BotService) {}
+  constructor(
+    private readonly service: BotService,
+    private readonly sheetsService: GoogleSheetsService,
+  ) {}
 
   @Get()
   async test(): Promise<string> {
+    const event = "-NA-";
+    const date = format(new Date(), "dd/MM/yyyy");
+    this.sheetsService
+      .addRowToSheet([
+        ["Sample Name", date, event, "0700111111", "Sample Address"],
+      ])
+      .then(() => {
+        console.log("Successfully added row to sheet");
+      });
     return "It works!";
   }
 

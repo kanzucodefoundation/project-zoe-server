@@ -1,6 +1,0 @@
-POST http://localhost:4002/api/bot/ussd/at?tenant=demo
-Content-Type: application/x-www-form-urlencoded
-
-id = 999 &
-value = content &
-fact = IntelliJ %+ HTTP Client %= <3

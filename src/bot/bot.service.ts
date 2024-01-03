@@ -20,7 +20,7 @@ export class BotService {
     const logTag = `BotService.process ${request.phoneNumber} ${request.sessionId}`;
     Logger.log(`${logTag} started`);
     const session = await this.sessionService.loadSession(request);
-    const userInput = request.text.trim();
+    const userInput = request.text?.trim().split("*").pop() ?? "";
     session.userPath = userInput;
 
     let nextHandler: string;

@@ -6,7 +6,8 @@ export class UssdRequestDto {
   @IsNotEmpty()
   serviceCode: string;
   @IsNotEmpty()
-  phoneNumber: string;
+  networkCode: string;
   @IsNotEmpty()
+  phoneNumber: string;
   text: string;
 }

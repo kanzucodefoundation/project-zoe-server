@@ -3,6 +3,8 @@ import { ChatNode } from "../entities/chat-node.entity";
 import { ChatHandler, chatStrings, createNode } from "./handler-interface";
 import { ChatAction } from "../dto/ussd-response.dto";
 import { Injectable } from "@nestjs/common";
+import { format } from "date-fns";
+import { GoogleSheetsService } from "../google-sheets.service";
 
 const fieldNames = {
   name: "name",
@@ -95,6 +97,8 @@ export class NameEnteredHandler implements ChatHandler {
 
 @Injectable()
 export class AddressEnteredHandler implements ChatHandler {
+  constructor(private readonly sheetsService: GoogleSheetsService) {}
+
   async execute(userInput: string, session: ChatSession): Promise<ChatNode> {
     const addressIsValid = /^[a-zA-Z]+(([',. -][a-zA-Z ])?[a-zA-Z]*)*$/.test(
       userInput,
@@ -123,9 +127,14 @@ export class AddressEnteredHandler implements ChatHandler {
   }
 
   private async submitToGoogleSheet(session: ChatSession): Promise<void> {
-    //TODO submit to crm
-    // refer to https://developers.google.com/sheets/api/quickstart/nodejs
-    console.log("submit to crm", session.metaData);
+    const { name, address, phoneNumber } = session.metaData;
+    const event = "-NA-";
+    const date = format(new Date(), "dd/MM/yyyy");
+    this.sheetsService
+      .addRowToSheet([[name, date, event, phoneNumber, address]])
+      .then(() => {
+        console.log("Successfully added row to sheet");
+      });
     return await Promise.resolve();
   }
 }
