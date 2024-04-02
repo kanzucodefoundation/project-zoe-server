@@ -1,6 +1,6 @@
 {
   "name": "project-zoe-server",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "The Project Zoe church RMS backend",
   "author": "Kanzu Code Foundation",
   "license": "MIT",
@@ -28,7 +28,8 @@
     "prepare": "husky install",
     "postinstall": "prisma generate",
     "command": "ts-node -r tsconfig-paths/register src/commands.ts",
-    "sync:schemas": "ts-node -r tsconfig-paths/register scripts/syncSchemas.ts"
+    "sync:schemas": "ts-node -r tsconfig-paths/register scripts/syncSchemas.ts",
+    "sync:migrateReportSubmissionData": "ts-node -r tsconfig-paths/register scripts/migrateReportData.ts"
   },
   "dependencies": {
     "@nestjs/axios": "^3.0.0",

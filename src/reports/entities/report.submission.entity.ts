@@ -25,6 +25,9 @@ export class ReportSubmission {
   @ManyToOne(() => Report, (report) => report.submissions)
   report: Report;
 
+  @Column({ type: "jsonb" })
+  data: Record<string, any>;
+
   @OneToMany(
     () => ReportSubmissionData,
     (reportSubmissionData) => reportSubmissionData.reportSubmission,
