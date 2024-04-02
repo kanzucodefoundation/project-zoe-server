@@ -23,7 +23,7 @@ import { Report } from "./entities/report.entity";
 import {
   ApiResponse,
   ReportSubmissionsApiResponse,
-  ReportSubmissionData,
+  ReportSubmissionDataDto,
 } from "./types/report-api.types";
 import { getFormattedDateString } from "src/utils/stringHelpers";
 import { ReportSubmission } from "./entities/report.submission.entity";
@@ -47,7 +47,7 @@ export class ReportsController {
   async submitReport(
     @Body() submissionDto: ReportSubmissionDto,
     @Request() request,
-  ): Promise<ApiResponse<ReportSubmissionData>> {
+  ): Promise<ApiResponse<ReportSubmissionDataDto>> {
     return await this.reportService.submitReport(submissionDto, request.user);
   }
 
@@ -60,7 +60,7 @@ export class ReportsController {
   async updateReport(
     @Param("id") id: number,
     @Body() updateDto: ReportDto,
-  ): Promise<void> {
+  ): Promise<Report> {
     return await this.reportService.updateReport(id, updateDto);
   }
 

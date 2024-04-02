@@ -25,6 +25,7 @@ export class Report {
 
   @Column({
     type: "enum",
+    default: "table",
     enum: [
       "table",
       "piechart",
@@ -51,7 +52,9 @@ export class Report {
   @Column({ type: "text", nullable: true })
   sqlQuery: string;
 
-  @OneToMany(() => ReportField, (field) => field.report)
+  @OneToMany(() => ReportField, (field) => field.report, {
+    cascade: true, 
+  })  
   fields: ReportField[];
 
   @Column({ type: "jsonb", nullable: true })

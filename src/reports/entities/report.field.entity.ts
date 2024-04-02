@@ -3,6 +3,7 @@ import { Report } from "./report.entity";
 
 export enum FieldType {
   TEXT = "text",
+  TEXTAREA = "textarea",
   NUMBER = "number",
   DATE = "date",
   DATETIME = "datetime",
