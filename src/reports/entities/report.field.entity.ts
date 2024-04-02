@@ -32,7 +32,10 @@ export class ReportField {
   label: string; // User-friendly label for the field
 
   @Column({ default: false })
-  required: boolean; // Whether the field is required or not
+  required: boolean;  
+
+  @Column({ default: false })
+  hidden: boolean;  
 
   @Column({ type: "jsonb", nullable: true })
   options: any[]; // For fields like 'select', to store possible options
