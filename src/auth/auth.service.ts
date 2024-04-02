@@ -7,7 +7,7 @@ import { ForgotPasswordResponseDto } from "./dto/forgot-password-response.dto";
 import { ResetPasswordResponseDto } from "./dto/reset-password-response.dto";
 import { UpdateUserDto } from "../users/dto/update-user.dto";
 import { JwtHelperService } from "./jwt-helpers.service";
-import { UserListDto } from "src/users/dto/user-list.dto";
+import { UserListDto } from "src/users/dto/user.dto";
 import Roles from "src/users/entities/roles.entity";
 import { In, Repository } from "typeorm";
 import { Inject } from "@nestjs/common";

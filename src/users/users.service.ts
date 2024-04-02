@@ -7,7 +7,7 @@ import SearchDto from "../shared/dto/search.dto";
 import { ContactsService } from "../crm/contacts.service";
 import Contact from "../crm/entities/contact.entity";
 import { UpdateUserDto } from "./dto/update-user.dto";
-import { UserListDto } from "./dto/user-list.dto";
+import { UserListDto } from "./dto/user.dto";
 import { getPersonFullName } from "../crm/crm.helpers";
 import * as bcrypt from "bcrypt";
 import { QueryDeepPartialEntity } from "typeorm/query-builder/QueryPartialEntity";

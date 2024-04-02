@@ -18,11 +18,12 @@ export class OptionDto {
 }
 
 export interface ReportDto {
+  id: number;
   name: string;
   description: string;
-  type: ReportType;
+  viewType: ReportType;
   fields: Record<string, any>;
-  columns: Record<string, any>;
+  displayColumns: Record<string, any>;
   footer: string[];
   submissionFrequency: ReportSubmissionFrequency;
 }

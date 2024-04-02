@@ -15,7 +15,7 @@ import SearchDto from "../shared/dto/search.dto";
 import { ApiTags } from "@nestjs/swagger";
 import { CreateUserDto } from "./dto/create-user.dto";
 import { UpdateUserDto } from "./dto/update-user.dto";
-import { UserListDto } from "./dto/user-list.dto";
+import { UserListDto } from "./dto/user.dto";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 import { CreateUserResponseDto } from "./dto/create-user-response.dto";
 import { SentryInterceptor } from "src/utils/sentry.interceptor";

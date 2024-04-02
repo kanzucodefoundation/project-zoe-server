@@ -3,21 +3,22 @@ import {
   PrimaryGeneratedColumn,
   Column,
   ManyToOne,
+  OneToMany,
+  Index,
   JoinColumn,
 } from "typeorm";
 import { User } from "src/users/entities/user.entity";
 import { Report } from "./report.entity";
+import { ReportSubmissionData } from "./report.submission.data.entity";
 
 @Entity()
+@Index(["submittedAt"]) 
 export class ReportSubmission {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ type: "jsonb" })
-  data: Record<string, any>;
-
   @Column({ type: "timestamp", default: () => "CURRENT_TIMESTAMP" })
-  submittedAt: Date; //@TODO Add a key
+  submittedAt: Date;  
 
   @ManyToOne(() => User, (user) => user.reportSubmissions)
   @JoinColumn()
@@ -25,4 +26,13 @@ export class ReportSubmission {
 
   @ManyToOne(() => Report, (report) => report.submissions)
   report: Report;
+
+  @Column({ type: "jsonb", nullable: true  })
+  data: Record<string, any>;
+
+  @OneToMany(
+    () => ReportSubmissionData,
+    (reportSubmissionData) => reportSubmissionData.reportSubmission,
+  )
+  submissionData: ReportSubmissionData[];
 }
