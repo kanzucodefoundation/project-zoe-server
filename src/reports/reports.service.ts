@@ -55,7 +55,7 @@ export class ReportsService {
     this.userRepository = connection.getRepository(User);
   }
 
-  async createReport(reportDto: ReportDto, user: UserDto): Promise<Report> {
+  async createReport(reportDto: ReportDto, user: UserDto): Promise<ReportDto> {
     const report = new Report();
     report.name = reportDto.name;
     report.description = reportDto.description;
@@ -75,7 +75,9 @@ export class ReportsService {
       return field;
     });
     report.fields = fields;
-    return await this.reportRepository.save(report);
+    Object.assign(report, reportDto);
+    await this.reportRepository.save(report);
+    return reportDto;
   }
 
     async submitReport(

@@ -1,4 +1,4 @@
-import { UserListDto } from './user-list.dto';
+import { UserListDto } from './user.dto';
 
 export class CreateUserResponseDto {
   token: string;

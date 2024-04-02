@@ -39,7 +39,7 @@ export class ReportsController {
   createReport(
     @Body() reportDto: ReportDto,
     @Request() request,
-  ): Promise<Report> {
+  ): Promise<ReportDto> {
     return this.reportService.createReport(reportDto, request.user);
   }
 

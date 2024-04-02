@@ -8,6 +8,7 @@ import {
   PrimaryGeneratedColumn,
   Unique,
 } from "typeorm";
+import { Exclude } from "class-transformer";
 import * as bcrypt from "bcrypt";
 import Contact from "../../crm/entities/contact.entity";
 import { hasValue } from "../../utils/validation";
@@ -28,6 +29,7 @@ export class User {
   username: string;
 
   @Column({ length: 100 })
+  @Exclude()
   password: string;
 
   @OneToOne((type) => Contact)

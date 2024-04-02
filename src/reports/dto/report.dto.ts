@@ -18,6 +18,7 @@ export class OptionDto {
 }
 
 export interface ReportDto {
+  id: number;
   name: string;
   description: string;
   viewType: ReportType;

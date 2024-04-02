@@ -7,7 +7,7 @@ import { Tenant } from "src/tenants/entities/tenant.entity";
 /**
  * In version 0.0.1, the report data stored fields as json on the report
  * entity. The submissions data was also stored as json. These were migrated
- * to separate tables in 0.0.2
+ * to separate tables in 0.0.2 and this script handles that migration
  * 
  */
 async function runMigrateReports() {
