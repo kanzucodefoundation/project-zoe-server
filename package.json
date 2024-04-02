@@ -28,7 +28,7 @@
     "prepare": "husky install",
     "postinstall": "prisma generate",
     "command": "ts-node -r tsconfig-paths/register src/commands.ts",
-    "sync:schemas": "ts-node -r tsconfig-paths/register scripts/syncSchemas.ts",
+    "sync:schemas": "NODE_OPTIONS='--max-old-space-size=4096' ts-node -r tsconfig-paths/register scripts/syncSchemas.ts",
     "sync:migrateReportSubmissionData": "ts-node -r tsconfig-paths/register scripts/migrateReportData.ts"
   },
   "dependencies": {
