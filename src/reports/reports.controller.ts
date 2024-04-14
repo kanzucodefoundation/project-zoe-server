@@ -207,7 +207,8 @@ export class ReportsController {
       ...dateColumns,
       { name: "average", label: "Average" },
     ];
-
-    return { reportId, data, columns, footer: null };
+    const dataArray = [];
+    dataArray.push({ reportId, data, columns, footer: null });
+    return dataArray;
   }
 }
