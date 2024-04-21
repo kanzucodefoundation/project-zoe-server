@@ -79,7 +79,7 @@ export class ReportsController {
   ): Promise<ReportSubmissionsApiResponse> {
     const formattedStartDate = startDate ? new Date(startDate) : undefined;
     const formattedEndDate = endDate ? new Date(endDate) : undefined;
-    return await this.reportService.getSmallGroupSummaryAttendance(
+    return await this.reportService.generateReport(
       reportId,
       formattedStartDate,
       formattedEndDate,
@@ -107,107 +107,5 @@ export class ReportsController {
       smallGroupIdList,
       parentGroupIdList,
     );
-  }
-
-  // Small Group Weekly Attendance  Report
-  // @TODO Get this with the above method of reportId, but do a check on the name and then call this logic instead
-  @Get(":reportId/weekly-small-group-attendance")
-  async getWeeklyMCReports(@Param("reportId") reportId: number): Promise<any> {
-    const submissions =
-      await this.reportService.getSmallGroupSummaryAttendance(reportId);
-    const dateColumns = [];
-
-    // Intermediate data structure to organize the data
-    const mcDataMap: Record<string, any> = {};
-
-    // Intermediate data structure to store smallGroupName averages
-    const smallGroupNameAverages: Record<string, number> = {};
-
-    // Get the start and end dates of the month
-    const currentDate = new Date();
-    const startOfMonth = new Date(
-      currentDate.getFullYear(),
-      currentDate.getMonth(),
-      1,
-    );
-    const endOfMonth = new Date(
-      currentDate.getFullYear(),
-      currentDate.getMonth() + 1,
-      0,
-    );
-
-    // Iterate through the Sundays in the month
-    let currentSunday = new Date(startOfMonth);
-    currentSunday.setDate(startOfMonth.getDate() + (7 - startOfMonth.getDay()));
-
-    while (currentSunday <= endOfMonth) {
-      const sundayKey = getFormattedDateString(currentSunday);
-
-      const sundayLabel = currentSunday.toLocaleDateString("en-US", {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-      });
-
-      // Add the Sunday column to the columns array
-      dateColumns.push({ name: sundayKey, label: sundayLabel });
-
-      // Move to the next Sunday
-      currentSunday.setDate(currentSunday.getDate() + 7);
-    }
-
-    // Process submissions and organize the data by smallGroupName and Sunday
-    submissions.data.forEach((submission: any) => {
-      const smallGroupName = submission.smallGroupName;
-      const smallGroupNumberOfMembers = submission.smallGroupNumberOfMembers;
-      const mcParticipantCount = parseInt(submission.smallGroupAttendanceCount);
-      const submittedAt = submission.date; // Group by the date of the meeting
-      const submittedDate = new Date(submittedAt);
-
-      // Find the next Sunday date after the submitted date
-      const nextSunday = new Date(submittedDate);
-      nextSunday.setDate(
-        submittedDate.getDate() + (7 - submittedDate.getDay()),
-      );
-
-      // Generate the key in the format "YYYYMMDD" for the Sunday date
-      const sundayKey = getFormattedDateString(nextSunday);
-
-      // Create the mcData object if it doesn't exist
-      if (!mcDataMap[smallGroupName]) {
-        mcDataMap[smallGroupName] = {
-          smallGroupName,
-          smallGroupNumberOfMembers,
-        };
-      }
-
-      // Store the mcParticipantCount for the corresponding Sunday
-      mcDataMap[smallGroupName][sundayKey] = mcParticipantCount;
-
-      // Update the sum for the smallGroupName average
-      if (!smallGroupNameAverages[smallGroupName]) {
-        smallGroupNameAverages[smallGroupName] = 0;
-      }
-      smallGroupNameAverages[smallGroupName] += mcParticipantCount;
-    });
-
-    // Assign the average values to the corresponding mcData objects
-    Object.keys(smallGroupNameAverages).forEach((smallGroupName: string) => {
-      const average =
-        smallGroupNameAverages[smallGroupName] /
-        (Object.keys(mcDataMap[smallGroupName]).length - 2); // The 2 accounts for the extra columns smallGroupNumberOfMembers and smallGroupName
-      mcDataMap[smallGroupName].average = average.toFixed(2);
-    });
-
-    // Generate the final response in the desired format
-    const data = Object.values(mcDataMap);
-    const columns = [
-      { name: "smallGroupName", label: "MC Name" },
-      { name: "smallGroupNumberOfMembers", label: "MC Members" },
-      ...dateColumns,
-      { name: "average", label: "Average" },
-    ];
-
-    return { reportId, data, columns, footer: null };
   }
 }

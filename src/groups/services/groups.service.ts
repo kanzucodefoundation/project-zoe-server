@@ -47,7 +47,6 @@ export class GroupsService {
   }
 
   async findAll(req: SearchDto): Promise<any[]> {
-    console.log(req);
     return await this.treeRepository.findTrees();
   }
 
@@ -108,8 +107,6 @@ export class GroupsService {
     if (hasValue(req.query)) {
       findOps.name = ILike(`%${req.query}%`);
     }
-
-    console.log("findOps", findOps);
 
     const data = await this.treeRepository.find({
       select: ["id", "name", "category", "parent"],
@@ -261,7 +258,6 @@ export class GroupsService {
       });
     }
 
-    console.log(`Update.Group Id:${dto.parentId} parentGroup: `, parentGroup);
     const result = await this.repository
       .createQueryBuilder()
       .update(Group)
@@ -294,5 +290,13 @@ export class GroupsService {
 
   async count(): Promise<number> {
     return await this.repository.count();
+  }
+
+  async getGroupsByCategory(categoryName: string): Promise<Group[]> {
+    return this.repository
+      .createQueryBuilder("group")
+      .leftJoinAndSelect("group.category", "category")
+      .where("category.name = :categoryName", { categoryName })
+      .getMany();
   }
 }
