@@ -87,9 +87,9 @@ jobs:
           rsync -rtvO ./.env project-zoe-prod-1:/opt/project-zoe-server/
           rsync -rtvO ./.env project-zoe-prod-1:/opt/project-zoe-server/dist
       
-      - name: Sync database schemas  
-        run: |
-          ssh project-zoe-prod-1 'cd /opt/project-zoe-server/raw/ && npm run sync:schemas'
+      #- name: Sync database schemas  # @TODO Temp skip sync
+      #  run: |
+      #    ssh project-zoe-prod-1 'cd /opt/project-zoe-server/raw/ && npm run sync:schemas'
       
       - name: Run the app
         run: ssh project-zoe-prod-1 'cd /opt/project-zoe-server/dist/ && pm2 delete zoeServer  2> /dev/null || true && production=true pm2 start src/main.js --name zoeServer'
