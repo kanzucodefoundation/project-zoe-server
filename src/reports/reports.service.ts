@@ -2,18 +2,14 @@ import {
   Injectable,
   Inject,
   NotFoundException,
-  HttpException,
   HttpStatus,
 } from "@nestjs/common";
-import GroupEvent from "src/events/entities/event.entity";
 import { Connection, Repository, In } from "typeorm";
 import { UserDto } from "src/auth/dto/user.dto";
-import { EventCategories } from "src/events/enums/EventCategories";
 import { Report } from "./entities/report.entity";
 import { ReportSubmission } from "./entities/report.submission.entity";
 import { ReportSubmissionDto } from "./dto/report-submission.dto";
-import { ReportDto, ReportFieldDto } from "./dto/report.dto";
-import { UpdateDto } from "./dto/update.dto";
+import { ReportDto } from "./dto/report.dto";
 import { User } from "src/users/entities/user.entity";
 import { IEmail, sendEmail } from "src/utils/mailer";
 import {
@@ -26,7 +22,6 @@ import {
   ApiResponse,
   ReportSubmissionDataDto,
 } from "./types/report-api.types";
-import { ReportFieldType } from "./enums/report.enum";
 import { TreeRepository } from "typeorm";
 import Group from "src/groups/entities/group.entity";
 import { UsersService } from "src/users/users.service";
@@ -164,7 +159,7 @@ export class ReportsService {
   }
 
   async getAllReports(): Promise<Report[]> {
-    return await this.reportRepository.find();
+    return await this.reportRepository.find({ relations: ["fields"] });
   }
 
   async getReport(reportId: number): Promise<Report> {
@@ -228,6 +223,34 @@ export class ReportsService {
     }
   }
 
+  private async buildSubmissionQuery(
+    reportId: number,
+    startDate: Date,
+    endDate: Date,
+    smallGroupIds?: number[],
+  ) {
+    let query = this.reportSubmissionRepository
+      .createQueryBuilder("submission")
+      .leftJoinAndSelect("submission.report", "report")
+      .leftJoinAndSelect("submission.user", "user")
+      .leftJoinAndSelect("submission.submissionData", "submissionData")
+      .leftJoinAndSelect("submissionData.reportField", "reportField")
+      .where("report.id = :reportId", { reportId })
+      .andWhere("submission.submittedAt BETWEEN :startDate AND :endDate", {
+        startDate,
+        endDate,
+      });
+
+    if (smallGroupIds && smallGroupIds.length > 0) {
+      query = query.andWhere(
+        "reportField.name = 'smallGroupId' AND submissionData.fieldValue IN (:...smallGroupIds)",
+        { smallGroupIds },
+      );
+    }
+
+    return query;
+  }
+
   async getSmallGroupSummaryAttendance(
     report: Report,
     startDate?: Date,
@@ -235,36 +258,16 @@ export class ReportsService {
     smallGroupIdList?: string,
     parentGroupIdList?: string,
   ): Promise<ReportSubmissionsApiResponse> {
-    let query = this.reportSubmissionRepository
-      .createQueryBuilder("submission")
-      .leftJoinAndSelect("submission.report", "report")
-      .leftJoinAndSelect("submission.user", "user")
-      .leftJoinAndSelect("user.contact", "contact")
-      .leftJoinAndSelect("contact.person", "person")
-      .leftJoinAndSelect("submission.submissionData", "submissionData")
-      .leftJoinAndSelect("submissionData.reportField", "reportField")
-      .where("report.id = :reportId", { reportId: report.id });
-
-    // Date filters
-    if (startDate && endDate) {
-      query = query.andWhere(
-        "submission.submittedAt BETWEEN :startDate AND :endDate",
-        { startDate, endDate },
-      );
-    } else if (startDate) {
-      query = query.andWhere("submission.submittedAt >= :startDate", {
-        startDate,
-      });
-    } else if (endDate) {
-      query = query.andWhere("submission.submittedAt <= :endDate", { endDate });
+    const now = new Date();
+    if (!startDate) {
+      startDate = new Date(now.setDate(now.getDate() - now.getDay())); // Set to start of the week, e.g., Sunday
     }
-
+    if (!endDate) {
+      endDate = new Date(now.setDate(now.getDate() + 6)); // Set to end of the week, e.g., Saturday
+    }
+    let smallGroupIds: number[] = [];
     if (smallGroupIdList) {
-      const smallGroupIds = smallGroupIdList.split(",").map(Number); // Convert CSV to an array of numbers
-      query = query.andWhere(
-        "reportField.name = 'smallGroupId' AND submissionData.fieldValue IN (:...smallGroupIds)",
-        { smallGroupIds },
-      );
+      smallGroupIds = smallGroupIdList.split(",").map(Number); // Convert CSV to an array of numbers
     }
 
     if (parentGroupIdList && parentGroupIdList.length) {
@@ -275,14 +278,15 @@ export class ReportsService {
         select: ["id"],
         where: { parentId: In(parentGroupIds) },
       });
-      const smallGroupIds = smallGroupEntities.map(
-        (smallGroup) => smallGroup.id,
-      );
-      query = query.andWhere(
-        "reportField.name = 'smallGroupId' AND submissionData.fieldValue IN (:...smallGroupIds)",
-        { smallGroupIds },
-      );
+      smallGroupIds = smallGroupEntities.map((smallGroup) => smallGroup.id);
     }
+
+    let query = await this.buildSubmissionQuery(
+      report.id,
+      startDate,
+      endDate,
+      smallGroupIds,
+    );
 
     // Let's get the relevant submissions
     const submissions: ReportSubmission[] = await query.getMany();
@@ -338,36 +342,26 @@ export class ReportsService {
     startDate?: Date,
     endDate?: Date,
   ): Promise<any> {
-    if (!startDate || !endDate) {
-      const now = new Date();
+    const now = new Date();
+    if (!startDate) {
       startDate = new Date(now.setDate(now.getDate() - now.getDay())); // Set to start of the week, e.g., Sunday
+    }
+    if (!endDate) {
       endDate = new Date(now.setDate(now.getDate() + 6)); // Set to end of the week, e.g., Saturday
     }
 
     const weekNumber = this.getWeekNumber(startDate);
     const allSmallGroups = await this.getAllSmallGroups();
-    const smallGroupIds = allSmallGroups.map((group) => group.id.toString());
-    let query = this.reportSubmissionRepository
-      .createQueryBuilder("submission")
-      .leftJoinAndSelect("submission.report", "report")
-      .leftJoinAndSelect("submission.user", "user")
-      .leftJoinAndSelect("submission.submissionData", "submissionData")
-      .leftJoinAndSelect("submissionData.reportField", "reportField")
-      .where("report.id = :reportId", { reportId: report.id })
-      .andWhere("submission.submittedAt BETWEEN :startDate AND :endDate", {
-        startDate,
-        endDate,
-      });
-
-    if (smallGroupIds.length > 0) {
-      query = query.andWhere(
-        "reportField.name = 'smallGroupId' AND submissionData.fieldValue IN (:...smallGroupIds)",
-        { smallGroupIds },
-      );
-    }
+    const smallGroupIds = allSmallGroups.map((group) => group.id);
+    const smallGroupReportId = 1; // TODO: Retrieve this from the DB
+    let query = await this.buildSubmissionQuery(
+      smallGroupReportId,
+      startDate,
+      endDate,
+      smallGroupIds,
+    );
 
     const submissions: ReportSubmission[] = await query.getMany();
-
     const submissionResponses = allSmallGroups.map((group) => {
       const submission = submissions.find((sub) =>
         sub.submissionData.some(
@@ -386,26 +380,23 @@ export class ReportsService {
         smallGroupName: group.name,
         weekNumber,
         reportSubmissionStatus: isSubmitted ? "Submitted" : "Not Submitted",
-        submissionDate: isSubmitted
-          ? submission.submittedAt.toISOString()
-          : "-",
+        submittedAt: isSubmitted ? submission.submittedAt.toISOString() : "-",
         submittedBy: isSubmitted ? getUserDisplayName(submission.user) : "-",
         missingReports: isSubmitted ? 0 : 1,
       };
     });
 
+    const reportColumns = Object.values(report.displayColumns);
+
     return {
       reportId: report.id,
       data: submissionResponses,
       columns: [
-        { label: "Small Group Name", name: "smallGroupName" },
-        { label: "Week Number", name: "weekNumber" },
-        { label: "Report Submission Status", name: "reportSubmissionStatus" },
-        { label: "Submission Date", name: "submissionDate" },
+        ...reportColumns,
+        { label: "Submitted At", name: "submittedAt" },
         { label: "Submitted By", name: "submittedBy" },
-        { label: "Number of Missing Reports", name: "missingReports" },
       ],
-      footer: [], // Assume any necessary footer information or remove if not needed
+      footer: report.footer,
     };
   }
 
@@ -666,15 +657,5 @@ export class ReportsService {
         `,
     };
     return sendEmail(mailerData);
-  }
-
-  // @TODO Placeholder. Replace this logic.
-  getReportFunction(reportFunctionName: string, reportArgs: any) {
-    const reportFunctionsMap = new Map<string, (reportArgs: any) => any>();
-    //reportFunctionsMap.set('smallGroupWeeklyAttendanceMissingReports', this.generateReport1(reportArgs));
-  }
-
-  generateReport1(reportArgs: any) {
-    return [];
   }
 }
