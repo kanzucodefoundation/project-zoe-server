@@ -2,18 +2,14 @@ import {
   Injectable,
   Inject,
   NotFoundException,
-  HttpException,
   HttpStatus,
 } from "@nestjs/common";
-import GroupEvent from "src/events/entities/event.entity";
 import { Connection, Repository, In } from "typeorm";
 import { UserDto } from "src/auth/dto/user.dto";
-import { EventCategories } from "src/events/enums/EventCategories";
 import { Report } from "./entities/report.entity";
 import { ReportSubmission } from "./entities/report.submission.entity";
 import { ReportSubmissionDto } from "./dto/report-submission.dto";
-import { ReportDto, ReportFieldDto } from "./dto/report.dto";
-import { UpdateDto } from "./dto/update.dto";
+import { ReportDto } from "./dto/report.dto";
 import { User } from "src/users/entities/user.entity";
 import { IEmail, sendEmail } from "src/utils/mailer";
 import {
@@ -26,12 +22,13 @@ import {
   ApiResponse,
   ReportSubmissionDataDto,
 } from "./types/report-api.types";
-import { ReportFieldType } from "./enums/report.enum";
 import { TreeRepository } from "typeorm";
 import Group from "src/groups/entities/group.entity";
 import { UsersService } from "src/users/users.service";
+import { GroupsService } from "src/groups/services/groups.service";
 import { ReportField } from "./entities/report.field.entity";
 import { ReportSubmissionData } from "./entities/report.submission.data.entity";
+import { GroupCategoryNames } from "src/groups/enums/groups";
 
 @Injectable()
 export class ReportsService {
@@ -45,10 +42,12 @@ export class ReportsService {
   constructor(
     @Inject("CONNECTION") connection: Connection,
     private readonly usersService: UsersService,
+    private readonly groupsService: GroupsService,
   ) {
     this.reportRepository = connection.getRepository(Report);
     this.reportFieldRepository = connection.getRepository(ReportField);
-    this.reportSubmissionDataRepository = connection.getRepository(ReportSubmissionData);
+    this.reportSubmissionDataRepository =
+      connection.getRepository(ReportSubmissionData);
     this.reportSubmissionRepository =
       connection.getRepository(ReportSubmission);
     this.treeRepository = connection.getTreeRepository(Group);
@@ -80,38 +79,46 @@ export class ReportsService {
     return reportDto;
   }
 
-    async submitReport(
-      submissionDto: ReportSubmissionDto,
-      user: UserDto,
-    ): Promise<ApiResponse<ReportSubmissionDataDto>> {
-      const { reportId, data } = submissionDto;
-    
-      // Retrieve the report by its ID
-      const report = await this.reportRepository.findOne({ where: { id: reportId } });
-      if (!report) {
-        throw new NotFoundException(`Report with ID ${reportId} not found`);
-      }
-    
-      // Retrieve the user
-      const submittingUser = await this.userRepository.findOne({ where: { id: user.id } });
-      if (!submittingUser) {
-        throw new NotFoundException(`User with ID ${user.id} not found`);
-      }
-    
-      // Create and save the report submission
-      const reportSubmission = new ReportSubmission();
-      reportSubmission.report = report;
-      reportSubmission.submittedAt = new Date();
-      reportSubmission.user = submittingUser;
-      const savedSubmission = await this.reportSubmissionRepository.save(reportSubmission);
-    
-      // Retrieve all fields for the report to map field names to their respective entities
-      const fields = await this.reportFieldRepository.find({
-        where: { report: { id: report.id } },
-      });      
-      const fieldNameToFieldMap = new Map(fields.map(field => [field.name, field]));
-      // Prepare SubmissionData entities
-      const submissionDataEntities = Object.entries(data).map(([fieldName, fieldValue]) => {
+  async submitReport(
+    submissionDto: ReportSubmissionDto,
+    user: UserDto,
+  ): Promise<ApiResponse<ReportSubmissionDataDto>> {
+    const { reportId, data } = submissionDto;
+
+    // Retrieve the report by its ID
+    const report = await this.reportRepository.findOne({
+      where: { id: reportId },
+    });
+    if (!report) {
+      throw new NotFoundException(`Report with ID ${reportId} not found`);
+    }
+
+    // Retrieve the user
+    const submittingUser = await this.userRepository.findOne({
+      where: { id: user.id },
+    });
+    if (!submittingUser) {
+      throw new NotFoundException(`User with ID ${user.id} not found`);
+    }
+
+    // Create and save the report submission
+    const reportSubmission = new ReportSubmission();
+    reportSubmission.report = report;
+    reportSubmission.submittedAt = new Date();
+    reportSubmission.user = submittingUser;
+    const savedSubmission =
+      await this.reportSubmissionRepository.save(reportSubmission);
+
+    // Retrieve all fields for the report to map field names to their respective entities
+    const fields = await this.reportFieldRepository.find({
+      where: { report: { id: report.id } },
+    });
+    const fieldNameToFieldMap = new Map(
+      fields.map((field) => [field.name, field]),
+    );
+    // Prepare SubmissionData entities
+    const submissionDataEntities = Object.entries(data).map(
+      ([fieldName, fieldValue]) => {
         const field = fieldNameToFieldMap.get(fieldName);
         if (!field) {
           throw new Error(`Field with name '${fieldName}' not found in report`);
@@ -121,38 +128,38 @@ export class ReportsService {
         submissionData.reportField = field; // Directly use the field entity
         submissionData.fieldValue = fieldValue;
         return submissionData;
-      });
-    
-      // Save all SubmissionData entities
-      await this.reportSubmissionDataRepository.save(submissionDataEntities);
-    
-      // Prepare the response
-      const response: ApiResponse<ReportSubmissionDataDto> = {
-        data: {
-          reportId: savedSubmission.report.id,
-          submissionId: savedSubmission.id,
-          submittedAt: savedSubmission.submittedAt,
-          submittedBy: savedSubmission.user.username,
-        },
-        status: HttpStatus.OK,
-        message: "Report submitted successfully.",
-      };
-    
-      // Send confirmation email (assuming sendMail is an asynchronous operation)
-      const formattedDate = getHumanReadableDate(savedSubmission.submittedAt);
-      const fullName = getUserDisplayName(savedSubmission.user);
-      await this.sendMail(
-        savedSubmission.user.username,
-        "Project Zoe - Report Submitted",
-        { submissionDate: formattedDate, fullName },
-      );
-    
-      return response;
-    }
-  
+      },
+    );
+
+    // Save all SubmissionData entities
+    await this.reportSubmissionDataRepository.save(submissionDataEntities);
+
+    // Prepare the response
+    const response: ApiResponse<ReportSubmissionDataDto> = {
+      data: {
+        reportId: savedSubmission.report.id,
+        submissionId: savedSubmission.id,
+        submittedAt: savedSubmission.submittedAt,
+        submittedBy: savedSubmission.user.username,
+      },
+      status: HttpStatus.OK,
+      message: "Report submitted successfully.",
+    };
+
+    // Send confirmation email (assuming sendMail is an asynchronous operation)
+    const formattedDate = getHumanReadableDate(savedSubmission.submittedAt);
+    const fullName = getUserDisplayName(savedSubmission.user);
+    await this.sendMail(
+      savedSubmission.user.username,
+      "Project Zoe - Report Submitted",
+      { submissionDate: formattedDate, fullName },
+    );
+
+    return response;
+  }
 
   async getAllReports(): Promise<Report[]> {
-    return await this.reportRepository.find();
+    return await this.reportRepository.find({ relations: ["fields"] });
   }
 
   async getReport(reportId: number): Promise<Report> {
@@ -166,42 +173,101 @@ export class ReportsService {
     return report;
   }
 
-  async getSmallGroupSummaryAttendance(
+  getWeekNumber(date: Date): number {
+    const firstDayOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
+    const firstDayOfWeek = firstDayOfMonth.getDay(); // Sun = 0, Mon = 1, ...
+    const offset = (firstDayOfWeek < 1 ? 7 : 0) - firstDayOfWeek + 1;
+    return Math.ceil((date.getDate() + offset) / 7);
+  }
+
+  async getAllSmallGroups(): Promise<Group[]> {
+    return this.groupsService.getGroupsByCategory(GroupCategoryNames.MC);
+  }
+
+  async generateReport(
     reportId: number,
     startDate?: Date,
     endDate?: Date,
     smallGroupIdList?: string,
     parentGroupIdList?: string,
-  ): Promise<ReportSubmissionsApiResponse> {
+  ): Promise<any> {
     const report = await this.reportRepository.findOne({
       where: { id: reportId },
+      relations: ["fields", "submissions"],
     });
+
     if (!report) {
       throw new NotFoundException(`Report with ID ${reportId} not found`);
     }
 
-    let query = this.reportSubmissionRepository
-    .createQueryBuilder("submission")
-    .leftJoinAndSelect("submission.report", "report")
-    .leftJoinAndSelect("submission.user", "user")
-    .leftJoinAndSelect("user.contact", "contact")
-    .leftJoinAndSelect("contact.person", "person")
-    .leftJoinAndSelect("submission.submissionData", "submissionData")
-    .leftJoinAndSelect("submissionData.reportField", "reportField")
-    .where("report.id = :reportId", { reportId });
-
-    // Date filters
-    if (startDate && endDate) {
-      query = query.andWhere("submission.submittedAt BETWEEN :startDate AND :endDate", { startDate, endDate });
-    } else if (startDate) {
-      query = query.andWhere("submission.submittedAt >= :startDate", { startDate });
-    } else if (endDate) {
-      query = query.andWhere("submission.submittedAt <= :endDate", { endDate });
+    // For now, all the reports are aggregate reports.
+    switch (report.functionName) {
+      case "getSmallGroupSummaryAttendance":
+        return this.getSmallGroupSummaryAttendance(
+          report,
+          startDate,
+          endDate,
+          smallGroupIdList,
+          parentGroupIdList,
+        );
+      case "getSmallGroupReportSubmissionStatus":
+        return this.getSmallGroupReportSubmissionStatus(
+          report,
+          startDate,
+          endDate,
+        );
+      default:
+        throw new Error(
+          `Function ${report.functionName} is not implemented for custom processing of report ID ${reportId}`,
+        );
     }
-    
+  }
+
+  private async buildSubmissionQuery(
+    reportId: number,
+    startDate: Date,
+    endDate: Date,
+    smallGroupIds?: number[],
+  ) {
+    let query = this.reportSubmissionRepository
+      .createQueryBuilder("submission")
+      .leftJoinAndSelect("submission.report", "report")
+      .leftJoinAndSelect("submission.user", "user")
+      .leftJoinAndSelect("submission.submissionData", "submissionData")
+      .leftJoinAndSelect("submissionData.reportField", "reportField")
+      .where("report.id = :reportId", { reportId })
+      .andWhere("submission.submittedAt BETWEEN :startDate AND :endDate", {
+        startDate,
+        endDate,
+      });
+
+    if (smallGroupIds && smallGroupIds.length > 0) {
+      query = query.andWhere(
+        "reportField.name = 'smallGroupId' AND submissionData.fieldValue IN (:...smallGroupIds)",
+        { smallGroupIds },
+      );
+    }
+
+    return query;
+  }
+
+  async getSmallGroupSummaryAttendance(
+    report: Report,
+    startDate?: Date,
+    endDate?: Date,
+    smallGroupIdList?: string,
+    parentGroupIdList?: string,
+  ): Promise<ReportSubmissionsApiResponse> {
+    const now = new Date();
+    if (!startDate) {
+      startDate = new Date(now.setDate(now.getDate() - now.getDay())); // Set to start of the week, e.g., Sunday
+    }
+    if (!endDate) {
+      endDate = new Date(now.setDate(now.getDate() + 6)); // Set to end of the week, e.g., Saturday
+    }
+    let smallGroupIds: number[] = [];
     if (smallGroupIdList) {
-      const smallGroupIds = smallGroupIdList.split(",").map(Number); // Convert CSV to an array of numbers
-      query = query.andWhere("reportField.name = 'smallGroupId' AND submissionData.fieldValue IN (:...smallGroupIds)", { smallGroupIds });
+      smallGroupIds = smallGroupIdList.split(",").map(Number); // Convert CSV to an array of numbers
     }
 
     if (parentGroupIdList && parentGroupIdList.length) {
@@ -212,48 +278,118 @@ export class ReportsService {
         select: ["id"],
         where: { parentId: In(parentGroupIds) },
       });
-      const smallGroupIds = smallGroupEntities.map(
-        (smallGroup) => smallGroup.id,
-      );
-      query = query.andWhere("reportField.name = 'smallGroupId' AND submissionData.fieldValue IN (:...smallGroupIds)", { smallGroupIds });
+      smallGroupIds = smallGroupEntities.map((smallGroup) => smallGroup.id);
     }
+
+    let query = await this.buildSubmissionQuery(
+      report.id,
+      startDate,
+      endDate,
+      smallGroupIds,
+    );
 
     // Let's get the relevant submissions
     const submissions: ReportSubmission[] = await query.getMany();
     // For each of the retrieved submissions, let's get the user display name & small group parent (The "Zone" in the case of Worship Harvest)
-    const submissionResponses = await Promise.all(submissions.map(async (submission) => {
-      const transformedData = {
-        id: submission.id,
-        submittedAt: submission.submittedAt.toISOString(), // Ensure date format consistency
-        submittedBy: getUserDisplayName(submission.user),
-      };
-    
-      const smallGroupFieldData = submission.submissionData.find(sd => sd.reportField.name === 'smallGroupId');
-    
-      // Ensure we handle the case where smallGroupFieldData might be undefined
-      if (smallGroupFieldData) {
-        const smallGroup = await this.treeRepository.findOne({
-          where: { id: parseInt(smallGroupFieldData.fieldValue) },
-          relations: ["parent"],
+    const submissionResponses = await Promise.all(
+      submissions.map(async (submission) => {
+        const transformedData = {
+          id: submission.id,
+          submittedAt: submission.submittedAt.toISOString(), // Ensure date format consistency
+          submittedBy: getUserDisplayName(submission.user),
+        };
+
+        const smallGroupFieldData = submission.submissionData.find(
+          (sd) => sd.reportField.name === "smallGroupId",
+        );
+
+        // Ensure we handle the case where smallGroupFieldData might be undefined
+        if (smallGroupFieldData) {
+          const smallGroup = await this.treeRepository.findOne({
+            where: { id: parseInt(smallGroupFieldData.fieldValue) },
+            relations: ["parent"],
+          });
+
+          // Add the small group parent
+          transformedData["parentGroupName"] = smallGroup?.parent?.name || "";
+        }
+
+        // Aggregate submission data into a single object
+        submission.submissionData.forEach((sd) => {
+          transformedData[sd.reportField.name] = sd.fieldValue;
         });
-    
-        // Add the small group parent
-        transformedData['parentGroupName'] = smallGroup?.parent?.name || "";
-      }
-    
-      // Aggregate submission data into a single object
-      submission.submissionData.forEach(sd => {
-        transformedData[sd.reportField.name] = sd.fieldValue;
-      });
-    
-      return transformedData;
-    }));
-    
+
+        return transformedData;
+      }),
+    );
 
     const reportColumns = Object.values(report.displayColumns); // Convert columns object to array
 
     return {
-      reportId,
+      reportId: report.id,
+      data: submissionResponses,
+      columns: [
+        ...reportColumns,
+        { label: "Submitted At", name: "submittedAt" },
+        { label: "Submitted By", name: "submittedBy" },
+      ],
+      footer: report.footer,
+    };
+  }
+
+  async getSmallGroupReportSubmissionStatus(
+    report: Report,
+    startDate?: Date,
+    endDate?: Date,
+  ): Promise<any> {
+    const now = new Date();
+    if (!startDate) {
+      startDate = new Date(now.setDate(now.getDate() - now.getDay())); // Set to start of the week, e.g., Sunday
+    }
+    if (!endDate) {
+      endDate = new Date(now.setDate(now.getDate() + 6)); // Set to end of the week, e.g., Saturday
+    }
+
+    const weekNumber = this.getWeekNumber(startDate);
+    const allSmallGroups = await this.getAllSmallGroups();
+    const smallGroupIds = allSmallGroups.map((group) => group.id);
+    const smallGroupReportId = 1; // TODO: Retrieve this from the DB
+    let query = await this.buildSubmissionQuery(
+      smallGroupReportId,
+      startDate,
+      endDate,
+      smallGroupIds,
+    );
+
+    const submissions: ReportSubmission[] = await query.getMany();
+    const submissionResponses = allSmallGroups.map((group) => {
+      const submission = submissions.find((sub) =>
+        sub.submissionData.some(
+          (sd) =>
+            sd.reportField.name === "smallGroupId" &&
+            sd.fieldValue === group.id.toString(),
+        ),
+      );
+
+      const isSubmitted = !!submission;
+      const smallGroupFieldData = submission?.submissionData.find(
+        (sd) => sd.reportField.name === "smallGroupId",
+      );
+
+      return {
+        smallGroupName: group.name,
+        weekNumber,
+        reportSubmissionStatus: isSubmitted ? "Submitted" : "Not Submitted",
+        submittedAt: isSubmitted ? submission.submittedAt.toISOString() : "-",
+        submittedBy: isSubmitted ? getUserDisplayName(submission.user) : "-",
+        missingReports: isSubmitted ? 0 : 1,
+      };
+    });
+
+    const reportColumns = Object.values(report.displayColumns);
+
+    return {
+      reportId: report.id,
       data: submissionResponses,
       columns: [
         ...reportColumns,
@@ -270,25 +406,27 @@ export class ReportsService {
       where: { id: submissionId, report: { id: reportId } },
       relations: ["user", "submissionData", "submissionData.reportField"],
     });
-  
+
     if (!submission) {
-      throw new NotFoundException(`Report submission with ID ${submissionId} not found`);
+      throw new NotFoundException(
+        `Report submission with ID ${submissionId} not found`,
+      );
     }
-  
+
     // Transform submissionData into a structured object
     const data = submission.submissionData.reduce((acc, curr) => {
       acc[curr.reportField.name] = curr.fieldValue;
       return acc;
     }, {});
-  
+
     // Extract labels from submissionData
-    const labels = submission.submissionData.map(sd => {
+    const labels = submission.submissionData.map((sd) => {
       return {
         name: sd.reportField.name,
         label: sd.reportField.label,
       };
     });
-  
+
     // Construct and return the response
     return {
       id: submission.id,
@@ -298,42 +436,46 @@ export class ReportsService {
       submittedBy: getUserDisplayName(submission.user),
     };
   }
-  
 
   async updateReport(id: number, updateDto: ReportDto): Promise<Report> {
     // Destructure updateDto to separate fields from other properties
     const { fields, ...reportUpdateData } = updateDto;
-  
+
     // First, update the report itself without the fields
     await this.reportRepository.update(id, reportUpdateData);
-  
+
     if (fields) {
       await this.updateReportFields(id, fields);
     }
-  
+
     // After updating, return the updated report entity
     // Note: You may need to reload the report from the database to reflect the updates
     const updatedReport = await this.reportRepository.findOne({
       where: { id },
-      relations: ['fields'],  
+      relations: ["fields"],
     });
-  
+
     if (!updatedReport) {
       throw new NotFoundException(`Report with ID ${id} not found`);
     }
-  
+
     return updatedReport;
   }
-  
-  async updateReportFields(reportId: number, fieldsData: Record<string, any>): Promise<void> {
+
+  async updateReportFields(
+    reportId: number,
+    fieldsData: Record<string, any>,
+  ): Promise<void> {
     // Fetch existing fields for the report
     const existingFields = await this.reportFieldRepository.find({
       where: { report: { id: reportId } },
     });
-  
+
     // Convert existing fields into a map for easy lookup
-    const existingFieldsMap = new Map(existingFields.map(field => [field.name, field]));
-  
+    const existingFieldsMap = new Map(
+      existingFields.map((field) => [field.name, field]),
+    );
+
     // Iterate over fieldsData to update or add new fields
     for (const [fieldName, fieldAttributes] of Object.entries(fieldsData)) {
       if (existingFieldsMap.has(fieldName)) {
@@ -352,14 +494,12 @@ export class ReportsService {
         });
       }
     }
-  
+
     // Any remaining fields in existingFieldsMap are not present in fieldsData and should be deleted
     for (const [fieldName, existingField] of existingFieldsMap) {
       await this.reportFieldRepository.delete(existingField.id);
     }
   }
-  
-  
 
   /**
    * Send an email with the reports submitted from
@@ -390,9 +530,17 @@ export class ReportsService {
     endDate.setDate(startDate.getDate() + 6); // Adding 6 days to get to Sunday
     endDate.setHours(23, 59, 59, 999); // Set to 23:59:59.999
 
+    const report = await this.reportRepository.findOne({
+      where: { id: reportId },
+      relations: ["fields", "submissions"],
+    });
+
+    if (!report) {
+      throw new NotFoundException(`Report with ID ${reportId} not found`);
+    }
     const reportData: ReportSubmissionsApiResponse =
       await this.getSmallGroupSummaryAttendance(
-        reportId,
+        report,
         startDate,
         endDate,
         smallGroupIdList,
@@ -509,15 +657,5 @@ export class ReportsService {
         `,
     };
     return sendEmail(mailerData);
-  }
-
-  // @TODO Placeholder. Replace this logic.
-  getReportFunction(reportFunctionName: string, reportArgs: any) {
-    const reportFunctionsMap = new Map<string, (reportArgs: any) => any>();
-    //reportFunctionsMap.set('smallGroupWeeklyAttendanceMissingReports', this.generateReport1(reportArgs));
-  }
-
-  generateReport1(reportArgs: any) {
-    return [];
   }
 }
