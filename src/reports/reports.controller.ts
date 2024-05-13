@@ -11,13 +11,17 @@ import {
   UseGuards,
   Body,
   UseInterceptors,
+  UsePipes,
 } from "@nestjs/common";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 import { SentryInterceptor } from "src/utils/sentry.interceptor";
 import { ApiTags } from "@nestjs/swagger";
 import { ReportsService } from "./reports.service";
 import { Repository, Connection } from "typeorm";
-import { ReportSubmissionDto } from "./dto/report-submission.dto";
+import {
+  ReportSubmissionDto,
+  reportSubmissionSchema,
+} from "./dto/report-submission.dto";
 import { ReportDto } from "./dto/report.dto";
 import { Report } from "./entities/report.entity";
 import {
@@ -27,6 +31,7 @@ import {
 } from "./types/report-api.types";
 import { getFormattedDateString } from "src/utils/stringHelpers";
 import { ReportSubmission } from "./entities/report.submission.entity";
+import { CreateReportValidatorPipe } from "src/utils/validation";
 
 @UseInterceptors(SentryInterceptor)
 @UseGuards(JwtAuthGuard)
@@ -44,6 +49,8 @@ export class ReportsController {
   }
 
   @Post("submit")
+  // validaiton of submitted schema
+  @UsePipes(new CreateReportValidatorPipe(reportSubmissionSchema))
   async submitReport(
     @Body() submissionDto: ReportSubmissionDto,
     @Request() request,
