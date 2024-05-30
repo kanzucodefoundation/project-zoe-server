@@ -1,9 +1,8 @@
-import { HttpException, Injectable, Inject } from "@nestjs/common";
+import { HttpException, Injectable, Inject, Logger } from "@nestjs/common";
 import { In, Repository, Connection, ILike } from "typeorm";
 import { User } from "./entities/user.entity";
 import Email from "src/crm/entities/email.entity";
 import { RegisterUserDto } from "../auth/dto/register-user.dto";
-import SearchDto from "../shared/dto/search.dto";
 import { ContactsService } from "../crm/contacts.service";
 import Contact from "../crm/entities/contact.entity";
 import { UpdateUserDto } from "./dto/update-user.dto";
@@ -13,11 +12,13 @@ import * as bcrypt from "bcrypt";
 import { QueryDeepPartialEntity } from "typeorm/query-builder/QueryPartialEntity";
 import { CreateUserDto } from "./dto/create-user.dto";
 import { IEmail, sendEmail } from "src/utils/mailer";
-import { hasValue, isArray } from "../utils/validation";
+import { hasNoValue, hasValue, isArray } from "../utils/validation";
 import { JwtHelperService } from "src/auth/jwt-helpers.service";
 import Roles from "./entities/roles.entity";
 import UserRoles from "./entities/userRoles.entity";
-import { differenceBy } from "lodash";
+import { differenceBy, intersection } from "lodash";
+import Person from "src/crm/entities/person.entity";
+import { UserSearchDto } from "src/crm/dto/user-search.dto";
 
 @Injectable()
 export class UsersService {
@@ -25,6 +26,7 @@ export class UsersService {
   private readonly emailRepository: Repository<Email>;
   private readonly rolesRepository: Repository<Roles>;
   private readonly userRolesRepository: Repository<UserRoles>;
+  private readonly personRepository: Repository<Person>;
 
   constructor(
     @Inject("CONNECTION") connection: Connection,
@@ -32,19 +34,85 @@ export class UsersService {
     private readonly jwtHelperService: JwtHelperService,
   ) {
     this.repository = connection.getRepository(User);
+    this.personRepository = connection.getRepository(Person);
     this.emailRepository = connection.getRepository(Email);
     this.rolesRepository = connection.getRepository(Roles);
     this.userRolesRepository = connection.getRepository(UserRoles);
   }
 
-  async findAll(req: SearchDto): Promise<UserListDto[]> {
-    const data = await this.repository.find({
-      relations: ["contact", "contact.person", "userRoles", "userRoles.roles"],
-      skip: req.skip,
-      take: req.limit,
-    });
+  async findAll(req: UserSearchDto): Promise<UserListDto[]> {
+    try {
+      let hasFilter = false;
+      let idList: number[] = [];
 
-    return data.map(this.toListModel);
+      if (hasValue(req.query)) {
+        hasFilter = true;
+        const resp = await this.personRepository.find({
+          select: ["contactId"],
+          where: [
+            {
+              firstName: ILike(`%${req.query.trim()}%`),
+            },
+            {
+              lastName: ILike(`%${req.query.trim()}%`),
+            },
+            {
+              middleName: ILike(`%${req.query.trim()}%`),
+            },
+          ],
+        });
+        Logger.log(`searching by Person: ${resp.join(",")}`);
+        if (hasValue(idList)) {
+          idList = intersection(
+            idList,
+            resp.map((it) => it.contactId),
+          );
+        } else {
+          idList.push(...resp.map((it) => it.contactId));
+        }
+      }
+
+      if (hasValue(req.query)) {
+        hasFilter = true;
+        const resp = await this.emailRepository.find({
+          select: ["contactId"],
+          where: { value: ILike(`%${req.query.trim().toLowerCase()}%`) },
+        });
+        Logger.log(`searching by email: ${resp.join(",")}`);
+        if (hasValue(idList)) {
+          idList = intersection(
+            idList,
+            resp.map((it) => it.contactId),
+          );
+        } else {
+          idList.push(...resp.map((it) => it.contactId));
+        }
+      }
+
+      console.log("IdList", idList);
+      if (hasFilter && hasNoValue(idList)) {
+        return [];
+      }
+
+      const data = await this.repository.find({
+        relations: [
+          "contact",
+          "contact.person",
+          "userRoles",
+          "userRoles.roles",
+        ],
+        skip: req.skip,
+        take: req.limit,
+        where: hasValue(idList) ? { id: In(idList) } : undefined,
+      });
+
+      return data.map((it) => {
+        return this.toListModel(it);
+      });
+    } catch (error) {
+      Logger.error(error.message);
+      return [];
+    }
   }
 
   toListModel(user: User): UserListDto {
