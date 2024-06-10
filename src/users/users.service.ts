@@ -61,32 +61,14 @@ export class UsersService {
             },
           ],
         });
-        Logger.log(`searching by Person: ${resp.join(",")}`);
-        if (hasValue(idList)) {
-          idList = intersection(
-            idList,
-            resp.map((it) => it.contactId),
-          );
-        } else {
-          idList.push(...resp.map((it) => it.contactId));
-        }
-      }
+        idList.push(...resp.map((it) => it.contactId));
 
-      if (hasValue(req.query)) {
-        hasFilter = true;
-        const resp = await this.emailRepository.find({
+        const respEmail = await this.emailRepository.find({
           select: ["contactId"],
           where: { value: ILike(`%${req.query.trim().toLowerCase()}%`) },
         });
-        Logger.log(`searching by email: ${resp.join(",")}`);
-        if (hasValue(idList)) {
-          idList = intersection(
-            idList,
-            resp.map((it) => it.contactId),
-          );
-        } else {
-          idList.push(...resp.map((it) => it.contactId));
-        }
+
+        idList.push(...respEmail.map((it) => it.contactId));
       }
 
       console.log("IdList", idList);
