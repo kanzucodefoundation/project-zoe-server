@@ -21,7 +21,7 @@ export class GroupComboController {
   constructor(private readonly service: GroupsService) {}
 
   @Get()
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard) //TODO Change this to accept all users with ADMIN select Group Combo.
   async combo(
     @Query() req: GroupSearchDto,
     @Request() rawRequest: any,
@@ -30,6 +30,7 @@ export class GroupComboController {
   }
 
   @Get("locations")
+  @UseGuards(JwtAuthGuard)
   async locations(
     @Query() req: GroupSearchDto,
     @Request() rawRequest: any,
