@@ -29,6 +29,7 @@ import { GroupsService } from "src/groups/services/groups.service";
 import { ReportField } from "./entities/report.field.entity";
 import { ReportSubmissionData } from "./entities/report.submission.data.entity";
 import { GroupCategoryNames } from "src/groups/enums/groups";
+import { toNumber } from "lodash";
 
 @Injectable()
 export class ReportsService {
@@ -315,10 +316,21 @@ export class ReportsService {
         }
 
         // Aggregate submission data into a single object
+        let groupParticipateCount = 0;
+        let groupMembers = 0;
         submission.submissionData.forEach((sd) => {
+          if (sd.reportField.name === "smallGroupAttendanceCount") {
+            groupParticipateCount = toNumber(sd.fieldValue) * 100;
+          }
+          if (sd.reportField.name === "smallGroupNumberOfMembers") {
+            groupMembers = toNumber(sd.fieldValue);
+          }
           transformedData[sd.reportField.name] = sd.fieldValue;
         });
-
+        const participatoryRate = (
+          groupParticipateCount / groupMembers
+        ).toFixed(2);
+        transformedData["participatoryRate"] = participatoryRate;
         return transformedData;
       }),
     );
