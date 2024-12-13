@@ -188,7 +188,7 @@ export class EventsService {
         members: [],
       },
       category: category ? { id: category.id, name: category.name } : null,
-      categoryFields: category.fields,
+      categoryFields: category?.fields,
     };
   }
 
