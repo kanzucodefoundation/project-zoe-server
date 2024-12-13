@@ -15,7 +15,8 @@ import { GoogleService } from "src/vendor/google.service";
 import { GroupPermissionsService } from "src/groups/services/group-permissions.service";
 import { GroupsMembershipService } from "src/groups/services/group-membership.service";
 import { GroupRole } from "src/groups/enums/groupRole";
-
+import { SalvationRecord } from "src/crm/entities/salvation.entity";
+import { seedSalvationRecords } from "./data/salvation";
 @Injectable()
 export class SeedService {
   private eventCategoryRepository: Repository<EventCategory>;
@@ -24,6 +25,7 @@ export class SeedService {
   private groupsService: GroupsService;
   private groupCategoriesService: GroupCategoriesService;
   private groupMembershipService: GroupsMembershipService;
+  private salvationRepository: Repository<SalvationRecord>;
 
   async createAll(
     connection: Connection,
@@ -36,6 +38,7 @@ export class SeedService {
   ) {
     this.eventCategoryRepository = connection.getRepository(EventCategory);
     this.rolesRepository = connection.getRepository(Roles);
+    this.salvationRepository = connection.getRepository(SalvationRecord);
 
     this.usersService = new UsersService(
       connection,
@@ -55,6 +58,7 @@ export class SeedService {
     await this.createGroupCategories();
     await this.createEventCategories();
     await this.createGroups();
+    await this.createSalvationRecords();
   }
 
   async createUsers() {
@@ -127,6 +131,45 @@ export class SeedService {
       await this.rolesRepository.save(toSave);
     } else {
       Logger.debug(`${roleAdmin.role} Role already exist`);
+    }
+  }
+
+  // async createSalvationRecords() {
+  //   Logger.log(`Seeding ${seedSalvationRecords.length} Salvation Records`);
+  //   const count = await this.salvationRepository.count();
+  //   if (count > 0) {
+  //     Logger.debug(`${count} Salvation Records already exist`);
+  //   } else {
+  //     for (const record of seedSalvationRecords) {
+  //       const salvationRecord = this.salvationRepository.create(record);
+  //       await this.salvationRepository.save(salvationRecord);
+  //     }
+  //     Logger.debug(`${seedSalvationRecords.length} Salvation Records created`);
+  //   }
+  // }
+  async createSalvationRecords() {
+    try {
+      Logger.log(`Seeding ${seedSalvationRecords.length} Salvation Records`);
+      const count = await this.salvationRepository.count();
+
+      if (count > 0) {
+        Logger.debug(`${count} Salvation Records already exist`);
+      } else {
+        // Use queryBuilder for bulk insert
+        await this.salvationRepository
+          .createQueryBuilder()
+          .insert()
+          .into(SalvationRecord)
+          .values(seedSalvationRecords)
+          .execute();
+
+        Logger.debug(
+          `${seedSalvationRecords.length} Salvation Records created`,
+        );
+      }
+    } catch (error) {
+      Logger.error("Error creating salvation records:", error);
+      throw error;
     }
   }
 }

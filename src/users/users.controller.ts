@@ -21,7 +21,7 @@ import { CreateUserResponseDto } from "./dto/create-user-response.dto";
 import { SentryInterceptor } from "src/utils/sentry.interceptor";
 
 @UseInterceptors(SentryInterceptor)
-@UseGuards(JwtAuthGuard)
+// @UseGuards(JwtAuthGuard)
 @ApiTags("Users")
 @Controller("api/users")
 export class UsersController {

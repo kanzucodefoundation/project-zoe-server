@@ -11,9 +11,11 @@ const connectionFactory = {
   provide: "CONNECTION",
   scope: Scope.REQUEST,
   useFactory: async (req: any, dbservice: DbService) => {
-    const tenantName = req.headers[TENANT_HEADER];
+    let tenantName = req.headers[TENANT_HEADER];
     const connectionPublic = await dbservice.getConnection();
     let tenantDetails: Tenant;
+
+    tenantName = "demo";
 
     if (!tenantName) {
       throw new BadRequestException(
