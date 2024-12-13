@@ -1,4 +1,4 @@
-name: Build and deploy Project Zoe server
+name: Build and deploy Project Zoe Staging server
 
 on:
   push:
@@ -92,6 +92,6 @@ jobs:
       #    ssh project-zoe-prod-1 'cd /opt/project-zoe-server/raw/ && npm run sync:schemas'
       
       - name: Run the app
-        run: ssh project-zoe-prod-1 'cd /opt/staging/project-zoe-server/dist/ && pm2 delete zoeServer  2> /dev/null || true && production=true pm2 start src/main.js --name zoeServer'
+        run: ssh project-zoe-prod-1 'cd /opt/staging/project-zoe-server/dist/ && pm2 delete zoeServerStaging  2> /dev/null || true && production=true pm2 start src/main.js --name zoeServerStaging'
             
  
