@@ -212,14 +212,6 @@ export class ReportsService {
           smallGroupIdList,
           parentGroupIdList,
         );
-      case "getSalvationReport":
-        return this.getSalvationReport(
-          report,
-          startDate,
-          endDate,
-          smallGroupIdList,
-          parentGroupIdList,
-        );
       case "getSmallGroupReportSubmissionStatus":
         return this.getSmallGroupReportSubmissionStatus(
           report,
@@ -227,8 +219,12 @@ export class ReportsService {
           endDate,
         );
       default:
-        throw new Error(
-          `Function ${report.functionName} is not implemented for custom processing of report ID ${reportId}`,
+        return this.getGenericReport(
+          report,
+          startDate,
+          endDate,
+          smallGroupIdList,
+          parentGroupIdList,
         );
     }
   }
@@ -261,7 +257,7 @@ export class ReportsService {
     return query;
   }
 
-  async getSalvationReport(
+  async getGenericReport(
     report: Report,
     startDate?: Date,
     endDate?: Date,
