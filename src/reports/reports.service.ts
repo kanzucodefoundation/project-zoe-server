@@ -149,11 +149,11 @@ export class ReportsService {
     // Send confirmation email (assuming sendMail is an asynchronous operation)
     const formattedDate = getHumanReadableDate(savedSubmission.submittedAt);
     const fullName = getUserDisplayName(savedSubmission.user);
-    await this.sendMail(
-      savedSubmission.user.username,
-      "Project Zoe - Report Submitted",
-      { submissionDate: formattedDate, fullName },
-    );
+    // await this.sendMail(
+    //   savedSubmission.user.username,
+    //   "Project Zoe - Report Submitted",
+    //   { submissionDate: formattedDate, fullName },
+    // );
 
     return response;
   }
@@ -216,6 +216,9 @@ export class ReportsService {
           startDate,
           endDate,
         );
+      case "displayPledge":
+        return this.displayPledge(report);
+
       default:
         throw new Error(
           `Function ${report.functionName} is not implemented for custom processing of report ID ${reportId}`,
@@ -247,6 +250,33 @@ export class ReportsService {
         { smallGroupIds },
       );
     }
+
+    return query;
+  }
+  private async buildSubmissionPledgeQuery(
+    reportId: number,
+    startDate: Date,
+    endDate: Date,
+    // smallGroupIds?: number[],
+  ) {
+    let query = this.reportSubmissionRepository
+      .createQueryBuilder("submission")
+      .leftJoinAndSelect("submission.report", "report")
+      .leftJoinAndSelect("submission.user", "user")
+      .leftJoinAndSelect("submission.submissionData", "submissionData")
+      .leftJoinAndSelect("submissionData.reportField", "reportField")
+      .where("report.id = :reportId", { reportId })
+      .andWhere("submission.submittedAt BETWEEN :startDate AND :endDate", {
+        startDate,
+        endDate,
+      });
+
+    // if (smallGroupIds && smallGroupIds.length > 0) {
+    //   query = query.andWhere(
+    //     "reportField.name = 'smallGroupId' AND submissionData.fieldValue IN (:...smallGroupIds)",
+    //     { smallGroupIds },
+    //   );
+    // }
 
     return query;
   }
@@ -313,6 +343,89 @@ export class ReportsService {
           // Add the small group parent
           transformedData["parentGroupName"] = smallGroup?.parent?.name || "";
         }
+
+        // Aggregate submission data into a single object
+        submission.submissionData.forEach((sd) => {
+          transformedData[sd.reportField.name] = sd.fieldValue;
+        });
+
+        return transformedData;
+      }),
+    );
+
+    const reportColumns = Object.values(report.displayColumns); // Convert columns object to array
+
+    return {
+      reportId: report.id,
+      data: submissionResponses,
+      columns: [
+        ...reportColumns,
+        { label: "Submitted At", name: "submittedAt" },
+        { label: "Submitted By", name: "submittedBy" },
+      ],
+      footer: report.footer,
+    };
+  }
+  async displayPledge(
+    report: Report,
+    startDate?: Date,
+    endDate?: Date,
+  ): Promise<any> {
+    const now = new Date();
+    if (!startDate) {
+      startDate = new Date(now.setDate(now.getDate() - now.getDay())); // Set to start of the week, e.g., Sunday
+    }
+    if (!endDate) {
+      endDate = new Date(now.setDate(now.getDate() + 6)); // Set to end of the week, e.g., Saturday
+    }
+    // let smallGroupIds: number[] = [];
+    // if (smallGroupIdList) {
+    //   smallGroupIds = smallGroupIdList.split(",").map(Number); // Convert CSV to an array of numbers
+    // }
+
+    // if (parentGroupIdList && parentGroupIdList.length) {
+    //   const parentGroupIds = Array.isArray(parentGroupIdList)
+    //     ? parentGroupIdList
+    //     : [parentGroupIdList];
+    //   const smallGroupEntities = await this.treeRepository.find({
+    //     select: ["id"],
+    //     where: { parentId: In(parentGroupIds) },
+    //   });
+    //   smallGroupIds = smallGroupEntities.map((smallGroup) => smallGroup.id);
+    // }
+
+    let query = await this.buildSubmissionPledgeQuery(
+      report.id,
+      startDate,
+      endDate,
+    );
+
+    // Let's get the relevant submissions
+    const submissions: ReportSubmission[] = await query.getMany();
+    // For each of the retrieved submissions, let's get the user display name & small group parent (The "Zone" in the case of Worship Harvest)
+    const submissionResponses = await Promise.all(
+      submissions.map(async (submission) => {
+        const transformedData = {
+          id: submission.id,
+          submittedAt: submission.submittedAt.toISOString(), // Ensure date format consistency
+          submittedBy: getUserDisplayName(submission.user),
+        };
+
+        // const smallGroupFieldData = submission.submissionData.find(
+        //   (sd) => sd.reportField.name === "smallGroupId",
+        // );
+
+        // // Ensure we handle the case where smallGroupFieldData might be undefined
+        // if (smallGroupFieldData) {
+        //   const smallGroup = await this.treeRepository.findOne({
+        //     where: { id: parseInt(smallGroupFieldData.fieldValue) },
+        //     relations: ["parent"],
+        //   });
+
+        //   // Add the small group parent
+        //   transformedData["parentGroupName"] = smallGroup?.parent?.name || "";
+        // }
+        console.log("submission.submissionData", submission.submissionData);
 
         // Aggregate submission data into a single object
         submission.submissionData.forEach((sd) => {

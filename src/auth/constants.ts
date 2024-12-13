@@ -5,10 +5,26 @@ export const jwtConstants = {
 export const roleAdmin = {
   role: "RoleAdmin",
   description: "Role required for managing All other Roles",
-  permissions: ["ROLE_EDIT", "USER_VIEW", "USER_EDIT","REPORT_VIEW","REPORT_VIEW_SUBMISSIONS"],
+  permissions: [
+    "ROLE_EDIT",
+    "USER_VIEW",
+    "USER_EDIT",
+    "GROUP_EDIT",
+    "GROUP_VIEW",
+    "EVENT_EDIT",
+    "EVENT_VIEW",
+    "REPORT_VIEW_SUBMISSIONS",
+    "DASHBOARD",
+    "CRM_VIEW",
+    "CRM_EDIT",
+    "TAG_VIEW",
+    "TAG_EDIT",
+    "REPORT_VIEW",
+    "REPORT_EDIT",
+    "MC_VIEW",
+  ],
   isActive: true,
 };
-  
 
 export const appPermissions = {
   roleDashboard: "DASHBOARD",
