@@ -1,0 +1,97 @@
+name: Build and deploy Project Zoe server
+
+on:
+  push:
+    branches: [ develop ]
+ 
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@v2
+
+      - name: Setup Node.js
+        uses: volta-cli/action@v1
+        with:
+          node-version: '18.x'
+          npm-version: '8.x'
+
+      - name: Cache dependencies
+        uses: actions/cache@v2
+        with:
+          path: |
+            **/node_modules
+          key: ${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
+
+      - name: Install dependencies
+        run: |
+          npm install   
+          
+    #- name: Run the tests and generate coverage report
+    #  run: npm test -- --coverage
+#
+    #- name: Upload coverage to Codecov
+    #  uses: codecov/codecov-action@v1
+
+      # See README.md on how to create the PROD_ENV_FILE file
+      - name: Create an .env file
+        env:
+          STAGING_ENV_FILE: ${{ secrets.STAGING_ENV_FILE }}
+        run: |
+          echo $PROD_ENV_FILE | base64 --decode > ./.env
+
+      # Temporarily skip eslint by using DISABLE_ESLINT_PLUGIN
+      - name: Build
+        run: |
+          DISABLE_ESLINT_PLUGIN=true npm run build
+
+      # We add this in case we need to troubleshoot an npm build failure
+      - name: Archive npm failure logs
+        uses: actions/upload-artifact@v2
+        if: failure()
+        with:
+          name: npm-logs
+          path: ~/.npm/_logs
+
+      - name: Configure SSH
+        run: |
+          mkdir -p ~/.ssh/
+          echo "$DO_PRIVATE_KEY" > ~/.ssh/project-zoe-prod-1.key
+          chmod 600 ~/.ssh/project-zoe-prod-1.key
+          cat >>~/.ssh/config <<END
+          Host project-zoe-prod-1
+            HostName $DO_HOST
+            User $DO_USERNAME
+            IdentityFile ~/.ssh/project-zoe-prod-1.key
+            StrictHostKeyChecking no
+          END
+        env:
+          DO_USERNAME: ${{ secrets.DO_USERNAME }}
+          DO_PRIVATE_KEY: ${{ secrets.DO_PRIVATE_KEY }}
+          DO_HOST: ${{ secrets.DO_HOST }}
+          
+      - name: Deploy the built app folder
+        run: rsync -rtvO --delete ./dist/ project-zoe-prod-1:/opt/staging/project-zoe-server/dist/
+        
+      - name: Deploy the entire app folder
+        run: rsync -rtvO --delete ./ project-zoe-prod-1:/opt/staging/project-zoe-server/raw/
+      
+      - name: Deploy the node modules folder
+        run: rsync -rtvO --delete ./node_modules/ project-zoe-prod-1:/opt/staging/project-zoe-server/node_modules/
+      
+      # Looks like the DB gets configs from dist/, the rest from /. To fix this
+      - name: Deploy the .env file
+        run: |
+          rsync -rtvO ./.env project-zoe-prod-1:/opt/staging/project-zoe-server/
+          rsync -rtvO ./.env project-zoe-prod-1:/opt/staging/project-zoe-server/dist
+      
+      #- name: Sync database schemas  # @TODO Temp skip sync
+      #  run: |
+      #    ssh project-zoe-prod-1 'cd /opt/project-zoe-server/raw/ && npm run sync:schemas'
+      
+      - name: Run the app
+        run: ssh project-zoe-prod-1 'cd /opt/staging/project-zoe-server/dist/ && pm2 delete zoeServer  2> /dev/null || true && production=true pm2 start src/main.js --name zoeServer'
+            
+ 
