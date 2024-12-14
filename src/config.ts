@@ -28,7 +28,11 @@ const database: TypeOrmModuleOptions = {
   port: normalizePort(process.env.DB_PORT),
   username: process.env.DB_USERNAME,
   password: process.env.DB_PASSWORD,
-  ssl: process.env.DB_PORT === "25060" ? true : false,
+  ssl: process.env.DB_PORT === '25060'
+          ? {
+            rejectUnauthorized: false,
+          }
+          : undefined,
   database: process.env.DB_DATABASE,
   synchronize: process.env.DB_SYNCHRONIZE === "true",
   cache: true,
