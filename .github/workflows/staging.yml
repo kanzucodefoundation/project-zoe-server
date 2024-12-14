@@ -40,7 +40,7 @@ jobs:
         env:
           STAGING_ENV_FILE: ${{ secrets.STAGING_ENV_FILE }}
         run: |
-          echo $PROD_ENV_FILE | base64 --decode > ./.env
+          echo $STAGING_ENV_FILE | base64 --decode > ./.env
 
       # Temporarily skip eslint by using DISABLE_ESLINT_PLUGIN
       - name: Build
