@@ -21,6 +21,7 @@ import { TenantsModule } from "./tenants/tenants.module";
 import { JwtTenantHeaderMiddleware } from "./middleware/jwtTenantHeader.middleware";
 import { ReportsModule } from "./reports/reports.module";
 import { BotModule } from "./bot/bot.module";
+import { SalvationModule } from "./salvations.module";
 
 @Global()
 @Module({
@@ -45,6 +46,7 @@ import { BotModule } from "./bot/bot.module";
     SeedModule,
     VendorModule,
     EventsModule,
+    SalvationModule,
 
     ChatModule,
     HelpModule,
