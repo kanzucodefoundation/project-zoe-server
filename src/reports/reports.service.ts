@@ -3,6 +3,7 @@ import {
   Inject,
   NotFoundException,
   HttpStatus,
+  Logger,
 } from "@nestjs/common";
 import { Connection, Repository, In } from "typeorm";
 import { UserDto } from "src/auth/dto/user.dto";
@@ -166,6 +167,11 @@ export class ReportsService {
     const report = await this.reportRepository.findOne({
       where: { id: reportId },
       relations: ["fields"],
+      order: {
+        fields: {
+          id: "ASC",
+        },
+      },
     });
     if (!report) {
       throw new NotFoundException(`Report with ID ${reportId} not found`);
@@ -215,6 +221,14 @@ export class ReportsService {
           report,
           startDate,
           endDate,
+        );
+      case "getSundayGarageSummary":
+        return this.getSundayGarageSummary(
+          report,
+          startDate,
+          endDate,
+          smallGroupIdList,
+          parentGroupIdList,
         );
       default:
         throw new Error(
@@ -328,6 +342,130 @@ export class ReportsService {
     return {
       reportId: report.id,
       data: submissionResponses,
+      viewType: report.viewType,
+      columns: [
+        ...reportColumns,
+        { label: "Submitted At", name: "submittedAt" },
+        { label: "Submitted By", name: "submittedBy" },
+      ],
+      footer: report.footer,
+    };
+  }
+
+  transformedDateTime(datetime: any): String {
+    const dateObj = new Date(datetime);
+    const months = [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sept",
+      "Oct",
+      "Nov",
+      "Dec",
+    ];
+
+    const month = months[dateObj.getUTCMonth()];
+    const day = dateObj.getUTCDate();
+    const year = dateObj.getUTCFullYear();
+    const hours = dateObj.getUTCHours();
+    const minutes = dateObj.getUTCMinutes().toString().padStart(2, "0");
+    const seconds = dateObj.getUTCSeconds().toString().padStart(2, "0");
+
+    const period = hours >= 12 ? "PM" : "AM";
+    const formattedHours = hours % 12 || 12;
+
+    return `${month} ${day}, ${year} at ${formattedHours}:${minutes}:${seconds} ${period} GMT`;
+  }
+
+  async getSundayGarageSummary(
+    report: Report,
+    startDate?: Date,
+    endDate?: Date,
+    smallGroupIdList?: string,
+    parentGroupIdList?: string,
+  ): Promise<any> {
+    const now = new Date();
+    if (!startDate) {
+      startDate = new Date(now.setDate(now.getDate() - now.getDay())); // Set to start of the week, e.g., Sunday
+    }
+    if (!endDate) {
+      endDate = new Date(now.setDate(now.getDate() + 6)); // Set to end of the week, e.g., Saturday
+    }
+    let smallGroupIds: number[] = [];
+    if (smallGroupIdList) {
+      smallGroupIds = smallGroupIdList.split(",").map(Number); // Convert CSV to an array of numbers
+    }
+
+    if (parentGroupIdList && parentGroupIdList.length) {
+      const parentGroupIds = Array.isArray(parentGroupIdList)
+        ? parentGroupIdList
+        : [parentGroupIdList];
+      const smallGroupEntities = await this.treeRepository.find({
+        select: ["id"],
+        where: { parentId: In(parentGroupIds) },
+      });
+      smallGroupIds = smallGroupEntities.map((smallGroup) => smallGroup.id);
+    }
+
+    let query = await this.buildSubmissionQuery(
+      report.id,
+      startDate,
+      endDate,
+      smallGroupIds,
+    );
+
+    // Let's get the relevant submissions
+    const submissions: ReportSubmission[] = await query.getMany();
+    // For each of the retrieved submissions, let's get the user display name & small group parent (The "Zone" in the case of Worship Harvest)
+    const submissionResponses = await Promise.all(
+      submissions.map(async (submission) => {
+        const transformedData = {
+          id: submission.id,
+          submittedAt: submission.submittedAt.toISOString(), // Ensure date format consistency
+          submittedBy: getUserDisplayName(submission.user),
+        };
+
+        const smallGroupFieldData = submission.submissionData.find(
+          (sd) => sd.reportField.name === "smallGroupId",
+        );
+
+        // Ensure we handle the case where smallGroupFieldData might be undefined
+        if (smallGroupFieldData) {
+          const smallGroup = await this.treeRepository.findOne({
+            where: { id: parseInt(smallGroupFieldData.fieldValue) },
+            relations: ["parent"],
+          });
+
+          // Add the small group parent
+          transformedData["parentGroupName"] = smallGroup?.parent?.name || "";
+        }
+
+        // Aggregate submission data into a single object
+        submission.submissionData.forEach((sd) => {
+          if (sd.reportField.name === "dateTimeOfGathering") {
+            transformedData[sd.reportField.name] = this.transformedDateTime(
+              sd.fieldValue,
+            );
+          } else {
+            transformedData[sd.reportField.name] = sd.fieldValue;
+          }
+        });
+
+        return transformedData;
+      }),
+    );
+
+    const reportColumns = Object.values(report.displayColumns); // Convert columns object to array
+
+    return {
+      reportId: report.id,
+      data: submissionResponses,
+      viewType: report.viewType,
       columns: [
         ...reportColumns,
         { label: "Submitted At", name: "submittedAt" },
@@ -391,6 +529,7 @@ export class ReportsService {
     return {
       reportId: report.id,
       data: submissionResponses,
+      viewType: report.viewType,
       columns: [
         ...reportColumns,
         { label: "Submitted At", name: "submittedAt" },

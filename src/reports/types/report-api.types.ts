@@ -1,4 +1,5 @@
 import { ReportSubmissionDto } from "../dto/report-submission.dto";
+import { ReportType } from "../enums/report.enum";
 
 export interface ReportSubmissionDataDto {
   reportId: number;
@@ -15,6 +16,7 @@ export interface ApiResponse<T> {
 
 export interface ReportSubmissionsApiResponse {
   reportId: number;
+  viewType: string;
   data: Record<string, any>[];
   columns: Record<string, any>;
   footer: string[];
