@@ -3,14 +3,14 @@ name: Build and deploy Project Zoe Staging server
 on:
   push:
     branches: [ develop ]
- 
+
 jobs:
   build-and-deploy:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04  # Updated from ubuntu-latest
 
     steps:
       - name: Checkout the repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4  # Updated from v2
 
       - name: Setup Node.js
         uses: volta-cli/action@v1
@@ -19,7 +19,7 @@ jobs:
           npm-version: '8.x'
 
       - name: Cache dependencies
-        uses: actions/cache@v2
+        uses: actions/cache@v4  # Updated from v2
         with:
           path: |
             **/node_modules
@@ -28,28 +28,25 @@ jobs:
       - name: Install dependencies
         run: |
           npm install   
-          
-    #- name: Run the tests and generate coverage report
-    #  run: npm test -- --coverage
-#
-    #- name: Upload coverage to Codecov
-    #  uses: codecov/codecov-action@v1
 
-      # See README.md on how to create the PROD_ENV_FILE file
+      # - name: Run the tests and generate coverage report
+      #   run: npm test -- --coverage
+
+      # - name: Upload coverage to Codecov
+      #   uses: codecov/codecov-action@v1
+
       - name: Create an .env file
         env:
           STAGING_ENV_FILE: ${{ secrets.STAGING_ENV_FILE }}
         run: |
           echo $STAGING_ENV_FILE | base64 --decode > ./.env
 
-      # Temporarily skip eslint by using DISABLE_ESLINT_PLUGIN
       - name: Build
         run: |
           DISABLE_ESLINT_PLUGIN=true npm run build
 
-      # We add this in case we need to troubleshoot an npm build failure
       - name: Archive npm failure logs
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v4  # Updated from v3
         if: failure()
         with:
           name: npm-logs
@@ -81,17 +78,14 @@ jobs:
       - name: Deploy the node modules folder
         run: rsync -rtvO --delete ./node_modules/ project-zoe-prod-1:/opt/staging/project-zoe-server/node_modules/
       
-      # Looks like the DB gets configs from dist/, the rest from /. To fix this
       - name: Deploy the .env file
         run: |
           rsync -rtvO ./.env project-zoe-prod-1:/opt/staging/project-zoe-server/
           rsync -rtvO ./.env project-zoe-prod-1:/opt/staging/project-zoe-server/dist
-      
-      #- name: Sync database schemas  # @TODO Temp skip sync
-      #  run: |
-      #    ssh project-zoe-prod-1 'cd /opt/project-zoe-server/raw/ && npm run sync:schemas'
-      
+
+      # - name: Sync database schemas
+      #   run: |
+      #     ssh project-zoe-prod-1 'cd /opt/project-zoe-server/raw/ && npm run sync:schemas'
+
       - name: Run the app
         run: ssh project-zoe-prod-1 'cd /opt/staging/project-zoe-server/dist/ && pm2 delete zoeServerStaging  2> /dev/null || true && production=true pm2 start src/main.js --name zoeServerStaging'
-            
- 
