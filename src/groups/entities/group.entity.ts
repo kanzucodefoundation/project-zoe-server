@@ -15,6 +15,7 @@ import GroupMembership from "./groupMembership.entity";
 import GroupMembershipRequest from "./groupMembershipRequest.entity";
 import GroupEvent from "../../events/entities/event.entity";
 import InternalAddress from "../../shared/entity/InternalAddress";
+import { ReportSubmission } from "src/reports/entities/report.submission.entity";
 
 @Entity()
 @Tree("closure-table")
@@ -69,4 +70,7 @@ export default class Group {
   @JoinColumn()
   @OneToMany((type) => GroupMembershipRequest, (it) => it.group)
   groupMembershipRequests: GroupMembershipRequest[];
+
+  @OneToMany(() => ReportSubmission, (rs) => rs.group)
+  reportSubmissions: ReportSubmission[];
 }
