@@ -8,6 +8,7 @@ import {
 import { ReportSubmission } from "./report.submission.entity";
 import { User } from "src/users/entities/user.entity";
 import { ReportField } from "./report.field.entity";
+import GroupCategory from "src/groups/entities/groupCategory.entity";
 
 @Entity()
 export class Report {
@@ -53,8 +54,8 @@ export class Report {
   sqlQuery: string;
 
   @OneToMany(() => ReportField, (field) => field.report, {
-    cascade: true, 
-  })  
+    cascade: true,
+  })
   fields: ReportField[];
 
   @Column({ type: "jsonb", nullable: true })
@@ -75,6 +76,9 @@ export class Report {
 
   @OneToMany(() => ReportSubmission, (submission) => submission.report)
   submissions: ReportSubmission[];
+
+  @ManyToOne(() => GroupCategory, { nullable: true })
+  targetGroupCategory?: GroupCategory;
 
   @ManyToOne(() => User, (user) => user.reports)
   user: User;

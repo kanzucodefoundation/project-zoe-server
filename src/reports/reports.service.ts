@@ -29,6 +29,7 @@ import { GroupsService } from "src/groups/services/groups.service";
 import { ReportField } from "./entities/report.field.entity";
 import { ReportSubmissionData } from "./entities/report.submission.data.entity";
 import { GroupCategoryNames } from "src/groups/enums/groups";
+import GroupMembership from "src/groups/entities/groupMembership.entity";
 
 @Injectable()
 export class ReportsService {
@@ -37,6 +38,7 @@ export class ReportsService {
   private readonly reportSubmissionDataRepository: Repository<ReportSubmissionData>;
   private readonly userRepository: Repository<User>;
   private readonly reportFieldRepository: Repository<ReportField>;
+  private readonly groupMembershipRepo: Repository<GroupMembership>;
   private readonly treeRepository: TreeRepository<Group>;
 
   constructor(
@@ -46,6 +48,7 @@ export class ReportsService {
   ) {
     this.reportRepository = connection.getRepository(Report);
     this.reportFieldRepository = connection.getRepository(ReportField);
+    this.groupMembershipRepo = connection.getRepository(GroupMembership);
     this.reportSubmissionDataRepository =
       connection.getRepository(ReportSubmissionData);
     this.reportSubmissionRepository =
@@ -101,11 +104,26 @@ export class ReportsService {
       throw new NotFoundException(`User with ID ${user.id} not found`);
     }
 
+    let targetGroup: Group | null = null;
+    if (report.targetGroupCategory) {
+      targetGroup = await this.groupMembershipRepo
+        .createQueryBuilder("gm")
+        .innerJoinAndSelect("gm.group", "g")
+        .innerJoin("g.category", "gc")
+        .where("gm.contactId = :cid", { cid: submittingUser.contactId })
+        .andWhere("gc.id = :catId", { catId: report.targetGroupCategory })
+        .getOne()
+        .then((gm) => gm?.group ?? null);
+    }
+
     // Create and save the report submission
     const reportSubmission = new ReportSubmission();
     reportSubmission.report = report;
     reportSubmission.submittedAt = new Date();
     reportSubmission.user = submittingUser;
+    if (targetGroup) {
+      reportSubmission.group = targetGroup;
+    }
     const savedSubmission =
       await this.reportSubmissionRepository.save(reportSubmission);
 
