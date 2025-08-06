@@ -22,7 +22,7 @@ export class GroupCategoriesService {
   }
 
   async findOne(id: number): Promise<GroupCategory> {
-    return await this.repository.findOne(id);
+    return await this.repository.findOne({ where: { id } });
   }
 
   async update(data: GroupCategory): Promise<GroupCategory> {
@@ -33,8 +33,8 @@ export class GroupCategoriesService {
     await this.repository.delete(id);
   }
 
-  async exits(name: string): Promise<boolean> {
-    const count = await this.repository.count({ where: { id: name } });
+  async exists(name: string): Promise<boolean> {
+    const count = await this.repository.count({ where: { name: name } });
     return count > 0;
   }
 }

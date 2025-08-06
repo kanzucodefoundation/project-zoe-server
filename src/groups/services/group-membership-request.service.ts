@@ -1,15 +1,14 @@
-import { HttpException, Injectable, Inject } from '@nestjs/common';
-import { FindConditions } from 'typeorm/find-options/FindConditions';
-import { Repository, Connection } from 'typeorm';
-import GroupMembershipRequestSearchDto from '../dto/membershipRequest/search-request.dto';
-import GroupMembershipRequest from '../entities/groupMembershipRequest.entity';
-import { hasValue } from 'src/utils/validation';
-import GroupMembershipRequestDto from '../dto/membershipRequest/group-membership-request.dto';
-import { NewRequestDto } from '../dto/membershipRequest/new-request.dto';
-import { getPersonFullName } from 'src/crm/crm.helpers';
-import { ContactsService } from 'src/crm/contacts.service';
-import Contact from 'src/crm/entities/contact.entity';
-import { IEmail, sendEmail } from 'src/utils/mailer';
+import { HttpException, Injectable, Inject } from "@nestjs/common";
+import { Repository, Connection } from "typeorm";
+import GroupMembershipRequestSearchDto from "../dto/membershipRequest/search-request.dto";
+import GroupMembershipRequest from "../entities/groupMembershipRequest.entity";
+import { hasValue } from "src/utils/validation";
+import GroupMembershipRequestDto from "../dto/membershipRequest/group-membership-request.dto";
+import { NewRequestDto } from "../dto/membershipRequest/new-request.dto";
+import { getPersonFullName } from "src/crm/crm.helpers";
+import { ContactsService } from "src/crm/contacts.service";
+import Contact from "src/crm/entities/contact.entity";
+import { IEmail, sendEmail } from "src/utils/mailer";
 
 @Injectable()
 export class GroupMembershipRequestService {
@@ -17,7 +16,7 @@ export class GroupMembershipRequestService {
   private readonly contactRepository: Repository<Contact>;
 
   constructor(
-    @Inject('CONNECTION') connection: Connection,
+    @Inject("CONNECTION") connection: Connection,
     private readonly contactService: ContactsService,
   ) {
     this.repository = connection.getRepository(GroupMembershipRequest);
@@ -27,14 +26,22 @@ export class GroupMembershipRequestService {
   async findAll(
     req: GroupMembershipRequestSearchDto,
   ): Promise<GroupMembershipRequestDto[]> {
-    const filter: FindConditions<GroupMembershipRequest> = {};
+    const filter: Record<string, any> = {};
 
-    if (hasValue(req.contactId)) filter.contactId = req.contactId;
-    if (hasValue(req.parentId)) filter.parentId = req.parentId;
-    if (hasValue(req.groupId)) filter.groupId = req.groupId;
+    if (hasValue(req.contactId)) {
+      filter.contactId = req.contactId;
+    }
+
+    if (hasValue(req.parentId)) {
+      filter.parentId = req.parentId;
+    }
+
+    if (hasValue(req.groupId)) {
+      filter.groupId = req.groupId;
+    }
 
     const data = await this.repository.find({
-      relations: ['contact', 'contact.person', 'group'],
+      relations: ["contact", "contact.person", "group"],
       skip: req.skip,
       take: req.limit,
       where: filter,
@@ -62,16 +69,17 @@ export class GroupMembershipRequestService {
   }
 
   async create(data: NewRequestDto): Promise<GroupMembershipRequestDto | any> {
-    console.log('%%%', data);
-    const user = await this.contactRepository.findOne(data.contactId, {
-      relations: ['person'],
+    console.log("%%%", data);
+    const user = await this.contactRepository.findOne({
+      where: { id: data.contactId },
+      relations: ["person"],
     });
 
     const isPendingRequest = await this.repository.count({
       where: { contactId: data.contactId },
     });
     if (isPendingRequest > 0) {
-      throw new HttpException('User already has a pending request', 400);
+      throw new HttpException("User already has a pending request", 400);
     }
 
     const groupDetails = {
@@ -95,7 +103,7 @@ export class GroupMembershipRequestService {
     const closestCellData = JSON.parse(info.groupMeta);
     const mailerData: IEmail = {
       to: `${closestCellData.email}`,
-      subject: 'Join MC Request',
+      subject: "Join MC Request",
       html: `
             <h3>Hello ${closestCellData.leaders},</h3></br>
             <h4>I hope all is well on your end.<h4></br>
@@ -110,19 +118,20 @@ export class GroupMembershipRequestService {
     return (
       await this.repository.find({
         where: { contactId: data.contactId },
-        relations: ['contact', 'contact.person', 'group'],
+        relations: ["contact", "contact.person", "group"],
       })
     ).map(this.toDto);
   }
 
   async update(): Promise<any> {
-    return 'Not Yet Implemented';
+    return "Not Yet Implemented";
   }
 
   async findOne(id: number): Promise<GroupMembershipRequestDto> {
     return this.toDto(
-      await this.repository.findOne(id, {
-        relations: ['contact', 'contact.person', 'group'],
+      await this.repository.findOne({
+        where: { id },
+        relations: ["contact", "contact.person", "group"],
       }),
     );
   }

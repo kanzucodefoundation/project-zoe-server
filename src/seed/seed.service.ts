@@ -1,42 +1,62 @@
-import { Injectable, Logger, Inject } from '@nestjs/common';
-import { UsersService } from '../users/users.service';
-import { seedUsers } from './data/users';
-import seedGroups, { seedGroupCategories } from './data/groups';
-import { GroupCategoriesService } from '../groups/services/group-categories.service';
-import { GroupsService } from '../groups/services/groups.service';
-import { Repository, Connection } from 'typeorm';
-import EventCategory from '../events/entities/eventCategory.entity';
-import eventCategories from './data/eventCategories';
-import GroupCategoryReport from 'src/groups/entities/groupCategoryReport.entity';
-import seedGroupReportCategories from './data/groupCategoryReports';
-import Roles from 'src/users/entities/roles.entity';
-import { roleAdmin } from 'src/auth/constants';
+import { Injectable, Logger, Inject } from "@nestjs/common";
+import { UsersService } from "../users/users.service";
+import { seedUsers } from "./data/users";
+import seedGroups, { seedGroupCategories } from "./data/groups";
+import { GroupCategoriesService } from "../groups/services/group-categories.service";
+import { GroupsService } from "../groups/services/groups.service";
+import { Repository, Connection } from "typeorm";
+import EventCategory from "../events/entities/eventCategory.entity";
+import eventCategories from "./data/eventCategories";
+import Roles from "src/users/entities/roles.entity";
+import { roleAdmin } from "src/auth/constants";
+import { ContactsService } from "src/crm/contacts.service";
+import { JwtHelperService } from "src/auth/jwt-helpers.service";
+import { GoogleService } from "src/vendor/google.service";
+import { GroupPermissionsService } from "src/groups/services/group-permissions.service";
+import { GroupsMembershipService } from "src/groups/services/group-membership.service";
+import { GroupRole } from "src/groups/enums/groupRole";
 
 @Injectable()
 export class SeedService {
-  private readonly eventCategoryRepository: Repository<EventCategory>;
-  private readonly gCatReportRepository: Repository<GroupCategoryReport>;
-  private readonly rolesRepository: Repository<Roles>;
+  private eventCategoryRepository: Repository<EventCategory>;
+  private rolesRepository: Repository<Roles>;
+  private usersService: UsersService;
+  private groupsService: GroupsService;
+  private groupCategoriesService: GroupCategoriesService;
+  private groupMembershipService: GroupsMembershipService;
 
-  constructor(
-    @Inject('CONNECTION') connection: Connection,
-    private readonly groupsService: GroupsService,
-    private readonly groupCategoriesService: GroupCategoriesService,
-    private readonly usersService: UsersService,
+  async createAll(
+    connection: Connection,
+    contactsService: ContactsService,
+    jwtHelperservice: JwtHelperService,
+    groupsPermissionsService: GroupPermissionsService,
+    groupCategoriesService: GroupCategoriesService,
+    googleService: GoogleService,
+    groupMembershipService: GroupsMembershipService,
   ) {
     this.eventCategoryRepository = connection.getRepository(EventCategory);
-    this.gCatReportRepository = connection.getRepository(GroupCategoryReport);
     this.rolesRepository = connection.getRepository(Roles);
-  }
 
-  async createAll() {
+    this.usersService = new UsersService(
+      connection,
+      contactsService,
+      jwtHelperservice,
+    );
+    this.groupsService = new GroupsService(
+      connection,
+      groupsPermissionsService,
+      googleService,
+    );
+    this.groupCategoriesService = groupCategoriesService;
+    this.groupMembershipService = groupMembershipService;
+
     await this.createRoleAdmin();
     await this.createUsers();
     await this.createGroupCategories();
     await this.createEventCategories();
     await this.createGroups();
-    await this.createGroupCategoryReports();
   }
+
   async createUsers() {
     Logger.log(`Seeding ${seedUsers.length} users`);
     for (const user of seedUsers) {
@@ -52,9 +72,9 @@ export class SeedService {
   async createGroupCategories() {
     Logger.log(`Seeding ${seedGroupCategories.length} Group Categories`);
     for (const rec of seedGroupCategories) {
-      const exists = await this.groupCategoriesService.exits(rec.id);
+      const exists = await this.groupCategoriesService.exists(rec.name);
       if (exists) {
-        Logger.debug(`Group Cat: ${rec.id} already exists`);
+        Logger.debug(`Group Cat: ${rec.name} already exists`);
       } else {
         await this.groupCategoriesService.create(rec);
       }
@@ -68,8 +88,13 @@ export class SeedService {
       Logger.debug(`${count} Groups already exist`);
     } else {
       for (const rec of seedGroups) {
-        await this.groupsService.create(rec);
+        await this.groupsService.create(rec, {}, true);
       }
+      await this.groupMembershipService.create({
+        groupId: 1,
+        members: [1],
+        role: GroupRole.Leader,
+      });
     }
   }
 
@@ -83,23 +108,6 @@ export class SeedService {
         await this.eventCategoryRepository.save(rec);
       }
       Logger.debug(`${eventCategories.length} EventCategories created`);
-    }
-  }
-
-  async createGroupCategoryReports() {
-    Logger.log(
-      `Seeding ${seedGroupReportCategories.length} GroupReportCategories`,
-    );
-    const count = await this.gCatReportRepository.count();
-    if (count > 0) {
-      Logger.debug(`${count} GroupReportCategories already exist`);
-    } else {
-      for (const rec of seedGroupReportCategories) {
-        await this.gCatReportRepository.save(rec);
-      }
-      Logger.debug(
-        `${seedGroupReportCategories.length} GroupReportCategories created`,
-      );
     }
   }
 

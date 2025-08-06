@@ -2,31 +2,54 @@
 
 Project Zoe is a church management centered on what's at the heart of all ministry - people. The platform simplifies the process of managing people and their relationships between each other and the church, keeping track of data across the organization and creates a foundation for adding new features that are specific to your church.
 
-# The tech
+# The Tech
 
 This repo holds the Project Zoe church relationship management system (RMS) server. 
 
-## Getting started
+## Project Setup / Installation 🚀
 
-Clone the repository:
-`git clone git@github.com:kanzucodefoundation/project-zoe-server.git`
+1. Clone the repository:
 
-Install the dependencies:
-`npm install`
+    > `git clone https://github.com/kanzucodefoundation/project-zoe-server.git`
 
-**PS:** If you don't have `npm` installed, check out this guide https://www.npmjs.com/get-npm
+2. Checkout to the Develop branch
 
-For your development environment, add some "dummy" (seed) data:
+    > `git checkout develop`
 
-```
-cd src/data
-node seed.ts
-```
+3. Temporarily change `binaryTargets = ["debian-openssl-1.1.x"]` to `binaryTargets = ["native"]` in `prisma/schema.prisma`
 
-Finally, start the party:
-`npm start`
+4. Install dependencies with npm version 6.14.5:
 
-This repo works with the client at https://github.com/kanzucodefoundation/project-zoe-client.git so be sure to set that up too.
+    > `npx npm@6.14.5 install`
+
+5. Create a `.env` file based on the `.env.sample`.
+
+    Set these environment variables in the `env` file as follows 
+
+    > `APP_ENVIRONMENT=local` - If you are running the app locally.
+
+    > `DB_USERNAME=<your-local-postgres-db-username>`
+
+    > `DB_PASSWORD=<your-local-postgres-db-password>`
+
+    > `DB_DATABASE=projectzoe-db`
+
+6. Go ahead and manually create an new postgreSQL database called: `projectzoe-db`
+
+7. Finally, spin up the project with:
+
+    > `npm run start:dev`
+
+8. Revert the changes in `prisma/schema.prisma`. Change `binaryTargets = ["native"]` to `binaryTargets = ["debian-openssl-1.1.x"]`
+
+9. Create and seed data for a new tenant by running:
+    > `npm run command create-tenant demo `
+
+This will create a tenant named `demo`. You can login to that tenant using the credentials found in `src/seed/data/users.ts`
+
+**Please Note:** 
+- If you don't have `node.js` installed, check out this guide https://nodejs.org/en/
+- This repo works with the client at https://github.com/kanzucodefoundation/project-zoe-client so be sure to set that up too.
 
 
 ### Installation errors
@@ -47,6 +70,9 @@ openssl base64 -A -in .env -out .env.prod.encrypted
 ```
 
 We then get the contents of `.env.prod.encrypted` and add them as a Github Action variable called `PROD_ENV_FILE`
+
+
+
 
 
 

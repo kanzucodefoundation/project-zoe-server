@@ -1,12 +1,12 @@
-import { GroupPrivacy } from '../enums/groupPrivacy';
-import ComboDto from '../../shared/dto/combo.dto';
+import { GroupPrivacy } from "../enums/groupPrivacy";
+import ComboDto from "../../shared/dto/combo.dto";
 
 export class GroupDetailDto {
   id: number;
   privacy: GroupPrivacy;
   name: string;
   details: string;
-  categoryId: string;
+  categoryId?: number;
   category: ComboDto;
   parentId?: number;
   parent?: ComboDto;

@@ -1,39 +1,34 @@
-import { Module, Scope, Global, BadRequestException } from '@nestjs/common';
-import { REQUEST } from '@nestjs/core';
-import { TenantsController } from './tenants.controller';
-import { TenantsService } from './tenants.service';
-import * as dotenv from 'dotenv';
-import { DbService } from 'src/shared/db.service';
-import { SeedModule } from 'src/seed/seed.module';
-import { Tenant } from './entities/tenant.entity';
+import { Module, Scope, Global, BadRequestException } from "@nestjs/common";
+import { REQUEST } from "@nestjs/core";
+import { TenantsService } from "./tenants.service";
+import { DbService } from "src/shared/db.service";
+import { SeedModule } from "src/seed/seed.module";
+import { Tenant } from "./entities/tenant.entity";
+import { TENANT_HEADER } from "../constants";
+import { UsersModule } from "src/users/users.module";
 
 const connectionFactory = {
-  provide: 'CONNECTION',
+  provide: "CONNECTION",
   scope: Scope.REQUEST,
   useFactory: async (req: any, dbservice: DbService) => {
-    const tenantName = req.headers['tenant'];
+    const tenantName = req.headers[TENANT_HEADER];
     const connectionPublic = await dbservice.getConnection();
-    const isCreatingNewTenant =
-      req.originalUrl == '/api/tenants' && req.method == 'POST';
     let tenantDetails: Tenant;
-
-    if (isCreatingNewTenant) {
-      // @TODO Move this
-      tenantDetails = await dbservice.createTenant({ name: tenantName });
-    } else {
-      tenantDetails = await connectionPublic
-        .getRepository(Tenant)
-        .findOne({ name: tenantName });
-    }
 
     if (!tenantName) {
       throw new BadRequestException(
-        'No church name provided. A valid church name must be provided.',
+        "No church name provided. A valid church name must be provided.",
       );
     }
 
+    tenantDetails = await connectionPublic
+      .getRepository(Tenant)
+      .findOne({ where: { name: tenantName } });
+
     if (!tenantDetails) {
-      throw new BadRequestException('Invalid church name provided.');
+      throw new BadRequestException(
+        "Invalid church name provided. Please provide a valid church name",
+      );
     }
 
     return dbservice.getConnection(tenantName);
@@ -43,9 +38,8 @@ const connectionFactory = {
 
 @Global()
 @Module({
-  imports: [SeedModule],
+  imports: [SeedModule, UsersModule],
   providers: [connectionFactory, TenantsService, DbService],
-  exports: ['CONNECTION'],
-  controllers: [TenantsController],
+  exports: ["CONNECTION"],
 })
 export class TenantsModule {}

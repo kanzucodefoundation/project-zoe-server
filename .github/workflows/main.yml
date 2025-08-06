@@ -6,7 +6,7 @@ on:
 
 jobs:
   build-and-deploy:
-    runs-on: ubuntu-22.04  # Updated from ubuntu-latest (ensures OpenSSL compatibility)
+    runs-on: ubuntu-22.04  # Updated from ubuntu-latest
 
     steps:
       - name: Checkout the repository
@@ -27,15 +27,14 @@ jobs:
 
       - name: Install dependencies
         run: |
-          npm install
+          npm install   
 
-     #- name: Run the tests and generate coverage report
-     #  run: npm test -- --coverage
-     #
-     #- name: Upload coverage to Codecov
-     #  uses: codecov/codecov-action@v1
+      # - name: Run the tests and generate coverage report
+      #   run: npm test -- --coverage
 
-      # See README.md on how to create the PROD_ENV_FILE file
+      # - name: Upload coverage to Codecov
+      #   uses: codecov/codecov-action@v1
+
       - name: Create an .env file
         env:
           PROD_ENV_FILE: ${{ secrets.PROD_ENV_FILE }}
@@ -47,9 +46,9 @@ jobs:
         run: |
           DISABLE_ESLINT_PLUGIN=true npm run build
 
-      # We add this in case we need to debug an npm build failure
-      - name: Archive npm failure logs (debug)
-        uses: actions/upload-artifact@v4
+      # We add this in case we need to debug any npm build failures
+      - name: Archive npm failure logs
+        uses: actions/upload-artifact@v4  # Updated from v3
         if: failure()
         with:
           name: npm-logs
@@ -71,25 +70,25 @@ jobs:
           DO_USERNAME: ${{ secrets.DO_USERNAME }}
           DO_PRIVATE_KEY: ${{ secrets.DO_PRIVATE_KEY }}
           DO_HOST: ${{ secrets.DO_HOST }}
-
+          
       - name: Deploy the built app folder
         run: rsync -rtvO --delete ./dist/ project-zoe-prod-1:/opt/project-zoe-server/dist/
-
+        
       - name: Deploy the entire app folder
         run: rsync -rtvO --delete ./ project-zoe-prod-1:/opt/project-zoe-server/raw/
-
+      
       - name: Deploy the node modules folder
         run: rsync -rtvO --delete ./node_modules/ project-zoe-prod-1:/opt/project-zoe-server/node_modules/
-
+      
       # Looks like the DB gets configs from dist/, the rest from /. To fix this
       - name: Deploy the .env file
         run: |
           rsync -rtvO ./.env project-zoe-prod-1:/opt/project-zoe-server/
           rsync -rtvO ./.env project-zoe-prod-1:/opt/project-zoe-server/dist
 
-      #- name: Sync database schemas  # @TODO Temp skip sync
-      #  run: |
-      #    ssh project-zoe-prod-1 'cd /opt/project-zoe-server/raw/ && npm run sync:schemas'
+      # - name: Sync database schemas
+      #   run: |
+      #     ssh project-zoe-prod-1 'cd /opt/project-zoe-server/raw/ && npm run sync:schemas'
 
       - name: Run the app
-        run: ssh project-zoe-prod-1 'cd /opt/project-zoe-server/dist/ && pm2 delete zoeServer 2> /dev/null || true && production=true pm2 start src/main.js --name zoeServer'
+        run: ssh project-zoe-prod-1 'cd /opt/project-zoe-server/dist/ && pm2 delete zoeServer  2> /dev/null || true && production=true pm2 start src/main.js --name zoeServer'

@@ -1,108 +1,134 @@
-import { GroupPrivacy } from '../../groups/enums/groupPrivacy';
-import GroupCategory from '../../groups/entities/groupCategory.entity';
-import CreateGroupDto from '../../groups/dto/create-group.dto';
-import { mcData } from './mclist';
+import { GroupPrivacy } from "../../groups/enums/groupPrivacy";
+import GroupCategory from "../../groups/entities/groupCategory.entity";
+import CreateGroupDto from "../../groups/dto/create-group.dto";
+import { mcData } from "./mclist";
+import { GroupCategoryNames } from "src/groups/enums/groups";
 
 export const groupConstants = {
-  mc: 'MC',
-  cluster: 'Cluster',
-  location: 'Location',
-  zone: 'Zone',
-  cohort: 'Cohort',
-  huddle: 'Huddle',
-  garageTeam: 'GarageTeam',
+  mc: GroupCategoryNames.MC,
+  cluster: GroupCategoryNames.CLUSTER,
+  location: GroupCategoryNames.LOCATION,
+  zone: GroupCategoryNames.ZONE,
+  cohort: GroupCategoryNames.COHORT,
+  network: GroupCategoryNames.NETWORK,
+  huddle: GroupCategoryNames.HUDDLE,
+  garageTeam: GroupCategoryNames.GARAGE_TEAM,
 };
 
-const createLocation = ({
+const createGroupObject = ({
   name,
-  id,
   details,
+  parentId,
+  categoryName,
+  metaData,
 }: {
   name: string;
-  id: number;
   details?: string;
+  parentId: number | null;
+  categoryName: string;
+  metaData?: any;
 }): CreateGroupDto => {
   return {
-    id: id,
-    parentId: null,
-    privacy: GroupPrivacy.Public,
-    details: details,
-    name: name,
-    categoryId: groupConstants.location,
-  };
-};
-
-export const createMc = ({
-  name,
-  parentId,
-  details,
-  metaData,
-}: any): CreateGroupDto => {
-  return {
-    id: 0,
     parentId: parentId,
     privacy: GroupPrivacy.Public,
     details: details,
+    metaData: metaData,
     name: name,
-    categoryId: groupConstants.mc,
-    metaData,
+    categoryName: categoryName,
   };
 };
 
 export const seedGroupCategories: GroupCategory[] = [
   {
-    id: groupConstants.cluster,
-    name: 'Cluster',
+    id: 1,
+    name: GroupCategoryNames.NETWORK,
     groups: [],
   },
   {
-    id: groupConstants.location,
-    name: 'Church Location',
+    id: 2,
+    name: GroupCategoryNames.CLUSTER,
     groups: [],
   },
   {
-    id: groupConstants.cohort,
-    name: 'Cohort',
+    id: 3,
+    name: GroupCategoryNames.LOCATION,
     groups: [],
   },
   {
-    id: groupConstants.mc,
-    name: 'Missional Community',
+    id: 4,
+    name: GroupCategoryNames.ZONE,
     groups: [],
   },
   {
-    id: groupConstants.huddle,
-    name: 'Huddle',
+    id: 5,
+    name: GroupCategoryNames.MC,
     groups: [],
   },
   {
-    id: 'GarageTeam',
-    name: 'GarageTeam',
+    id: 6,
+    name: GroupCategoryNames.HUDDLE,
+    groups: [],
+  },
+  {
+    id: 7,
+    name: GroupCategoryNames.GARAGE_TEAM,
     groups: [],
   },
 ];
 
+const seedNetworks: CreateGroupDto[] = [];
 const seedLocations: CreateGroupDto[] = [];
+const seedZones: CreateGroupDto[] = [];
 const seedCells: CreateGroupDto[] = [];
 
-mcData.forEach((location: any, index: number) => {
-  const id = index + 1;
-  const loc = createLocation({ name: location.name, id });
-  seedLocations.push(loc);
-  location.list.forEach((mc: any) => {
-    seedCells.push(
-      createMc({
-        name: `${location.name}-${mc.name}`,
-        parentId: index + 1,
-        metaData: JSON.stringify({
-          leaders: mc.leaders,
-          phone: mc.phone,
-          email: mc.email,
+/**
+ * Populate the seedNetworks, seedLocations, seedZones and seedCells arrays
+ */
+async function populateGroupArrays() {
+  for (const location of mcData) {
+    const newNetwork = createGroupObject({
+      name: "Champions Network",
+      categoryName: GroupCategoryNames.NETWORK,
+      parentId: null,
+    });
+    const networdId = 1;
+    const locationId = 2;
+    const zoneId = 3;
+    const newLocation = createGroupObject({
+      name: location.name,
+      parentId: networdId,
+      categoryName: GroupCategoryNames.LOCATION,
+    });
+    const newZone = createGroupObject({
+      name: "Najjera-Buwate Zone",
+      parentId: locationId,
+      categoryName: GroupCategoryNames.ZONE,
+    });
+    seedNetworks.push(newNetwork);
+    seedZones.push(newZone);
+    seedLocations.push(newLocation);
+    for (const mc of location.list) {
+      seedCells.push(
+        createGroupObject({
+          name: `${mc.name}`,
+          categoryName: GroupCategoryNames.MC,
+          parentId: zoneId,
+          metaData: JSON.stringify({
+            leaders: mc.leaders,
+            phone: mc.phone,
+            email: mc.email,
+          }),
         }),
-      }),
-    );
-  });
-});
+      );
+    }
+  }
+}
+populateGroupArrays();
 
-const seedGroups = [...seedLocations, ...seedCells];
+const seedGroups = [
+  ...seedNetworks,
+  ...seedLocations,
+  ...seedZones,
+  ...seedCells,
+];
 export default seedGroups;

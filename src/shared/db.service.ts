@@ -1,14 +1,14 @@
-import { Injectable, Global, Logger } from '@nestjs/common';
-import { getConnectionManager, createConnection } from 'typeorm';
-import * as dotenv from 'dotenv';
-import config, { appEntities } from '../config';
-import { Tenant } from 'src/tenants/entities/tenant.entity';
-import { TenantDto } from 'src/tenants/dto/tenant.dto';
-import { lowerCaseRemoveSpaces } from 'src/utils/stringHelpers';
+import { Injectable, Global, Logger } from "@nestjs/common";
+import { getConnectionManager, createConnection } from "typeorm";
+import * as dotenv from "dotenv";
+import config, { appEntities } from "../config";
+import { Tenant } from "src/tenants/entities/tenant.entity";
+import { TenantDto } from "src/tenants/dto/tenant.dto";
+import { lowerCaseRemoveSpaces } from "src/utils/stringHelpers";
 
 @Injectable()
 export class DbService {
-  async getConnection(tenantName = 'public') {
+  async getConnection(tenantName: string = "public") {
     const connectionManager = getConnectionManager();
     const connectionName = this.getConnectionName(tenantName);
 
@@ -22,11 +22,11 @@ export class DbService {
     } else {
       // @TODO Do try-catch
       // @TODO Check db for tenant name. If not exists, create new
-      const dbEntities = tenantName == 'public' ? [Tenant] : appEntities;
+      const dbEntities = tenantName == "public" ? [Tenant] : appEntities;
       await createConnection({
         ...config.database,
         name: connectionName,
-        type: 'postgres',
+        type: "postgres",
         ssl: {
             rejectUnauthorized: false, // Required for DigitalOcean & Heroku
         },

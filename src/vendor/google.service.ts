@@ -1,6 +1,7 @@
-import { HttpService, Injectable, Logger } from '@nestjs/common';
-import GooglePlaceDto from './google-place.dto';
-import ClientFriendlyException from '../shared/exceptions/client-friendly.exception';
+import { Injectable, Logger } from "@nestjs/common";
+import { HttpService } from "@nestjs/axios";
+import GooglePlaceDto from "./google-place.dto";
+import ClientFriendlyException from "../shared/exceptions/client-friendly.exception";
 
 @Injectable()
 export class GoogleService {
@@ -15,13 +16,13 @@ export class GoogleService {
       .get(`${url}`, {
         params: {
           key,
-          ['place_id']: placeId,
+          ["place_id"]: placeId,
         },
       })
       .toPromise();
     const response = data.data;
-    if (response.status !== 'OK')
-      throw new ClientFriendlyException(response['error_message']);
+    if (response.status !== "OK")
+      throw new ClientFriendlyException(response["error_message"]);
     Logger.log(`Google.PlaceDetails placeId: ${placeId} got response`);
     const {
       geometry: { location },
@@ -31,7 +32,7 @@ export class GoogleService {
     } = response.result;
 
     const parts = addressParts
-      .split(',')
+      .split(",")
       .map((it) => it.trim())
       .reverse();
 
@@ -43,7 +44,7 @@ export class GoogleService {
       name,
       vicinity,
       country,
-      district: rest.join(', '),
+      district: rest.join(", "),
     };
   }
 }

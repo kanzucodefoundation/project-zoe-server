@@ -7,18 +7,20 @@ import {
   PrimaryColumn,
   PrimaryGeneratedColumn,
   Unique,
-} from 'typeorm';
-import * as bcrypt from 'bcrypt';
-import Contact from '../../crm/entities/contact.entity';
-import { hasValue } from '../../utils/validation';
-import UserRoles from './userRoles.entity';
-
+} from "typeorm";
+import { Exclude } from "class-transformer";
+import * as bcrypt from "bcrypt";
+import Contact from "../../crm/entities/contact.entity";
+import { hasValue } from "../../utils/validation";
+import UserRoles from "./userRoles.entity";
+import { ReportSubmission } from "src/reports/entities/report.submission.entity";
+import { Report } from "src/reports/entities/report.entity";
 // authentication will take approximately 13 seconds
 // https://pthree.org/wp-content/uploads/2016/06/bcrypt.png
 const hashCost = 10;
 
 @Entity()
-@Unique(['username'])
+@Unique(["username"])
 export class User {
   @PrimaryGeneratedColumn()
   id: number;
@@ -27,6 +29,7 @@ export class User {
   username: string;
 
   @Column({ length: 100 })
+  @Exclude()
   password: string;
 
   @OneToOne((type) => Contact)
@@ -41,6 +44,15 @@ export class User {
 
   @OneToMany((type) => UserRoles, (it) => it.user)
   userRoles: UserRoles[];
+
+  @OneToMany(
+    () => ReportSubmission,
+    (reportSubmission) => reportSubmission.user,
+  )
+  reportSubmissions: ReportSubmission[];
+
+  @OneToMany(() => Report, (report) => report.user)
+  reports: Report[];
 
   hashPassword() {
     if (hasValue(this.password)) {

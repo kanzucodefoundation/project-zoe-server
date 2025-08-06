@@ -1,16 +1,17 @@
-import { Column, Entity, OneToMany, PrimaryColumn } from 'typeorm';
-import Group from './group.entity';
+import { Column, Entity, OneToMany, PrimaryGeneratedColumn } from "typeorm";
+import Group from "./group.entity";
 
 @Entity()
 export default class GroupCategory {
-  @PrimaryColumn({ length: 40 })
-  id: string;
+  @Column()
+  @PrimaryGeneratedColumn()
+  id: number;
 
   @Column({ length: 200 })
   name: string;
 
   @OneToMany((type) => Group, (it) => it.category, {
-    cascade: ['insert', 'remove'],
+    cascade: ["insert", "remove"],
   })
   groups: Group[];
 }

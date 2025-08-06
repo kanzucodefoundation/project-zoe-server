@@ -8,22 +8,23 @@ import {
   Tree,
   TreeChildren,
   TreeParent,
-} from 'typeorm';
-import { GroupPrivacy } from '../enums/groupPrivacy';
-import GroupCategory from './groupCategory.entity';
-import GroupMembership from './groupMembership.entity';
-import GroupMembershipRequest from './groupMembershipRequest.entity';
-import GroupEvent from '../../events/entities/event.entity';
-import InternalAddress from '../../shared/entity/InternalAddress';
+} from "typeorm";
+import { GroupPrivacy } from "../enums/groupPrivacy";
+import GroupCategory from "./groupCategory.entity";
+import GroupMembership from "./groupMembership.entity";
+import GroupMembershipRequest from "./groupMembershipRequest.entity";
+import GroupEvent from "../../events/entities/event.entity";
+import InternalAddress from "../../shared/entity/InternalAddress";
+import { ReportSubmission } from "src/reports/entities/report.submission.entity";
 
 @Entity()
-@Tree('closure-table')
+@Tree("closure-table")
 export default class Group {
   @PrimaryGeneratedColumn()
   id: number;
 
   @Column({
-    type: 'enum',
+    type: "enum",
     enum: GroupPrivacy,
     nullable: true,
   })
@@ -37,16 +38,12 @@ export default class Group {
 
   @Column({
     nullable: true,
-    type: 'jsonb',
+    type: "jsonb",
   })
   metaData?: any;
 
-  @ManyToOne((type) => GroupCategory, (it) => it.groups)
-  @JoinColumn()
+  @ManyToOne(() => GroupCategory, (it) => it.groups)
   category?: GroupCategory;
-
-  @Column({ length: 40 })
-  categoryId: string;
 
   @TreeChildren()
   children: Group[];
@@ -59,7 +56,7 @@ export default class Group {
 
   @Column({
     nullable: true,
-    type: 'jsonb',
+    type: "jsonb",
   })
   address?: InternalAddress;
 
@@ -73,4 +70,7 @@ export default class Group {
   @JoinColumn()
   @OneToMany((type) => GroupMembershipRequest, (it) => it.group)
   groupMembershipRequests: GroupMembershipRequest[];
+
+  @OneToMany(() => ReportSubmission, (rs) => rs.group)
+  reportSubmissions: ReportSubmission[];
 }

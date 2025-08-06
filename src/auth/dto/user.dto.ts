@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { UserPermissions } from 'src/users/dto/user-list.dto';
+import { UserPermissions } from 'src/users/dto/user.dto';
 
 export class UserDto extends UserPermissions {
   @ApiProperty()

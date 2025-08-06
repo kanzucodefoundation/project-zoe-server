@@ -48,7 +48,7 @@ export class HelpService {
         `Update.Help id:${data.id} affected:${newFile.affected} complete`,
       );
 
-    return await this.repository.findOne(data.id);
+    return await this.repository.findOne({ where: { id: data.id } });
   }
 
   async remove(id: number): Promise<void> {
