@@ -27,9 +27,9 @@ export class DbService {
         ...config.database,
         name: connectionName,
         type: "postgres",
-        ssl: {
+        ssl: process.env.DB_ENABLE_SSL === 'true' ? {
             rejectUnauthorized: false, // Required for DigitalOcean & Heroku
-        },
+        } : false,
         entities: dbEntities,
         schema: tenantName,
       });
