@@ -98,7 +98,9 @@ export class GroupsService {
         const groupCategory = await this.groupCategoryRepository.findOne({
           where: { name: categoryName },
         });
-        categoryIds.push(groupCategory.id);
+        if (groupCategory){
+          categoryIds.push(groupCategory.id);
+        }
       }
 
       findOps.category = { id: In(categoryIds) };
