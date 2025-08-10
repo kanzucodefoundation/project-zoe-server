@@ -24,6 +24,7 @@ import { HelpModule } from './help/help.module';
 import { TenantsModule } from './tenants/tenants.module';
 import { JwtTenantHeaderMiddleware } from './middleware/jwtTenantHeader.middleware';
 import { nameTenantHeaderMiddleware } from './middleware/nameTenantHeader.middleware';
+import { ReportsModule } from './reports/reports.module';
 
 @Global()
 @Module({
@@ -49,6 +50,7 @@ import { nameTenantHeaderMiddleware } from './middleware/nameTenantHeader.middle
     ChatModule,
     HelpModule,
     TenantsModule, 
+    ReportsModule,
   ],
   exports: [AppService],
   controllers: [AuthController],
