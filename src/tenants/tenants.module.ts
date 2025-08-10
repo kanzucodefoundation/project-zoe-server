@@ -13,7 +13,6 @@ const connectionFactory = {
   useFactory: async (req: any, dbservice: DbService) => {
     const tenantName = req.headers[TENANT_HEADER];
     const connectionPublic = await dbservice.getConnection();
-    let tenantDetails: Tenant;
 
     if (!tenantName) {
       throw new BadRequestException(
@@ -21,7 +20,7 @@ const connectionFactory = {
       );
     }
 
-    tenantDetails = await connectionPublic
+    const tenantDetails = await connectionPublic
       .getRepository(Tenant)
       .findOne({ where: { name: tenantName } });
 

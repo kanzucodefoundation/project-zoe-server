@@ -29,9 +29,7 @@ import { nameTenantHeaderMiddleware } from './middleware/nameTenantHeader.middle
 @Module({
   imports: [
 
-    ServeStaticModule.forRoot({
-      rootPath: join(__dirname, '..', 'public'),
-    }),
+
     ConfigModule.forRoot({
       isGlobal: true,
       expandVariables: true,
@@ -50,7 +48,7 @@ import { nameTenantHeaderMiddleware } from './middleware/nameTenantHeader.middle
 
     ChatModule,
     HelpModule,
-    TenantsModule,
+    TenantsModule, 
   ],
   exports: [AppService],
   controllers: [AuthController],
@@ -67,7 +65,6 @@ export class AppModule {
         'api/auth/forgot-password',
         'api/auth/reset-password/:token',
         'api/register',
-        'api/groups/combo',
       )
       .forRoutes('*');
 
@@ -80,7 +77,6 @@ export class AppModule {
         'api/auth/forgot-password',
         'api/auth/reset-password/:token',
         'api/register',
-        'api/groups/combo',
       );
   }
 }
