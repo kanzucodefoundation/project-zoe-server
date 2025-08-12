@@ -90,7 +90,7 @@ export class ReportsService {
 
     // Retrieve the report by its ID
     const report = await this.reportRepository.findOne({
-      where: { id: reportId },
+      where: { id: reportId, active: true },
     });
     if (!report) {
       throw new NotFoundException(`Report with ID ${reportId} not found`);
@@ -177,12 +177,15 @@ export class ReportsService {
   }
 
   async getAllReports(): Promise<Report[]> {
-    return await this.reportRepository.find({ relations: ["fields"] });
+    return await this.reportRepository.find({
+      where: { active: true },
+      relations: ["fields"],
+    });
   }
 
   async getReport(reportId: number): Promise<Report> {
     const report = await this.reportRepository.findOne({
-      where: { id: reportId },
+      where: { id: reportId, active: true },
       relations: ["fields"],
     });
     if (!report) {
