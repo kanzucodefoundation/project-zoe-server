@@ -28,12 +28,12 @@ export class DbService {
         name: connectionName,
         type: "postgres",
         ssl:
-          process.env.DB_ENABLE_SSL === "false"
-            ? false
-            : {
-                rejectUnauthorized:
-                  false /* Required for DigitalOcean & Heroku */,
-              },
+          process.env.DB_ENABLE_SSL === "true"
+            ? {
+                /* Required for DigitalOcean & Heroku */
+                rejectUnauthorized: false,
+              }
+            : false,
         entities: dbEntities,
         schema: tenantName,
       });
