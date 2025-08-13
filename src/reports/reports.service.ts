@@ -4,7 +4,7 @@ import {
   NotFoundException,
   HttpStatus,
 } from "@nestjs/common";
-import { Connection, Repository, In } from "typeorm";
+import { Connection, Repository, In, Not } from "typeorm";
 import { UserDto } from "src/auth/dto/user.dto";
 import { Report } from "./entities/report.entity";
 import { ReportSubmission } from "./entities/report.submission.entity";
@@ -177,7 +177,9 @@ export class ReportsService {
   }
 
   async getAllReports(): Promise<Report[]> {
-    return await this.reportRepository.find({ relations: ["fields"] });
+    return await this.reportRepository.find({  where: {
+      id: Not(1)   
+    }, relations: ["fields"] });
   }
 
   async getReport(reportId: number): Promise<Report> {
