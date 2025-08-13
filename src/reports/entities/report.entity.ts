@@ -4,11 +4,13 @@ import {
   Column,
   ManyToOne,
   OneToMany,
+  Index,
 } from "typeorm";
 import { ReportSubmission } from "./report.submission.entity";
 import { User } from "src/users/entities/user.entity";
 import { ReportField } from "./report.field.entity";
 import GroupCategory from "src/groups/entities/groupCategory.entity";
+import { ReportStatus } from "../enums/report.enum";
 
 @Entity()
 export class Report {
@@ -82,4 +84,15 @@ export class Report {
 
   @ManyToOne(() => User, (user) => user.reports)
   user: User;
+
+  @Column({ default: true })
+  active: boolean;
+
+  @Index()
+  @Column({
+    type: "enum",
+    enum: ReportStatus,
+    default: ReportStatus.DRAFT /* choose what fits your workflow */,
+  })
+  status: ReportStatus;
 }

@@ -21,3 +21,10 @@ export enum ReportSubmissionFrequency {
   Monthly = "monthly",
   Custom = "custom",
 }
+
+export enum ReportStatus {
+  DRAFT = "draft",
+  ACTIVE = "active",
+  INACTIVE = "inactive",
+  ARCHIVED = "archived",
+}

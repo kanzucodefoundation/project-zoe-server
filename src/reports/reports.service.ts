@@ -30,6 +30,7 @@ import { ReportField } from "./entities/report.field.entity";
 import { ReportSubmissionData } from "./entities/report.submission.data.entity";
 import { GroupCategoryNames } from "src/groups/enums/groups";
 import GroupMembership from "src/groups/entities/groupMembership.entity";
+import { ReportStatus } from "./enums/report.enum";
 
 @Injectable()
 export class ReportsService {
@@ -90,7 +91,7 @@ export class ReportsService {
 
     // Retrieve the report by its ID
     const report = await this.reportRepository.findOne({
-      where: { id: reportId },
+      where: { id: reportId, status: ReportStatus.ACTIVE },
     });
     if (!report) {
       throw new NotFoundException(`Report with ID ${reportId} not found`);
@@ -177,12 +178,15 @@ export class ReportsService {
   }
 
   async getAllReports(): Promise<Report[]> {
-    return await this.reportRepository.find({ relations: ["fields"] });
+    return await this.reportRepository.find({
+      where: { status: ReportStatus.ACTIVE },
+      relations: ["fields"],
+    });
   }
 
   async getReport(reportId: number): Promise<Report> {
     const report = await this.reportRepository.findOne({
-      where: { id: reportId },
+      where: { id: reportId, status: ReportStatus.ACTIVE },
       relations: ["fields"],
     });
     if (!report) {
