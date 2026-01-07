@@ -185,7 +185,7 @@ export class AuthService {
       const user = await this.usersService.findOne(userId);
 
       if (!user || !user.contactId) {
-        return { myGroups: [] };
+        return { myGroups: [], canManageGroups: [], canViewGroups: [] };
       }
 
       // Get group memberships for the user
@@ -199,7 +199,7 @@ export class AuthService {
       });
 
       if (memberships.length === 0) {
-        return { myGroups: [] };
+        return { myGroups: [], canManageGroups: [], canViewGroups: [] };
       }
 
       // Get group IDs and fetch member counts
@@ -217,10 +217,20 @@ export class AuthService {
         memberCount: group.members?.length || 0,
       }));
 
+      const canManageGroups = groups.map((group) => ({
+        id: group.id,
+        name: group.name,
+      }));
+
+      const canViewGroups = groups.map((group) => ({
+        id: group.id,
+        name: group.name,
+      }));
+
       return {
         myGroups,
-        canManageGroupIds: groupIds,
-        canViewGroupIds: groupIds,
+        canManageGroups,
+        canViewGroups,
       };
     } catch (error) {
       console.error('Error getting user hierarchy:', error);
@@ -234,6 +244,8 @@ export class AuthService {
             memberCount: 8,
           },
         ],
+        canManageGroups: [],
+        canViewGroups: [],
       };
     }
   }

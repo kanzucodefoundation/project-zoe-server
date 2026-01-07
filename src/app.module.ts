@@ -5,6 +5,7 @@ import { AppService } from './app.service';
 import { UsersModule } from './users/users.module';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { CacheModule } from '@nestjs/cache-manager';
 import { AuthModule } from './auth/auth.module';
 import { CrmModule } from './crm/crm.module';
 import { GroupsModule } from './groups/groups.module';
@@ -21,6 +22,7 @@ import { SearchModule } from './search/search.module';
 import { Tenant } from './tenants/entities/tenant.entity';
 import { TenantHeaderMiddleware } from './middleware/tenant-header.middleware';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
+import { redisStore } from 'cache-manager-redis-yet';
 
 @Global()
 @Module({
@@ -28,6 +30,14 @@ import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
     ConfigModule.forRoot({
       isGlobal: true,
       expandVariables: true,
+    }),
+    CacheModule.register({
+      isGlobal: true,
+      store: redisStore,
+      host: process.env.REDIS_HOST || 'localhost',
+      port: process.env.REDIS_PORT || 6379,
+      password: process.env.REDIS_PASSWORD || undefined,
+      ttl: 60 * 60, // 1 hour default TTL
     }),
     TypeOrmModule.forRoot({
       ...config.database,

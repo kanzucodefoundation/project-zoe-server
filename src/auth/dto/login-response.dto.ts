@@ -13,11 +13,20 @@ export class GroupHierarchyDto {
   memberCount: number;
 }
 
+export class ManageableGroupDto {
+  @ApiProperty()
+  id: number;
+  @ApiProperty()
+  name: string;
+}
+
 export class HierarchyDto {
   @ApiProperty({ type: [GroupHierarchyDto] })
   myGroups: GroupHierarchyDto[];
-  canManageGroupIds?: number[];
-  canViewGroupIds?: number[];
+  @ApiProperty({ type: [ManageableGroupDto] })
+  canManageGroups: ManageableGroupDto[];
+  @ApiProperty({ type: [ManageableGroupDto] })
+  canViewGroups: ManageableGroupDto[];
 }
 
 export class LoginResponseDto {

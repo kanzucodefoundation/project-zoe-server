@@ -50,6 +50,7 @@ import { PrismaService } from '../shared/prisma.service';
 import { getContactModel } from './utils/creationUtils';
 import { GroupFinderService } from './group-finder/group-finder.service';
 import { AddressesService } from './addresses.service';
+import { GroupTreeService } from 'src/groups/services/group-tree.service';
 import GroupCategory from 'src/groups/entities/groupCategory.entity';
 import { groupCategories } from 'src/groups/groups.constants';
 
@@ -71,7 +72,8 @@ export class ContactsService {
     private googleService: GoogleService,
     private prisma: PrismaService,
     private groupFinderService: GroupFinderService,
-    private addressesService: AddressesService, // private tenantContext: TenantContext, // No longer needed
+    private addressesService: AddressesService,
+    private groupTreeService: GroupTreeService, // private tenantContext: TenantContext, // No longer needed
   ) {
     this.repository = connection.getRepository(Contact);
     this.personRepository = connection.getRepository(Person);
@@ -85,7 +87,7 @@ export class ContactsService {
     this.tenantRepository = connection.getRepository(Tenant);
   }
 
-  async findAll(req: ContactSearchDto): Promise<ContactListDto[]> {
+  async findAll(req: ContactSearchDto, user?: any): Promise<ContactListDto[]> {
     try {
       let hasFilter = false;
       //This will hold the query id list
@@ -175,6 +177,29 @@ export class ContactsService {
       if (hasFilter && hasNoValue(idList)) {
         return [];
       }
+
+      // Apply user permission filtering
+      if (user) {
+        const permissionFilteredIds =
+          await this.getContactsInUserAccessibleGroups(user);
+        if (permissionFilteredIds.length === 0) {
+          return []; // User has no accessible groups
+        }
+
+        if (hasValue(idList)) {
+          // Intersect with existing filter
+          idList = intersection(idList, permissionFilteredIds);
+        } else {
+          // Use permission filter as the primary filter
+          idList = permissionFilteredIds;
+        }
+        hasFilter = true;
+      }
+
+      if (hasFilter && hasNoValue(idList)) {
+        return [];
+      }
+
       const data = await this.repository.find({
         relations: [
           'person',
@@ -712,5 +737,60 @@ export class ContactsService {
     }
 
     existingContact.addresses = addressesToKeep;
+  }
+
+  /**
+   * Get contact IDs for contacts that belong to groups the user can access
+   */
+  private async getContactsInUserAccessibleGroups(
+    user: any,
+  ): Promise<number[]> {
+    try {
+      // Get user's accessible groups (both manageable and viewable)
+      const userGroupIds = await this.getUserAccessibleGroups(user);
+
+      if (userGroupIds.length === 0) {
+        return [];
+      }
+
+      // Get contacts that are members of these groups
+      const memberships = await this.membershipRepository.find({
+        where: { groupId: In(userGroupIds) },
+        select: ['contactId'],
+      });
+
+      // Return unique contact IDs
+      const contactIds = [...new Set(memberships.map((m) => m.contactId))];
+      return contactIds;
+    } catch (error) {
+      Logger.error('Error getting contacts in user accessible groups:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Get groups that user can access (view members from)
+   */
+  private async getUserAccessibleGroups(user: any): Promise<number[]> {
+    try {
+      // Get user's leadership groups
+      const memberships = await this.membershipRepository.find({
+        where: {
+          contactId: user.contactId,
+          role: GroupRole.Leader,
+        },
+        select: ['groupId'],
+      });
+
+      const leadershipGroups = memberships.map((m) => m.groupId);
+
+      // Expand to include all descendant groups using the tree service
+      return await this.groupTreeService.getGroupAndAllChildren(
+        leadershipGroups,
+      );
+    } catch (error) {
+      Logger.error('Error getting user accessible groups:', error);
+      return [];
+    }
   }
 }

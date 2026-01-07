@@ -15,6 +15,7 @@ import { AddressesService } from 'src/crm/addresses.service';
 import { GroupCategoriesService } from 'src/groups/services/group-categories.service';
 import { GroupPermissionsService } from 'src/groups/services/group-permissions.service';
 import { GroupsMembershipService } from 'src/groups/services/group-membership.service';
+import { GroupTreeService } from 'src/groups/services/group-tree.service';
 
 /**
  * TenantsService - Manages tenant creation for row-level multi-tenancy
@@ -58,12 +59,14 @@ export class TenantsService {
     // Initialize services with tenant context
     const groupCategoriesService = new GroupCategoriesService(this.connection);
     const groupMembershipService = new GroupsMembershipService(this.connection);
+    const groupTreeService = new GroupTreeService(this.connection, null); // Pass null for cache manager in this context
     const contactService: ContactsService = new ContactsService(
       this.connection,
       googleService,
       prisma,
       groupFinderService,
       addressesService,
+      groupTreeService,
     );
 
     // Seed initial data for the new tenant

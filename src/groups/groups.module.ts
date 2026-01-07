@@ -18,6 +18,7 @@ import { EventsService } from 'src/events/events.service';
 import { appEntities } from '../config';
 import { AddressesService } from 'src/crm/addresses.service';
 import { GroupPermissionsService } from './services/group-permissions.service';
+import { GroupTreeService } from './services/group-tree.service';
 import { TenantHeaderMiddleware } from 'src/middleware/tenant-header.middleware';
 import { MiddlewareConsumer } from '@nestjs/common';
 
@@ -38,6 +39,7 @@ import { MiddlewareConsumer } from '@nestjs/common';
     PrismaService,
     EventsService,
     GroupPermissionsService,
+    GroupTreeService,
   ],
   controllers: [
     GroupController,
@@ -46,7 +48,12 @@ import { MiddlewareConsumer } from '@nestjs/common';
     GroupMembershipController,
     GroupMembershipReqeustController,
   ],
-  exports: [GroupsService, GroupCategoriesService, GroupPermissionsService],
+  exports: [
+    GroupsService,
+    GroupCategoriesService,
+    GroupPermissionsService,
+    GroupTreeService,
+  ],
 })
 export class GroupsModule {
   configure(consumer: MiddlewareConsumer) {

@@ -27,10 +27,12 @@ import { TreeRepository } from 'typeorm';
 import Group from 'src/groups/entities/group.entity';
 import { UsersService } from 'src/users/users.service';
 import { GroupsService } from 'src/groups/services/groups.service';
+import { GroupTreeService } from 'src/groups/services/group-tree.service';
 import { ReportField } from './entities/report.field.entity';
 import { ReportSubmissionData } from './entities/report.submission.data.entity';
 import { GroupCategoryNames } from 'src/groups/enums/groups';
 import GroupMembership from 'src/groups/entities/groupMembership.entity';
+import { GroupRole } from 'src/groups/enums/groupRole';
 import { ReportStatus } from './enums/report.enum';
 
 @Injectable()
@@ -47,6 +49,7 @@ export class ReportsService {
     @Inject('CONNECTION') connection: Connection,
     private readonly usersService: UsersService,
     private readonly groupsService: GroupsService,
+    private readonly groupTreeService: GroupTreeService,
   ) {
     this.reportRepository = connection.getRepository(Report);
     this.reportFieldRepository = connection.getRepository(ReportField);
@@ -218,7 +221,7 @@ export class ReportsService {
     return response;
   }
 
-  async getAllReports(): Promise<{ reports: any[] }> {
+  async getAllReports(user?: UserDto): Promise<{ reports: any[] }> {
     console.log('🔧 ReportsService.getAllReports() - Starting execution');
 
     try {
@@ -232,17 +235,21 @@ export class ReportsService {
         '🔧 ReportsService.getAllReports() - Found reports:',
         reports.length,
       );
-      console.log(
-        '🔧 ReportsService.getAllReports() - Raw reports:',
-        JSON.stringify(
-          reports.map((r) => ({ id: r.id, name: r.name })),
-          null,
-          2,
-        ),
-      );
+
+      // If user is provided, filter reports based on their group permissions
+      let filteredReports = reports;
+      if (user) {
+        console.log(
+          '🔧 ReportsService.getAllReports() - Filtering by user permissions...',
+        );
+        filteredReports = await this.filterReportsByUserPermissions(
+          reports,
+          user,
+        );
+      }
 
       console.log('🔧 ReportsService.getAllReports() - Formatting reports...');
-      const formattedReports = reports.map((report) => {
+      const formattedReports = filteredReports.map((report) => {
         console.log(`🔧 Formatting report ${report.id}: ${report.name}`);
         return {
           id: report.id,
@@ -831,15 +838,18 @@ export class ReportsService {
   ): Promise<any> {
     const { reportId } = options;
 
-    // Get user's accessible groups (implement based on your permission system)
-    const userGroupIds = []; // TODO: Get from group permissions service
+    // Get user's accessible groups using the new permission system
+    const userGroupIds = await this.getUserAccessibleGroups(user);
 
     const where: any = {};
     if (reportId) {
       where.report = { id: reportId };
     }
     if (userGroupIds.length > 0) {
-      where.groupId = In(userGroupIds);
+      where.group = { id: In(userGroupIds) };
+    } else {
+      // If user has no accessible groups, return empty result
+      return { submissions: [] };
     }
 
     const submissions = await this.reportSubmissionRepository.find({
@@ -849,6 +859,7 @@ export class ReportsService {
         'user',
         'submissionData',
         'submissionData.reportField',
+        'group',
       ],
       order: { submittedAt: 'DESC' },
     });
@@ -862,6 +873,7 @@ export class ReportsService {
         submittedBy: getUserDisplayName(submission.user),
         status: ReportStatus.SUBMITTED,
         groupId: submission.group?.id,
+        groupName: submission.group?.name,
       })),
     };
   }
@@ -934,5 +946,85 @@ export class ReportsService {
     });
 
     return memberships.map((membership) => membership.group);
+  }
+
+  /**
+   * Filter reports based on user's group permissions
+   * Users can see reports for categories they have access to via group leadership
+   */
+  private async filterReportsByUserPermissions(
+    reports: Report[],
+    user: UserDto,
+  ): Promise<Report[]> {
+    try {
+      // Get user's manageable groups
+      const userManageableGroups = await this.getUserManageableGroups(user);
+
+      if (userManageableGroups.length === 0) {
+        return []; // No manageable groups = no reports
+      }
+
+      // Get categories for these groups (including parent categories)
+      const userCategories =
+        await this.groupTreeService.getCategoriesForGroups(
+          userManageableGroups,
+        );
+
+      // Filter reports by target group category
+      const accessibleReports = reports.filter((report) => {
+        // If report has no target category, user can see it (global report)
+        if (!report.targetGroupCategory) {
+          return true;
+        }
+
+        // Check if user has access to this report's target category
+        return userCategories.includes(report.targetGroupCategory.name);
+      });
+
+      return accessibleReports;
+    } catch (error) {
+      console.error('Error filtering reports by user permissions:', error);
+      return []; // Return empty array on error for security
+    }
+  }
+
+  /**
+   * Get groups that user can manage (submit reports for)
+   */
+  private async getUserManageableGroups(user: UserDto): Promise<number[]> {
+    try {
+      // Get user's direct leadership groups
+      const memberships = await this.groupMembershipRepo.find({
+        where: {
+          contactId: user.contactId,
+          role: GroupRole.Leader,
+        },
+        select: ['groupId'],
+      });
+
+      const leadershipGroups = memberships.map((m) => m.groupId);
+
+      // Expand to include all descendant groups
+      return await this.groupTreeService.getGroupAndAllChildren(
+        leadershipGroups,
+      );
+    } catch (error) {
+      console.error('Error getting user manageable groups:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Get groups that user can access for viewing submissions
+   */
+  private async getUserAccessibleGroups(user: UserDto): Promise<number[]> {
+    try {
+      // For now, viewable groups = manageable groups
+      // In the future, this could be expanded to include view-only permissions
+      return await this.getUserManageableGroups(user);
+    } catch (error) {
+      console.error('Error getting user accessible groups:', error);
+      return [];
+    }
   }
 }
