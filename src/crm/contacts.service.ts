@@ -15,6 +15,7 @@ import {
   Repository,
   Connection,
   TreeRepository,
+  DeepPartial,
 } from 'typeorm';
 import Contact from './entities/contact.entity';
 import { CreatePersonDto } from './dto/create-person.dto';
@@ -1235,10 +1236,11 @@ export class ContactsService {
 
       // Handle nested person update
       if (data.person) {
+        const personData = Array.isArray(data.person) ? data.person[0] : data.person;
         if (existingContact.person) {
-          Object.assign(existingContact.person, data.person);
+          Object.assign(existingContact.person, personData);
         } else {
-          existingContact.person = this.personRepository.create(data.person);
+          existingContact.person = this.personRepository.create(personData as DeepPartial<Person>);
         }
       }
 

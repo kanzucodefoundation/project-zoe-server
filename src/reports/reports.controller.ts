@@ -28,13 +28,18 @@ import {
 } from './types/report-api.types';
 import { getFormattedDateString } from 'src/utils/stringHelpers';
 import { ReportSubmission } from './entities/report.submission.entity';
+import { AppLogger } from '../utils/app-logger.service';
+import { TenantContextInterceptor } from '../interceptors/tenant-context.interceptor';
 
-@UseInterceptors(SentryInterceptor)
+@UseInterceptors(SentryInterceptor, TenantContextInterceptor)
 @UseGuards(JwtAuthGuard)
 @ApiTags('Reports')
 @Controller('api/reports')
 export class ReportsController {
-  constructor(private readonly reportService: ReportsService) {}
+  constructor(
+    private readonly reportService: ReportsService,
+    private readonly logger: AppLogger,
+  ) {}
 
   @Post()
   createReport(
@@ -50,10 +55,14 @@ export class ReportsController {
     @Body() submissionDto: ReportSubmissionDto,
     @Request() request,
   ): Promise<ApiResponse<ReportSubmissionDataDto>> {
-    console.log(
-      '📝 ReportsController.submitReport() - Called with reportId:',
-      reportId,
-    );
+    this.logger.apiLog('log', 'Report submission request received', {
+      operation: 'submitReport',
+      resource: 'reports',
+      metadata: {
+        reportId,
+        userId: request.user?.id,
+      },
+    });
     submissionDto.reportId = reportId;
     return await this.reportService.submitReport(submissionDto, request.user);
   }
@@ -65,7 +74,16 @@ export class ReportsController {
     @Query('reportId') reportId: number | undefined,
     @Request() request: any,
   ): Promise<any> {
-    console.log('👤 ReportsController.getMySubmissions() - Called');
+    this.logger.apiLog('log', 'Get my submissions request received', {
+      operation: 'getMySubmissions',
+      resource: 'reports',
+      metadata: {
+        userId: request.user?.id,
+        limit,
+        offset,
+        reportId,
+      },
+    });
     return await this.reportService.getMySubmissions(request.user, {
       limit,
       offset,
@@ -88,27 +106,37 @@ export class ReportsController {
     @Param('id', ParseIntPipe) id: number,
     @Request() request,
   ): Promise<any> {
-    console.log(
-      '📋 ReportsController.getSubmissionDetails() - Called with id:',
-      id,
-    );
+    this.logger.apiLog('log', 'Get submission details request received', {
+      operation: 'getSubmissionDetails',
+      resource: 'reports',
+      metadata: {
+        submissionId: id,
+        userId: request.user?.id,
+      },
+    });
     return await this.reportService.getSubmissionDetails(id, request.user);
   }
 
   @Get(':id')
   async getReport(@Param('id') reportId: number): Promise<Report> {
-    console.log(
-      '📄 ReportsController.getReport() - Called with reportId:',
-      reportId,
-    );
+    this.logger.apiLog('log', 'Get report request received', {
+      operation: 'getReport',
+      resource: 'reports',
+      metadata: {
+        reportId,
+      },
+    });
 
     // Handle invalid/NaN IDs
     const parsedId = parseInt(reportId as any, 10);
     if (isNaN(parsedId)) {
-      console.log(
-        '📄 ReportsController.getReport() - Invalid ID provided:',
-        reportId,
-      );
+      this.logger.apiLog('warn', 'Invalid report ID provided', {
+        operation: 'getReport',
+        resource: 'reports',
+        metadata: {
+          invalidReportId: reportId,
+        },
+      });
       throw new BadRequestException('Invalid report ID provided');
     }
 
@@ -125,17 +153,31 @@ export class ReportsController {
 
   @Get()
   async getAllReports(): Promise<{ reports: any[] }> {
-    console.log('📋 ReportsController.getAllReports() - Starting execution');
+ 
+
     try {
+      this.logger.apiLog('log', 'Starting get all reports request', {
+        operation: 'getAllReports',
+        resource: 'reports',
+      });
+
       const result = await this.reportService.getAllReports();
-      console.log(
-        '📋 ReportsController.getAllReports() - Success, returning:',
-        JSON.stringify(result, null, 2),
-      );
-      return result;
+
+      this.logger.apiLog('log', 'Successfully retrieved all reports', {
+        operation: 'getAllReports',
+        resource: 'reports',
+        metadata: {
+          reportCount: result.reports?.length || 0,
+        },
+      });
+
+       return result;
     } catch (error) {
-      console.error('📋 ReportsController.getAllReports() - Error:', error);
-      throw error;
+      this.logger.errorLog(error, {
+        operation: 'getAllReports',
+        resource: 'reports',
+      });
+       throw error;
     }
   }
 
@@ -147,10 +189,17 @@ export class ReportsController {
     @Query('groupIdList') smallGroupIdList?: string,
     @Query('parentGroupIdList') parentGroupIdList?: string,
   ): Promise<ReportSubmissionsApiResponse> {
-    console.log(
-      '📊 ReportsController.getReportSubmissions() - Called with reportId:',
-      reportId,
-    );
+    this.logger.apiLog('log', 'Get report submissions request received', {
+      operation: 'getReportSubmissions',
+      resource: 'reports',
+      metadata: {
+        reportId,
+        startDate,
+        endDate,
+        smallGroupIdList,
+        parentGroupIdList,
+      },
+    });
     const formattedStartDate = startDate ? new Date(startDate) : undefined;
     const formattedEndDate = endDate ? new Date(endDate) : undefined;
     return await this.reportService.generateReport(
@@ -167,12 +216,14 @@ export class ReportsController {
     @Param('reportId') reportId: number,
     @Param('submissionId') submissionId: number,
   ) {
-    console.log(
-      '🔍 ReportsController.getReportSubmission() - Called with reportId:',
-      reportId,
-      'submissionId:',
-      submissionId,
-    );
+    this.logger.apiLog('log', 'Get specific report submission request received', {
+      operation: 'getReportSubmission',
+      resource: 'reports',
+      metadata: {
+        reportId,
+        submissionId,
+      },
+    });
     return this.reportService.getReportSubmission(reportId, submissionId);
   }
 
@@ -182,10 +233,15 @@ export class ReportsController {
     @Query('groupIdList') smallGroupIdList?: string,
     @Query('parentGroupIdList') parentGroupIdList?: string,
   ): Promise<string> {
-    console.log(
-      '📧 ReportsController.sendReportSubmissionsWeeklyEmail() - Called with reportId:',
-      reportId,
-    );
+    this.logger.apiLog('log', 'Send weekly email summary request received', {
+      operation: 'sendReportSubmissionsWeeklyEmail',
+      resource: 'reports',
+      metadata: {
+        reportId,
+        smallGroupIdList,
+        parentGroupIdList,
+      },
+    });
     return await this.reportService.sendWeeklyEmailSummary(
       reportId,
       smallGroupIdList,
