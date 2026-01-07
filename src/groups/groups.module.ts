@@ -21,6 +21,7 @@ import { GroupPermissionsService } from './services/group-permissions.service';
 import { GroupTreeService } from './services/group-tree.service';
 import { TenantHeaderMiddleware } from 'src/middleware/tenant-header.middleware';
 import { MiddlewareConsumer } from '@nestjs/common';
+import { AppLogger } from 'src/utils/app-logger.service';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { MiddlewareConsumer } from '@nestjs/common';
     EventsService,
     GroupPermissionsService,
     GroupTreeService,
+    AppLogger,
   ],
   controllers: [
     GroupController,

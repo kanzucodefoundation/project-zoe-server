@@ -27,6 +27,7 @@ import { GroupsService } from 'src/groups/services/groups.service';
 import { GroupPermissionsService } from 'src/groups/services/group-permissions.service';
 import { GroupTreeService } from 'src/groups/services/group-tree.service';
 import { TenantContextInterceptor } from '../interceptors/tenant-context.interceptor';
+import { AppLogger } from 'src/utils/app-logger.service';
 
 @Global()
 @Module({
@@ -43,6 +44,7 @@ import { TenantContextInterceptor } from '../interceptors/tenant-context.interce
     PhonesService,
     AddressesService,
     TenantContextInterceptor,
+    AppLogger,
   ],
   controllers: [
     ContactsController,

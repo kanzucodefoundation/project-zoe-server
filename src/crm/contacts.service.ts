@@ -53,6 +53,7 @@ import { AddressesService } from './addresses.service';
 import { GroupTreeService } from 'src/groups/services/group-tree.service';
 import GroupCategory from 'src/groups/entities/groupCategory.entity';
 import { groupCategories } from 'src/groups/groups.constants';
+import { AppLogger, ContextLogger } from 'src/utils/app-logger.service';
 
 @Injectable()
 export class ContactsService {
@@ -66,6 +67,7 @@ export class ContactsService {
   private readonly groupRepository: TreeRepository<Group>;
   private readonly gmRequestRepository: Repository<GroupMembershipRequest>;
   private readonly tenantRepository: Repository<Tenant>;
+  private readonly logger: ContextLogger;
 
   constructor(
     @Inject('CONNECTION') connection: Connection,
@@ -73,7 +75,8 @@ export class ContactsService {
     private prisma: PrismaService,
     private groupFinderService: GroupFinderService,
     private addressesService: AddressesService,
-    private groupTreeService: GroupTreeService, // private tenantContext: TenantContext, // No longer needed
+    private groupTreeService: GroupTreeService,
+    private appLogger: AppLogger, // private tenantContext: TenantContext, // No longer needed
   ) {
     this.repository = connection.getRepository(Contact);
     this.personRepository = connection.getRepository(Person);
@@ -85,10 +88,35 @@ export class ContactsService {
     this.groupRepository = connection.getTreeRepository(Group);
     this.gmRequestRepository = connection.getRepository(GroupMembershipRequest);
     this.tenantRepository = connection.getRepository(Tenant);
+    this.logger = this.appLogger.createContextLogger('ContactsService');
   }
 
   async findAll(req: ContactSearchDto, user?: any): Promise<ContactListDto[]> {
+    const tracking = this.logger.startTracking('findAllContacts', {
+      userId: user?.id,
+      contactId: user?.contactId,
+    });
+
     try {
+      this.logger.business('log', 'Starting contact search', {
+        operation: 'findAllContacts',
+        userId: user?.id,
+        contactId: user?.contactId,
+        resource: 'contacts',
+        metadata: {
+          hasUserFilter: !!user,
+          searchParams: {
+            query: req.query,
+            email: req.email,
+            phone: req.phone,
+            cellGroups: req.cellGroups?.length || 0,
+            churchLocations: req.churchLocations?.length || 0,
+            limit: req.limit,
+            skip: req.skip,
+          },
+        },
+      });
+
       let hasFilter = false;
       //This will hold the query id list
       let idList: number[] = [];
@@ -97,7 +125,11 @@ export class ContactsService {
         ...(req.churchLocations || []),
       ];
       if (hasValue(groups)) {
-        Logger.log(`searching by groups: ${groups.join(',')}`);
+        this.logger.dataAccess('log', 'Filtering contacts by groups', {
+          operation: 'findAllContacts',
+          userId: user?.id,
+          metadata: { groupIds: groups, groupCount: groups.length },
+        });
         hasFilter = true;
         const resp = await this.membershipRepository.find({
           select: ['contactId'],
@@ -145,7 +177,11 @@ export class ContactsService {
           select: ['contactId'],
           where: { value: Like(`%${req.phone}%`) },
         });
-        console.log('resp', resp);
+        this.logger.dataAccess('debug', 'Phone search results found', {
+          operation: 'findAllContacts',
+          userId: user?.id,
+          metadata: { phoneSearchResultCount: resp.length, phone: req.phone },
+        });
         if (hasValue(idList)) {
           idList = intersection(
             idList,
@@ -162,7 +198,11 @@ export class ContactsService {
           select: ['contactId'],
           where: { value: ILike(`%${req.email.trim().toLowerCase()}%`) },
         });
-        Logger.log(`searching by email: ${resp.join(',')}`);
+        this.logger.dataAccess('debug', 'Email search results found', {
+          operation: 'findAllContacts',
+          userId: user?.id,
+          metadata: { emailSearchResultCount: resp.length, email: req.email },
+        });
         if (hasValue(idList)) {
           idList = intersection(
             idList,
@@ -173,30 +213,108 @@ export class ContactsService {
         }
       }
 
-      console.log('IdList', idList);
+      this.logger.business(
+        'debug',
+        'Contact ID list built from search filters',
+        {
+          operation: 'findAllContacts',
+          userId: user?.id,
+          metadata: {
+            contactIdCount: idList.length,
+            hasSearchFilter: hasFilter,
+          },
+        },
+      );
+
       if (hasFilter && hasNoValue(idList)) {
+        this.logger.business(
+          'log',
+          'No contacts found matching search criteria',
+          {
+            operation: 'findAllContacts',
+            userId: user?.id,
+            metadata: { reason: 'empty_search_results' },
+          },
+        );
+        this.logger.endTracking(tracking, true);
         return [];
       }
 
       // Apply user permission filtering
       if (user) {
+        this.logger.security(
+          'log',
+          'Applying user permission filtering to contacts',
+          {
+            operation: 'findAllContacts',
+            userId: user?.id,
+            contactId: user?.contactId,
+            metadata: {
+              contactCountBeforeFilter: idList.length || 'unlimited',
+            },
+          },
+        );
+
         const permissionFilteredIds =
           await this.getContactsInUserAccessibleGroups(user);
         if (permissionFilteredIds.length === 0) {
+          this.logger.security(
+            'warn',
+            'User has no accessible groups - returning empty result',
+            {
+              operation: 'findAllContacts',
+              userId: user?.id,
+              contactId: user?.contactId,
+            },
+          );
+          this.logger.endTracking(tracking, true);
           return []; // User has no accessible groups
         }
 
         if (hasValue(idList)) {
           // Intersect with existing filter
+          const originalCount = idList.length;
           idList = intersection(idList, permissionFilteredIds);
+          this.logger.security(
+            'log',
+            'Applied permission intersection filter',
+            {
+              operation: 'findAllContacts',
+              userId: user?.id,
+              contactId: user?.contactId,
+              metadata: {
+                originalCount,
+                filteredCount: idList.length,
+                permissionGroupCount: permissionFilteredIds.length,
+              },
+            },
+          );
         } else {
           // Use permission filter as the primary filter
           idList = permissionFilteredIds;
+          this.logger.security(
+            'log',
+            'Using permission filter as primary filter',
+            {
+              operation: 'findAllContacts',
+              userId: user?.id,
+              contactId: user?.contactId,
+              metadata: {
+                permissionContactCount: permissionFilteredIds.length,
+              },
+            },
+          );
         }
         hasFilter = true;
       }
 
       if (hasFilter && hasNoValue(idList)) {
+        this.logger.business('log', 'No contacts accessible to user', {
+          operation: 'findAllContacts',
+          userId: user?.id,
+          metadata: { reason: 'permission_filtered_empty' },
+        });
+        this.logger.endTracking(tracking, true);
         return [];
       }
 
@@ -214,11 +332,32 @@ export class ContactsService {
         where: hasValue(idList) ? { id: In(idList) } : undefined,
       });
 
+      this.logger.business('log', 'Contact search completed successfully', {
+        operation: 'findAllContacts',
+        userId: user?.id,
+        contactId: user?.contactId,
+        metadata: {
+          resultCount: data.length,
+          finalFilterApplied: hasFilter,
+          paginationInfo: {
+            skip: req.skip,
+            limit: req.limit,
+          },
+        },
+      });
+
+      this.logger.endTracking(tracking, true);
       return data.map((it) => {
         return ContactsService.toListDto(it);
       });
     } catch (e) {
-      Logger.error(e.message);
+      this.logger.error(e instanceof Error ? e : new Error(String(e)), {
+        operation: 'findAllContacts',
+        userId: user?.id,
+        contactId: user?.contactId,
+        resource: 'contacts',
+      });
+      this.logger.endTracking(tracking, false);
       return [];
     }
   }

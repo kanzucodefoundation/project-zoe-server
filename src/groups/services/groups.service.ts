@@ -25,6 +25,7 @@ import { hasValue } from '../../utils/validation';
 import { endOfMonth, startOfMonth } from 'date-fns';
 import { GroupPermissionsService } from './group-permissions.service';
 import GroupCategory from '../entities/groupCategory.entity';
+import { AppLogger, ContextLogger } from 'src/utils/app-logger.service';
 
 @Injectable()
 export class GroupsService {
@@ -33,17 +34,20 @@ export class GroupsService {
   private readonly membershipRepository: Repository<GroupMembership>;
   private readonly eventRepository: Repository<GroupEvent>;
   private readonly groupCategoryRepository: Repository<GroupCategory>;
+  private readonly logger: ContextLogger;
 
   constructor(
     @Inject('CONNECTION') connection: Connection,
     private groupsPermissionsService: GroupPermissionsService,
     private googleService: GoogleService,
+    private appLogger: AppLogger,
   ) {
     this.repository = connection.getRepository(Group);
     this.treeRepository = connection.getTreeRepository(Group);
     this.membershipRepository = connection.getRepository(GroupMembership);
     this.eventRepository = connection.getRepository(GroupEvent);
     this.groupCategoryRepository = connection.getRepository(GroupCategory);
+    this.logger = this.appLogger.createContextLogger('GroupsService');
   }
 
   async findAll(req: SearchDto): Promise<any[]> {
@@ -130,36 +134,104 @@ export class GroupsService {
     user: any,
     seedingDatabase: boolean = false,
   ) {
-    Logger.log(`Create.Group starting ${data.name}`);
-    let place: GooglePlaceDto = null;
-    if (data.address?.placeId) {
-      place = await this.googleService.getPlaceDetails(data.address.placeId);
-    }
-
-    if (hasValue(data.parentId) && !seedingDatabase) {
-      await this.groupsPermissionsService.assertPermissionForGroup(
-        user,
-        data.parentId,
-      );
-    }
-
-    const newGroupCategory = await this.groupCategoryRepository.findOne({
-      where: {
-        name: data.categoryName,
-      },
+    const tracking = this.logger.startTracking('createGroup', {
+      userId: user?.id,
+      contactId: user?.contactId,
     });
-    const newGroup = new Group();
-    newGroup.name = data.name;
-    newGroup.privacy = data.privacy;
-    newGroup.metaData = data.metaData;
-    newGroup.category = newGroupCategory;
-    newGroup.address = place;
-    newGroup.details = data.details;
-    newGroup.parent = data.parentId
-      ? await this.treeRepository.findOne({ where: { id: data.parentId } })
-      : null;
 
-    return await this.treeRepository.save(newGroup);
+    try {
+      this.logger.business('log', 'Starting group creation', {
+        operation: 'createGroup',
+        userId: user?.id,
+        contactId: user?.contactId,
+        resource: 'group',
+        metadata: {
+          groupName: data.name,
+          categoryName: data.categoryName,
+          parentId: data.parentId,
+          isSeeding: seedingDatabase,
+          hasAddress: !!data.address?.placeId,
+        },
+      });
+
+      let place: GooglePlaceDto = null;
+      if (data.address?.placeId) {
+        this.logger.business('debug', 'Fetching address details from Google', {
+          operation: 'createGroup',
+          userId: user?.id,
+          metadata: { placeId: data.address.placeId },
+        });
+        place = await this.googleService.getPlaceDetails(data.address.placeId);
+      }
+
+      if (hasValue(data.parentId) && !seedingDatabase) {
+        this.logger.security('log', 'Checking parent group permissions', {
+          operation: 'createGroup',
+          userId: user?.id,
+          resourceId: data.parentId,
+          resource: 'parent_group',
+        });
+        await this.groupsPermissionsService.assertPermissionForGroup(
+          user,
+          data.parentId,
+        );
+      }
+
+      const newGroupCategory = await this.groupCategoryRepository.findOne({
+        where: {
+          name: data.categoryName,
+        },
+      });
+
+      if (!newGroupCategory) {
+        this.logger.business('warn', 'Group category not found', {
+          operation: 'createGroup',
+          userId: user?.id,
+          metadata: { categoryName: data.categoryName },
+        });
+      }
+
+      const newGroup = new Group();
+      newGroup.name = data.name;
+      newGroup.privacy = data.privacy;
+      newGroup.metaData = data.metaData;
+      newGroup.category = newGroupCategory;
+      newGroup.address = place;
+      newGroup.details = data.details;
+      newGroup.parent = data.parentId
+        ? await this.treeRepository.findOne({ where: { id: data.parentId } })
+        : null;
+
+      const savedGroup = await this.treeRepository.save(newGroup);
+
+      this.logger.business('log', 'Group created successfully', {
+        operation: 'createGroup',
+        userId: user?.id,
+        contactId: user?.contactId,
+        resourceId: savedGroup.id,
+        resource: 'group',
+        metadata: {
+          groupName: savedGroup.name,
+          groupId: savedGroup.id,
+          categoryName: data.categoryName,
+          parentId: data.parentId,
+        },
+      });
+
+      this.logger.endTracking(tracking, true);
+      return savedGroup;
+    } catch (error) {
+      this.logger.error(error, {
+        operation: 'createGroup',
+        userId: user?.id,
+        metadata: {
+          groupName: data.name,
+          categoryName: data.categoryName,
+        },
+      });
+      this.logger.endTracking(tracking, false);
+      throw error;
+    }
   }
 
   async findOne(id: number, full = true, user: any = null) {
@@ -170,9 +242,20 @@ export class GroupsService {
     if (!data) {
       return null;
     }
-    Logger.log(`Read.Group success id:${id}`);
+    this.logger.business('log', 'Group found successfully', {
+      operation: 'findGroup',
+      resourceId: id,
+      resource: 'group',
+      userId: user?.id,
+      metadata: { loadFullDetails: full },
+    });
     if (full) {
-      Logger.log(`Read.Group loading full scope id:${id}`);
+      this.logger.business('debug', 'Loading full group details', {
+        operation: 'findGroup',
+        resourceId: id,
+        resource: 'group',
+        userId: user?.id,
+      });
       const groupData = this.toSimpleView(data);
 
       const ancestors = await this.treeRepository.findAncestors(data);
@@ -222,7 +305,13 @@ export class GroupsService {
     dto: UpdateGroupDto,
     user: any,
   ): Promise<GroupListDto | GroupDetailDto | any> {
-    Logger.log(`Update.Group groupID:${dto.id} starting`);
+    this.logger.business('log', 'Starting group update', {
+      operation: 'updateGroup',
+      resourceId: dto.id,
+      resource: 'group',
+      userId: user?.id,
+      metadata: { groupName: dto.name },
+    });
 
     await this.groupsPermissionsService.assertPermissionForGroup(user, dto.id);
 
@@ -235,11 +324,20 @@ export class GroupsService {
       throw new ClientFriendlyException(`Invalid group ID:${dto.id}`);
     let place: GooglePlaceDto;
     if (dto.address && dto.address.placeId !== currGroup.address?.placeId) {
-      Logger.log(`Update.Group groupID:${dto.id} fetching coordinates`);
+      this.logger.business('debug', 'Fetching new address coordinates', {
+        operation: 'updateGroup',
+        resourceId: dto.id,
+        userId: user?.id,
+        metadata: { placeId: dto.address.placeId },
+      });
       place = await this.googleService.getPlaceDetails(dto.address.placeId);
     } else {
       place = currGroup.address;
-      Logger.log(`Update.Group groupID:${dto.id} using old coordinates`);
+      this.logger.business('debug', 'Using existing address coordinates', {
+        operation: 'updateGroup',
+        resourceId: dto.id,
+        userId: user?.id,
+      });
     }
 
     let parentGroup = null;
@@ -278,9 +376,16 @@ export class GroupsService {
       .where('id = :id', { id: dto.id })
       .execute();
     if (result.affected)
-      Logger.log(
-        `Update.Group groupID:${dto.id} affected:${result.affected} complete`,
-      );
+      this.logger.business('log', 'Group update completed successfully', {
+        operation: 'updateGroup',
+        resourceId: dto.id,
+        resource: 'group',
+        userId: user?.id,
+        metadata: {
+          affected: result.affected,
+          groupName: dto.name,
+        },
+      });
     return await this.findOne(dto.id, true);
   }
 

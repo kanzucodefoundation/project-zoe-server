@@ -15,6 +15,7 @@ import { GoogleService } from 'src/vendor/google.service';
 import { GroupPermissionsService } from 'src/groups/services/group-permissions.service';
 import { GroupsMembershipService } from 'src/groups/services/group-membership.service';
 import { GroupRole } from 'src/groups/enums/groupRole';
+import { AppLogger } from 'src/utils/app-logger.service';
 
 @Injectable()
 export class SeedService {
@@ -46,6 +47,7 @@ export class SeedService {
       connection,
       groupsPermissionsService,
       googleService,
+      new AppLogger(),
     );
     this.groupCategoriesService = groupCategoriesService;
     this.groupMembershipService = groupMembershipService;

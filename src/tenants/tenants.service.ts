@@ -16,6 +16,7 @@ import { GroupCategoriesService } from 'src/groups/services/group-categories.ser
 import { GroupPermissionsService } from 'src/groups/services/group-permissions.service';
 import { GroupsMembershipService } from 'src/groups/services/group-membership.service';
 import { GroupTreeService } from 'src/groups/services/group-tree.service';
+import { AppLogger } from 'src/utils/app-logger.service';
 
 /**
  * TenantsService - Manages tenant creation for row-level multi-tenancy
@@ -67,6 +68,7 @@ export class TenantsService {
       groupFinderService,
       addressesService,
       groupTreeService,
+      new AppLogger(),
     );
 
     // Seed initial data for the new tenant

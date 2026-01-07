@@ -8,6 +8,7 @@ import { appEntities } from 'src/config';
 import { GroupsService } from 'src/groups/services/groups.service';
 import { GroupPermissionsService } from 'src/groups/services/group-permissions.service';
 import { GroupTreeService } from 'src/groups/services/group-tree.service';
+import { AppLogger } from 'src/utils/app-logger.service';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { GroupTreeService } from 'src/groups/services/group-tree.service';
     GroupsService,
     GroupPermissionsService,
     GroupTreeService,
+    AppLogger,
   ],
 })
 export class ReportsModule {}

@@ -23,6 +23,8 @@ import { Tenant } from './tenants/entities/tenant.entity';
 import { TenantHeaderMiddleware } from './middleware/tenant-header.middleware';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { redisStore } from 'cache-manager-redis-yet';
+import { AppLogger } from './utils/app-logger.service';
+import { PerformanceMonitoringInterceptor } from './interceptors/performance-monitoring.interceptor';
 
 @Global()
 @Module({
@@ -63,9 +65,14 @@ import { redisStore } from 'cache-manager-redis-yet';
   controllers: [AuthController],
   providers: [
     AppService,
+    AppLogger,
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard,
+    },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: PerformanceMonitoringInterceptor,
     },
   ],
 })

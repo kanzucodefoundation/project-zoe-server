@@ -13,6 +13,7 @@ import { In, Repository, Connection } from 'typeorm';
 import { Inject } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { JwtService } from '@nestjs/jwt';
+import { AppLogger, ContextLogger } from 'src/utils/app-logger.service';
 import {
   LoginResponseDto,
   RefreshTokenResponseDto,
@@ -25,40 +26,109 @@ import Group from 'src/groups/entities/group.entity';
 @Injectable()
 export class AuthService {
   private readonly rolesRepository: Repository<Roles>;
+  private readonly logger: ContextLogger;
 
   constructor(
     @Inject('CONNECTION') connection: Connection,
     private usersService: UsersService,
     private jwtHelperService: JwtHelperService,
     private jwtService: JwtService,
+    private appLogger: AppLogger,
   ) {
     this.rolesRepository = connection.getRepository(Roles);
+    this.logger = this.appLogger.createContextLogger('AuthService');
   }
 
   async validateUser(username: string, pass: string): Promise<UserDto | null> {
-    const user = await this.usersService.findByName(username);
-    if (!user) {
-      Logger.warn('invalid username: ', username);
-      return null;
-    }
-    console.log('Check if user is active', user.isActive);
-    if (!user.isActive) {
-      Logger.warn('User Inactive', username);
-      return null;
-    }
+    const tracking = this.logger.startTracking('validateUser');
 
-    const roles = [];
-    user.userRoles.forEach((it) => roles.push(...it.roles.permissions));
-    console.log('Check if user is active', user.isActive);
-    const valid = await user.validatePassword(pass);
-    if (valid) {
-      cleanUpUser(user);
-      const dto = createUserDto(user);
-      dto.permissions = roles;
-      return dto;
-    } else {
-      Logger.warn('invalid password: ', username);
-      return null;
+    try {
+      this.logger.auth('log', 'User authentication attempt', {
+        operation: 'validateUser',
+        metadata: { username, hasPassword: !!pass },
+      });
+
+      const user = await this.usersService.findByName(username);
+      if (!user) {
+        this.logger.security(
+          'warn',
+          'Authentication failed - invalid username',
+          {
+            operation: 'validateUser',
+            metadata: { username, reason: 'user_not_found' },
+          },
+        );
+        this.logger.endTracking(tracking, false);
+        return null;
+      }
+
+      this.logger.auth('debug', 'User found, checking status', {
+        operation: 'validateUser',
+        userId: user.id,
+        contactId: user.contactId,
+        metadata: { isActive: user.isActive },
+      });
+
+      if (!user.isActive) {
+        this.logger.security('warn', 'Authentication failed - inactive user', {
+          operation: 'validateUser',
+          userId: user.id,
+          contactId: user.contactId,
+          metadata: { username, reason: 'user_inactive' },
+        });
+        this.logger.endTracking(tracking, false);
+        return null;
+      }
+
+      const roles = [];
+      user.userRoles.forEach((it) => roles.push(...it.roles.permissions));
+
+      this.logger.auth('debug', 'User roles extracted', {
+        operation: 'validateUser',
+        userId: user.id,
+        contactId: user.contactId,
+        metadata: {
+          roleCount: user.userRoles.length,
+          permissionCount: roles.length,
+        },
+      });
+
+      const valid = await user.validatePassword(pass);
+      if (valid) {
+        this.logger.auth('log', 'Authentication successful', {
+          operation: 'validateUser',
+          userId: user.id,
+          contactId: user.contactId,
+          metadata: { username },
+        });
+
+        cleanUpUser(user);
+        const dto = createUserDto(user);
+        dto.permissions = roles;
+
+        this.logger.endTracking(tracking, true);
+        return dto;
+      } else {
+        this.logger.security(
+          'warn',
+          'Authentication failed - invalid password',
+          {
+            operation: 'validateUser',
+            userId: user.id,
+            contactId: user.contactId,
+            metadata: { username, reason: 'invalid_password' },
+          },
+        );
+        this.logger.endTracking(tracking, false);
+        return null;
+      }
+    } catch (error) {
+      this.logger.error(error, {
+        operation: 'validateUser',
+        metadata: { username },
+      });
+      this.logger.endTracking(tracking, false);
+      throw error;
     }
   }
 
@@ -66,20 +136,60 @@ export class AuthService {
     user: UserDto | UserListDto,
     tenant: string,
   ): Promise<LoginResponseDto> {
-    const userPermissions = await this.getPermissions(user.roles);
-    user.permissions = userPermissions;
-    const payload = {
-      ...user,
-      sub: user.id,
-      aud: tenant,
-      permissions: userPermissions,
-    };
-    const token = await this.jwtService.signAsync(payload);
+    const tracking = this.logger.startTracking('generateToken', {
+      userId: user.id,
+      metadata: { tenant },
+    });
 
-    // Get user's hierarchy for the response
-    const hierarchy = await this.getUserHierarchy(user.id);
+    try {
+      this.logger.auth('log', 'Generating JWT token', {
+        operation: 'generateToken',
+        userId: user.id,
+        metadata: { tenant, userRoles: user.roles?.length || 0 },
+      });
 
-    return { token, user, hierarchy };
+      const userPermissions = await this.getPermissions(user.roles);
+      user.permissions = userPermissions;
+
+      this.logger.auth('debug', 'User permissions resolved', {
+        operation: 'generateToken',
+        userId: user.id,
+        metadata: { tenant, permissionCount: userPermissions.length },
+      });
+
+      const payload = {
+        ...user,
+        sub: user.id,
+        aud: tenant,
+        permissions: userPermissions,
+      };
+      const token = await this.jwtService.signAsync(payload);
+
+      // Get user's hierarchy for the response
+      const hierarchy = await this.getUserHierarchy(user.id);
+
+      this.logger.auth('log', 'Token generation successful', {
+        operation: 'generateToken',
+        userId: user.id,
+        metadata: {
+          tenant,
+          tokenLength: token.length,
+          managedGroupsCount: hierarchy.canManageGroups.length,
+          viewableGroupsCount: hierarchy.canViewGroups.length,
+        },
+      });
+
+      this.logger.endTracking(tracking, true);
+      return { token, user, hierarchy };
+    } catch (error) {
+      this.logger.error(error, {
+        operation: 'generateToken',
+        userId: user.id,
+        metadata: { tenant },
+      });
+      this.logger.endTracking(tracking, false);
+      throw error;
+    }
   }
 
   async decodeToken(token: string): Promise<any> {
@@ -233,7 +343,11 @@ export class AuthService {
         canViewGroups,
       };
     } catch (error) {
-      console.error('Error getting user hierarchy:', error);
+      this.logger.error(error, {
+        operation: 'getUserHierarchy',
+        userId,
+        resource: 'user_hierarchy',
+      });
       // Return fallback mock data
       return {
         myGroups: [

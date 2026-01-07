@@ -34,6 +34,7 @@ import { GroupCategoryNames } from 'src/groups/enums/groups';
 import GroupMembership from 'src/groups/entities/groupMembership.entity';
 import { GroupRole } from 'src/groups/enums/groupRole';
 import { ReportStatus } from './enums/report.enum';
+import { AppLogger, ContextLogger } from 'src/utils/app-logger.service';
 
 @Injectable()
 export class ReportsService {
@@ -44,12 +45,14 @@ export class ReportsService {
   private readonly reportFieldRepository: Repository<ReportField>;
   private readonly groupMembershipRepo: Repository<GroupMembership>;
   private readonly treeRepository: TreeRepository<Group>;
+  private readonly logger: ContextLogger;
 
   constructor(
     @Inject('CONNECTION') connection: Connection,
     private readonly usersService: UsersService,
     private readonly groupsService: GroupsService,
     private readonly groupTreeService: GroupTreeService,
+    private readonly appLogger: AppLogger,
   ) {
     this.reportRepository = connection.getRepository(Report);
     this.reportFieldRepository = connection.getRepository(ReportField);
@@ -60,6 +63,7 @@ export class ReportsService {
       connection.getRepository(ReportSubmission);
     this.treeRepository = connection.getTreeRepository(Group);
     this.userRepository = connection.getRepository(User);
+    this.logger = this.appLogger.createContextLogger('ReportsService');
   }
 
   async createReport(reportDto: ReportDto, user: UserDto): Promise<ReportDto> {
@@ -222,35 +226,71 @@ export class ReportsService {
   }
 
   async getAllReports(user?: UserDto): Promise<{ reports: any[] }> {
-    console.log('🔧 ReportsService.getAllReports() - Starting execution');
+    const tracking = this.logger.startTracking('getAllReports', {
+      userId: user?.id,
+      contactId: user?.contactId,
+    });
 
     try {
-      console.log('🔧 ReportsService.getAllReports() - Querying database...');
+      this.logger.business('log', 'Starting report retrieval', {
+        operation: 'getAllReports',
+        userId: user?.id,
+        contactId: user?.contactId,
+        resource: 'reports',
+      });
+
+      this.logger.dataAccess('debug', 'Querying active reports from database', {
+        operation: 'getAllReports',
+        userId: user?.id,
+      });
+
       const reports = await this.reportRepository.find({
         where: { status: ReportStatus.ACTIVE },
         relations: ['fields', 'targetGroupCategory'],
       });
 
-      console.log(
-        '🔧 ReportsService.getAllReports() - Found reports:',
-        reports.length,
-      );
+      this.logger.business('log', 'Reports retrieved from database', {
+        operation: 'getAllReports',
+        userId: user?.id,
+        metadata: {
+          totalReportsFound: reports.length,
+          hasUserFilter: !!user,
+        },
+      });
 
       // If user is provided, filter reports based on their group permissions
       let filteredReports = reports;
       if (user) {
-        console.log(
-          '🔧 ReportsService.getAllReports() - Filtering by user permissions...',
-        );
+        this.logger.security('log', 'Applying user permission filtering', {
+          operation: 'getAllReports',
+          userId: user?.id,
+          contactId: user?.contactId,
+          metadata: { reportCountBeforeFilter: reports.length },
+        });
+
         filteredReports = await this.filterReportsByUserPermissions(
           reports,
           user,
         );
+
+        this.logger.security('log', 'Permission filtering completed', {
+          operation: 'getAllReports',
+          userId: user?.id,
+          contactId: user?.contactId,
+          metadata: {
+            reportCountAfterFilter: filteredReports.length,
+            filteredOutCount: reports.length - filteredReports.length,
+          },
+        });
       }
 
-      console.log('🔧 ReportsService.getAllReports() - Formatting reports...');
+      this.logger.business('debug', 'Formatting reports for response', {
+        operation: 'getAllReports',
+        userId: user?.id,
+        metadata: { reportCountToFormat: filteredReports.length },
+      });
+
       const formattedReports = filteredReports.map((report) => {
-        console.log(`🔧 Formatting report ${report.id}: ${report.name}`);
         return {
           id: report.id,
           name: report.name,
@@ -269,13 +309,33 @@ export class ReportsService {
       });
 
       const result = { reports: formattedReports };
-      console.log(
-        '🔧 ReportsService.getAllReports() - Returning result:',
-        JSON.stringify(result, null, 2),
-      );
+
+      this.logger.business('log', 'Report retrieval completed successfully', {
+        operation: 'getAllReports',
+        userId: user?.id,
+        contactId: user?.contactId,
+        metadata: {
+          finalReportCount: formattedReports.length,
+          categoriesIncluded: [
+            ...new Set(
+              formattedReports
+                .map((r) => r.targetGroupCategory?.name)
+                .filter(Boolean),
+            ),
+          ],
+        },
+      });
+
+      this.logger.endTracking(tracking, true);
       return result;
     } catch (error) {
-      console.error('🔧 ReportsService.getAllReports() - Error:', error);
+      this.logger.error(error, {
+        operation: 'getAllReports',
+        userId: user?.id,
+        contactId: user?.contactId,
+        resource: 'reports',
+      });
+      this.logger.endTracking(tracking, false);
       throw error;
     }
   }
@@ -1009,7 +1069,12 @@ export class ReportsService {
         leadershipGroups,
       );
     } catch (error) {
-      console.error('Error getting user manageable groups:', error);
+      this.logger.error(error, {
+        operation: 'getUserManageableGroups',
+        userId: user.id,
+        contactId: user.contactId,
+        resource: 'user_groups',
+      });
       return [];
     }
   }
@@ -1023,7 +1088,12 @@ export class ReportsService {
       // In the future, this could be expanded to include view-only permissions
       return await this.getUserManageableGroups(user);
     } catch (error) {
-      console.error('Error getting user accessible groups:', error);
+      this.logger.error(error, {
+        operation: 'getUserAccessibleGroups',
+        userId: user.id,
+        contactId: user.contactId,
+        resource: 'user_groups',
+      });
       return [];
     }
   }
