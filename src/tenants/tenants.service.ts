@@ -69,6 +69,7 @@ export class TenantsService {
       addressesService,
       groupTreeService,
       new AppLogger(),
+      groupMembershipService,
     );
 
     // Seed initial data for the new tenant

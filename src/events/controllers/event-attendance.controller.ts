@@ -83,6 +83,9 @@ export class EventsAttendanceController {
         },
         contactId: it.contactId,
         role: GroupRole[it.role],
+        joinedAt: (it as any).joinedAt || new Date(), // Fallback for existing data
+        leftAt: (it as any).leftAt,
+        isActive: (it as any).isActive !== false, // Default to true for existing data
       };
     });
 

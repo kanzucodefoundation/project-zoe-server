@@ -10,4 +10,7 @@ export default class GroupMembershipDto {
   contactId: number;
   role: GroupRole;
   category?: ComboDto;
+  joinedAt: Date;
+  leftAt?: Date;
+  isActive: boolean;
 }

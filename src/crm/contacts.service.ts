@@ -54,6 +54,7 @@ import { GroupTreeService } from 'src/groups/services/group-tree.service';
 import GroupCategory from 'src/groups/entities/groupCategory.entity';
 import { groupCategories } from 'src/groups/groups.constants';
 import { AppLogger, ContextLogger } from 'src/utils/app-logger.service';
+import { GroupsMembershipService } from 'src/groups/services/group-membership.service';
 
 @Injectable()
 export class ContactsService {
@@ -76,7 +77,8 @@ export class ContactsService {
     private groupFinderService: GroupFinderService,
     private addressesService: AddressesService,
     private groupTreeService: GroupTreeService,
-    private appLogger: AppLogger, // private tenantContext: TenantContext, // No longer needed
+    private appLogger: AppLogger,
+    private groupsMembershipService: GroupsMembershipService, // private tenantContext: TenantContext, // No longer needed
   ) {
     this.repository = connection.getRepository(Contact);
     this.personRepository = connection.getRepository(Person);
@@ -383,69 +385,590 @@ export class ContactsService {
   }
 
   async create(data: Contact, request?: any): Promise<Contact> {
-    // Set tenant from request context if not already set
-    if (!data.tenant && request?.tenant) {
-      data.tenant = request.tenant;
+    const tracking = this.logger.startTracking('createContact', {
+      userId: request?.user?.id,
+      contactId: request?.user?.contactId,
+    });
+
+    try {
+      this.logger.business('log', 'Starting contact creation', {
+        operation: 'createContact',
+        userId: request?.user?.id,
+        contactId: request?.user?.contactId,
+        resource: 'contacts',
+        metadata: {
+          hasGroupAssignment: !!(data as any).groupId,
+          hasRoleAssignment: !!(data as any).role,
+          receivedGroupId: (data as any).groupId,
+          receivedRole: (data as any).role,
+          allReceivedKeys: Object.keys(data),
+          dataType: typeof data,
+        },
+      });
+
+      // Set tenant from request context if not already set
+      if (!data.tenant && request?.tenant) {
+        data.tenant = request.tenant;
+      }
+
+      const savedContact = await this.repository.save(data);
+
+      this.logger.business('log', 'Contact created successfully', {
+        operation: 'createContact',
+        userId: request?.user?.id,
+        contactId: request?.user?.contactId,
+        resourceId: savedContact.id,
+        metadata: { contactId: savedContact.id },
+      });
+
+      // Handle group membership assignment if provided
+      const groupId = (data as any).groupId;
+      const role = (data as any).role || GroupRole.Member;
+
+      if (groupId) {
+        this.logger.business('log', 'Assigning contact to group', {
+          operation: 'createContact',
+          userId: request?.user?.id,
+          contactId: request?.user?.contactId,
+          resourceId: savedContact.id,
+          metadata: {
+            groupId,
+            role,
+            targetContactId: savedContact.id,
+          },
+        });
+
+        try {
+          await this.groupsMembershipService.create({
+            groupId: groupId,
+            members: [savedContact.id],
+            role: role,
+          });
+
+          this.logger.business(
+            'log',
+            'Group membership assigned successfully',
+            {
+              operation: 'createContact',
+              userId: request?.user?.id,
+              contactId: request?.user?.contactId,
+              resourceId: savedContact.id,
+              metadata: {
+                groupId,
+                role,
+                targetContactId: savedContact.id,
+              },
+            },
+          );
+        } catch (membershipError) {
+          this.logger.error(membershipError, {
+            operation: 'createContact',
+            userId: request?.user?.id,
+            contactId: request?.user?.contactId,
+            resourceId: savedContact.id,
+            metadata: {
+              groupId,
+              role,
+              targetContactId: savedContact.id,
+              stage: 'group_membership_assignment',
+            },
+          });
+
+          // Log warning but don't fail the contact creation
+          this.logger.business(
+            'warn',
+            'Contact created but group assignment failed',
+            {
+              operation: 'createContact',
+              userId: request?.user?.id,
+              contactId: request?.user?.contactId,
+              resourceId: savedContact.id,
+              metadata: {
+                groupId,
+                role,
+                targetContactId: savedContact.id,
+                errorMessage: membershipError.message,
+              },
+            },
+          );
+        }
+      }
+
+      this.logger.endTracking(tracking, true);
+      return savedContact;
+    } catch (error) {
+      this.logger.error(error, {
+        operation: 'createContact',
+        userId: request?.user?.id,
+        contactId: request?.user?.contactId,
+        resource: 'contacts',
+      });
+      this.logger.endTracking(tracking, false);
+      throw error;
     }
-    return await this.repository.save(data);
   }
 
   async update(data: Contact): Promise<Contact> {
     return await this.repository.save(data);
   }
 
-  async updatePartial(id: number, data: Partial<Contact>): Promise<Contact> {
-    // Input validation
-    this.validateUpdateData(data);
-
-    const existingContact = await this.repository.findOne({
-      where: { id },
-      relations: ['person', 'emails', 'phones', 'addresses'],
+  async updatePartial(
+    id: number,
+    data: Partial<Contact>,
+    request?: any,
+  ): Promise<Contact> {
+    const tracking = this.logger.startTracking('updateContact', {
+      userId: request?.user?.id,
+      contactId: request?.user?.contactId,
+      resourceId: id,
     });
 
-    if (!existingContact) {
-      throw new BadRequestException('Contact not found');
-    }
-
-    // Handle nested person update
-    if (data.person) {
-      if (existingContact.person) {
-        Object.assign(existingContact.person, data.person);
-      } else {
-        const person = this.personRepository.create(data.person);
-        person.contactId = existingContact.id;
-        existingContact.person = person;
-      }
-    }
-
-    // Handle emails update with efficient upsert
-    if (data.emails) {
-      await this.updateEmailsEfficiently(existingContact, data.emails);
-    }
-
-    // Handle phones update with efficient upsert
-    if (data.phones) {
-      await this.updatePhonesEfficiently(existingContact, data.phones);
-    }
-
-    // Handle addresses update with efficient upsert
-    if (data.addresses) {
-      await this.updateAddressesEfficiently(existingContact, data.addresses);
-    }
-
-    // Handle other contact fields (excluding nested entities)
-    const { person, emails, phones, addresses, ...contactData } = data;
-    if (Object.keys(contactData).length > 0) {
-      Object.assign(existingContact, contactData);
-    }
-
     try {
-      const savedContact = await this.repository.save(existingContact);
-      return savedContact;
+      this.logger.business('log', 'Starting contact update', {
+        operation: 'updateContact',
+        userId: request?.user?.id,
+        contactId: request?.user?.contactId,
+        resourceId: id,
+        metadata: {
+          hasGroupAssignment: !!(data as any).groupId,
+          hasRoleAssignment: !!(data as any).role,
+          updateFields: Object.keys(data),
+        },
+      });
+
+      // Input validation
+      this.validateUpdateData(data);
+
+      const existingContact = await this.repository.findOne({
+        where: { id },
+        relations: [
+          'person',
+          'emails',
+          'phones',
+          'addresses',
+          'groupMemberships',
+        ],
+      });
+
+      if (!existingContact) {
+        this.logger.business('error', 'Contact not found for update', {
+          operation: 'updateContact',
+          userId: request?.user?.id,
+          contactId: request?.user?.contactId,
+          resourceId: id,
+        });
+        throw new BadRequestException('Contact not found');
+      }
+
+      // Handle nested person update
+      if (data.person) {
+        if (existingContact.person) {
+          Object.assign(existingContact.person, data.person);
+        } else {
+          const person = this.personRepository.create(data.person);
+          person.contactId = existingContact.id;
+          existingContact.person = person;
+        }
+      }
+
+      // Handle emails update with efficient upsert
+      if (data.emails) {
+        await this.updateEmailsEfficiently(existingContact, data.emails);
+      }
+
+      // Handle phones update with efficient upsert
+      if (data.phones) {
+        await this.updatePhonesEfficiently(existingContact, data.phones);
+      }
+
+      // Handle addresses update with efficient upsert
+      if (data.addresses) {
+        await this.updateAddressesEfficiently(existingContact, data.addresses);
+      }
+
+      // Handle other contact fields (excluding nested entities and group assignment)
+      const {
+        person,
+        emails,
+        phones,
+        addresses,
+        groupId: _,
+        role: __,
+        ...contactData
+      } = data as any;
+      if (Object.keys(contactData).length > 0) {
+        Object.assign(existingContact, contactData);
+      }
+
+      try {
+        // Save the contact first (without group memberships to avoid constraint issues)
+        const savedContact = await this.repository.save(existingContact);
+
+        // Handle group membership updates after contact is saved
+        const groupId = (data as any).groupId;
+        const role = (data as any).role;
+
+        if (groupId !== undefined) {
+          // Reload contact to get fresh group memberships
+          const contactWithMemberships = await this.repository.findOne({
+            where: { id: savedContact.id },
+            relations: ['groupMemberships'],
+          });
+
+          await this.handleGroupMembershipUpdate(
+            contactWithMemberships,
+            groupId,
+            role,
+            request,
+          );
+        }
+
+        this.logger.business('log', 'Contact updated successfully', {
+          operation: 'updateContact',
+          userId: request?.user?.id,
+          contactId: request?.user?.contactId,
+          resourceId: id,
+          metadata: { contactId: savedContact.id },
+        });
+
+        this.logger.endTracking(tracking, true);
+        return savedContact;
+      } catch (error) {
+        this.logger.error(error, {
+          operation: 'updateContact',
+          userId: request?.user?.id,
+          contactId: request?.user?.contactId,
+          resourceId: id,
+        });
+        this.logger.endTracking(tracking, false);
+        throw new BadRequestException(
+          `Failed to update contact: ${error.message}`,
+        );
+      }
     } catch (error) {
-      Logger.error(`Failed to save contact ID: ${id}`, error.stack);
-      throw new BadRequestException(
-        `Failed to update contact: ${error.message}`,
+      this.logger.error(error, {
+        operation: 'updateContact',
+        userId: request?.user?.id,
+        contactId: request?.user?.contactId,
+        resourceId: id,
+      });
+      this.logger.endTracking(tracking, false);
+      throw error;
+    }
+  }
+
+  /**
+   * Handle group membership updates for a contact
+   */
+  private async handleGroupMembershipUpdate(
+    contact: Contact,
+    newGroupId: number | null,
+    newRole?: GroupRole,
+    request?: any,
+  ): Promise<void> {
+    try {
+      const contactId = contact.id;
+      const currentMemberships = contact.groupMemberships || [];
+
+      this.logger.business('log', 'Processing group membership update', {
+        operation: 'updateContact',
+        userId: request?.user?.id,
+        contactId: request?.user?.contactId,
+        resourceId: contactId,
+        metadata: {
+          newGroupId,
+          newRole: newRole || GroupRole.Member,
+          currentMembershipsCount: currentMemberships.length,
+        },
+      });
+
+      // If newGroupId is null or 0, deactivate all active memberships
+      if (!newGroupId) {
+        const activeMemberships = currentMemberships.filter(
+          (m) => m.isActive !== false,
+        );
+        if (activeMemberships.length > 0) {
+          this.logger.business('log', 'Deactivating all group memberships', {
+            operation: 'updateContact',
+            userId: request?.user?.id,
+            contactId: request?.user?.contactId,
+            resourceId: contactId,
+            metadata: {
+              membershipIdsToDeactivate: activeMemberships.map((m) => m.id),
+              groupsToLeave: activeMemberships.map((m) => m.groupId),
+            },
+          });
+
+          for (const membership of activeMemberships) {
+            await this.membershipRepository
+              .createQueryBuilder()
+              .update(GroupMembership)
+              .set({
+                isActive: false,
+                leftAt: () => 'CURRENT_TIMESTAMP',
+              })
+              .where('id = :id', { id: membership.id })
+              .execute();
+          }
+        }
+        return;
+      }
+
+      const targetRole = newRole || GroupRole.Member;
+
+      // Get current active membership (only consider active ones)
+      const activeMemberships = currentMemberships.filter(
+        (m) => m.isActive !== false,
+      );
+
+      if (activeMemberships.length > 0) {
+        const currentMembership = activeMemberships[0];
+
+        // Check if this is the same group
+        if (currentMembership.groupId === newGroupId) {
+          // Same group - just update role if different
+          if (currentMembership.role !== targetRole) {
+            this.logger.business('log', 'Updating role in same group', {
+              operation: 'updateContact',
+              userId: request?.user?.id,
+              contactId: request?.user?.contactId,
+              resourceId: contactId,
+              metadata: {
+                membershipId: currentMembership.id,
+                groupId: newGroupId,
+                oldRole: currentMembership.role,
+                newRole: targetRole,
+              },
+            });
+
+            await this.membershipRepository
+              .createQueryBuilder()
+              .update(GroupMembership)
+              .set({ role: targetRole })
+              .where('id = :id', { id: currentMembership.id })
+              .execute();
+          } else {
+            this.logger.business(
+              'debug',
+              'Group membership unchanged - same group and role',
+              {
+                operation: 'updateContact',
+                userId: request?.user?.id,
+                contactId: request?.user?.contactId,
+                resourceId: contactId,
+                metadata: {
+                  groupId: newGroupId,
+                  role: targetRole,
+                  membershipId: currentMembership.id,
+                },
+              },
+            );
+          }
+        } else {
+          // Different group - mark current as left, create/reactivate new one
+          this.logger.business(
+            'log',
+            'Moving to different group - marking current membership as left',
+            {
+              operation: 'updateContact',
+              userId: request?.user?.id,
+              contactId: request?.user?.contactId,
+              resourceId: contactId,
+              metadata: {
+                oldMembershipId: currentMembership.id,
+                oldGroupId: currentMembership.groupId,
+                newGroupId: newGroupId,
+                newRole: targetRole,
+              },
+            },
+          );
+
+          // Mark current membership as left
+          await this.membershipRepository
+            .createQueryBuilder()
+            .update(GroupMembership)
+            .set({
+              isActive: false,
+              leftAt: () => 'CURRENT_TIMESTAMP',
+            })
+            .where('id = :id', { id: currentMembership.id })
+            .execute();
+
+          // Check if there's an inactive membership for the new group that we can reactivate
+          const inactiveMembershipForNewGroup = currentMemberships.find(
+            (m) => m.groupId === newGroupId && m.isActive === false,
+          );
+
+          if (inactiveMembershipForNewGroup) {
+            this.logger.business(
+              'log',
+              'Reactivating previous membership for target group',
+              {
+                operation: 'updateContact',
+                userId: request?.user?.id,
+                contactId: request?.user?.contactId,
+                resourceId: contactId,
+                metadata: {
+                  membershipId: inactiveMembershipForNewGroup.id,
+                  groupId: newGroupId,
+                  role: targetRole,
+                },
+              },
+            );
+
+            // Reactivate the existing membership
+            await this.membershipRepository
+              .createQueryBuilder()
+              .update(GroupMembership)
+              .set({
+                isActive: true,
+                role: targetRole,
+                leftAt: null,
+                joinedAt: () => 'CURRENT_TIMESTAMP',
+              })
+              .where('id = :id', { id: inactiveMembershipForNewGroup.id })
+              .execute();
+          } else {
+            // Create completely new membership
+            this.logger.business(
+              'log',
+              'Creating new group membership for different group',
+              {
+                operation: 'updateContact',
+                userId: request?.user?.id,
+                contactId: request?.user?.contactId,
+                resourceId: contactId,
+                metadata: { groupId: newGroupId, role: targetRole },
+              },
+            );
+
+            await this.groupsMembershipService.create({
+              groupId: newGroupId,
+              members: [contactId],
+              role: targetRole,
+            });
+          }
+        }
+
+        // Handle any additional active memberships (should only be one active)
+        const otherActiveMemberships = activeMemberships.slice(1);
+        if (otherActiveMemberships.length > 0) {
+          this.logger.business(
+            'log',
+            'Deactivating additional active memberships',
+            {
+              operation: 'updateContact',
+              userId: request?.user?.id,
+              contactId: request?.user?.contactId,
+              resourceId: contactId,
+              metadata: {
+                membershipIdsToDeactivate: otherActiveMemberships.map(
+                  (m) => m.id,
+                ),
+              },
+            },
+          );
+
+          for (const membership of otherActiveMemberships) {
+            await this.membershipRepository
+              .createQueryBuilder()
+              .update(GroupMembership)
+              .set({
+                isActive: false,
+                leftAt: () => 'CURRENT_TIMESTAMP',
+              })
+              .where('id = :id', { id: membership.id })
+              .execute();
+          }
+        }
+      } else {
+        // No active memberships - check if there's an inactive one to reactivate
+        const inactiveMembershipForGroup = currentMemberships.find(
+          (m) => m.groupId === newGroupId && m.isActive === false,
+        );
+
+        if (inactiveMembershipForGroup) {
+          this.logger.business('log', 'Reactivating previous membership', {
+            operation: 'updateContact',
+            userId: request?.user?.id,
+            contactId: request?.user?.contactId,
+            resourceId: contactId,
+            metadata: {
+              membershipId: inactiveMembershipForGroup.id,
+              groupId: newGroupId,
+              role: targetRole,
+            },
+          });
+
+          // Reactivate existing membership
+          await this.membershipRepository
+            .createQueryBuilder()
+            .update(GroupMembership)
+            .set({
+              isActive: true,
+              role: targetRole,
+              leftAt: null,
+              joinedAt: () => 'CURRENT_TIMESTAMP',
+            })
+            .where('id = :id', { id: inactiveMembershipForGroup.id })
+            .execute();
+        } else {
+          // Create completely new membership
+          this.logger.business('log', 'Creating first group membership', {
+            operation: 'updateContact',
+            userId: request?.user?.id,
+            contactId: request?.user?.contactId,
+            resourceId: contactId,
+            metadata: { groupId: newGroupId, role: targetRole },
+          });
+
+          await this.groupsMembershipService.create({
+            groupId: newGroupId,
+            members: [contactId],
+            role: targetRole,
+          });
+        }
+      }
+
+      this.logger.business(
+        'log',
+        'Group membership update completed successfully',
+        {
+          operation: 'updateContact',
+          userId: request?.user?.id,
+          contactId: request?.user?.contactId,
+          resourceId: contactId,
+          metadata: { finalGroupId: newGroupId, finalRole: targetRole },
+        },
+      );
+    } catch (membershipError) {
+      this.logger.error(membershipError, {
+        operation: 'updateContact',
+        userId: request?.user?.id,
+        contactId: request?.user?.contactId,
+        resourceId: contact.id,
+        metadata: {
+          newGroupId,
+          newRole,
+          stage: 'group_membership_update',
+        },
+      });
+
+      // Log warning but don't fail the contact update
+      this.logger.business(
+        'warn',
+        'Contact updated but group membership update failed',
+        {
+          operation: 'updateContact',
+          userId: request?.user?.id,
+          contactId: request?.user?.contactId,
+          resourceId: contact.id,
+          metadata: {
+            newGroupId,
+            newRole,
+            errorMessage: membershipError.message,
+          },
+        },
       );
     }
   }

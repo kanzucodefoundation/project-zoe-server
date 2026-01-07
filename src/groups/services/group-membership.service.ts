@@ -47,6 +47,11 @@ export class GroupsMembershipService {
       throw new ClientFriendlyException('Please specify groupId or contactId');
     }
 
+    // By default, only show active memberships unless explicitly requested
+    if (!req.hasOwnProperty('includeInactive') || !req.includeInactive) {
+      filter.isActive = true;
+    }
+
     const data = await this.repository.find({
       relations: ['contact', 'contact.person', 'group', 'group.category'],
       skip: req.skip,
@@ -66,6 +71,9 @@ export class GroupsMembershipService {
         ? { name: group.category.name, id: group.category.id }
         : null,
       contact: { name: getPersonFullName(contact.person), id: contact.id },
+      joinedAt: membership.joinedAt,
+      leftAt: membership.leftAt,
+      isActive: membership.isActive,
     };
   }
 
@@ -73,7 +81,14 @@ export class GroupsMembershipService {
     const { groupId, members, role } = data;
     const toInsert: QueryDeepPartialEntity<GroupMembership>[] = [];
     members.forEach((contactId) => {
-      toInsert.push({ groupId, contactId, role });
+      toInsert.push({
+        groupId,
+        contactId,
+        role,
+        isActive: true,
+        // joinedAt will be set automatically by @CreateDateColumn
+        // leftAt remains null for new memberships
+      });
     });
     await this.repository
       .createQueryBuilder()
