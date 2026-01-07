@@ -17,6 +17,7 @@ import Contact from '../entities/contact.entity';
 import { ApiTags } from '@nestjs/swagger';
 import ContactListDto from '../dto/contact-list.dto';
 import { CreateContactWithGroupDto } from '../dto/create-contact-with-group.dto';
+import { UpdateContactWithGroupDto } from '../dto/update-contact-with-group.dto';
 import { SentryInterceptor } from 'src/utils/sentry.interceptor';
 import { TenantContextInterceptor } from '../../interceptors/tenant-context.interceptor';
 
@@ -41,8 +42,7 @@ export class ContactsController {
       'Controller received data:',
       JSON.stringify(
         {
-          groupId: data.groupId,
-          role: data.role,
+          groups: data.groups,
           allKeys: Object.keys(data),
           dataType: typeof data,
         },
@@ -68,7 +68,7 @@ export class ContactsController {
   @Patch(':id')
   async update(
     @Param('id') id: number,
-    @Body() data: Partial<Contact>,
+    @Body() data: UpdateContactWithGroupDto,
     @Req() req: any,
   ): Promise<Contact> {
     // Attach user context to the request for logging and authorization
@@ -77,7 +77,7 @@ export class ContactsController {
       user: req.user,
       tenant: req.tenant,
     };
-    return await this.service.updatePartial(id, data, requestWithUser);
+    return await this.service.updateWithGroups(id, data, requestWithUser);
   }
 
   @Get(':id')

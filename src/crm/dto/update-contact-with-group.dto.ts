@@ -8,7 +8,6 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { GroupRole } from '../../groups/enums/groupRole';
-import Contact from '../entities/contact.entity';
 
 class GroupAssignment {
   @IsNumber()
@@ -19,12 +18,28 @@ class GroupAssignment {
   role?: GroupRole;
 }
 
-export class CreateContactWithGroupDto extends Contact {
+export class UpdateContactWithGroupDto {
+  @IsOptional()
+  firstName?: string;
+
+  @IsOptional()
+  lastName?: string;
+
+  @IsOptional()
+  phone?: string;
+
+  @IsOptional()
+  email?: string;
+
+  @IsOptional()
+  gender?: string;
+
+  @IsOptional()
   @IsArray()
   @ArrayMinSize(1, {
     message: 'Contact must be assigned to at least one group',
   })
   @ValidateNested({ each: true })
   @Type(() => GroupAssignment)
-  groups: GroupAssignment[]; // Required - all contacts must have at least one group
+  groups?: GroupAssignment[]; // Optional for updates, but if provided, must have at least one group
 }
