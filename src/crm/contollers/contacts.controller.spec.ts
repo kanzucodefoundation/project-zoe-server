@@ -2,6 +2,8 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ContactsService } from '../contacts.service';
 import Contact from '../entities/contact.entity';
 import { ContactsController } from './contacts.controller';
+import { UsersService } from '../../users/users.service';
+import { Reflector } from '@nestjs/core';
 
 describe('Crm Controller', () => {
   let controller: ContactsController;
@@ -13,13 +15,32 @@ describe('Crm Controller', () => {
   };
 
   beforeEach(async () => {
+    const mockUsersService = {
+      findOne: jest.fn(),
+      findByName: jest.fn(),
+    };
+
+    const mockReflector = {
+      get: jest.fn(),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       controllers: [ContactsController],
-      providers: [ContactsService],
-    })
-      .overrideProvider(ContactsService)
-      .useValue(mockContactsService)
-      .compile();
+      providers: [
+        {
+          provide: ContactsService,
+          useValue: mockContactsService,
+        },
+        {
+          provide: UsersService,
+          useValue: mockUsersService,
+        },
+        {
+          provide: Reflector,
+          useValue: mockReflector,
+        },
+      ],
+    }).compile();
 
     controller = module.get<ContactsController>(ContactsController);
   });

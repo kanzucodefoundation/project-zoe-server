@@ -27,10 +27,7 @@ describe('GroupsMembershipService', () => {
 
     // Create mock connection
     mockConnection = {
-      getRepository: jest.fn((entity: any) => {
-        if (entity === GroupMembership) return mockMembershipRepository;
-        return mockMembershipRepository;
-      }),
+      getRepository: jest.fn().mockReturnValue(mockMembershipRepository),
       getTreeRepository: jest.fn().mockReturnValue(mockGroupTreeRepository),
     };
 

@@ -9,9 +9,22 @@ describe('MembershipController', () => {
   let controller: MemberEventActivitiesController;
 
   beforeEach(async () => {
+    const mockService = {
+      findAll: jest.fn(),
+      findOne: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+      remove: jest.fn(),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       controllers: [MemberEventActivitiesController],
-      providers: [MemberEventActivitiesService],
+      providers: [
+        {
+          provide: MemberEventActivitiesService,
+          useValue: mockService,
+        },
+      ],
     }).compile();
 
     controller = module.get<MemberEventActivitiesController>(

@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { GroupRole } from '../enums/groupRole';
 import { GroupsMembershipService } from '../services/group-membership.service';
 import { GroupMembershipController } from './group-membership.controller';
-import { ComboDto } from '../../shared/dto/combo.dto';
+import ComboDto from '../../shared/dto/combo.dto';
 
 describe('Group Membership', () => {
   let controller: GroupMembershipController;

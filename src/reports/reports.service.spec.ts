@@ -85,8 +85,8 @@ describe('ReportsService', () => {
     };
 
     mockGroupTreeService = {
-      findDescendants: jest.fn(),
-      findAncestors: jest.fn(),
+      findChildren: jest.fn(),
+      findParents: jest.fn(),
     };
 
     mockAppLogger = {

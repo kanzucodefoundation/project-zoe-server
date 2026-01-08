@@ -27,7 +27,6 @@ describe('AddressesService', () => {
     // Create mock Google service
     mockGoogleService = {
       getPlaceDetails: jest.fn(),
-      searchPlaces: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
