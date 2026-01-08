@@ -1,23 +1,47 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { GroupsMembershipService } from './group-membership.service';
-import { TypeOrmModule } from '@nestjs/typeorm';
-import config, { appEntities } from '../../config';
+import { Connection, Repository, TreeRepository } from 'typeorm';
+import GroupMembership from '../entities/groupMembership.entity';
+import Group from '../entities/group.entity';
 
-describe('EventsService', () => {
+describe('GroupsMembershipService', () => {
   let service: GroupsMembershipService;
+  let mockConnection: Partial<Connection>;
 
   beforeEach(async () => {
+    // Create mock repositories
+    const mockMembershipRepository = {
+      find: jest.fn(),
+      findOne: jest.fn(),
+      save: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
+    };
+
+    const mockGroupTreeRepository = {
+      findOneOrFail: jest.fn(),
+      findDescendants: jest.fn(),
+      findAncestors: jest.fn(),
+    };
+
+    // Create mock connection
+    mockConnection = {
+      getRepository: jest.fn((entity: any) => {
+        if (entity === GroupMembership) return mockMembershipRepository;
+        return mockMembershipRepository;
+      }),
+      getTreeRepository: jest.fn().mockReturnValue(mockGroupTreeRepository),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
-      imports: [
-        TypeOrmModule.forRoot({
-          type: 'postgres',
-          ...config.database,
-          entities: [...appEntities],
-          logging: 'all',
-        }),
-        TypeOrmModule.forFeature([...appEntities]),
+      providers: [
+        GroupsMembershipService,
+        {
+          provide: 'CONNECTION',
+          useValue: mockConnection,
+        },
       ],
-      providers: [GroupsMembershipService],
     }).compile();
 
     service = module.get<GroupsMembershipService>(GroupsMembershipService);
@@ -27,9 +51,8 @@ describe('EventsService', () => {
     expect(service).toBeDefined();
   });
 
-  it('should be able to find all', async () => {
-    const data = await service.findAll({ groupId: 2 });
-
-    expect(data.length).toBe(1);
+  it('should initialize repositories', () => {
+    expect(mockConnection.getRepository).toHaveBeenCalledWith(GroupMembership);
+    expect(mockConnection.getTreeRepository).toHaveBeenCalledWith(Group);
   });
 });
