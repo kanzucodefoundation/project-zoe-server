@@ -63,8 +63,10 @@ describe('ReportsService', () => {
     mockConnection = {
       getRepository: jest.fn((entity: any) => {
         if (entity === Report) return mockRepositories.report;
-        if (entity === ReportSubmission) return mockRepositories.reportSubmission;
-        if (entity === ReportSubmissionData) return mockRepositories.reportSubmissionData;
+        if (entity === ReportSubmission)
+          return mockRepositories.reportSubmission;
+        if (entity === ReportSubmissionData)
+          return mockRepositories.reportSubmissionData;
         if (entity === User) return mockRepositories.user;
         if (entity === ReportField) return mockRepositories.reportField;
         if (entity === GroupMembership) return mockRepositories.groupMembership;
@@ -85,8 +87,10 @@ describe('ReportsService', () => {
     };
 
     mockGroupTreeService = {
-      findChildren: jest.fn(),
-      findParents: jest.fn(),
+      getGroupAndAllChildren: jest.fn(),
+      getCategoriesForGroups: jest.fn(),
+      getGroupsByCategories: jest.fn(),
+      getReportAccessibleGroups: jest.fn(),
     };
 
     mockAppLogger = {
@@ -133,14 +137,18 @@ describe('ReportsService', () => {
   });
 
   it('should create context logger on initialization', () => {
-    expect(mockAppLogger.createContextLogger).toHaveBeenCalledWith('ReportsService');
+    expect(mockAppLogger.createContextLogger).toHaveBeenCalledWith(
+      'ReportsService',
+    );
   });
 
   it('should initialize all repositories correctly', () => {
     expect(mockConnection.getRepository).toHaveBeenCalledWith(Report);
     expect(mockConnection.getRepository).toHaveBeenCalledWith(ReportField);
     expect(mockConnection.getRepository).toHaveBeenCalledWith(GroupMembership);
-    expect(mockConnection.getRepository).toHaveBeenCalledWith(ReportSubmissionData);
+    expect(mockConnection.getRepository).toHaveBeenCalledWith(
+      ReportSubmissionData,
+    );
     expect(mockConnection.getRepository).toHaveBeenCalledWith(ReportSubmission);
     expect(mockConnection.getRepository).toHaveBeenCalledWith(User);
     expect(mockConnection.getTreeRepository).toHaveBeenCalledWith(Group);

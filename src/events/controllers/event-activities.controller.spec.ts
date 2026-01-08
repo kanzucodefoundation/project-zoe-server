@@ -17,11 +17,13 @@ describe('EventActivitiesController', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [EventActivitiesController],
-      providers: [EventActivitiesService],
-    })
-      .overrideProvider(EventActivitiesController)
-      .useValue(mockEventActivitiesService)
-      .compile();
+      providers: [
+        {
+          provide: EventActivitiesService,
+          useValue: mockEventActivitiesService,
+        },
+      ],
+    }).compile();
 
     controller = module.get<EventActivitiesController>(
       EventActivitiesController,

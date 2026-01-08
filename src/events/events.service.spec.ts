@@ -15,6 +15,15 @@ describe('EventsService', () => {
         update: jest.fn(),
         delete: jest.fn(),
       }),
+      getTreeRepository: jest.fn().mockReturnValue({
+        find: jest.fn(),
+        findOne: jest.fn(),
+        findRoots: jest.fn(),
+        findDescendants: jest.fn(),
+        findAncestors: jest.fn(),
+        save: jest.fn(),
+        create: jest.fn(),
+      }),
     };
 
     const mockGoogleService = {

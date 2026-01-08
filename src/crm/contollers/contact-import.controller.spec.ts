@@ -18,7 +18,11 @@ describe('ContactImportController', () => {
       middleName: undefined,
       phone: '0700106164',
       email: 'email@test.com',
-      dateOfBirth: '20/Feb',
+      dateOfBirth: null,
+      ageGroup: undefined,
+      gender: null,
+      placeOfWork: undefined,
+      residence: undefined,
     });
   });
   it('parseName works', async () => {

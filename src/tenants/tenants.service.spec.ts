@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { TenantsService } from './tenants.service';
 import { DbService } from '../shared/db.service';
+import { DataSource } from 'typeorm';
 
 describe('TenantsService', () => {
   let service: TenantsService;
@@ -25,6 +26,10 @@ describe('TenantsService', () => {
         TenantsService,
         {
           provide: 'CONNECTION',
+          useValue: mockDataSource,
+        },
+        {
+          provide: DataSource,
           useValue: mockDataSource,
         },
         {

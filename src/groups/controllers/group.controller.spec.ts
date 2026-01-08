@@ -14,7 +14,7 @@ describe('GroupController', () => {
           privacy: 'Public',
           name: 'Group A',
           details: 'Details of Group A',
-          categoryId: 'A Category',
+          categoryId: Date.now(),
           category: {
             id: 'A Category',
             name: 'A Category',
@@ -69,7 +69,7 @@ describe('GroupController', () => {
       privacy: expect.any(String),
       name: expect.any(String),
       details: expect.any(String),
-      categoryId: expect.any(String),
+      categoryId: expect.any(Number),
       category: {
         id: expect.any(String),
         name: expect.any(String),
@@ -81,7 +81,8 @@ describe('GroupController', () => {
       },
     };
     const req = {};
-    const result = await controller.findAll(req);
+    const rawRequest = { user: { id: 1 }, headers: {} };
+    const result = await controller.findAll(req, rawRequest);
     result.forEach((it) => {
       expect(it).toMatchObject(expectedObj);
     });
@@ -93,7 +94,8 @@ describe('GroupController', () => {
       privacy: GroupPrivacy.Public,
       name: 'Group A',
       details: 'Details of Group A',
-      categoryId: String(Date.now()),
+      categoryId: Date.now(),
+      categoryName: 'Test Category',
       parentId: Date.now(),
       metaData: {},
       address: {
@@ -108,7 +110,8 @@ describe('GroupController', () => {
       },
     };
 
-    const result = await controller.update(dto);
+    const rawRequest = { user: { id: 1 }, headers: {} };
+    const result = await controller.update(dto, rawRequest);
 
     expect(result).toEqual({
       id: dto.id,
