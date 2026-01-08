@@ -20,7 +20,7 @@ import { Report } from 'src/reports/entities/report.entity';
 import { Tenant } from 'src/tenants/entities/tenant.entity';
 // authentication will take approximately 13 seconds
 // https://pthree.org/wp-content/uploads/2016/06/bcrypt.png
-const hashCost = 10;
+const hashCost = 12;
 
 @Entity()
 @Unique(['username'])

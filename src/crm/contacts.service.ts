@@ -1236,11 +1236,15 @@ export class ContactsService {
 
       // Handle nested person update
       if (data.person) {
-        const personData = Array.isArray(data.person) ? data.person[0] : data.person;
+        const personData = Array.isArray(data.person)
+          ? data.person[0]
+          : data.person;
         if (existingContact.person) {
           Object.assign(existingContact.person, personData);
         } else {
-          existingContact.person = this.personRepository.create(personData as DeepPartial<Person>);
+          existingContact.person = await this.personRepository.create(
+            personData as DeepPartial<Person>,
+          );
         }
       }
 
