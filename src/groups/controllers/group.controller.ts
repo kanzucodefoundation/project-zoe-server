@@ -55,6 +55,43 @@ export class GroupController {
   ): Promise<any> {
     return this.service.getGroupMembers(id, rawRequest.user, limit, offset);
   }
+  @Get('group')
+  async findAllLegacy(
+    @Query() req: SearchDto,
+    @Request() rawRequest: any,
+  ): Promise<GroupListDto[]> {
+    return this.service.findAll(req);
+  }
+
+  @Post('group')
+  async createLegacy(
+    @Body() data: CreateGroupDto,
+    @Request() rawRequest: any,
+  ): Promise<GroupListDto> {
+    return await this.service.create(data, rawRequest.user);
+  }
+
+  @Put('group')
+  async updateLegacy(
+    @Body() data: UpdateGroupDto,
+    @Request() rawRequest: any,
+  ): Promise<GroupListDto> {
+    return await this.service.update(data, rawRequest.user);
+  }
+  @Get('group/:id')
+  async findOneLegacy(
+    @Param('id') id: number,
+    @Request() rawRequest: any,
+  ): Promise<GroupListDto> {
+    return await this.service.findOne(id, true, rawRequest.user);
+  }
+  @Delete('group/:id')
+  async removeLegacy(
+    @Param('id') id: number,
+    @Request() rawRequest: any,
+  ): Promise<void> {
+    await this.service.remove(id, rawRequest.user);
+  }
 
   @Get()
   async findAll(
