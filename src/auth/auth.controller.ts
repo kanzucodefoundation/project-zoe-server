@@ -15,7 +15,10 @@ import { LocalAuthGuard } from './guards/local-auth.guard';
 import { AuthService } from './auth.service';
 import { ApiBody, ApiTags } from '@nestjs/swagger';
 import LoginDto from './dto/login.dto';
-import { LoginResponseDto, RefreshTokenResponseDto } from './dto/login-response.dto';
+import {
+  LoginResponseDto,
+  RefreshTokenResponseDto,
+} from './dto/login-response.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import {
   ValidateEmailDto,
@@ -28,12 +31,17 @@ import { SentryInterceptor } from 'src/utils/sentry.interceptor';
 import { SeedService } from '../seed/seed.service';
 import { lowerCaseRemoveSpaces } from 'src/utils/stringHelpers';
 import { Public } from './decorators/public.decorator';
+import { TenantsService } from 'src/tenants/tenants.service';
+import ClientFriendlyException from 'src/shared/exceptions/client-friendly.exception';
 
 @UseInterceptors(SentryInterceptor)
 @ApiTags('Index')
 @Controller('api/auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly tenantsService: TenantsService,
+  ) {}
 
   @Public()
   @ApiBody({ type: LoginDto })
@@ -43,6 +51,12 @@ export class AuthController {
     const tenant = req.body.hasOwnProperty('churchName')
       ? lowerCaseRemoveSpaces(req.body['churchName'])
       : 'default';
+
+    const tenantRecord = await this.tenantsService.findByName(tenant);
+    if (!tenantRecord) {
+      throw new ClientFriendlyException('Tenant not found', 404);
+    }
+
     return this.authService.generateToken(req.user, tenant);
   }
 
@@ -52,7 +66,9 @@ export class AuthController {
   }
 
   @Post('refresh')
-  async refreshToken(@Body() refreshTokenDto: RefreshTokenDto): Promise<RefreshTokenResponseDto> {
+  async refreshToken(
+    @Body() refreshTokenDto: RefreshTokenDto,
+  ): Promise<RefreshTokenResponseDto> {
     return this.authService.refreshToken(refreshTokenDto.refreshToken);
   }
 
