@@ -11,7 +11,7 @@ import { Report } from './report.entity';
 
 @Entity()
 @Index(['tenant', 'report', 'metricKey'], { unique: true })
-export class MetricFieldMap {
+export class ReportMetricFieldMap {
   @PrimaryGeneratedColumn()
   id: number;
 
