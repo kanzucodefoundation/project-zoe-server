@@ -47,7 +47,7 @@ export class ChatService {
   }
 
   findAll() {
-    return `This action returns all chat`;
+    return 'This action returns all chat';
   }
 
   findOne(id: number) {

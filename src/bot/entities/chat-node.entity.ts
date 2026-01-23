@@ -5,16 +5,16 @@ import {
   CreateDateColumn,
   JoinColumn,
   ManyToOne,
-} from "typeorm";
-import { ChatAction } from "../dto/ussd-response.dto";
-import { ChatSession } from "./chat-session.entity";
+} from 'typeorm';
+import { ChatAction } from '../dto/ussd-response.dto';
+import { ChatSession } from './chat-session.entity';
 
 @Entity()
 export class ChatNode {
-  @PrimaryGeneratedColumn({ name: "id" })
+  @PrimaryGeneratedColumn({ name: 'id' })
   id: number;
 
-  @CreateDateColumn({ type: "timestamptz", default: () => "CURRENT_TIMESTAMP" })
+  @CreateDateColumn({ type: 'timestamptz', default: () => 'CURRENT_TIMESTAMP' })
   createdAt: Date;
 
   @Column()
@@ -30,11 +30,11 @@ export class ChatNode {
   @Column()
   sessionId: number;
 
-  @Column({ default: "" })
+  @Column({ default: '' })
   userInput: string;
 
   @Column({
-    type: "enum",
+    type: 'enum',
     enum: ChatAction,
     nullable: false,
     default: ChatAction.End,
@@ -44,7 +44,7 @@ export class ChatNode {
   @Column()
   message: string;
 
-  @Column({ default: "" })
+  @Column({ default: '' })
   nextHandler: string;
 
   toString(): string {

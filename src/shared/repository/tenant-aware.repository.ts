@@ -3,9 +3,9 @@ import {
   FindOptionsWhere,
   FindManyOptions,
   FindOneOptions,
-} from "typeorm";
-import { TenantContext } from "../tenant/tenant-context";
-import { Tenant } from "src/tenants/entities/tenant.entity";
+} from 'typeorm';
+import { TenantContext } from '../tenant/tenant-context';
+import { Tenant } from 'src/tenants/entities/tenant.entity';
 
 /**
  * Base class for tenant-aware repositories

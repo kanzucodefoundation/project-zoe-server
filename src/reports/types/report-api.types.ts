@@ -1,4 +1,4 @@
-import { ReportSubmissionDto } from "../dto/report-submission.dto";
+import { ReportSubmissionDto } from '../dto/report-submission.dto';
 
 export interface ReportSubmissionDataDto {
   reportId: number;

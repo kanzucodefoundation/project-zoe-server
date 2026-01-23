@@ -2,7 +2,7 @@ import {
   ReportType,
   ReportFieldType,
   ReportSubmissionFrequency,
-} from "../enums/report.enum";
+} from '../enums/report.enum';
 
 export class ReportFieldDto {
   name: string;

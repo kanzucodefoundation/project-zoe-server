@@ -1,20 +1,21 @@
-import { Injectable, Logger, Inject } from "@nestjs/common";
-import { UsersService } from "../users/users.service";
-import { seedUsers } from "./data/users";
-import seedGroups, { seedGroupCategories } from "./data/groups";
-import { GroupCategoriesService } from "../groups/services/group-categories.service";
-import { GroupsService } from "../groups/services/groups.service";
-import { Repository, Connection } from "typeorm";
-import EventCategory from "../events/entities/eventCategory.entity";
-import eventCategories from "./data/eventCategories";
-import Roles from "src/users/entities/roles.entity";
-import { roleAdmin } from "src/auth/constants";
-import { ContactsService } from "src/crm/contacts.service";
-import { JwtHelperService } from "src/auth/jwt-helpers.service";
-import { GoogleService } from "src/vendor/google.service";
-import { GroupPermissionsService } from "src/groups/services/group-permissions.service";
-import { GroupsMembershipService } from "src/groups/services/group-membership.service";
-import { GroupRole } from "src/groups/enums/groupRole";
+import { Injectable, Logger, Inject } from '@nestjs/common';
+import { UsersService } from '../users/users.service';
+import { seedUsers } from './data/users';
+import seedGroups, { seedGroupCategories } from './data/groups';
+import { GroupCategoriesService } from '../groups/services/group-categories.service';
+import { GroupsService } from '../groups/services/groups.service';
+import { Repository, Connection } from 'typeorm';
+import EventCategory from '../events/entities/eventCategory.entity';
+import eventCategories from './data/eventCategories';
+import Roles from 'src/users/entities/roles.entity';
+import { roleAdmin } from 'src/auth/constants';
+import { ContactsService } from 'src/crm/contacts.service';
+import { JwtHelperService } from 'src/auth/jwt-helpers.service';
+import { GoogleService } from 'src/vendor/google.service';
+import { GroupPermissionsService } from 'src/groups/services/group-permissions.service';
+import { GroupsMembershipService } from 'src/groups/services/group-membership.service';
+import { GroupRole } from 'src/groups/enums/groupRole';
+import { AppLogger } from 'src/utils/app-logger.service';
 
 @Injectable()
 export class SeedService {
@@ -46,6 +47,7 @@ export class SeedService {
       connection,
       groupsPermissionsService,
       googleService,
+      new AppLogger(),
     );
     this.groupCategoriesService = groupCategoriesService;
     this.groupMembershipService = groupMembershipService;

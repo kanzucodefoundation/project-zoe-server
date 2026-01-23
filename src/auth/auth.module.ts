@@ -9,6 +9,7 @@ import { jwtConstants } from './constants';
 import { JwtHelperService } from './jwt-helpers.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import Roles from 'src/users/entities/roles.entity';
+import { AppLogger } from 'src/utils/app-logger.service';
 
 @Module({
   imports: [
@@ -20,7 +21,13 @@ import Roles from 'src/users/entities/roles.entity';
       signOptions: { expiresIn: '60m' },
     }),
   ],
-  providers: [AuthService, LocalStrategy, JwtStrategy, JwtHelperService],
+  providers: [
+    AuthService,
+    LocalStrategy,
+    JwtStrategy,
+    JwtHelperService,
+    AppLogger,
+  ],
   exports: [AuthService, JwtHelperService],
 })
 export class AuthModule {}

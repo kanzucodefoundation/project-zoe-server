@@ -16,19 +16,19 @@ describe('Users Controller', () => {
     }),
     findOne: jest.fn((id) => {
       return {
-         id: id,
-        username: "janedoe@test.com",
-        fullName: "Jane Doe",
+        id: id,
+        username: 'janedoe@test.com',
+        fullName: 'Jane Doe',
         contactId: Date.now(),
         contact: {
           id: Date.now(),
-          name: "Jane Doe",
+          name: 'Jane Doe',
         },
-        avatar: "http://avatar.com/2",
+        avatar: 'http://avatar.com/2',
         roles: ['USER_VIEW', 'DASHBOARD', 'CRM_VIEW'],
         isActive: false,
-      }
-    })
+      };
+    }),
   };
 
   beforeEach(async () => {
@@ -78,7 +78,7 @@ describe('Users Controller', () => {
       avatar: expect.any(String),
       roles: expect.any(Array),
       isActive: expect.any(Boolean),
-    }
+    };
 
     const result = await controller.findOne(id);
 
@@ -87,7 +87,7 @@ describe('Users Controller', () => {
       ...usr,
     });
     result.roles.forEach((it) => {
-      expect(it).toEqual(expect.any(String))
+      expect(it).toEqual(expect.any(String));
     });
   });
 });

@@ -14,6 +14,7 @@ import { User } from '../../users/entities/user.entity';
 import ContactListDto from '../dto/contact-list.dto';
 import { SentryInterceptor } from 'src/utils/sentry.interceptor';
 import { UsersService } from 'src/users/users.service';
+import { Public } from '../../auth/decorators/public.decorator';
 
 @UseInterceptors(SentryInterceptor)
 @ApiTags('Register')
@@ -30,6 +31,8 @@ export class RegisterController {
     this.personRepository = connection.getRepository(Person);
     this.userRepository = connection.getRepository(User);
   }
+
+  @Public()
   @Post()
   async create(@Body() data: CreatePersonDto): Promise<ContactListDto | Error> {
     const _contact = await this.service.createPerson(data);

@@ -1,5 +1,5 @@
-import { EventPrivacy } from "../enums/EventPrivacy";
-import InternalAddressDto from "../../shared/dto/internal-address-dto";
+import { EventPrivacy } from '../enums/EventPrivacy';
+import InternalAddressDto from '../../shared/dto/internal-address-dto';
 
 export default class CreateEventDto {
   privacy: EventPrivacy;

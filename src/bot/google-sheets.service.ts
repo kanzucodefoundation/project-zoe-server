@@ -1,6 +1,6 @@
-import { google } from "googleapis";
-import * as process from "process";
-import { Injectable, Logger } from "@nestjs/common";
+import { google } from 'googleapis';
+import * as process from 'process';
+import { Injectable, Logger } from '@nestjs/common';
 
 const spreadsheetId = process.env.GOOGLE_SPREADSHEET_ID;
 const sheetName = process.env.GOOGLE_SPREADSHEET_SHEET_NAME;
@@ -12,22 +12,22 @@ export class GoogleSheetsService {
     try {
       const serviceAccountAuth = new google.auth.GoogleAuth({
         keyFile: credentialsFile,
-        scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+        scopes: ['https://www.googleapis.com/auth/spreadsheets'],
       });
-      const sheets = google.sheets({ version: "v4", auth: serviceAccountAuth });
+      const sheets = google.sheets({ version: 'v4', auth: serviceAccountAuth });
       await sheets.spreadsheets.values.append({
         spreadsheetId,
         range: sheetName,
-        valueInputOption: "RAW",
-        insertDataOption: "INSERT_ROWS",
+        valueInputOption: 'RAW',
+        insertDataOption: 'INSERT_ROWS',
         requestBody: {
           values,
         },
       });
 
-      Logger.log("data added successfully");
+      Logger.log('data added successfully');
     } catch (error: any) {
-      Logger.error("Error adding row:" + error);
+      Logger.error('Error adding row:' + error);
     }
   }
 }

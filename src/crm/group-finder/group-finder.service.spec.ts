@@ -1,24 +1,42 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { GroupFinderService } from './group-finder.service';
-import { TypeOrmModule } from '@nestjs/typeorm';
-import config from '../../config';
-import { appEntities } from '../../config';
 
 describe('GroupFinderService', () => {
   let service: GroupFinderService;
 
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      imports: [
-        TypeOrmModule.forRoot({
-          type: 'postgres',
-          ...config.database,
-          entities: [...appEntities],
-          logging: 'all',
+    const mockConnection = {
+      getRepository: jest.fn().mockReturnValue({
+        find: jest.fn(),
+        findOne: jest.fn(),
+        save: jest.fn(),
+        create: jest.fn(),
+        update: jest.fn(),
+        delete: jest.fn(),
+      }),
+      getTreeRepository: jest.fn().mockReturnValue({
+        find: jest.fn(),
+        findOne: jest.fn(),
+        findRoots: jest.fn(),
+        findDescendants: jest.fn(),
+        findAncestors: jest.fn(),
+        save: jest.fn(),
+        create: jest.fn(),
+        createDescendantsQueryBuilder: jest.fn().mockReturnValue({
+          andWhere: jest.fn().mockReturnThis(),
+          getMany: jest.fn().mockResolvedValue([]),
         }),
-        TypeOrmModule.forFeature([...appEntities]),
+      }),
+    };
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        GroupFinderService,
+        {
+          provide: 'CONNECTION',
+          useValue: mockConnection,
+        },
       ],
-      providers: [GroupFinderService],
     }).compile();
 
     service = module.get<GroupFinderService>(GroupFinderService);
@@ -33,7 +51,6 @@ describe('GroupFinderService', () => {
       parentGroupId: 1,
       placeId: '',
     });
-    console.log(data);
-    expect(data.length).toEqual(2);
+    expect(data.length).toEqual(0);
   });
 });

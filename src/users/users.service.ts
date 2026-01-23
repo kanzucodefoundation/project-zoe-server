@@ -1,25 +1,25 @@
-import { HttpException, Injectable, Inject, Logger } from "@nestjs/common";
-import { In, Repository, Connection, ILike } from "typeorm";
-import { User } from "./entities/user.entity";
-import Email from "src/crm/entities/email.entity";
-import { RegisterUserDto } from "../auth/dto/register-user.dto";
-import SearchDto from "../shared/dto/search.dto";
-import { ContactsService } from "../crm/contacts.service";
-import Contact from "../crm/entities/contact.entity";
-import { UpdateUserDto } from "./dto/update-user.dto";
-import { UserListDto } from "./dto/user.dto";
-import { getPersonFullName } from "../crm/crm.helpers";
-import * as bcrypt from "bcrypt";
-import { QueryDeepPartialEntity } from "typeorm/query-builder/QueryPartialEntity";
-import { CreateUserDto } from "./dto/create-user.dto";
-import { IEmail, sendEmail } from "src/utils/mailer";
-import { hasNoValue, hasValue, isArray } from "../utils/validation";
-import { JwtHelperService } from "src/auth/jwt-helpers.service";
-import Roles from "./entities/roles.entity";
-import UserRoles from "./entities/userRoles.entity";
-import { differenceBy } from "lodash";
-import { UserSearchDto } from "src/crm/dto/user-search.dto";
-import Person from "src/crm/entities/person.entity";
+import { HttpException, Injectable, Inject, Logger } from '@nestjs/common';
+import { In, Repository, Connection, ILike } from 'typeorm';
+import { User } from './entities/user.entity';
+import Email from 'src/crm/entities/email.entity';
+import { RegisterUserDto } from '../auth/dto/register-user.dto';
+import SearchDto from '../shared/dto/search.dto';
+import { ContactsService } from '../crm/contacts.service';
+import Contact from '../crm/entities/contact.entity';
+import { UpdateUserDto } from './dto/update-user.dto';
+import { UserListDto } from './dto/user.dto';
+import { getPersonFullName } from '../crm/crm.helpers';
+import * as bcrypt from 'bcrypt';
+import { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
+import { CreateUserDto } from './dto/create-user.dto';
+import { IEmail, sendEmail } from 'src/utils/mailer';
+import { hasNoValue, hasValue, isArray } from '../utils/validation';
+import { JwtHelperService } from 'src/auth/jwt-helpers.service';
+import Roles from './entities/roles.entity';
+import UserRoles from './entities/userRoles.entity';
+import { differenceBy } from 'lodash';
+import { UserSearchDto } from 'src/crm/dto/user-search.dto';
+import Person from 'src/crm/entities/person.entity';
 
 @Injectable()
 export class UsersService {
@@ -29,7 +29,7 @@ export class UsersService {
   private readonly userRolesRepository: Repository<UserRoles>;
   private readonly personRepository: Repository<Person>;
   constructor(
-    @Inject("CONNECTION") connection: Connection,
+    @Inject('CONNECTION') connection: Connection,
     private readonly contactsService: ContactsService,
     private readonly jwtHelperService: JwtHelperService,
   ) {
@@ -43,12 +43,12 @@ export class UsersService {
   async findAll(req: UserSearchDto): Promise<UserListDto[]> {
     try {
       let hasFilter = false;
-      let idList: number[] = [];
+      const idList: number[] = [];
 
       if (hasValue(req.query)) {
         hasFilter = true;
         const resp = await this.personRepository.find({
-          select: ["contactId"],
+          select: ['contactId'],
           where: [
             {
               firstName: ILike(`%${req.query.trim()}%`),
@@ -64,7 +64,7 @@ export class UsersService {
         idList.push(...resp.map((it) => it.contactId));
 
         const respEmail = await this.emailRepository.find({
-          select: ["contactId"],
+          select: ['contactId'],
           where: { value: ILike(`%${req.query.trim().toLowerCase()}%`) },
         });
         idList.push(...respEmail.map((it) => it.contactId));
@@ -76,10 +76,10 @@ export class UsersService {
 
       const data = await this.repository.find({
         relations: [
-          "contact",
-          "contact.person",
-          "userRoles",
-          "userRoles.roles",
+          'contact',
+          'contact.person',
+          'userRoles',
+          'userRoles.roles',
         ],
         skip: req.skip,
         take: req.limit,
@@ -96,9 +96,15 @@ export class UsersService {
   }
 
   toListModel(user: User): UserListDto {
-    const fullName = getPersonFullName(user.contact.person);
+    if (!user) {
+      throw new Error('User is null or undefined');
+    }
+
+    const fullName = user.contact?.person
+      ? getPersonFullName(user.contact.person)
+      : 'Unknown User';
     return {
-      avatar: user.contact.person.avatar,
+      avatar: user.contact?.person?.avatar || null,
       contact: {
         id: user.contactId,
         name: fullName,
@@ -122,7 +128,7 @@ export class UsersService {
 
   async createUser(data: CreateUserDto): Promise<UserListDto> {
     if (!(await this.contactsService.findOne(data.contactId))) {
-      throw new HttpException("Visitor Not Found", 404);
+      throw new HttpException('Visitor Not Found', 404);
     }
     const email = await this.emailRepository.findOne({
       where: { contactId: data.contactId },
@@ -139,7 +145,7 @@ export class UsersService {
 
     if (!saveUser) {
       this.remove(saveUser.id);
-      throw new HttpException("User Not Created", 400);
+      throw new HttpException('User Not Created', 400);
     } else {
       this.saveUserRoles(saveUser.contactId, data.roles);
     }
@@ -149,10 +155,10 @@ export class UsersService {
     if (!user) {
       this.remove(user.id);
 
-      throw new HttpException("Failed To Create User", 400);
+      throw new HttpException('Failed To Create User', 400);
     }
 
-    const tokenOptions = { expiresIn: "1d" };
+    const tokenOptions = { expiresIn: '1d' };
     const token = (
       await this.jwtHelperService.generateToken(
         {
@@ -171,7 +177,7 @@ export class UsersService {
     const resetLink = `${process.env.APP_URL}/#/reset-password/${token}`;
     const mailerData: IEmail = {
       to: `${(await user).username}`,
-      subject: "Project Zoe - Worship Harvest - Account Activated!",
+      subject: 'Project Zoe - Worship Harvest - Account Activated!',
       html: `
                 <p>Hello ${user.fullName},</p></br>
                 <p>The Lamb has won! So, your account has been created in the Project Zoe church management platform.<p></br>
@@ -207,9 +213,19 @@ export class UsersService {
 
   async findOne(id: number): Promise<UserListDto> {
     const data = await this.repository.findOne({
-      relations: ["contact", "contact.person", "userRoles", "userRoles.roles"],
+      relations: [
+        'contact',
+        'contact.person',
+        'contact.tenant',
+        'userRoles',
+        'userRoles.roles',
+      ],
       where: { id: id },
     });
+
+    if (!data) {
+      throw new Error(`User with ID ${id} not found`);
+    }
 
     return this.toListModel(data);
   }
@@ -221,7 +237,7 @@ export class UsersService {
       const oldPassword = (await this.findByName(_user.username)).password;
       const isSame = bcrypt.compareSync(data.oldPassword, oldPassword);
       if (!isSame) {
-        throw new HttpException("Old Password Is Incorrect", 406);
+        throw new HttpException('Old Password Is Incorrect', 406);
       }
     }
 
@@ -240,7 +256,7 @@ export class UsersService {
       const dbUserRolesStrArr: string[] = [];
       const sentRolesStrArr: string[] = [];
       const getdbUserRoles = await this.userRolesRepository.find({
-        relations: ["roles"],
+        relations: ['roles'],
         where: { userId: data.id },
       });
       getdbUserRoles.map((it: UserRoles) =>
@@ -262,12 +278,12 @@ export class UsersService {
       }));
 
       if (!this.compareArrays(dbUserRolesStrArr, sentRolesStrArr)) {
-        const toDelete = differenceBy(currentDbRoles, getRolesIds, "role");
+        const toDelete = differenceBy(currentDbRoles, getRolesIds, 'role');
         toDelete.map(
           async (it) => await this.userRolesRepository.delete(it.id),
         );
 
-        const toAdd = differenceBy(getRolesIds, currentDbRoles, "role");
+        const toAdd = differenceBy(getRolesIds, currentDbRoles, 'role');
         toAdd.map((it) => this.saveUserRoles(data.id, [it.role]));
       }
     }
@@ -276,7 +292,7 @@ export class UsersService {
       .createQueryBuilder()
       .update()
       .set(update)
-      .where("id = :id", { id: data.id })
+      .where('id = :id', { id: data.id })
       .execute();
 
     return await this.findOne(data.id);
@@ -289,7 +305,26 @@ export class UsersService {
   async findByName(username: string): Promise<User | undefined> {
     return this.repository.findOne({
       where: { username: ILike(username) },
-      relations: ["contact", "contact.person", "userRoles", "userRoles.roles"],
+      relations: [
+        'contact',
+        'contact.person',
+        'contact.tenant',
+        'userRoles',
+        'userRoles.roles',
+      ],
+    });
+  }
+
+  async findById(id: number): Promise<User | undefined> {
+    return this.repository.findOne({
+      where: { id: id },
+      relations: [
+        'contact',
+        'contact.person',
+        'contact.tenant',
+        'userRoles',
+        'userRoles.roles',
+      ],
     });
   }
 
@@ -306,11 +341,11 @@ export class UsersService {
 
       // Find users with the specified role
       return await this.repository
-        .createQueryBuilder("user")
-        .innerJoinAndSelect("user.userRoles", "userRoles")
-        .innerJoinAndSelect("userRoles.roles", "roles")
-        .leftJoinAndSelect("user.contact", "contact")
-        .where("roles.id = :roleId", { roleId: role.id })
+        .createQueryBuilder('user')
+        .innerJoinAndSelect('user.userRoles', 'userRoles')
+        .innerJoinAndSelect('userRoles.roles', 'roles')
+        .leftJoinAndSelect('user.contact', 'contact')
+        .where('roles.id = :roleId', { roleId: role.id })
         .getMany();
     } catch (error) {
       throw error;
@@ -335,7 +370,7 @@ export class UsersService {
       const saveRoles = await this.userRolesRepository.save(toSave);
 
       if (!saveRoles) {
-        throw new HttpException(`Failed To Create User Roles`, 400);
+        throw new HttpException('Failed To Create User Roles', 400);
       }
     });
   }

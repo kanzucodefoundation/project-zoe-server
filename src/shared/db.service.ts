@@ -1,8 +1,8 @@
-import { Injectable, Logger } from "@nestjs/common";
-import { InjectConnection } from "@nestjs/typeorm";
-import { Connection } from "typeorm";
-import { Tenant } from "src/tenants/entities/tenant.entity";
-import { TenantDto } from "src/tenants/dto/tenant.dto";
+import { Injectable, Logger } from '@nestjs/common';
+import { InjectConnection } from '@nestjs/typeorm';
+import { Connection } from 'typeorm';
+import { Tenant } from 'src/tenants/entities/tenant.entity';
+import { TenantDto } from 'src/tenants/dto/tenant.dto';
 
 /**
  * DbService - Simplified for row-level multi-tenancy
@@ -12,9 +12,7 @@ import { TenantDto } from "src/tenants/dto/tenant.dto";
  */
 @Injectable()
 export class DbService {
-  constructor(
-    @InjectConnection() private readonly connection: Connection,
-  ) {}
+  constructor(@InjectConnection() private readonly connection: Connection) {}
 
   /**
    * Get the default database connection (public schema)

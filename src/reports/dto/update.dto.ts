@@ -1,4 +1,4 @@
-import { ReportType } from "../enums/report.enum";
+import { ReportType } from '../enums/report.enum';
 
 export class UpdateDto {
   name?: string;

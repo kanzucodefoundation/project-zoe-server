@@ -1,13 +1,13 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne } from "typeorm";
-import { Report } from "./report.entity";
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne } from 'typeorm';
+import { Report } from './report.entity';
 
 export enum FieldType {
-  TEXT = "text",
-  TEXTAREA = "textarea",
-  NUMBER = "number",
-  DATE = "date",
-  DATETIME = "datetime",
-  SELECT = "select",
+  TEXT = 'text',
+  TEXTAREA = 'textarea',
+  NUMBER = 'number',
+  DATE = 'date',
+  DATETIME = 'datetime',
+  SELECT = 'select',
 }
 
 @Entity()
@@ -22,7 +22,7 @@ export class ReportField {
   name: string;
 
   @Column({
-    type: "enum",
+    type: 'enum',
     enum: FieldType,
     default: FieldType.TEXT,
   })
@@ -32,11 +32,11 @@ export class ReportField {
   label: string; // User-friendly label for the field
 
   @Column({ default: false })
-  required: boolean;  
+  required: boolean;
 
   @Column({ default: false })
-  hidden: boolean;  
+  hidden: boolean;
 
-  @Column({ type: "jsonb", nullable: true })
+  @Column({ type: 'jsonb', nullable: true })
   options: any[]; // For fields like 'select', to store possible options
 }

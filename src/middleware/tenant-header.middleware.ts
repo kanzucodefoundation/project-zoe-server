@@ -6,7 +6,7 @@ import { lowerCaseRemoveSpaces } from 'src/utils/stringHelpers';
  * add a tenant header
  */
 @Injectable()
-export class nameTenantHeaderMiddleware implements NestMiddleware {
+export class TenantHeaderMiddleware implements NestMiddleware {
   use(req: any, res: any, next: () => void) {
     const churchName = req.body.hasOwnProperty('churchName')
       ? req.body['churchName']

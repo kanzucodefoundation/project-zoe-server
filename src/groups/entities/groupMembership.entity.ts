@@ -4,6 +4,7 @@ import {
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
+  CreateDateColumn,
 } from 'typeorm';
 import Group from './group.entity';
 
@@ -34,4 +35,13 @@ export default class GroupMembership {
     nullable: true,
   })
   role: GroupRole;
+
+  @CreateDateColumn({ type: 'timestamp' })
+  joinedAt: Date;
+
+  @Column({ type: 'timestamp', nullable: true })
+  leftAt?: Date;
+
+  @Column({ default: true })
+  isActive: boolean;
 }

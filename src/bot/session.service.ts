@@ -1,16 +1,16 @@
-import { Inject, Injectable } from "@nestjs/common";
-import { Connection, Repository } from "typeorm";
-import { ChatSession } from "./entities/chat-session.entity";
-import { ChatNode } from "./entities/chat-node.entity";
-import { ChatAction } from "./dto/ussd-response.dto";
-import { UssdRequestDto } from "./dto/ussd-request.dto";
+import { Inject, Injectable } from '@nestjs/common';
+import { Connection, Repository } from 'typeorm';
+import { ChatSession } from './entities/chat-session.entity';
+import { ChatNode } from './entities/chat-node.entity';
+import { ChatAction } from './dto/ussd-response.dto';
+import { UssdRequestDto } from './dto/ussd-request.dto';
 
 @Injectable()
 export class SessionService {
   private readonly sessionRepository: Repository<ChatSession>;
   private readonly chatNodeRepository: Repository<ChatNode>;
 
-  constructor(@Inject("CONNECTION") connection: Connection) {
+  constructor(@Inject('CONNECTION') connection: Connection) {
     this.sessionRepository = connection.getRepository(ChatSession);
     this.chatNodeRepository = connection.getRepository(ChatNode);
   }
@@ -18,7 +18,7 @@ export class SessionService {
   async loadSession(request: UssdRequestDto): Promise<ChatSession> {
     let session = await this.sessionRepository.findOne({
       where: [{ sessionId: request.sessionId, isActive: true }],
-      relations: ["nodes"],
+      relations: ['nodes'],
     });
     if (!session) {
       session = this.sessionRepository.create({
@@ -26,7 +26,7 @@ export class SessionService {
         sessionId: request.sessionId,
         userPath: `start=>${request.text}`,
         isActive: true,
-        language: "en",
+        language: 'en',
         nodes: [],
         metaData: {},
       });

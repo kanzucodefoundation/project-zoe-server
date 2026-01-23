@@ -16,4 +16,6 @@ export class UserDto extends UserPermissions {
   roles: string[];
   @ApiProperty()
   isActive: boolean;
+  @ApiProperty()
+  permissions?: string[];
 }

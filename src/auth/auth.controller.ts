@@ -15,7 +15,11 @@ import { LocalAuthGuard } from './guards/local-auth.guard';
 import { AuthService } from './auth.service';
 import { ApiBody, ApiTags } from '@nestjs/swagger';
 import LoginDto from './dto/login.dto';
-import { LoginResponseDto } from './dto/login-response.dto';
+import {
+  LoginResponseDto,
+  RefreshTokenResponseDto,
+} from './dto/login-response.dto';
+import { RefreshTokenDto } from './dto/refresh-token.dto';
 import {
   ValidateEmailDto,
   ValidatePasswordDto,
@@ -26,6 +30,7 @@ import { isValidPassword } from 'src/utils/validation';
 import { SentryInterceptor } from 'src/utils/sentry.interceptor';
 import { SeedService } from '../seed/seed.service';
 import { lowerCaseRemoveSpaces } from 'src/utils/stringHelpers';
+import { Public } from './decorators/public.decorator';
 
 @UseInterceptors(SentryInterceptor)
 @ApiTags('Index')
@@ -33,6 +38,7 @@ import { lowerCaseRemoveSpaces } from 'src/utils/stringHelpers';
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  @Public()
   @ApiBody({ type: LoginDto })
   @UseGuards(LocalAuthGuard)
   @Post('login')
@@ -43,12 +49,24 @@ export class AuthController {
     return this.authService.generateToken(req.user, tenant);
   }
 
-  @UseGuards(JwtAuthGuard)
-  @Get('profile')
+  @Get('me')
   getProfile(@Request() req): Promise<LoginResponseDto> {
     return req.user;
   }
 
+  @Post('refresh')
+  async refreshToken(
+    @Body() refreshTokenDto: RefreshTokenDto,
+  ): Promise<RefreshTokenResponseDto> {
+    return this.authService.refreshToken(refreshTokenDto.refreshToken);
+  }
+
+  @Post('logout')
+  async logout(): Promise<{ message: string }> {
+    return this.authService.logout();
+  }
+
+  @Public()
   @Post('forgot-password')
   async forgotPassword(
     @Body() data: ValidateEmailDto,
@@ -56,6 +74,7 @@ export class AuthController {
     return this.authService.forgotPassword(data.username);
   }
 
+  @Public()
   @Put('reset-password/:token')
   async resetPassword(
     @Param('token') token: string,

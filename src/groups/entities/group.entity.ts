@@ -9,19 +9,19 @@ import {
   Tree,
   TreeChildren,
   TreeParent,
-} from "typeorm";
-import { GroupPrivacy } from "../enums/groupPrivacy";
-import GroupCategory from "./groupCategory.entity";
-import GroupMembership from "./groupMembership.entity";
-import GroupMembershipRequest from "./groupMembershipRequest.entity";
-import GroupEvent from "../../events/entities/event.entity";
-import InternalAddress from "../../shared/entity/InternalAddress";
-import { ReportSubmission } from "src/reports/entities/report.submission.entity";
-import { Tenant } from "../../tenants/entities/tenant.entity";
+} from 'typeorm';
+import { GroupPrivacy } from '../enums/groupPrivacy';
+import GroupCategory from './groupCategory.entity';
+import GroupMembership from './groupMembership.entity';
+import GroupMembershipRequest from './groupMembershipRequest.entity';
+import GroupEvent from '../../events/entities/event.entity';
+import InternalAddress from '../../shared/entity/InternalAddress';
+import { ReportSubmission } from 'src/reports/entities/report.submission.entity';
+import { Tenant } from '../../tenants/entities/tenant.entity';
 
 @Entity()
-@Tree("closure-table")
-@Index(["tenant", "id"])
+@Tree('closure-table')
+@Index(['tenant', 'id'])
 export default class Group {
   @PrimaryGeneratedColumn()
   id: number;
@@ -30,7 +30,7 @@ export default class Group {
   tenant: Tenant;
 
   @Column({
-    type: "enum",
+    type: 'enum',
     enum: GroupPrivacy,
     nullable: true,
   })
@@ -44,7 +44,7 @@ export default class Group {
 
   @Column({
     nullable: true,
-    type: "jsonb",
+    type: 'jsonb',
   })
   metaData?: any;
 
@@ -62,7 +62,7 @@ export default class Group {
 
   @Column({
     nullable: true,
-    type: "jsonb",
+    type: 'jsonb',
   })
   address?: InternalAddress;
 

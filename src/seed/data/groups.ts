@@ -1,9 +1,9 @@
-import { GroupPrivacy } from "../../groups/enums/groupPrivacy";
-import GroupCategory from "../../groups/entities/groupCategory.entity";
-import CreateGroupDto from "../../groups/dto/create-group.dto";
-import { mcData } from "./mclist";
-import { GroupCategoryNames } from "src/groups/enums/groups";
-import { seedTenant } from "./users";
+import { GroupPrivacy } from '../../groups/enums/groupPrivacy';
+import GroupCategory from '../../groups/entities/groupCategory.entity';
+import CreateGroupDto from '../../groups/dto/create-group.dto';
+import { mcData } from './mclist';
+import { GroupCategoryNames } from 'src/groups/enums/groups';
+import { seedTenant } from './users';
 
 export const groupConstants = {
   mc: GroupCategoryNames.MC,
@@ -95,7 +95,7 @@ const seedCells: CreateGroupDto[] = [];
 async function populateGroupArrays() {
   for (const location of mcData) {
     const newNetwork = createGroupObject({
-      name: "Champions Network",
+      name: 'Champions Network',
       categoryName: GroupCategoryNames.NETWORK,
       parentId: null,
     });
@@ -108,7 +108,7 @@ async function populateGroupArrays() {
       categoryName: GroupCategoryNames.LOCATION,
     });
     const newZone = createGroupObject({
-      name: "Najjera-Buwate Zone",
+      name: 'Najjera-Buwate Zone',
       parentId: locationId,
       categoryName: GroupCategoryNames.ZONE,
     });

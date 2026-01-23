@@ -3,4 +3,5 @@ export enum CivilStatus {
   Single = 'Single',
   Married = 'Married',
   Dating = 'Dating',
+  Widowed = 'Widowed',
 }

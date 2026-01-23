@@ -6,14 +6,14 @@ import {
   ManyToOne,
   OneToMany,
   PrimaryGeneratedColumn,
-} from "typeorm";
-import GroupEvent from "./event.entity";
-import EventField from "./eventField.entity";
-import { Tenant } from "../../tenants/entities/tenant.entity";
+} from 'typeorm';
+import GroupEvent from './event.entity';
+import EventField from './eventField.entity';
+import { Tenant } from '../../tenants/entities/tenant.entity';
 
 @Entity()
-@Index(["tenant", "name"], { unique: true })
-@Index(["tenant", "id"])
+@Index(['tenant', 'name'], { unique: true })
+@Index(['tenant', 'id'])
 export default class EventCategory {
   @Column()
   @PrimaryGeneratedColumn()
@@ -28,12 +28,12 @@ export default class EventCategory {
   name: string;
 
   @OneToMany((type) => GroupEvent, (it) => it.category, {
-    cascade: ["insert", "remove"],
+    cascade: ['insert', 'remove'],
   })
   events: GroupEvent[];
 
   @OneToMany((type) => EventField, (it) => it.category, {
-    cascade: ["insert", "remove"],
+    cascade: ['insert', 'remove'],
   })
   fields: EventField[];
 }

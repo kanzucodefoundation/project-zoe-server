@@ -1,15 +1,15 @@
-import { Injectable, Logger, Inject } from "@nestjs/common";
-import { Connection, In, Repository, TreeRepository } from "typeorm";
-import GroupMembership from "../entities/groupMembership.entity";
-import GroupMembershipDto from "../dto/membership/group-membership.dto";
-import { getPersonFullName } from "../../crm/crm.helpers";
-import GroupMembershipSearchDto from "../dto/membership/group-membership-search.dto";
-import ClientFriendlyException from "../../shared/exceptions/client-friendly.exception";
-import UpdateGroupMembershipDto from "../dto/membership/update-group-membership.dto";
-import BatchGroupMembershipDto from "../dto/membership/batch-group-membership.dto";
-import { QueryDeepPartialEntity } from "typeorm/query-builder/QueryPartialEntity";
-import { hasNoValue, hasValue } from "../../utils/validation";
-import Group from "../entities/group.entity";
+import { Injectable, Logger, Inject } from '@nestjs/common';
+import { Connection, In, Repository, TreeRepository } from 'typeorm';
+import GroupMembership from '../entities/groupMembership.entity';
+import GroupMembershipDto from '../dto/membership/group-membership.dto';
+import { getPersonFullName } from '../../crm/crm.helpers';
+import GroupMembershipSearchDto from '../dto/membership/group-membership-search.dto';
+import ClientFriendlyException from '../../shared/exceptions/client-friendly.exception';
+import UpdateGroupMembershipDto from '../dto/membership/update-group-membership.dto';
+import BatchGroupMembershipDto from '../dto/membership/batch-group-membership.dto';
+import { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
+import { hasNoValue, hasValue } from '../../utils/validation';
+import Group from '../entities/group.entity';
 
 @Injectable()
 export class GroupsMembershipService {
@@ -17,7 +17,7 @@ export class GroupsMembershipService {
   private readonly groupTreeRepository: TreeRepository<Group>;
   private readonly connection: Connection;
 
-  constructor(@Inject("CONNECTION") connection: Connection) {
+  constructor(@Inject('CONNECTION') connection: Connection) {
     this.repository = connection.getRepository(GroupMembership);
     this.groupTreeRepository = connection.getTreeRepository(Group);
     this.connection = connection;
@@ -44,11 +44,16 @@ export class GroupsMembershipService {
     }
 
     if (hasNoValue(filter)) {
-      throw new ClientFriendlyException("Please specify groupId or contactId");
+      throw new ClientFriendlyException('Please specify groupId or contactId');
+    }
+
+    // By default, only show active memberships unless explicitly requested
+    if (!req.hasOwnProperty('includeInactive') || !req.includeInactive) {
+      filter.isActive = true;
     }
 
     const data = await this.repository.find({
-      relations: ["contact", "contact.person", "group", "group.category"],
+      relations: ['contact', 'contact.person', 'group', 'group.category'],
       skip: req.skip,
       take: req.limit,
       where: filter,
@@ -66,6 +71,9 @@ export class GroupsMembershipService {
         ? { name: group.category.name, id: group.category.id }
         : null,
       contact: { name: getPersonFullName(contact.person), id: contact.id },
+      joinedAt: membership.joinedAt,
+      leftAt: membership.leftAt,
+      isActive: membership.isActive,
     };
   }
 
@@ -73,7 +81,14 @@ export class GroupsMembershipService {
     const { groupId, members, role } = data;
     const toInsert: QueryDeepPartialEntity<GroupMembership>[] = [];
     members.forEach((contactId) => {
-      toInsert.push({ groupId, contactId, role });
+      toInsert.push({
+        groupId,
+        contactId,
+        role,
+        isActive: true,
+        // joinedAt will be set automatically by @CreateDateColumn
+        // leftAt remains null for new memberships
+      });
     });
     await this.repository
       .createQueryBuilder()
@@ -87,7 +102,7 @@ export class GroupsMembershipService {
   async findOne(id: number): Promise<GroupMembershipDto> {
     const data = await this.repository.findOne({
       where: { id },
-      relations: ["group", "contact", "contact.person"],
+      relations: ['group', 'contact', 'contact.person'],
     });
     return this.toDto(data, 0);
   }
@@ -99,7 +114,7 @@ export class GroupsMembershipService {
       .set({
         role: dto.role,
       })
-      .where("id = :id", { id: dto.id })
+      .where('id = :id', { id: dto.id })
       .execute();
     Logger.log(`Updated data ${update.affected} ${JSON.stringify(update.raw)}`);
     return await this.findOne(dto.id);

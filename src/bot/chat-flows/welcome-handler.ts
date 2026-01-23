@@ -1,15 +1,15 @@
-import { ChatSession } from "../entities/chat-session.entity";
-import { ChatNode } from "../entities/chat-node.entity";
-import { ChatHandler, chatStrings, createNode } from "./handler-interface";
-import { ChatAction } from "../dto/ussd-response.dto";
-import { Injectable } from "@nestjs/common";
-import { format } from "date-fns";
-import { GoogleSheetsService } from "../google-sheets.service";
+import { ChatSession } from '../entities/chat-session.entity';
+import { ChatNode } from '../entities/chat-node.entity';
+import { ChatHandler, chatStrings, createNode } from './handler-interface';
+import { ChatAction } from '../dto/ussd-response.dto';
+import { Injectable } from '@nestjs/common';
+import { format } from 'date-fns';
+import { GoogleSheetsService } from '../google-sheets.service';
 
 const fieldNames = {
-  name: "name",
-  address: "address",
-  phoneNumber: "phoneNumber",
+  name: 'name',
+  address: 'address',
+  phoneNumber: 'phoneNumber',
 };
 
 @Injectable()
@@ -41,15 +41,15 @@ export class WelcomeActionHandler implements ChatHandler {
   async execute(userInput: string, session: ChatSession): Promise<ChatNode> {
     let nextHandler: string;
     let action: ChatAction = ChatAction.Prompt;
-    let message = "";
+    let message = '';
     switch (userInput) {
-      case "1":
+      case '1':
         nextHandler = NameEnteredHandler.name;
-        message = `What is your full name?`;
+        message = 'What is your full name?';
         break;
-      case "2":
+      case '2':
         action = ChatAction.End;
-        nextHandler = "";
+        nextHandler = '';
         message = chatStrings.comingSoon;
         break;
       default:
@@ -115,7 +115,7 @@ export class AddressEnteredHandler implements ChatHandler {
         message: `
         Thank you for contacting us. We will call you shortly.
         `,
-        nextHandler: "",
+        nextHandler: '',
       });
       return Promise.resolve(node);
     } else {
@@ -128,12 +128,12 @@ export class AddressEnteredHandler implements ChatHandler {
 
   private async submitToGoogleSheet(session: ChatSession): Promise<void> {
     const { name, address, phoneNumber } = session.metaData;
-    const event = "-NA-";
-    const date = format(new Date(), "dd/MM/yyyy");
+    const event = '-NA-';
+    const date = format(new Date(), 'dd/MM/yyyy');
     this.sheetsService
       .addRowToSheet([[name, date, event, phoneNumber, address]])
       .then(() => {
-        console.log("Successfully added row to sheet");
+        console.log('Successfully added row to sheet');
       });
     return await Promise.resolve();
   }

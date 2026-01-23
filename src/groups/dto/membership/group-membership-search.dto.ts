@@ -1,5 +1,5 @@
 import SearchDto from '../../../shared/dto/search.dto';
-import { IsNumber, IsOptional } from 'class-validator';
+import { IsNumber, IsOptional, IsBoolean } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export default class GroupMembershipSearchDto extends SearchDto {
@@ -12,4 +12,9 @@ export default class GroupMembershipSearchDto extends SearchDto {
   @IsNumber()
   @Type(() => Number)
   contactId?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  @Type(() => Boolean)
+  includeInactive?: boolean;
 }

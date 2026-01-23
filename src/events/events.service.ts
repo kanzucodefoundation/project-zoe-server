@@ -1,4 +1,4 @@
-import { Injectable, Logger, Inject } from "@nestjs/common";
+import { Injectable, Logger, Inject } from '@nestjs/common';
 import {
   ILike,
   In,
@@ -7,22 +7,22 @@ import {
   Repository,
   Connection,
   TreeRepository,
-} from "typeorm";
-import { GoogleService } from "../vendor/google.service";
-import GooglePlaceDto from "../vendor/google-place.dto";
-import ClientFriendlyException from "../shared/exceptions/client-friendly.exception";
-import GroupEvent from "./entities/event.entity";
-import EventCategory from "./entities/eventCategory.entity";
-import GroupEventDto from "./dto/group-event.dto";
-import CreateEventDto from "./dto/create-event.dto";
-import InternalAddress from "../shared/entity/InternalAddress";
-import { getArray, hasValue, removeDuplicates } from "src/utils/validation";
-import { UserDto } from "../auth/dto/user.dto";
-import EventMetricsDto from "./dto/event-metrics-search.dto";
-import Group from "src/groups/entities/group.entity";
-import { isDate } from "lodash";
-import GroupEventSearchDto from "./dto/group-event-search.dto";
-import GroupMembership from "src/groups/entities/groupMembership.entity";
+} from 'typeorm';
+import { GoogleService } from '../vendor/google.service';
+import GooglePlaceDto from '../vendor/google-place.dto';
+import ClientFriendlyException from '../shared/exceptions/client-friendly.exception';
+import GroupEvent from './entities/event.entity';
+import EventCategory from './entities/eventCategory.entity';
+import GroupEventDto from './dto/group-event.dto';
+import CreateEventDto from './dto/create-event.dto';
+import InternalAddress from '../shared/entity/InternalAddress';
+import { getArray, hasValue, removeDuplicates } from 'src/utils/validation';
+import { UserDto } from '../auth/dto/user.dto';
+import EventMetricsDto from './dto/event-metrics-search.dto';
+import Group from 'src/groups/entities/group.entity';
+import { isDate } from 'lodash';
+import GroupEventSearchDto from './dto/group-event-search.dto';
+import GroupMembership from 'src/groups/entities/groupMembership.entity';
 
 @Injectable()
 export class EventsService {
@@ -32,7 +32,7 @@ export class EventsService {
   private readonly membershipRepository: Repository<GroupMembership>;
 
   constructor(
-    @Inject("CONNECTION") connection: Connection,
+    @Inject('CONNECTION') connection: Connection,
     private googleService: GoogleService,
   ) {
     this.repository = connection.getRepository(GroupEvent);
@@ -50,7 +50,7 @@ export class EventsService {
 
     const membership = await this.membershipRepository.findOne({
       where: { contactId: user.contactId },
-      relations: ["group"],
+      relations: ['group'],
     });
 
     if (membership?.group) {
@@ -87,7 +87,7 @@ export class EventsService {
     }
 
     const data = await this.repository.find({
-      relations: ["category", "group", "attendance", "submittedBy"],
+      relations: ['category', 'group', 'attendance', 'submittedBy'],
       skip: req.skip,
       take: req.limit,
       where: filter,
@@ -125,8 +125,8 @@ export class EventsService {
     }
 
     const data = await this.repository.find({
-      select: ["name", "metaData", "category", "id"],
-      relations: ["category", "group", "group.members", "attendance"],
+      select: ['name', 'metaData', 'category', 'id'],
+      relations: ['category', 'group', 'group.members', 'attendance'],
       where: filter,
     });
 
@@ -208,7 +208,7 @@ export class EventsService {
         attendance: [],
       })
       .execute();
-    const insertedId = result.identifiers[0]["id"];
+    const insertedId = result.identifiers[0]['id'];
     Logger.log(`Create.Event success name: ${data.name} id:${insertedId}`);
 
     return this.findOne(insertedId, true);
@@ -217,7 +217,7 @@ export class EventsService {
   async findOne(id: number, full = true): Promise<GroupEventDto> {
     const data = await this.repository.findOne({
       where: { id },
-      relations: ["category", "group", "category.fields"],
+      relations: ['category', 'group', 'category.fields'],
     });
     Logger.log(`Read.Event success id:${id}`);
     if (full) {
@@ -232,7 +232,7 @@ export class EventsService {
     Logger.log(`Update.Event eventId:${dto.id} starting`);
     const currGroup = await this.repository
       .createQueryBuilder()
-      .where("id = :id", { id: dto.id })
+      .where('id = :id', { id: dto.id })
       .getOne();
 
     if (!currGroup)
@@ -256,7 +256,7 @@ export class EventsService {
         ...dto,
         venue: place,
       })
-      .where("id = :id", { id: dto.id })
+      .where('id = :id', { id: dto.id })
       .execute();
     if (result.affected)
       Logger.log(

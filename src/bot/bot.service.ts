@@ -1,13 +1,13 @@
-import { Injectable, Logger } from "@nestjs/common";
-import { UssdRequestDto } from "./dto/ussd-request.dto";
-import { SessionService } from "./session.service";
-import { ChatNode } from "./entities/chat-node.entity";
-import { ChatSession } from "./entities/chat-session.entity";
-import { ChatAction } from "./dto/ussd-response.dto";
-import { ChatHandler, ExitChatHandler } from "./chat-flows/handler-interface";
-import { ModuleRef } from "@nestjs/core";
-import { chatHandlerProviders } from "./bot.helpers";
-import { WelcomeHandler } from "./chat-flows/welcome-handler";
+import { Injectable, Logger } from '@nestjs/common';
+import { UssdRequestDto } from './dto/ussd-request.dto';
+import { SessionService } from './session.service';
+import { ChatNode } from './entities/chat-node.entity';
+import { ChatSession } from './entities/chat-session.entity';
+import { ChatAction } from './dto/ussd-response.dto';
+import { ChatHandler, ExitChatHandler } from './chat-flows/handler-interface';
+import { ModuleRef } from '@nestjs/core';
+import { chatHandlerProviders } from './bot.helpers';
+import { WelcomeHandler } from './chat-flows/welcome-handler';
 
 @Injectable()
 export class BotService {
@@ -20,16 +20,16 @@ export class BotService {
     const logTag = `BotService.process ${request.phoneNumber} ${request.sessionId}`;
     Logger.log(`${logTag} started`);
     const session = await this.sessionService.loadSession(request);
-    const userInput = request.text?.trim().split("*").pop() ?? "";
+    const userInput = request.text?.trim().split('*').pop() ?? '';
     session.userPath = userInput;
 
     let nextHandler: string;
-    if (userInput === "exit") {
+    if (userInput === 'exit') {
       nextHandler = ExitChatHandler.name;
     } else if (session.nodes.length === 0) {
       nextHandler = WelcomeHandler.name;
       Logger.log(`${logTag} using RootHandler`);
-    } else if (userInput === "00") {
+    } else if (userInput === '00') {
       Logger.log(`${logTag} popping chat node`);
       return await this.sessionService.popChatNode(session);
     } else {
@@ -64,14 +64,14 @@ export class BotService {
 
   private errorChatNode(session: ChatSession, text: string): ChatNode {
     return {
-      name: "Error",
+      name: 'Error',
       userInput: text,
-      message: "Sorry, something went wrong. Please try again later.",
+      message: 'Sorry, something went wrong. Please try again later.',
       nodeAction: ChatAction.End,
       session,
       hasError: true,
       sessionId: session.id,
-      nextHandler: "ExitChatHandler",
+      nextHandler: 'ExitChatHandler',
       createdAt: new Date(),
       id: 0,
     };

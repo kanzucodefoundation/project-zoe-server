@@ -1,23 +1,23 @@
-import { NestFactory } from "@nestjs/core";
-import { AppModule } from "./app.module";
-import { TenantDto } from "./tenants/dto/tenant.dto";
-import { TenantsService } from "./tenants/tenants.service";
-import { DbService } from "./shared/db.service";
-import { SeedService } from "./seed/seed.service";
-import { UsersService } from "./users/users.service";
-import { SeedModule } from "./seed/seed.module";
-import { Connection } from "typeorm";
-import { TenantsModule } from "./tenants/tenants.module";
-import { ContactsService } from "./crm/contacts.service";
-import { JwtHelperService } from "./auth/jwt-helpers.service";
-import { CrmModule } from "./crm/crm.module";
-import { GoogleService } from "./vendor/google.service";
-import { PrismaService } from "./shared/prisma.service";
-import { GroupFinderService } from "./crm/group-finder/group-finder.service";
-import { AddressesService } from "./crm/addresses.service";
-import { GroupsService } from "./groups/services/groups.service";
-import { GroupCategoriesService } from "./groups/services/group-categories.service";
-import { GroupPermissionsService } from "./groups/services/group-permissions.service";
+import { NestFactory } from '@nestjs/core';
+import { AppModule } from './app.module';
+import { TenantDto } from './tenants/dto/tenant.dto';
+import { TenantsService } from './tenants/tenants.service';
+import { DbService } from './shared/db.service';
+import { SeedService } from './seed/seed.service';
+import { UsersService } from './users/users.service';
+import { SeedModule } from './seed/seed.module';
+import { Connection } from 'typeorm';
+import { TenantsModule } from './tenants/tenants.module';
+import { ContactsService } from './crm/contacts.service';
+import { JwtHelperService } from './auth/jwt-helpers.service';
+import { CrmModule } from './crm/crm.module';
+import { GoogleService } from './vendor/google.service';
+import { PrismaService } from './shared/prisma.service';
+import { GroupFinderService } from './crm/group-finder/group-finder.service';
+import { AddressesService } from './crm/addresses.service';
+import { GroupsService } from './groups/services/groups.service';
+import { GroupCategoriesService } from './groups/services/group-categories.service';
+import { GroupPermissionsService } from './groups/services/group-permissions.service';
 
 async function bootstrap() {
   const application = await NestFactory.createApplicationContext(AppModule);
@@ -26,7 +26,7 @@ async function bootstrap() {
   const tenantName = process.argv[3];
 
   switch (command) {
-    case "create-tenant":
+    case 'create-tenant':
       const tenantsService = application.get(TenantsService);
       const dbService = application.get(DbService);
       const seedService = application.get(SeedService);
@@ -51,7 +51,7 @@ async function bootstrap() {
       );
       break;
     default:
-      console.log("Command not found");
+      console.log('Command not found');
       process.exit(1);
   }
 

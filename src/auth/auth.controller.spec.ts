@@ -1,6 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
+import { UsersService } from '../users/users.service';
+import { Reflector } from '@nestjs/core';
 
 describe('AuthController', () => {
   let controller: AuthController;
@@ -17,13 +19,32 @@ describe('AuthController', () => {
   };
 
   beforeEach(async () => {
+    const mockUsersService = {
+      findOne: jest.fn(),
+      findByName: jest.fn(),
+    };
+
+    const mockReflector = {
+      get: jest.fn(),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AuthController],
-      providers: [AuthService],
-    })
-      .overrideProvider(AuthService)
-      .useValue(mockAuthService)
-      .compile();
+      providers: [
+        {
+          provide: AuthService,
+          useValue: mockAuthService,
+        },
+        {
+          provide: UsersService,
+          useValue: mockUsersService,
+        },
+        {
+          provide: Reflector,
+          useValue: mockReflector,
+        },
+      ],
+    }).compile();
 
     controller = module.get<AuthController>(AuthController);
   });
@@ -42,7 +63,11 @@ describe('AuthController', () => {
       role: ['RoleAdmin'],
       isActive: true,
     };
-    const result = await controller.login({ user: usr });
+    const mockRequest = {
+      user: usr,
+      body: { churchName: 'Test Church' },
+    };
+    const result = await controller.login(mockRequest);
     expect(result).toEqual({
       token: expect.any(String),
       user: {

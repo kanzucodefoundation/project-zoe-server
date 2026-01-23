@@ -6,12 +6,12 @@ import {
   ManyToOne,
   OneToMany,
   PrimaryGeneratedColumn,
-} from "typeorm";
-import Group from "./group.entity";
-import { Tenant } from "../../tenants/entities/tenant.entity";
+} from 'typeorm';
+import Group from './group.entity';
+import { Tenant } from '../../tenants/entities/tenant.entity';
 
 @Entity()
-@Index(["tenant", "id"])
+@Index(['tenant', 'id'])
 export default class GroupCategory {
   @Column()
   @PrimaryGeneratedColumn()
@@ -26,7 +26,7 @@ export default class GroupCategory {
   name: string;
 
   @OneToMany((type) => Group, (it) => it.category, {
-    cascade: ["insert", "remove"],
+    cascade: ['insert', 'remove'],
   })
   groups: Group[];
 }
