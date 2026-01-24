@@ -91,13 +91,21 @@ export class ReportsController {
     });
   }
 
-  @Get('submissions/team')
-  async getTeamSubmissions(
+  @Get('submissions/mygroups')
+  async getMyGroupsSubmissions(
     @Query('reportId') reportId: number | undefined,
-    @Request() request: any,
+    @Query('limit') limit: number = 20,
+    @Query('offset') offset: number = 0,
+    @Query('from') startDate?: string,
+    @Query('to') endDate?: string,
+    @Request() request?: any,
   ): Promise<any> {
-    return await this.reportService.getTeamSubmissions(request.user, {
+    return await this.reportService.getMyGroupsSubmissions(request.user, {
       reportId,
+      limit,
+      offset,
+      startDate: startDate ? new Date(startDate) : undefined,
+      endDate: endDate ? new Date(endDate) : undefined,
     });
   }
 

@@ -562,7 +562,7 @@ export class ReportsService {
       }),
     );
 
-    const reportColumns = Object.values(report.displayColumns); // Convert columns object to array
+    const reportColumns = report.displayColumns ? Object.values(report.displayColumns) : []; // Convert columns object to array
 
     return {
       reportId: report.id,
@@ -953,11 +953,17 @@ export class ReportsService {
     };
   }
 
-  async getTeamSubmissions(
+  async getMyGroupsSubmissions(
     user: any,
-    options: { reportId?: number },
+    options: {
+      reportId?: number;
+      limit?: number;
+      offset?: number;
+      startDate?: Date;
+      endDate?: Date;
+    },
   ): Promise<any> {
-    const { reportId } = options;
+    const { reportId, limit = 20, offset = 0, startDate, endDate } = options;
 
     // Get user's accessible groups using the new permission system
     const userGroupIds = await this.getUserAccessibleGroups(user);
@@ -969,8 +975,11 @@ export class ReportsService {
     if (userGroupIds.length > 0) {
       where.group = { id: In(userGroupIds) };
     } else {
-      // If user has no accessible groups, return empty result
-      return { submissions: [] };
+      return {
+        submissions: [],
+        columns: [],
+        pagination: { total: 0, limit, offset, hasMore: false },
+      };
     }
 
     const submissions = await this.reportSubmissionRepository.find({
@@ -985,17 +994,66 @@ export class ReportsService {
       order: { submittedAt: 'DESC' },
     });
 
+    // Apply date filtering
+    let filteredSubmissions = submissions;
+    if (startDate || endDate) {
+      filteredSubmissions = submissions.filter((sub) => {
+        if (startDate && sub.submittedAt < startDate) return false;
+        if (endDate && sub.submittedAt > endDate) return false;
+        return true;
+      });
+    }
+
+    const total = filteredSubmissions.length;
+
+    // Apply pagination
+    const paginatedSubmissions = filteredSubmissions.slice(
+      offset,
+      offset + limit,
+    );
+
+    // Fetch report fields to build columns (if reportId specified)
+    let columns = [];
+    if (reportId) {
+      const report = await this.reportRepository.findOne({
+        where: { id: reportId },
+        relations: ['fields'],
+      });
+
+      if (report?.fields) {
+        columns = report.fields.map((field) => ({
+          name: field.name,
+          label: field.label || field.name,
+        }));
+      }
+    }
+
     return {
-      submissions: submissions.map((submission) => ({
+      submissions: paginatedSubmissions.map((submission) => ({
         id: submission.id,
         reportId: submission.report.id,
         reportName: submission.report.name,
+        groupId: submission.group?.id || null,
+        groupName: submission.group?.name || null,
         submittedAt: submission.submittedAt,
-        submittedBy: getUserDisplayName(submission.user),
+        submittedBy: {
+          id: submission.user.id,
+          name: getUserDisplayName(submission.user),
+        },
         status: ReportStatus.SUBMITTED,
-        groupId: submission.group?.id,
-        groupName: submission.group?.name,
+        data: submission.submissionData.reduce((acc, curr) => {
+          acc[curr.reportField.name] = curr.fieldValue;
+          return acc;
+        }, {}),
+        canEdit: false,
       })),
+      columns,
+      pagination: {
+        total,
+        limit,
+        offset,
+        hasMore: total > offset + limit,
+      },
     };
   }
 
