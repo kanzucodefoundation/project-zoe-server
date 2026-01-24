@@ -378,6 +378,11 @@ export class ReportsService {
       throw new NotFoundException(`Report with ID ${reportId} not found`);
     }
 
+    // Reports without a custom functionName just return their submissions directly
+    if (!report.functionName) {
+      return this.getGenericReportSubmissions(report, startDate, endDate);
+    }
+
     // For now, all the reports are aggregate reports.
     switch (report.functionName) {
       case 'getSmallGroupSummaryAttendance':
@@ -399,6 +404,62 @@ export class ReportsService {
           `Function ${report.functionName} is not implemented for custom processing of report ID ${reportId}`,
         );
     }
+  }
+
+  private async getGenericReportSubmissions(
+    report: Report,
+    startDate?: Date,
+    endDate?: Date,
+  ): Promise<ReportSubmissionsApiResponse> {
+    const now = new Date();
+    if (!startDate) {
+      startDate = new Date(now.getFullYear(), now.getMonth(), 1); // Start of current month
+    }
+    if (!endDate) {
+      endDate = new Date(); // Now
+    }
+
+    const submissions = await this.reportSubmissionRepository.find({
+      where: {
+        report: { id: report.id },
+      },
+      relations: ['user', 'submissionData', 'submissionData.reportField'],
+      order: { submittedAt: 'DESC' },
+    });
+
+    // Filter by date range
+    const filteredSubmissions = submissions.filter(
+      (s) => s.submittedAt >= startDate && s.submittedAt <= endDate,
+    );
+
+    const submissionResponses = filteredSubmissions.map((submission) => {
+      const transformedData: Record<string, any> = {
+        id: submission.id,
+        submittedAt: submission.submittedAt.toISOString(),
+        submittedBy: getUserDisplayName(submission.user),
+      };
+
+      submission.submissionData.forEach((sd) => {
+        transformedData[sd.reportField.name] = sd.fieldValue;
+      });
+
+      return transformedData;
+    });
+
+    const reportColumns = report.displayColumns
+      ? Object.values(report.displayColumns)
+      : [];
+
+    return {
+      reportId: report.id,
+      data: submissionResponses,
+      columns: [
+        ...reportColumns,
+        { label: 'Submitted At', name: 'submittedAt' },
+        { label: 'Submitted By', name: 'submittedBy' },
+      ],
+      footer: report.footer || [],
+    };
   }
 
   private async buildSubmissionQuery(
