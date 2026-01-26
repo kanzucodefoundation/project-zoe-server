@@ -39,12 +39,6 @@ export class SeedService {
     this.eventCategoryRepository = connection.getRepository(EventCategory);
     this.rolesRepository = connection.getRepository(Roles);
 
-    this.usersService = new UsersService(
-      connection,
-      contactsService,
-      jwtHelperservice,
-      groupMembershipService,
-    );
     // Create a mock TenantContext for seeding (no HTTP request context)
     const mockTenantContext = {
       tenantId: null,
@@ -55,6 +49,14 @@ export class SeedService {
       },
       setTenantId: () => {},
     } as any as TenantContext;
+
+    this.usersService = new UsersService(
+      connection,
+      contactsService,
+      jwtHelperservice,
+      groupMembershipService,
+      mockTenantContext,
+    );
 
     this.groupsService = new GroupsService(
       connection,

@@ -1,14 +1,15 @@
 import { CivilStatus } from '../enums/civilStatus';
 import { Gender } from '../enums/gender';
-import { IsDateString, IsEmail, IsEnum, IsNotEmpty } from 'class-validator';
+import { IsDateString, IsEmail, IsEnum, IsNotEmpty, IsOptional, IsNumber } from 'class-validator';
+import { GroupRole } from '../../groups/enums/groupRole';
 
 export class CreatePersonDto {
   @IsNotEmpty()
   @IsEmail()
   email: string;
 
-  @IsNotEmpty()
-  phone: string;
+  @IsOptional()
+  phone?: string;
 
   @IsNotEmpty()
   firstName: string;
@@ -16,16 +17,20 @@ export class CreatePersonDto {
   @IsNotEmpty()
   lastName: string;
 
+  @IsOptional()
   middleName?: string;
 
+  @IsOptional()
   @IsEnum(Gender)
-  gender: Gender;
+  gender?: Gender;
 
+  @IsOptional()
   @IsEnum(CivilStatus)
   civilStatus?: CivilStatus;
 
+  @IsOptional()
   @IsDateString()
-  dateOfBirth: Date | string;
+  dateOfBirth?: Date | string;
   ageGroup?: string;
 
   placeOfWork?: string;
@@ -37,4 +42,15 @@ export class CreatePersonDto {
   inCell?: any;
 
   joinCell?: any;
+
+  // Optional fields for user registration (required in RegisterDto)
+  password?: string;
+
+  @IsOptional()
+  @IsNumber()
+  groupId?: number;
+
+  @IsOptional()
+  @IsEnum(GroupRole)
+  groupRole?: GroupRole;
 }

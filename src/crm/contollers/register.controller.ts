@@ -9,7 +9,7 @@ import { ApiTags } from '@nestjs/swagger';
 import { ContactsService } from '../contacts.service';
 import Person from '../entities/person.entity';
 import { Repository, Connection } from 'typeorm';
-import { CreatePersonDto } from '../dto/create-person.dto';
+import { RegisterDto } from '../dto/register.dto';
 import { User } from '../../users/entities/user.entity';
 import ContactListDto from '../dto/contact-list.dto';
 import { SentryInterceptor } from 'src/utils/sentry.interceptor';
@@ -34,16 +34,18 @@ export class RegisterController {
 
   @Public()
   @Post()
-  async create(@Body() data: CreatePersonDto): Promise<ContactListDto | Error> {
+  async create(@Body() data: RegisterDto): Promise<ContactListDto | Error> {
     const _contact = await this.service.createPerson(data);
     const contact = await ContactsService.toListDto(_contact);
 
     await this.userService.createUser({
       contactId: contact.id,
       username: contact.email,
-      password: '12345678',
+      password: data.password,
       roles: ['DASHBOARD', 'USER_VIEW'],
       isActive: true,
+      groupId: data.groupId,
+      groupRole: data.groupRole,
     });
 
     return contact;

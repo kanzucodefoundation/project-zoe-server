@@ -22,6 +22,8 @@ import { UserSearchDto } from 'src/crm/dto/user-search.dto';
 import Person from 'src/crm/entities/person.entity';
 import { GroupsMembershipService } from '../groups/services/group-membership.service';
 import { GroupRole } from '../groups/enums/groupRole';
+import { TenantContext } from '../shared/tenant/tenant-context';
+import { Tenant } from '../tenants/entities/tenant.entity';
 
 @Injectable()
 export class UsersService {
@@ -35,6 +37,7 @@ export class UsersService {
     private readonly contactsService: ContactsService,
     private readonly jwtHelperService: JwtHelperService,
     private readonly groupsMembershipService: GroupsMembershipService,
+    private readonly tenantContext: TenantContext,
   ) {
     this.repository = connection.getRepository(User);
     this.emailRepository = connection.getRepository(Email);
@@ -126,6 +129,10 @@ export class UsersService {
   async create(data: User): Promise<User> {
     data.hashPassword();
 
+    // Set tenant from context
+    const tenantId = this.tenantContext.requireTenant();
+    data.tenant = { id: tenantId } as Tenant;
+
     return await this.repository.save(data);
   }
 
@@ -142,7 +149,7 @@ export class UsersService {
     toSave.contactId = data.contactId;
     toSave.password = data.password;
     toSave.isActive = data.isActive;
-    toSave.hashPassword();
+    // Password will be hashed in create() method
 
     const saveUser = await this.create(toSave);
 
