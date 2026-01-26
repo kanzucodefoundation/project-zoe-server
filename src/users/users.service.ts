@@ -20,6 +20,8 @@ import UserRoles from './entities/userRoles.entity';
 import { differenceBy } from 'lodash';
 import { UserSearchDto } from 'src/crm/dto/user-search.dto';
 import Person from 'src/crm/entities/person.entity';
+import { GroupsMembershipService } from '../groups/services/group-membership.service';
+import { GroupRole } from '../groups/enums/groupRole';
 
 @Injectable()
 export class UsersService {
@@ -32,6 +34,7 @@ export class UsersService {
     @Inject('CONNECTION') connection: Connection,
     private readonly contactsService: ContactsService,
     private readonly jwtHelperService: JwtHelperService,
+    private readonly groupsMembershipService: GroupsMembershipService,
   ) {
     this.repository = connection.getRepository(User);
     this.emailRepository = connection.getRepository(Email);
@@ -156,6 +159,20 @@ export class UsersService {
       this.remove(user.id);
 
       throw new HttpException('Failed To Create User', 400);
+    }
+
+    // Create group membership if groupId is provided
+    if (hasValue(data.groupId)) {
+      try {
+        await this.groupsMembershipService.create({
+          groupId: data.groupId,
+          members: [saveUser.contactId],
+          role: data.groupRole || GroupRole.Member,
+        });
+      } catch (error) {
+        Logger.error(`Failed to add user to group: ${error.message}`);
+        throw new HttpException('Failed to add user to group', 400);
+      }
     }
 
     const tokenOptions = { expiresIn: '1d' };

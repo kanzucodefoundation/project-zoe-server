@@ -1,4 +1,5 @@
-import { IsNotEmpty, IsNumber } from 'class-validator';
+import { IsNotEmpty, IsNumber, IsOptional, IsEnum } from 'class-validator';
+import { GroupRole } from '../../groups/enums/groupRole';
 
 export class CreateUserDto {
   @IsNotEmpty()
@@ -12,4 +13,12 @@ export class CreateUserDto {
   roles: string[];
   @IsNotEmpty()
   isActive: boolean;
+
+  @IsOptional()
+  @IsNumber()
+  groupId?: number;
+
+  @IsOptional()
+  @IsEnum(GroupRole)
+  groupRole?: GroupRole;
 }

@@ -42,6 +42,7 @@ export class SeedService {
       connection,
       contactsService,
       jwtHelperservice,
+      groupMembershipService,
     );
     this.groupsService = new GroupsService(
       connection,

@@ -55,6 +55,7 @@ import { AppLogger } from 'src/utils/app-logger.service';
     GroupCategoriesService,
     GroupPermissionsService,
     GroupTreeService,
+    GroupsMembershipService,
   ],
 })
 export class GroupsModule {

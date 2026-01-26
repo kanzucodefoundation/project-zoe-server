@@ -612,4 +612,73 @@ export class GroupsService {
       offset,
     };
   }
+
+  async getPublicLocations(): Promise<{ fobs: any[] }> {
+    this.logger.business('log', 'Fetching public locations for signup', {
+      operation: 'getPublicLocations',
+      resource: 'groups',
+    });
+
+    // Get the Location category
+    const locationCategory = await this.groupCategoryRepository.findOne({
+      where: { name: 'Location' },
+    });
+
+    if (!locationCategory) {
+      this.logger.business('warn', 'Location category not found', {
+        operation: 'getPublicLocations',
+        resource: 'groups',
+      });
+      return { fobs: [] };
+    }
+
+    // Get all location groups with their parent FOBs
+    const locations = await this.repository.find({
+      where: { category: { id: locationCategory.id } },
+      relations: ['parent'],
+      select: ['id', 'name', 'parent'],
+      order: { name: 'ASC' },
+    });
+
+    this.logger.business('debug', 'Locations fetched from database', {
+      operation: 'getPublicLocations',
+      resource: 'groups',
+      metadata: { locationCount: locations.length },
+    });
+
+    // Group by FOB (parent name)
+    const fobMap = new Map<string, any[]>();
+
+    locations.forEach((location) => {
+      const fobName = location.parent?.name || 'Uncategorized';
+
+      if (!fobMap.has(fobName)) {
+        fobMap.set(fobName, []);
+      }
+
+      fobMap.get(fobName).push({
+        id: location.id,
+        name: location.name,
+      });
+    });
+
+    // Convert to array format and sort FOBs alphabetically
+    const fobs = Array.from(fobMap.entries())
+      .map(([fobName, locations]) => ({
+        name: fobName,
+        locations: locations.sort((a, b) => a.name.localeCompare(b.name)),
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+
+    this.logger.business('log', 'Public locations grouped by FOB successfully', {
+      operation: 'getPublicLocations',
+      resource: 'groups',
+      metadata: {
+        fobCount: fobs.length,
+        totalLocations: locations.length,
+      },
+    });
+
+    return { fobs };
+  }
 }

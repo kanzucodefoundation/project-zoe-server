@@ -13,12 +13,14 @@ import { RolesService } from './roles.service';
 import { RolesController } from './roles.controller';
 import { JwtHelperService } from 'src/auth/jwt-helpers.service';
 import { TenantsModule } from 'src/tenants/tenants.module';
+import { GroupsModule } from 'src/groups/groups.module';
 
 @Global()
 @Module({
   imports: [
     TypeOrmModule.forFeature([...usersEntities, ...crmEntities]),
     CrmModule,
+    GroupsModule,
     JwtModule.register({
       secret: jwtConstants.secret,
       signOptions: { expiresIn: '60m' },

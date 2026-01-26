@@ -37,4 +37,9 @@ export class GroupComboController {
     //req.categories = [GroupCategoryNames.LOCATION]; @TODO Re-introduce this
     return this.service.combo(req, rawRequest.user);
   }
+
+  @Get('locations/public')
+  async publicLocations(): Promise<any> {
+    return this.service.getPublicLocations();
+  }
 }
