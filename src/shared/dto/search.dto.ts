@@ -6,6 +6,10 @@ export default class SearchDto {
   @IsOptional()
   query?: string;
 
+  @IsString()
+  @IsOptional()
+  parentId?: string;
+
   @Type(() => Number)
   @IsNumber()
   @Min(0)

@@ -296,6 +296,7 @@ export class ReportsService {
           name: report.name,
           description: report.description,
           submissionFrequency: report.submissionFrequency,
+          viewType: report.viewType,
           active: report.active,
           status: report.status,
           targetGroupCategory: report.targetGroupCategory

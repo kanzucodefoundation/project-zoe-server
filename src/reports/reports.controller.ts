@@ -160,16 +160,15 @@ export class ReportsController {
   }
 
   @Get()
-  async getAllReports(): Promise<{ reports: any[] }> {
- 
-
+  async getAllReports(@Request() request): Promise<{ reports: any[] }> {
     try {
       this.logger.apiLog('log', 'Starting get all reports request', {
         operation: 'getAllReports',
         resource: 'reports',
+        userId: request.user?.id,
       });
 
-      const result = await this.reportService.getAllReports();
+      const result = await this.reportService.getAllReports(request.user);
 
       this.logger.apiLog('log', 'Successfully retrieved all reports', {
         operation: 'getAllReports',
@@ -179,13 +178,13 @@ export class ReportsController {
         },
       });
 
-       return result;
+      return result;
     } catch (error) {
       this.logger.errorLog(error, {
         operation: 'getAllReports',
         resource: 'reports',
       });
-       throw error;
+      throw error;
     }
   }
 

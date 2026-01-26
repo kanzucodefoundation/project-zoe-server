@@ -1,6 +1,7 @@
 import {
   Controller,
   Get,
+  Query,
   UseGuards,
   UseInterceptors,
   Request,
@@ -18,7 +19,13 @@ export class DashboardController {
   constructor(private readonly dashboardService: DashboardService) {}
 
   @Get('summary')
-  async getSummary(@Request() request): Promise<any> {
-    return this.dashboardService.getSummary(request.user);
+  async getSummary(
+    @Request() request,
+    @Query('timeRange') timeRange?: string,
+  ): Promise<any> {
+    return this.dashboardService.getSundayServiceSummary(
+      request.user,
+      timeRange || 'month',
+    );
   }
 }

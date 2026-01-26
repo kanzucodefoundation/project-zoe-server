@@ -2,6 +2,7 @@ import { Injectable, Logger, Inject } from '@nestjs/common';
 import {
   ILike,
   In,
+  IsNull,
   LessThanOrEqual,
   MoreThanOrEqual,
   Repository,
@@ -51,7 +52,141 @@ export class GroupsService {
   }
 
   async findAll(req: SearchDto): Promise<any[]> {
+    // If parentId is provided, filter by parent
+    if (req.parentId !== undefined) {
+      if (req.parentId === 'null' || req.parentId === '') {
+        // Return root groups (no parent)
+        return this.repository.find({
+          where: { parentId: IsNull() },
+          relations: ['category', 'parent'],
+          order: { name: 'ASC' },
+        });
+      }
+
+      const parentIdNum = parseInt(req.parentId);
+      if (!isNaN(parentIdNum)) {
+        // Return direct children of the specified group
+        return this.repository.find({
+          where: { parentId: parentIdNum },
+          relations: ['category', 'parent'],
+          order: { name: 'ASC' },
+        });
+      }
+    }
+
+    // Default: return all groups as trees
     return await this.treeRepository.findTrees();
+  }
+
+  async getDrillDownGroups(
+    parentId: number | null,
+    categoryName?: string,
+    user?: any,
+  ): Promise<any> {
+    // Get user's accessible groups
+    const userGroupIds =
+      await this.groupsPermissionsService.getUserGroupIds(user);
+
+    // Build where clause
+    const where: any = { parentId: parentId === null ? IsNull() : parentId };
+
+    // Filter by category if specified
+    if (categoryName) {
+      const category = await this.groupCategoryRepository.findOne({
+        where: { name: categoryName },
+      });
+      if (category) {
+        where.category = { id: category.id };
+      }
+    }
+
+    // Fetch groups
+    const groups = await this.repository.find({
+      where,
+      relations: ['category', 'parent'],
+      order: { name: 'ASC' },
+    });
+
+    // Filter by user permissions (only show groups user can access)
+    const accessibleGroups = groups.filter((group) =>
+      userGroupIds.includes(group.id),
+    );
+
+    // Enrich with counts
+    const enrichedGroups = await Promise.all(
+      accessibleGroups.map(async (group) => {
+        const childCount = await this.getChildCount(group.id);
+        const memberCount = await this.getMemberCount(group.id);
+
+        return {
+          ...this.toListView(group),
+          childCount,
+          memberCount,
+          categoryName: group.category?.name,
+        };
+      }),
+    );
+
+    // Build response with breadcrumbs
+    let parent = null;
+    let breadcrumbs = [];
+
+    if (parentId !== null) {
+      parent = await this.repository.findOne({
+        where: { id: parentId },
+        relations: ['category', 'parent'],
+      });
+
+      if (parent) {
+        breadcrumbs = await this.buildBreadcrumbs(parent);
+      }
+    }
+
+    return {
+      groups: enrichedGroups,
+      parent: parent ? this.toListView(parent) : null,
+      breadcrumbs,
+      totalCount: enrichedGroups.length,
+    };
+  }
+
+  private async getChildCount(groupId: number): Promise<number> {
+    return this.repository.count({
+      where: { parentId: groupId },
+    });
+  }
+
+  private async getMemberCount(groupId: number): Promise<number> {
+    return this.membershipRepository.count({
+      where: {
+        groupId,
+        isActive: true,
+      },
+    });
+  }
+
+  private async buildBreadcrumbs(group: Group): Promise<any[]> {
+    const breadcrumbs = [];
+    let current = group;
+
+    while (current) {
+      breadcrumbs.unshift({
+        id: current.id,
+        name: current.name,
+        categoryName: current.category?.name,
+      });
+
+      if (current.parentId) {
+        current = await this.repository.findOne({
+          where: { id: current.parentId },
+          relations: ['category'],
+        });
+      } else {
+        current = null;
+      }
+    }
+
+    return breadcrumbs;
   }
 
   toListView(group: Group): GroupListDto {

@@ -59,8 +59,8 @@ export class GroupController {
   @Get()
   async findAll(
     @Query() req: SearchDto,
-    @Request() rawRequest: any,
-  ): Promise<GroupListDto[]> {
+    @Request() rawRequest?: any,
+  ): Promise<any> {
     return this.service.findAll(req);
   }
 

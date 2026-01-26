@@ -1,15 +1,13 @@
-import { Injectable, Inject } from '@nestjs/common';
-import { Connection, Repository } from 'typeorm';
+import { Injectable, Inject, NotFoundException } from '@nestjs/common';
+import { Connection, In, Repository } from 'typeorm';
 import { ReportSubmission } from '../reports/entities/report.submission.entity';
-import Group from '../groups/entities/group.entity';
-import Contact from '../crm/entities/contact.entity';
+import { Report } from '../reports/entities/report.entity';
 import { GroupPermissionsService } from '../groups/services/group-permissions.service';
 
 @Injectable()
 export class DashboardService {
   private readonly reportSubmissionRepository: Repository<ReportSubmission>;
-  private readonly groupRepository: Repository<Group>;
-  private readonly contactRepository: Repository<Contact>;
+  private readonly reportRepository: Repository<Report>;
 
   constructor(
     @Inject('CONNECTION') connection: Connection,
@@ -17,161 +15,225 @@ export class DashboardService {
   ) {
     this.reportSubmissionRepository =
       connection.getRepository(ReportSubmission);
-    this.groupRepository = connection.getRepository(Group);
-    this.contactRepository = connection.getRepository(Contact);
+    this.reportRepository = connection.getRepository(Report);
   }
 
-  async getSummary(user: any): Promise<any> {
-    // Get groups the user has access to
+  async getSundayServiceSummary(
+    user: any,
+    timeRange: string = 'month',
+  ): Promise<any> {
+    // Get user's accessible groups
     const userGroupIds =
       await this.groupPermissionsService.getUserGroupIds(user);
 
-    // Get primary group for user
-    const primaryGroup = await this.getPrimaryGroup(userGroupIds);
+    // Get date range based on timeRange parameter
+    const { startDate, endDate } = this.getDateRange(timeRange);
 
-    // Get weekly metrics
-    const thisWeek = await this.getWeeklyMetrics(userGroupIds, 0);
-    const lastWeek = await this.getWeeklyMetrics(userGroupIds, 1);
+    // Find the Sunday Service report
+    const sundayServiceReport = await this.reportRepository.findOne({
+      where: { name: 'Sunday Service Report' }, //@TODO This is too fragile. We need to use something else - probably a report category
+      relations: ['fields'],
+    });
 
-    const summary = {
-      overview: {
-        totalGroups: userGroupIds.length,
-        totalMembers: await this.getTotalMembers(userGroupIds),
-        reportsSubmitted: await this.getReportsSubmittedCount(userGroupIds),
-        reportsOverdue: await this.getOverdueReportsCount(userGroupIds),
-      },
-      thisWeek,
-      lastWeek,
-      trend: {
-        attendanceChange: thisWeek.attendance - lastWeek.attendance,
-        visitorsChange: thisWeek.visitors - lastWeek.visitors,
-      },
-      group: primaryGroup,
-      pendingReports: await this.getPendingReports(userGroupIds),
-      recentActivity: await this.getRecentActivity(userGroupIds),
-      upcomingDeadlines: await this.getUpcomingDeadlines(userGroupIds),
+    if (!sundayServiceReport) {
+      throw new NotFoundException('Sunday Service Report not found');
+    }
+
+    // Get submissions for this report
+    const where: any = {
+      report: { id: sundayServiceReport.id },
     };
+    //if (userGroupIds.length > 0) { //@TODO Temporarily disable filtering
+    //  where.group = { id: In(userGroupIds) };
+    //}
 
-    return summary;
+    const submissions = await this.reportSubmissionRepository.find({
+      where,
+      relations: [
+        'submissionData',
+        'submissionData.reportField',
+        'user',
+        'user.contact',
+        'user.contact.person',
+        'group',
+      ],
+      order: { submittedAt: 'DESC' },
+    });
+
+    // Filter by date range
+    const filteredSubmissions = submissions.filter(
+      (s) => s.submittedAt >= startDate && s.submittedAt <= endDate,
+    );
+
+    // Calculate aggregated metrics
+    const metrics = this.calculateSundayServiceMetrics(filteredSubmissions);
+
+    // Get recent submissions (last 10)
+    const recentSubmissions = this.formatRecentSubmissions(
+      filteredSubmissions.slice(0, 10),
+    );
+
+    return {
+      timeRange: {
+        label: this.getTimeRangeLabel(timeRange),
+        startDate,
+        endDate,
+      },
+      metrics,
+      recentSubmissions,
+      totalSubmissions: filteredSubmissions.length,
+    };
   }
 
-  private async getTotalMembers(groupIds: number[]): Promise<number> {
-    if (groupIds.length === 0) return 0;
+  private calculateSundayServiceMetrics(
+    submissions: ReportSubmission[],
+  ): any {
+    const serviceFields = [
+      'firstService',
+      'secondService',
+      'yxp',
+      'kids',
+      'local',
+      'hostingCenter1',
+      'hostingCenter2',
+    ];
 
-    // This is a simplified count - implement proper member counting logic
-    const groups = await this.groupRepository.findByIds(groupIds);
-    return groups.reduce(
-      (total, group) => total + (group.members?.length || 0),
+    const numericFields = [
+      ...serviceFields,
+      'visitors',
+      'salvations',
+      'baptisms',
+    ];
+
+    if (submissions.length === 0) {
+      return {
+        summary: {
+          avgAttendance: 0,
+          totalVisitors: 0,
+          salvations: 0,
+          baptisms: 0,
+        },
+        firstService: 0,
+        secondService: 0,
+        yxp: 0,
+        kids: 0,
+        local: 0,
+        hostingCenter1: 0,
+        hostingCenter2: 0,
+        overall: 0,
+      };
+    }
+
+    // Initialize totals
+    const totals: Record<string, number> = {};
+    numericFields.forEach((field) => (totals[field] = 0));
+
+    // Sum up all submission values
+    submissions.forEach((submission) => {
+      submission.submissionData.forEach((data) => {
+        const fieldName = data.reportField.name;
+        if (numericFields.includes(fieldName)) {
+          totals[fieldName] += parseInt(data.fieldValue) || 0;
+        }
+      });
+    });
+
+    // Calculate overall (sum of service fields only)
+    const overall = serviceFields.reduce(
+      (sum, field) => sum + totals[field],
       0,
     );
-  }
 
-  private async getReportsSubmittedCount(groupIds: number[]): Promise<number> {
-    if (groupIds.length === 0) return 0;
-
-    const oneWeekAgo = new Date();
-    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-
-    return this.reportSubmissionRepository.count({
-      where: {
-        submittedAt: oneWeekAgo,
-        // Add groupId filter when available
-      },
-    });
-  }
-
-  private async getOverdueReportsCount(groupIds: number[]): Promise<number> {
-    // Mock implementation - replace with real overdue calculation
-    return Math.floor(groupIds.length * 0.2); // Assume 20% are overdue
-  }
-
-  private async getRecentActivity(groupIds: number[]): Promise<any[]> {
-    if (groupIds.length === 0) return [];
-
-    const recentSubmissions = await this.reportSubmissionRepository.find({
-      relations: ['report', 'user'],
-      order: { submittedAt: 'DESC' },
-      take: 5,
-    });
-
-    return recentSubmissions.map((submission) => ({
-      type: 'report_submission',
-      description: `${submission.user?.username || 'Someone'} submitted ${
-        submission.report?.name || 'a report'
-      }`,
-      timestamp: submission.submittedAt,
-      userId: submission.user?.id,
-      reportId: submission.report?.id,
-    }));
-  }
-
-  private async getUpcomingDeadlines(groupIds: number[]): Promise<any[]> {
-    // Mock upcoming deadlines - implement real deadline logic
-    const mockDeadlines = [
-      {
-        type: 'weekly_report',
-        title: 'Weekly MC Report',
-        dueDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000), // 2 days from now
-        groupsCount: Math.min(5, groupIds.length),
-      },
-      {
-        type: 'monthly_report',
-        title: 'Monthly Service Report',
-        dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 1 week from now
-        groupsCount: Math.min(3, groupIds.length),
-      },
-    ];
-
-    return mockDeadlines;
-  }
-
-  private async getPrimaryGroup(groupIds: number[]): Promise<any> {
-    if (groupIds.length === 0) return null;
-
-    // Get the first group or implement logic to determine primary group
-    const group = await this.groupRepository.findOne({
-      where: { id: groupIds[0] },
-      relations: ['members', 'category'],
-    });
-
-    if (!group) return null;
+    // Calculate average attendance per submission
+    const avgAttendance = Math.round(overall / submissions.length);
 
     return {
-      id: group.id,
-      name: group.name,
-      type: group.category?.name || 'Missional Community',
-      memberCount: group.members?.length || 0,
-      activeMembers: group.members?.length || 0, // Assume all members are active for now
+      summary: {
+        avgAttendance,
+        totalVisitors: totals.visitors || 0,
+        salvations: totals.salvations || 0,
+        baptisms: totals.baptisms || 0,
+      },
+      firstService: totals.firstService,
+      secondService: totals.secondService,
+      yxp: totals.yxp,
+      kids: totals.kids,
+      local: totals.local,
+      hostingCenter1: totals.hostingCenter1,
+      hostingCenter2: totals.hostingCenter2,
+      overall,
     };
   }
 
-  private async getWeeklyMetrics(
-    groupIds: number[],
-    weeksAgo: number,
-  ): Promise<any> {
-    // Calculate date range for the week
+  private formatRecentSubmissions(submissions: ReportSubmission[]): any[] {
+    const numericFields = [
+      'firstService',
+      'secondService',
+      'yxp',
+      'kids',
+      'local',
+      'hostingCenter1',
+      'hostingCenter2',
+    ];
+
+    return submissions.map((submission) => {
+      // Build data object from submission data
+      const data: Record<string, number> = {};
+      numericFields.forEach((field) => (data[field] = 0));
+
+      submission.submissionData.forEach((sd) => {
+        if (numericFields.includes(sd.reportField.name)) {
+          data[sd.reportField.name] = parseInt(sd.fieldValue) || 0;
+        }
+      });
+
+      const total = numericFields.reduce(
+        (sum, field) => sum + data[field],
+        0,
+      );
+
+      return {
+        date: submission.submittedAt,
+        ...data,
+        total,
+      };
+    });
+  }
+
+  private getDateRange(timeRange: string): { startDate: Date; endDate: Date } {
     const endDate = new Date();
-    endDate.setDate(endDate.getDate() - weeksAgo * 7);
-    const startDate = new Date(endDate);
-    startDate.setDate(startDate.getDate() - 7);
+    const startDate = new Date();
 
-    // Mock weekly metrics - implement real queries based on your report structure
-    return {
-      attendance: 45 - weeksAgo * 3, // Mock decreasing attendance
-      visitors: 8 - weeksAgo * 3,
-      newMembers: 2 - weeksAgo,
-      salvations: weeksAgo === 0 ? 1 : 0,
-      baptisms: weeksAgo === 1 ? 1 : 0,
-    };
+    switch (timeRange) {
+      case 'week':
+        startDate.setDate(endDate.getDate() - 7);
+        break;
+      case 'month':
+        startDate.setMonth(endDate.getMonth() - 1);
+        break;
+      case '3months':
+        startDate.setMonth(endDate.getMonth() - 3);
+        break;
+      default:
+        startDate.setMonth(endDate.getMonth() - 1);
+    }
+
+    startDate.setHours(0, 0, 0, 0);
+    endDate.setHours(23, 59, 59, 999);
+
+    return { startDate, endDate };
   }
 
-  private async getPendingReports(groupIds: number[]): Promise<string[]> {
-    // Mock pending reports - implement real logic based on your reports system
-    const mockPendingReports = [
-      'MC Attendance Report',
-      'Sunday Service Report',
-    ];
-
-    return groupIds.length > 0 ? mockPendingReports : [];
+  private getTimeRangeLabel(timeRange: string): string {
+    switch (timeRange) {
+      case 'week':
+        return 'Past 7 Days';
+      case 'month':
+        return 'Past Month';
+      case '3months':
+        return 'Past 3 Months';
+      default:
+        return 'Past Month';
+    }
   }
 }
