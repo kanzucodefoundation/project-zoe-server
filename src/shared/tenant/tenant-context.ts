@@ -10,43 +10,33 @@ import { TENANT_HEADER } from '../../constants';
  */
 @Injectable({ scope: Scope.REQUEST })
 export class TenantContext {
-  private _tenantId: number | null = null;
-  private _tenantName: string | null = null;
-
-  constructor(@Inject(REQUEST) private readonly request: any) {
-    this.initializeTenantContext();
-  }
-
-  private initializeTenantContext(): void {
-    const req = this.request;
-
-    // Get tenant name from header (set by middleware)
-    this._tenantName = req?.headers?.[TENANT_HEADER] || null;
-
-    // Get tenant ID (should be set by middleware after looking up tenant)
-    this._tenantId = req?.tenantId || null;
-  }
+  constructor(@Inject(REQUEST) private readonly request: any) {}
 
   get tenantId(): number | null {
-    return this._tenantId;
+    // Lazily read from request to ensure tenant validator has run
+    return this.request?.tenantId || null;
   }
 
   get tenantName(): string | null {
-    return this._tenantName;
+    // Lazily read from request header
+    return this.request?.headers?.[TENANT_HEADER] || this.request?.tenantName || null;
   }
 
   setTenantId(tenantId: number): void {
-    this._tenantId = tenantId;
+    if (this.request) {
+      this.request.tenantId = tenantId;
+    }
   }
 
   hasTenant(): boolean {
-    return this._tenantId !== null;
+    return this.tenantId !== null;
   }
 
   requireTenant(): number {
-    if (!this._tenantId) {
+    const tenantId = this.tenantId;
+    if (!tenantId) {
       throw new Error('Tenant context is required but not available');
     }
-    return this._tenantId;
+    return tenantId;
   }
 }

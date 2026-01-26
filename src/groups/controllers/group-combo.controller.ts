@@ -13,6 +13,7 @@ import { GroupSearchDto } from '../dto/group-search.dto';
 import { SentryInterceptor } from 'src/utils/sentry.interceptor';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { GroupCategoryNames } from '../enums/groups';
+import { Public } from 'src/auth/decorators/public.decorator';
 
 @UseInterceptors(SentryInterceptor)
 @ApiTags('Groups Combo')
@@ -38,6 +39,7 @@ export class GroupComboController {
     return this.service.combo(req, rawRequest.user);
   }
 
+  @Public()
   @Get('locations/public')
   async publicLocations(): Promise<any> {
     return this.service.getPublicLocations();

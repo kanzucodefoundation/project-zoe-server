@@ -27,6 +27,7 @@ import { endOfMonth, startOfMonth } from 'date-fns';
 import { GroupPermissionsService } from './group-permissions.service';
 import GroupCategory from '../entities/groupCategory.entity';
 import { AppLogger, ContextLogger } from 'src/utils/app-logger.service';
+import { TenantContext } from 'src/shared/tenant/tenant-context';
 
 @Injectable()
 export class GroupsService {
@@ -42,6 +43,7 @@ export class GroupsService {
     private groupsPermissionsService: GroupPermissionsService,
     private googleService: GoogleService,
     private appLogger: AppLogger,
+    private tenantContext: TenantContext,
   ) {
     this.repository = connection.getRepository(Group);
     this.treeRepository = connection.getTreeRepository(Group);
@@ -619,22 +621,35 @@ export class GroupsService {
       resource: 'groups',
     });
 
+    // Get tenant ID from context
+    const tenantId = this.tenantContext.requireTenant();
+
+    this.logger.business('debug', 'Tenant context resolved for public locations', {
+      operation: 'getPublicLocations',
+      resource: 'groups',
+      metadata: { tenantId },
+    });
+
     // Get the Location category
     const locationCategory = await this.groupCategoryRepository.findOne({
-      where: { name: 'Location' },
+      where: { name: 'Location', tenant: { id: tenantId } },
     });
 
     if (!locationCategory) {
-      this.logger.business('warn', 'Location category not found', {
+      this.logger.business('warn', 'Location category not found for tenant', {
         operation: 'getPublicLocations',
         resource: 'groups',
+        metadata: { tenantId },
       });
       return { fobs: [] };
     }
 
-    // Get all location groups with their parent FOBs
+    // Get all location groups with their parent FOBs, filtered by tenant
     const locations = await this.repository.find({
-      where: { category: { id: locationCategory.id } },
+      where: {
+        category: { id: locationCategory.id },
+        tenant: { id: tenantId },
+      },
       relations: ['parent'],
       select: ['id', 'name', 'parent'],
       order: { name: 'ASC' },
@@ -674,6 +689,7 @@ export class GroupsService {
       operation: 'getPublicLocations',
       resource: 'groups',
       metadata: {
+        tenantId: this.tenantContext.tenantId,
         fobCount: fobs.length,
         totalLocations: locations.length,
       },
