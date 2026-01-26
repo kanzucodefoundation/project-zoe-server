@@ -62,6 +62,6 @@ export class GroupsModule {
   configure(consumer: MiddlewareConsumer) {
     consumer
       .apply(TenantHeaderMiddleware)
-      .forRoutes('api/groups/combo/locations');
+      .forRoutes('api/groups/combo/locations', 'api/groups/combo/locations/public');
   }
 }

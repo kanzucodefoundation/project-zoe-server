@@ -16,6 +16,7 @@ import { GroupPermissionsService } from 'src/groups/services/group-permissions.s
 import { GroupsMembershipService } from 'src/groups/services/group-membership.service';
 import { GroupRole } from 'src/groups/enums/groupRole';
 import { AppLogger } from 'src/utils/app-logger.service';
+import { TenantContext } from 'src/shared/tenant/tenant-context';
 
 @Injectable()
 export class SeedService {
@@ -44,11 +45,23 @@ export class SeedService {
       jwtHelperservice,
       groupMembershipService,
     );
+    // Create a mock TenantContext for seeding (no HTTP request context)
+    const mockTenantContext = {
+      tenantId: null,
+      tenantName: null,
+      hasTenant: () => false,
+      requireTenant: () => {
+        throw new Error('Tenant context not available in seed context');
+      },
+      setTenantId: () => {},
+    } as any as TenantContext;
+
     this.groupsService = new GroupsService(
       connection,
       groupsPermissionsService,
       googleService,
       new AppLogger(),
+      mockTenantContext,
     );
     this.groupCategoriesService = groupCategoriesService;
     this.groupMembershipService = groupMembershipService;
