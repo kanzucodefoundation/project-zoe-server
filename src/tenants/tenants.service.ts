@@ -61,6 +61,16 @@ export class TenantsService {
     const groupCategoriesService = new GroupCategoriesService(this.connection);
     const groupMembershipService = new GroupsMembershipService(this.connection);
     const groupTreeService = new GroupTreeService(this.connection, null); // Pass null for cache manager in this context
+
+    // Create a mock TenantContext for tenant creation (no HTTP request context)
+    const mockTenantContext = {
+      tenantId: tenantDetails.id,
+      tenantName: tenantDetails.name,
+      hasTenant: () => true,
+      requireTenant: () => tenantDetails.id,
+      setTenantId: () => {},
+    } as any;
+
     const contactService: ContactsService = new ContactsService(
       this.connection,
       googleService,
@@ -70,6 +80,7 @@ export class TenantsService {
       groupTreeService,
       new AppLogger(),
       groupMembershipService,
+      mockTenantContext,
     );
 
     // Seed initial data for the new tenant

@@ -4,7 +4,7 @@ import {
   Logger,
   Inject,
 } from '@nestjs/common';
-// import { TenantContext } from "../shared/tenant/tenant-context"; // No longer needed
+import { TenantContext } from '../shared/tenant/tenant-context';
 import { Tenant } from '../tenants/entities/tenant.entity';
 import { intersection } from 'lodash';
 import {
@@ -79,7 +79,8 @@ export class ContactsService {
     private addressesService: AddressesService,
     private groupTreeService: GroupTreeService,
     private appLogger: AppLogger,
-    private groupsMembershipService: GroupsMembershipService, // private tenantContext: TenantContext, // No longer needed
+    private groupsMembershipService: GroupsMembershipService,
+    private tenantContext: TenantContext,
   ) {
     this.repository = connection.getRepository(Contact);
     this.personRepository = connection.getRepository(Person);
@@ -1347,6 +1348,13 @@ export class ContactsService {
     }
 
     const model = getContactModel(createPersonDto);
+
+    // Set tenant from context
+    const tenantId = this.tenantContext.requireTenant();
+    Logger.log('tenantId');
+    Logger.log(tenantId);
+    model.tenant = { id: tenantId } as Tenant;
+
     await this.getGroupRequest(createPersonDto);
     const newPerson = await this.repository.save(model, { reload: true });
     if (hasValue(createPersonDto.residence)) {
