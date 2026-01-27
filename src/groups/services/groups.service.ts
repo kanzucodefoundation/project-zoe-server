@@ -54,7 +54,7 @@ export class GroupsService {
   }
 
   async findAll(req: SearchDto): Promise<any[]> {
-    // If parentId is provided, filter by parent
+    // If parentId is provided, filter by parent (for drill-down navigation)
     if (req.parentId !== undefined) {
       if (req.parentId === 'null' || req.parentId === '') {
         // Return root groups (no parent)
@@ -76,8 +76,52 @@ export class GroupsService {
       }
     }
 
-    // Default: return all groups as trees
-    return await this.treeRepository.findTrees();
+    // Default: return all groups as a tree structure
+    // Manually build tree since findTrees() has issues with closure-table
+    return this.buildGroupTree();
+  }
+
+  private async buildGroupTree(): Promise<any[]> {
+    // Fetch all groups flat
+    const allGroups = await this.repository.find({
+      relations: ['category'],
+      order: { name: 'ASC' },
+    });
+
+    // Build a map for quick lookup
+    const groupMap = new Map<number, any>();
+    allGroups.forEach((group) => {
+      groupMap.set(group.id, {
+        id: group.id,
+        privacy: group.privacy,
+        name: group.name,
+        details: group.details,
+        metaData: group.metaData,
+        parentId: group.parentId,
+        address: group.address,
+        categoryId: group.category?.id,
+        children: [],
+      });
+    });
+
+    // Build tree by linking children to parents
+    const roots: any[] = [];
+    allGroups.forEach((group) => {
+      const node = groupMap.get(group.id);
+      if (group.parentId === null || group.parentId === undefined) {
+        roots.push(node);
+      } else {
+        const parent = groupMap.get(group.parentId);
+        if (parent) {
+          parent.children.push(node);
+        } else {
+          // Parent not found (orphan), treat as root
+          roots.push(node);
+        }
+      }
+    });
+
+    return roots;
   }
 
   async getDrillDownGroups(

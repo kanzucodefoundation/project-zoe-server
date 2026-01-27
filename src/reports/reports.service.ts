@@ -982,15 +982,15 @@ export class ReportsService {
       where.report = { id: reportId };
     }
     // @TODO TEMPORARY: Comment out group filtering to see all submissions
-    //if (userGroupIds.length > 0) {
-    //  where.group = { id: In(userGroupIds) };
-    //} else {
-    //  return {
-    //    submissions: [],
-    //    columns: [],
-    //    pagination: { total: 0, limit, offset, hasMore: false },
-    //  };
-    //}
+    if (userGroupIds.length > 0) {
+      where.group = { id: In(userGroupIds) };
+    } else {
+      return {
+        submissions: [],
+        columns: [],
+        pagination: { total: 0, limit, offset, hasMore: false },
+      };
+    }
 
     const submissions = await this.reportSubmissionRepository.find({
       where,
