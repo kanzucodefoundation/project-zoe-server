@@ -99,10 +99,11 @@ export class ReportsService {
   }
 
   async submitReport(
+    reportId: number,
     submissionDto: ReportSubmissionDto,
     user: UserDto,
   ): Promise<ApiResponse<ReportSubmissionDataDto>> {
-    const { reportId, data } = submissionDto;
+    const { data } = submissionDto;
 
     // Retrieve the report by its ID
     const report = await this.reportRepository.findOne({

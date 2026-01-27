@@ -63,8 +63,7 @@ export class ReportsController {
         userId: request.user?.id,
       },
     });
-    submissionDto.reportId = reportId;
-    return await this.reportService.submitReport(submissionDto, request.user);
+    return await this.reportService.submitReport(reportId, submissionDto, request.user);
   }
 
   @Get('submissions/me')
