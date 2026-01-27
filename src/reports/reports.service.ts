@@ -35,6 +35,8 @@ import GroupMembership from 'src/groups/entities/groupMembership.entity';
 import { GroupRole } from 'src/groups/enums/groupRole';
 import { ReportStatus } from './enums/report.enum';
 import { AppLogger, ContextLogger } from 'src/utils/app-logger.service';
+import { TenantContext } from '../shared/tenant/tenant-context';
+import { Tenant } from '../tenants/entities/tenant.entity';
 
 @Injectable()
 export class ReportsService {
@@ -53,6 +55,7 @@ export class ReportsService {
     private readonly groupsService: GroupsService,
     private readonly groupTreeService: GroupTreeService,
     private readonly appLogger: AppLogger,
+    private readonly tenantContext: TenantContext,
   ) {
     this.reportRepository = connection.getRepository(Report);
     this.reportFieldRepository = connection.getRepository(ReportField);
@@ -74,6 +77,10 @@ export class ReportsService {
     report.viewType = reportDto.viewType;
     report.displayColumns = reportDto.displayColumns;
     report.user = await this.userRepository.findOne({ where: { id: user.id } });
+
+    // Set tenant from context
+    const tenantId = this.tenantContext.requireTenant();
+    report.tenant = { id: tenantId } as Tenant;
 
     // Create ReportField entities for each field in reportDto.fields
     const fields = reportDto.fields.map((fieldDto) => {
