@@ -22,10 +22,13 @@ export class DashboardController {
   async getSummary(
     @Request() request,
     @Query('timeRange') timeRange?: string,
+    @Query('groupId') groupId?: string,
   ): Promise<any> {
+    const parsedGroupId = groupId ? parseInt(groupId, 10) : undefined;
     return this.dashboardService.getSundayServiceSummary(
       request.user,
       timeRange || 'month',
+      !isNaN(parsedGroupId) ? parsedGroupId : undefined,
     );
   }
 }

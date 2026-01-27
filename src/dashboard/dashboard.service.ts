@@ -3,11 +3,13 @@ import { Connection, In, Repository } from 'typeorm';
 import { ReportSubmission } from '../reports/entities/report.submission.entity';
 import { Report } from '../reports/entities/report.entity';
 import { GroupPermissionsService } from '../groups/services/group-permissions.service';
+import Group from '../groups/entities/group.entity';
 
 @Injectable()
 export class DashboardService {
   private readonly reportSubmissionRepository: Repository<ReportSubmission>;
   private readonly reportRepository: Repository<Report>;
+  private readonly groupRepository: Repository<Group>;
 
   constructor(
     @Inject('CONNECTION') connection: Connection,
@@ -16,11 +18,13 @@ export class DashboardService {
     this.reportSubmissionRepository =
       connection.getRepository(ReportSubmission);
     this.reportRepository = connection.getRepository(Report);
+    this.groupRepository = connection.getRepository(Group);
   }
 
   async getSundayServiceSummary(
     user: any,
     timeRange: string = 'month',
+    groupId?: number,
   ): Promise<any> {
     // Get user's accessible groups
     const userGroupIds =
@@ -43,9 +47,22 @@ export class DashboardService {
     const where: any = {
       report: { id: sundayServiceReport.id },
     };
-    //if (userGroupIds.length > 0) { //@TODO Temporarily disable filtering
-    //  where.group = { id: In(userGroupIds) };
-    //}
+
+    // Filter by specific group if provided, otherwise use user's accessible groups
+    if (groupId) {
+      // Verify user has access to this group
+      if (userGroupIds.includes(groupId)) {
+        // Get the selected group and all its descendants
+        const groupIdsToFilter = await this.getGroupAndDescendantIds(groupId);
+        // Only include groups the user has access to
+        const allowedGroupIds = groupIdsToFilter.filter((id) =>
+          userGroupIds.includes(id),
+        );
+        where.group = { id: In(allowedGroupIds) };
+      }
+    } else if (userGroupIds.length > 0) {
+      where.group = { id: In(userGroupIds) };
+    }
 
     const submissions = await this.reportSubmissionRepository.find({
       where,
@@ -235,5 +252,28 @@ export class DashboardService {
       default:
         return 'Past Month';
     }
+  }
+
+  /**
+   * Get a group ID and all its descendant group IDs recursively.
+   * Works with any level of hierarchy (FOB -> Location, or any parent -> children structure).
+   */
+  private async getGroupAndDescendantIds(groupId: number): Promise<number[]> {
+    const ids: number[] = [groupId];
+
+    const collectDescendants = async (parentId: number) => {
+      const children = await this.groupRepository.find({
+        where: { parentId },
+        select: ['id'],
+      });
+
+      for (const child of children) {
+        ids.push(child.id);
+        await collectDescendants(child.id);
+      }
+    };
+
+    await collectDescendants(groupId);
+    return ids;
   }
 }

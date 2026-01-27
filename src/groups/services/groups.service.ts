@@ -605,7 +605,33 @@ export class GroupsService {
       relations: ['category', 'parent'],
     });
 
-    return groups.map((group) => this.toListView(group));
+    // Fetch children for each group
+    const groupsWithChildren: GroupListDto[] = [];
+
+    for (const group of groups) {
+      const groupDto = this.toListView(group);
+
+      // Fetch direct children of this group
+      const children = await this.repository.find({
+        where: { parentId: group.id },
+        relations: ['category', 'parent'],
+      });
+
+      // Add the group itself
+      groupsWithChildren.push(groupDto);
+
+      // Add children as separate items (flattened for dropdown use)
+      for (const child of children) {
+        groupsWithChildren.push(this.toListView(child));
+      }
+    }
+
+    // Remove duplicates (in case a child is also in user's direct groups)
+    const uniqueGroups = groupsWithChildren.filter(
+      (group, index, self) => index === self.findIndex((g) => g.id === group.id),
+    );
+
+    return uniqueGroups;
   }
 
   async getCategories(): Promise<any[]> {
