@@ -10,6 +10,7 @@ import {
   UseGuards,
   UseInterceptors,
   Request,
+  ParseIntPipe,
 } from '@nestjs/common';
 import { GroupsService } from '../services/groups.service';
 import SearchDto from '../../shared/dto/search.dto';
@@ -17,6 +18,7 @@ import { ApiTags } from '@nestjs/swagger';
 import GroupListDto from '../dto/group-list.dto';
 import CreateGroupDto from '../dto/create-group.dto';
 import UpdateGroupDto from '../dto/update-group.dto';
+import { SendSmsDto } from '../dto/send-sms.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { SentryInterceptor } from '../../utils/sentry.interceptor';
 
@@ -54,6 +56,23 @@ export class GroupController {
     @Request() rawRequest: any,
   ): Promise<any> {
     return this.service.getGroupMembers(id, rawRequest.user, limit, offset);
+  }
+
+  @Get(':id/sms-info')
+  async getGroupSmsInfo(
+    @Param('id') id: number,
+    @Request() rawRequest: any,
+  ): Promise<any> {
+    return this.service.getGroupSmsInfo(id, rawRequest.user);
+  }
+
+  @Post(':groupId/send-sms')
+  async sendGroupSms(
+    @Param('groupId', ParseIntPipe) groupId: number,
+    @Body() body: SendSmsDto,
+    @Request() rawRequest: any,
+  ): Promise<any> {
+    return this.service.sendGroupSms(groupId, body.message, rawRequest.user);
   }
 
   @Get()

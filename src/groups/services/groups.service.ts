@@ -28,6 +28,13 @@ import { GroupPermissionsService } from './group-permissions.service';
 import GroupCategory from '../entities/groupCategory.entity';
 import { AppLogger, ContextLogger } from 'src/utils/app-logger.service';
 import { TenantContext } from 'src/shared/tenant/tenant-context';
+import Phone from '../../crm/entities/phone.entity';
+import { AfricasTalkingService } from '../../vendor/africas-talking.service';
+import {
+  NotFoundException,
+  BadRequestException,
+  InternalServerErrorException,
+} from '@nestjs/common';
 
 @Injectable()
 export class GroupsService {
@@ -36,6 +43,7 @@ export class GroupsService {
   private readonly membershipRepository: Repository<GroupMembership>;
   private readonly eventRepository: Repository<GroupEvent>;
   private readonly groupCategoryRepository: Repository<GroupCategory>;
+  private readonly phoneRepository: Repository<Phone>;
   private readonly logger: ContextLogger;
 
   constructor(
@@ -44,12 +52,14 @@ export class GroupsService {
     private googleService: GoogleService,
     private appLogger: AppLogger,
     private tenantContext: TenantContext,
+    private africasTalkingService: AfricasTalkingService,
   ) {
     this.repository = connection.getRepository(Group);
     this.treeRepository = connection.getTreeRepository(Group);
     this.membershipRepository = connection.getRepository(GroupMembership);
     this.eventRepository = connection.getRepository(GroupEvent);
     this.groupCategoryRepository = connection.getRepository(GroupCategory);
+    this.phoneRepository = connection.getRepository(Phone);
     this.logger = this.appLogger.createContextLogger('GroupsService');
   }
 
@@ -766,5 +776,183 @@ export class GroupsService {
     });
 
     return { fobs };
+  }
+
+  /**
+   * Get SMS info for a group - returns member counts and phone availability.
+   */
+  async getGroupSmsInfo(groupId: number, user: any): Promise<any> {
+    // Check if user has permission to view this group
+    const hasPermission =
+      await this.groupsPermissionsService.hasPermissionForGroup(user, groupId);
+    if (!hasPermission) {
+      throw new ClientFriendlyException('Access denied to this group');
+    }
+
+    // Get all active memberships for the group
+    const memberships = await this.membershipRepository.find({
+      where: { groupId, isActive: true },
+      relations: ['contact', 'contact.phones'],
+    });
+
+    const totalMembers = memberships.length;
+    let membersWithPhone = 0;
+    let membersWithoutPhone = 0;
+
+    for (const membership of memberships) {
+      const phones = membership.contact?.phones || [];
+      if (phones.length > 0) {
+        membersWithPhone++;
+      } else {
+        membersWithoutPhone++;
+      }
+    }
+
+    return {
+      totalMembers,
+      membersWithPhone,
+      membersWithoutPhone,
+    };
+  }
+
+  /**
+   * Send SMS to all group members with phone numbers using Africa's Talking.
+   *
+   * TODO: ASYNC IMPLEMENTATION NEEDED FOR PRODUCTION
+   * This is currently synchronous and will timeout for large groups.
+   * MUST BE CHANGED to async job queue (e.g., Bull, BullMQ, or similar).
+   *
+   * Recommended flow:
+   * 1. Validate request and queue job immediately
+   * 2. Return job ID to frontend: { jobId: "abc123", status: "queued" }
+   * 3. Process sends in background worker
+   * 4. Frontend polls /api/sms-jobs/:jobId for status
+   * 5. Show progress/completion via polling or websocket
+   *
+   * This prevents:
+   * - Request timeouts on large groups
+   * - Blocking the API server
+   * - Poor user experience waiting for sends to complete
+   */
+  async sendGroupSms(
+    groupId: number,
+    message: string,
+    user: any,
+  ): Promise<any> {
+    // Validate group exists
+    const group = await this.repository.findOne({ where: { id: groupId } });
+    if (!group) {
+      throw new NotFoundException(`Group with ID ${groupId} not found`);
+    }
+
+    // Check if user has permission
+    const hasPermission =
+      await this.groupsPermissionsService.hasPermissionForGroup(user, groupId);
+    if (!hasPermission) {
+      throw new BadRequestException('Access denied to this group');
+    }
+
+    // Validate message
+    if (!message || message.trim().length === 0) {
+      throw new BadRequestException('Message cannot be empty');
+    }
+
+    // Get all active members with phone numbers
+    const memberships = await this.membershipRepository.find({
+      where: { groupId, isActive: true },
+      relations: ['contact', 'contact.phones', 'contact.person'],
+    });
+
+    if (memberships.length === 0) {
+      throw new BadRequestException('Group has no active members');
+    }
+
+    // Extract and validate phone numbers
+    const validPhones: string[] = [];
+    let skippedCount = 0;
+
+    for (const membership of memberships) {
+      const phones = membership.contact?.phones || [];
+      const primaryPhone = phones.find((p) => p.isPrimary) || phones[0];
+
+      if (primaryPhone) {
+        const normalized = this.africasTalkingService.normalizePhoneNumber(
+          primaryPhone.value,
+        );
+        if (normalized) {
+          validPhones.push(normalized);
+        } else {
+          skippedCount++;
+          this.logger.debug('log', 'Skipped invalid phone number', {
+            operation: 'sendGroupSms',
+            metadata: {
+              phone: primaryPhone.value,
+              contactId: membership.contactId,
+            },
+          });
+        }
+      } else {
+        skippedCount++;
+      }
+    }
+
+    // Check if we have any valid numbers
+    if (validPhones.length === 0) {
+      throw new BadRequestException(
+        'No valid phone numbers found in group members',
+      );
+    }
+
+    this.logger.business('log', 'Sending SMS to group members', {
+      operation: 'sendGroupSms',
+      resource: 'groups',
+      resourceId: groupId,
+      userId: user?.id,
+      metadata: {
+        groupName: group?.name,
+        messageLength: message.length,
+        totalMembers: memberships.length,
+        validPhones: validPhones.length,
+        skippedCount,
+      },
+    });
+
+    // Send SMS via Africa's Talking
+    let result;
+    try {
+      result = await this.africasTalkingService.sendBulkSms(
+        validPhones,
+        message,
+      );
+    } catch (error) {
+      this.logger.error(error, {
+        operation: 'sendGroupSms',
+        resource: 'groups',
+        resourceId: groupId,
+      });
+      throw new InternalServerErrorException(
+        'Failed to send SMS. Please try again later.',
+      );
+    }
+
+    this.logger.business('log', 'SMS send completed', {
+      operation: 'sendGroupSms',
+      resource: 'groups',
+      resourceId: groupId,
+      userId: user?.id,
+      metadata: {
+        sentCount: result.sentCount,
+        failedCount: result.failedCount,
+        totalAttempted: validPhones.length,
+      },
+    });
+
+    // Return response in specified format
+    return {
+      success: result.success,
+      sentCount: result.sentCount,
+      totalMembers: memberships.length,
+      skippedCount: skippedCount + result.failedCount,
+    };
   }
 }
