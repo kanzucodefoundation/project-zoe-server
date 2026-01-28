@@ -8,10 +8,11 @@ import {
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { SentryInterceptor } from '../utils/sentry.interceptor';
+import { TenantContextInterceptor } from '../interceptors/tenant-context.interceptor';
 import { ApiTags } from '@nestjs/swagger';
 import { DashboardService } from './dashboard.service';
 
-@UseInterceptors(SentryInterceptor)
+@UseInterceptors(SentryInterceptor, TenantContextInterceptor)
 @UseGuards(JwtAuthGuard)
 @ApiTags('Dashboard')
 @Controller('api/dashboard')
@@ -30,5 +31,10 @@ export class DashboardController {
       timeRange || 'month',
       !isNaN(parsedGroupId) ? parsedGroupId : undefined,
     );
+  }
+
+  @Get('birthdays-this-week')
+  async getBirthdaysThisWeek(): Promise<any> {
+    return this.dashboardService.getBirthdaysThisWeek();
   }
 }
