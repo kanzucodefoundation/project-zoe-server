@@ -64,6 +64,7 @@ export class SeedService {
       googleService,
       new AppLogger(),
       mockTenantContext,
+      null as any, // africasTalkingService - not needed for seeding
     );
     this.groupCategoriesService = groupCategoriesService;
     this.groupMembershipService = groupMembershipService;

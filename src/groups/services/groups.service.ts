@@ -883,7 +883,7 @@ export class GroupsService {
           validPhones.push(normalized);
         } else {
           skippedCount++;
-          this.logger.debug('log', 'Skipped invalid phone number', {
+          this.logger.business('debug', 'Skipped invalid phone number', {
             operation: 'sendGroupSms',
             metadata: {
               phone: primaryPhone.value,
