@@ -28,10 +28,11 @@ import { GroupPermissionsService } from 'src/groups/services/group-permissions.s
 import { GroupTreeService } from 'src/groups/services/group-tree.service';
 import { TenantContextInterceptor } from '../interceptors/tenant-context.interceptor';
 import { AppLogger } from 'src/utils/app-logger.service';
+import { VendorModule } from 'src/vendor/vendor.module';
 
 @Global()
 @Module({
-  imports: [CsvModule, HttpModule, TypeOrmModule.forFeature(appEntities)],
+  imports: [CsvModule, HttpModule, TypeOrmModule.forFeature(appEntities), VendorModule],
   providers: [
     ContactsService,
     GoogleService,

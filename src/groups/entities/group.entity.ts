@@ -22,6 +22,7 @@ import { Tenant } from '../../tenants/entities/tenant.entity';
 @Entity()
 @Tree('closure-table')
 @Index(['tenant', 'id'])
+@Index(['tenant', 'category', 'parentId', 'name'], { unique: true }) // Same location name under diff parent allowed
 export default class Group {
   @PrimaryGeneratedColumn()
   id: number;

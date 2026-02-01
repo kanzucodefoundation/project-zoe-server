@@ -30,6 +30,7 @@
     "prepare": "husky install",
     "postinstall": "prisma generate",
     "command": "ts-node -r tsconfig-paths/register src/commands.ts",
+    "import:fobs": "TS_NODE_PROJECT=tsconfig.json ts-node -r tsconfig-paths/register scripts/import-fobs-locations.ts",
     "sync:schemas": "NODE_OPTIONS='--max-old-space-size=4096' ts-node -r tsconfig-paths/register scripts/syncSchemas.ts",
     "sync:migrateReportSubmissionData": "ts-node -r tsconfig-paths/register scripts/migrateReportData.ts",
     "migrate:row-level": "ts-node -r tsconfig-paths/register scripts/migrateToRowLevelTenancy.ts",
@@ -64,6 +65,7 @@
     "class-validator": "^0.14.0",
     "compression": "^1.7.4",
     "crypto": "^1.0.1",
+    "csv-parse": "^6.1.0",
     "csv-parser": "^3.0.0",
     "date-fns": "^2.30.0",
     "express-rate-limit": "^7.0.2",
@@ -88,7 +90,8 @@
     "rxjs": "^7.1.0",
     "swagger-ui-express": "^5.0.0",
     "typeorm": "^0.3.17",
-    "winston": "^3.10.0"
+    "winston": "^3.10.0",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@commitlint/cli": "^17.7.2",

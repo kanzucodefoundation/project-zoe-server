@@ -35,6 +35,8 @@ import GroupMembership from 'src/groups/entities/groupMembership.entity';
 import { GroupRole } from 'src/groups/enums/groupRole';
 import { ReportStatus } from './enums/report.enum';
 import { AppLogger, ContextLogger } from 'src/utils/app-logger.service';
+import { TenantContext } from '../shared/tenant/tenant-context';
+import { Tenant } from '../tenants/entities/tenant.entity';
 
 @Injectable()
 export class ReportsService {
@@ -53,6 +55,7 @@ export class ReportsService {
     private readonly groupsService: GroupsService,
     private readonly groupTreeService: GroupTreeService,
     private readonly appLogger: AppLogger,
+    private readonly tenantContext: TenantContext,
   ) {
     this.reportRepository = connection.getRepository(Report);
     this.reportFieldRepository = connection.getRepository(ReportField);
@@ -75,6 +78,10 @@ export class ReportsService {
     report.displayColumns = reportDto.displayColumns;
     report.user = await this.userRepository.findOne({ where: { id: user.id } });
 
+    // Set tenant from context
+    const tenantId = this.tenantContext.requireTenant();
+    report.tenant = { id: tenantId } as Tenant;
+
     // Create ReportField entities for each field in reportDto.fields
     const fields = reportDto.fields.map((fieldDto) => {
       const field = new ReportField();
@@ -92,10 +99,11 @@ export class ReportsService {
   }
 
   async submitReport(
+    reportId: number,
     submissionDto: ReportSubmissionDto,
     user: UserDto,
   ): Promise<ApiResponse<ReportSubmissionDataDto>> {
-    const { reportId, data } = submissionDto;
+    const { data } = submissionDto;
 
     // Retrieve the report by its ID
     const report = await this.reportRepository.findOne({
@@ -974,15 +982,15 @@ export class ReportsService {
       where.report = { id: reportId };
     }
     // @TODO TEMPORARY: Comment out group filtering to see all submissions
-    //if (userGroupIds.length > 0) {
-    //  where.group = { id: In(userGroupIds) };
-    //} else {
-    //  return {
-    //    submissions: [],
-    //    columns: [],
-    //    pagination: { total: 0, limit, offset, hasMore: false },
-    //  };
-    //}
+    if (userGroupIds.length > 0) {
+      where.group = { id: In(userGroupIds) };
+    } else {
+      return {
+        submissions: [],
+        columns: [],
+        pagination: { total: 0, limit, offset, hasMore: false },
+      };
+    }
 
     const submissions = await this.reportSubmissionRepository.find({
       where,

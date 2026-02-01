@@ -1,0 +1,6 @@
+export enum BatchStatus {
+  DRAFT = 'DRAFT',
+  PENDING_APPROVAL = 'PENDING_APPROVAL',
+  APPROVED = 'APPROVED',
+  EXECUTED = 'EXECUTED',
+}

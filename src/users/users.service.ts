@@ -276,7 +276,7 @@ export class UsersService {
       update.password = user.password;
     }
 
-    if (data.roles.length > 0) {
+    if (data.roles && data.roles.length > 0) {
       const dbUserRolesStrArr: string[] = [];
       const sentRolesStrArr: string[] = [];
       const getdbUserRoles = await this.userRolesRepository.find({

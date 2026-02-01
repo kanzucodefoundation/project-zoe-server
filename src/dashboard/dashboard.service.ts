@@ -3,24 +3,37 @@ import { Connection, In, Repository } from 'typeorm';
 import { ReportSubmission } from '../reports/entities/report.submission.entity';
 import { Report } from '../reports/entities/report.entity';
 import { GroupPermissionsService } from '../groups/services/group-permissions.service';
+import Group from '../groups/entities/group.entity';
+import Person from '../crm/entities/person.entity';
+import Contact from '../crm/entities/contact.entity';
+import { TenantContext } from '../shared/tenant/tenant-context';
+import { ContactCategory } from '../crm/enums/contactCategory';
 
 @Injectable()
 export class DashboardService {
   private readonly reportSubmissionRepository: Repository<ReportSubmission>;
   private readonly reportRepository: Repository<Report>;
+  private readonly groupRepository: Repository<Group>;
+  private readonly personRepository: Repository<Person>;
+  private readonly contactRepository: Repository<Contact>;
 
   constructor(
     @Inject('CONNECTION') connection: Connection,
     private groupPermissionsService: GroupPermissionsService,
+    private readonly tenantContext: TenantContext,
   ) {
     this.reportSubmissionRepository =
       connection.getRepository(ReportSubmission);
     this.reportRepository = connection.getRepository(Report);
+    this.groupRepository = connection.getRepository(Group);
+    this.personRepository = connection.getRepository(Person);
+    this.contactRepository = connection.getRepository(Contact);
   }
 
   async getSundayServiceSummary(
     user: any,
     timeRange: string = 'month',
+    groupId?: number,
   ): Promise<any> {
     // Get user's accessible groups
     const userGroupIds =
@@ -43,9 +56,22 @@ export class DashboardService {
     const where: any = {
       report: { id: sundayServiceReport.id },
     };
-    //if (userGroupIds.length > 0) { //@TODO Temporarily disable filtering
-    //  where.group = { id: In(userGroupIds) };
-    //}
+
+    // Filter by specific group if provided, otherwise use user's accessible groups
+    if (groupId) {
+      // Verify user has access to this group
+      if (userGroupIds.includes(groupId)) {
+        // Get the selected group and all its descendants
+        const groupIdsToFilter = await this.getGroupAndDescendantIds(groupId);
+        // Only include groups the user has access to
+        const allowedGroupIds = groupIdsToFilter.filter((id) =>
+          userGroupIds.includes(id),
+        );
+        where.group = { id: In(allowedGroupIds) };
+      }
+    } else if (userGroupIds.length > 0) {
+      where.group = { id: In(userGroupIds) };
+    }
 
     const submissions = await this.reportSubmissionRepository.find({
       where,
@@ -235,5 +261,112 @@ export class DashboardService {
       default:
         return 'Past Month';
     }
+  }
+
+  /**
+   * Get a group ID and all its descendant group IDs recursively.
+   * Works with any level of hierarchy (FOB -> Location, or any parent -> children structure).
+   */
+  private async getGroupAndDescendantIds(groupId: number): Promise<number[]> {
+    const ids: number[] = [groupId];
+
+    const collectDescendants = async (parentId: number) => {
+      const children = await this.groupRepository.find({
+        where: { parentId },
+        select: ['id'],
+      });
+
+      for (const child of children) {
+        ids.push(child.id);
+        await collectDescendants(child.id);
+      }
+    };
+
+    await collectDescendants(groupId);
+    return ids;
+  }
+
+  /**
+   * Get birthdays for the current week (today through next 6 days).
+   * Returns people sorted by birthday date (earliest first).
+   * Handles edge cases: month boundaries, year boundaries, missing data.
+   */
+  async getBirthdaysThisWeek(): Promise<any> {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Get tenant from context
+    const tenantId = this.tenantContext.requireTenant();
+
+    // Get all contacts with people and birthdays for this tenant
+    const contacts = await this.contactRepository.find({
+      where: {
+        tenant: { id: tenantId },
+        category: ContactCategory.Person,
+      },
+      relations: ['person'],
+      select: {
+        id: true,
+        person: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          dateOfBirth: true,
+        },
+      },
+    });
+
+    // Filter contacts that have person with dateOfBirth
+    const peopleWithBirthdays = contacts
+      .filter((contact) => contact.person?.dateOfBirth)
+      .map((contact) => contact.person);
+
+    // Filter for birthdays in the current week (comparing month and day only)
+    const birthdaysThisWeek = peopleWithBirthdays
+      .map((person) => {
+        try {
+          const dob = new Date(person.dateOfBirth);
+
+          // Validate date
+          if (isNaN(dob.getTime())) {
+            return null;
+          }
+
+          const birthMonth = dob.getMonth();
+          const birthDay = dob.getDate();
+
+          // Check each day from today to end of week (today + 6 days = 7 days total)
+          for (let i = 0; i <= 6; i++) {
+            const checkDate = new Date(today);
+            checkDate.setDate(today.getDate() + i);
+
+            if (
+              checkDate.getMonth() === birthMonth &&
+              checkDate.getDate() === birthDay
+            ) {
+              // Create upcoming date in current year
+              const upcomingDate = new Date(checkDate);
+              upcomingDate.setHours(0, 0, 0, 0);
+
+              return {
+                id: person.id,
+                name: `${person.firstName} ${person.lastName}`,
+                dateOfBirth: person.dateOfBirth,
+                upcomingDate: upcomingDate.toISOString().split('T')[0], // YYYY-MM-DD format
+                _sortDate: upcomingDate, // For internal sorting
+              };
+            }
+          }
+          return null;
+        } catch (error) {
+          // Handle gracefully - invalid date formats are excluded
+          return null;
+        }
+      })
+      .filter((item) => item !== null) // Remove nulls
+      .sort((a, b) => a._sortDate.getTime() - b._sortDate.getTime()) // Sort by upcoming date
+      .map(({ _sortDate, ...birthday }) => birthday); // Remove internal sort field
+
+    return { birthdays: birthdaysThisWeek };
   }
 }

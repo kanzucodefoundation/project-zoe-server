@@ -63,8 +63,7 @@ export class ReportsController {
         userId: request.user?.id,
       },
     });
-    submissionDto.reportId = reportId;
-    return await this.reportService.submitReport(submissionDto, request.user);
+    return await this.reportService.submitReport(reportId, submissionDto, request.user);
   }
 
   @Get('submissions/me')
@@ -100,12 +99,26 @@ export class ReportsController {
     @Query('to') endDate?: string,
     @Request() request?: any,
   ): Promise<any> {
+    // Parse dates, treating empty strings as undefined
+    let parsedStartDate: Date | undefined;
+    let parsedEndDate: Date | undefined;
+
+    if (startDate && startDate.trim() !== '') {
+      parsedStartDate = new Date(startDate);
+      parsedStartDate.setHours(0, 0, 0, 0); // Start of day
+    }
+
+    if (endDate && endDate.trim() !== '') {
+      parsedEndDate = new Date(endDate);
+      parsedEndDate.setHours(23, 59, 59, 999); // End of day
+    }
+
     return await this.reportService.getMyGroupsSubmissions(request.user, {
       reportId,
       limit,
       offset,
-      startDate: startDate ? new Date(startDate) : undefined,
-      endDate: endDate ? new Date(endDate) : undefined,
+      startDate: parsedStartDate,
+      endDate: parsedEndDate,
     });
   }
 
@@ -207,8 +220,21 @@ export class ReportsController {
         parentGroupIdList,
       },
     });
-    const formattedStartDate = startDate ? new Date(startDate) : undefined;
-    const formattedEndDate = endDate ? new Date(endDate) : undefined;
+
+    // Parse dates, treating empty strings as undefined
+    let formattedStartDate: Date | undefined;
+    let formattedEndDate: Date | undefined;
+
+    if (startDate && startDate.trim() !== '') {
+      formattedStartDate = new Date(startDate);
+      formattedStartDate.setHours(0, 0, 0, 0); // Start of day
+    }
+
+    if (endDate && endDate.trim() !== '') {
+      formattedEndDate = new Date(endDate);
+      formattedEndDate.setHours(23, 59, 59, 999); // End of day
+    }
+
     return await this.reportService.generateReport(
       reportId,
       formattedStartDate,
