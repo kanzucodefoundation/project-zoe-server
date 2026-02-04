@@ -4,6 +4,7 @@ import {
   Delete,
   Get,
   Param,
+  Patch,
   Post,
   Put,
   Query,
@@ -40,6 +41,14 @@ export class UsersController {
   @Put()
   async update(@Body() data: UpdateUserDto): Promise<UserListDto> {
     return await this.service.update(data);
+  }
+
+  @Patch(':id')
+  async patch(
+    @Param('id') id: number,
+    @Body() data: Partial<UpdateUserDto>,
+  ): Promise<UserListDto> {
+    return await this.service.update({ ...data, id });
   }
 
   @Get(':id')
