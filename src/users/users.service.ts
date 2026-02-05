@@ -270,7 +270,7 @@ export class UsersService {
     const update: QueryDeepPartialEntity<User> = {};
 
     // Only update isActive if provided
-    if (hasValue(data.isActive)) {
+    if ('isActive' in data && data.isActive !== undefined) {
       update.isActive = data.isActive;
     }
 
