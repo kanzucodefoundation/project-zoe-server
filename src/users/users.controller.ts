@@ -4,6 +4,7 @@ import {
   Delete,
   Get,
   Param,
+  ParseIntPipe,
   Patch,
   Post,
   Put,
@@ -45,10 +46,10 @@ export class UsersController {
 
   @Patch(':id')
   async patch(
-    @Param('id') id: number,
-    @Body() data: Partial<UpdateUserDto>,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() data: UpdateUserDto,
   ): Promise<UserListDto> {
-    return await this.service.update({ ...data, id });
+    return await this.service.update(data);
   }
 
   @Get(':id')
