@@ -33,6 +33,14 @@ export class TasksController {
     return this.tasksService.create(req.user.id, dto);
   }
 
+  @Get()
+  async findAll(
+    @Query('page') page = 1,
+    @Query('limit') limit = 20,
+  ) {
+    return this.tasksService.findAll(Number(page), Number(limit));
+  }
+
   @Get('contact/:contactId')
   async findAllForContact(@Param('contactId') contactId: number) {
     return this.tasksService.findAllForContact(contactId);

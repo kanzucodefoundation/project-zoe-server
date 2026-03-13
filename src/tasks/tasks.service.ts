@@ -65,6 +65,18 @@ export class TasksService {
     return saved;
   }
 
+  async findAll(page = 1, limit = 20): Promise<{ data: Task[]; total: number }> {
+    const tenantId = this.tenantContext.requireTenant();
+    const [data, total] = await this.taskRepository.findAndCount({
+      where: { tenant: { id: tenantId } },
+      relations: ['contact', 'assignedTo', 'createdBy'],
+      order: { createdAt: 'DESC' },
+      skip: (page - 1) * limit,
+      take: limit,
+    });
+    return { data, total };
+  }
+
   async findAllForContact(contactId: number): Promise<Task[]> {
     const tenantId = this.tenantContext.requireTenant();
     return this.taskRepository.find({
