@@ -18,6 +18,9 @@ import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskStatusDto } from './dto/update-task-status.dto';
 import { AddCommentDto } from './dto/add-comment.dto';
 import { ReassignTaskDto } from './dto/reassign-task.dto';
+import { UpdateTaskDto } from './dto/update-task.dto';
+import { TaskStatus } from './enums/task-status.enum';
+import { TaskType } from './enums/task-type.enum';
 
 @UseInterceptors(SentryInterceptor, TenantContextInterceptor)
 @ApiTags('Tasks')
@@ -37,8 +40,27 @@ export class TasksController {
   async findAll(
     @Query('page') page = 1,
     @Query('limit') limit = 20,
+    @Query('status') status?: string | string[],
+    @Query('type') type?: string | string[],
+    @Query('assignedToId') assignedToId?: string,
   ) {
-    return this.tasksService.findAll(Number(page), Number(limit));
+    const filters: {
+      status?: TaskStatus[];
+      type?: TaskType[];
+      assignedToId?: number | 'unassigned';
+    } = {};
+
+    if (status) {
+      filters.status = (Array.isArray(status) ? status : [status]) as TaskStatus[];
+    }
+    if (type) {
+      filters.type = (Array.isArray(type) ? type : [type]) as TaskType[];
+    }
+    if (assignedToId !== undefined) {
+      filters.assignedToId = assignedToId === 'unassigned' ? 'unassigned' : Number(assignedToId);
+    }
+
+    return this.tasksService.findAll(Number(page), Number(limit), filters);
   }
 
   @Get('contact/:contactId')
@@ -67,6 +89,19 @@ export class TasksController {
     }
 
     return this.retentionReportService.getSummary(from, now);
+  }
+
+  @Get(':id')
+  async findOne(@Param('id') id: number) {
+    return this.tasksService.findOne(id);
+  }
+
+  @Patch(':id')
+  async update(
+    @Param('id') id: number,
+    @Body() dto: UpdateTaskDto,
+  ) {
+    return this.tasksService.update(id, dto);
   }
 
   @Patch(':id/status')

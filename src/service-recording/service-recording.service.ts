@@ -311,7 +311,7 @@ export class ServiceRecordingService {
           rawGender,
         );
 
-        const taskTitle = `Follow up — ${firstName} ${lastName}`;
+        const taskTitle = `FTG Follow up — ${firstName} ${lastName}`;
         const prayerComment = prayerRequest ? `Prayer request: ${prayerRequest}` : undefined;
         const task = await this.createFollowUpTask(
           tenantId,
@@ -427,7 +427,7 @@ export class ServiceRecordingService {
           );
         }
 
-        const taskTitle = `Follow up — ${firstName} ${lastName}`;
+        const taskTitle = `New Believer Follow up — ${firstName} ${lastName}`;
         const notesComment = notes ? notes : undefined;
         const task = await this.createFollowUpTask(
           tenantId,

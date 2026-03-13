@@ -55,6 +55,7 @@ export class RetentionReportService {
     const retained = await countDistinctByType([
       ContactActivityType.ATTENDED_FELLOWSHIP,
       ContactActivityType.JOINED_SERVING_TEAM,
+      ContactActivityType.GOT_BAPTISED,
     ]);
 
     const joinedFellowship = await countDistinctByType([

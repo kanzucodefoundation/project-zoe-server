@@ -12,8 +12,4 @@ export enum TaskStatus {
 // Statuses that cannot be moved backwards once set
 export const CLOSED_STATUSES: TaskStatus[] = [
   TaskStatus.DONE,
-  TaskStatus.MATCHED_TO_FELLOWSHIP,
-  TaskStatus.ATTENDED_FELLOWSHIP,
-  TaskStatus.JOINED_SERVING_TEAM,
-  TaskStatus.GOT_BAPTISED,
 ];

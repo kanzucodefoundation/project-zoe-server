@@ -15,6 +15,7 @@ import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskStatusDto } from './dto/update-task-status.dto';
 import { AddCommentDto } from './dto/add-comment.dto';
 import { CLOSED_STATUSES, TaskStatus } from './enums/task-status.enum';
+import { TaskType } from './enums/task-type.enum';
 import { ContactActivityType } from '../crm/enums/contact-activity-type.enum';
 
 @Injectable()
@@ -65,15 +66,42 @@ export class TasksService {
     return saved;
   }
 
-  async findAll(page = 1, limit = 20): Promise<{ data: Task[]; total: number }> {
+  async findAll(
+    page = 1,
+    limit = 20,
+    filters: {
+      status?: TaskStatus[];
+      type?: TaskType[];
+      assignedToId?: number | 'unassigned';
+    } = {},
+  ): Promise<{ data: Task[]; total: number }> {
     const tenantId = this.tenantContext.requireTenant();
-    const [data, total] = await this.taskRepository.findAndCount({
-      where: { tenant: { id: tenantId } },
-      relations: ['contact', 'assignedTo', 'createdBy'],
-      order: { createdAt: 'DESC' },
-      skip: (page - 1) * limit,
-      take: limit,
-    });
+
+    const qb = this.taskRepository
+      .createQueryBuilder('task')
+      .leftJoinAndSelect('task.contact', 'contact')
+      .leftJoinAndSelect('task.assignedTo', 'assignedTo')
+      .leftJoinAndSelect('task.createdBy', 'createdBy')
+      .where('task.tenantId = :tenantId', { tenantId })
+      .orderBy('task.createdAt', 'DESC')
+      .skip((page - 1) * limit)
+      .take(limit);
+
+    if (filters.status?.length) {
+      qb.andWhere('task.status IN (:...statuses)', { statuses: filters.status });
+    }
+
+    if (filters.type?.length) {
+      qb.andWhere('task.type IN (:...types)', { types: filters.type });
+    }
+
+    if (filters.assignedToId === 'unassigned') {
+      qb.andWhere('task.assignedToId IS NULL');
+    } else if (filters.assignedToId !== undefined) {
+      qb.andWhere('task.assignedToId = :assignedToId', { assignedToId: filters.assignedToId });
+    }
+
+    const [data, total] = await qb.getManyAndCount();
     return { data, total };
   }
 
@@ -87,6 +115,34 @@ export class TasksService {
       relations: ['comments', 'attachments'],
       order: { createdAt: 'DESC' },
     });
+  }
+
+  async findOne(taskId: number): Promise<Task> {
+    const tenantId = this.tenantContext.requireTenant();
+    const task = await this.taskRepository.findOne({
+      where: { id: taskId, tenant: { id: tenantId } },
+      relations: ['contact', 'assignedTo', 'createdBy', 'comments', 'comments.author', 'attachments'],
+    });
+    if (!task) throw new NotFoundException(`Task ${taskId} not found`);
+    return task;
+  }
+
+  async update(taskId: number, dto: import('./dto/update-task.dto').UpdateTaskDto): Promise<Task> {
+    const tenantId = this.tenantContext.requireTenant();
+    const task = await this.taskRepository.findOne({
+      where: { id: taskId, tenant: { id: tenantId } },
+    });
+    if (!task) throw new NotFoundException(`Task ${taskId} not found`);
+
+    if (dto.title !== undefined) task.title = dto.title;
+    if (dto.assignedToId !== undefined) {
+      task.assignedTo = dto.assignedToId ? ({ id: dto.assignedToId } as any) : null;
+    }
+    if (dto.dueAt !== undefined) {
+      task.dueAt = dto.dueAt ? new Date(dto.dueAt) : null;
+    }
+
+    return this.taskRepository.save(task);
   }
 
   async updateStatus(
