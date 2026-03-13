@@ -26,11 +26,11 @@ export class RetentionReportService {
       types: ContactActivityType[],
     ): Promise<number> => {
       const result = await this.connection.query(
-        `SELECT COUNT(DISTINCT contact_id) AS cnt
+        `SELECT COUNT(DISTINCT "contactId") AS cnt
          FROM contact_activity
-         WHERE tenant_id = $1
-           AND type = ANY($2::varchar[])
-           AND occurred_at BETWEEN $3 AND $4`,
+         WHERE "tenantId" = $1
+           AND type::text = ANY($2::text[])
+           AND "occurredAt" BETWEEN $3 AND $4`,
         [tenantId, types, from, to],
       );
       return parseInt(result[0].cnt, 10);
@@ -38,15 +38,15 @@ export class RetentionReportService {
 
     // Distinct contacts who received their first task in the period
     const recordedResult = await this.connection.query(
-      `SELECT COUNT(DISTINCT t.contact_id) AS cnt
+      `SELECT COUNT(DISTINCT t."contactId") AS cnt
        FROM task t
-       WHERE t.tenant_id = $1
-         AND t.created_at BETWEEN $2 AND $3
+       WHERE t."tenantId" = $1
+         AND t."createdAt" BETWEEN $2 AND $3
          AND NOT EXISTS (
            SELECT 1 FROM task t2
-           WHERE t2.tenant_id = t.tenant_id
-             AND t2.contact_id = t.contact_id
-             AND t2.created_at < $2
+           WHERE t2."tenantId" = t."tenantId"
+             AND t2."contactId" = t."contactId"
+             AND t2."createdAt" < $2
          )`,
       [tenantId, from, to],
     );
