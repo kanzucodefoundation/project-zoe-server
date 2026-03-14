@@ -1,8 +1,7 @@
-import { Module, MiddlewareConsumer } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { MulterModule } from '@nestjs/platform-express';
 import { appEntities } from '../config';
-import { TenantHeaderMiddleware } from '../middleware/tenant-header.middleware';
 import { AppLogger } from '../utils/app-logger.service';
 
 // Controllers
@@ -78,7 +77,4 @@ export class FinanceModule {
     this.pluginRegistry.register(this.worshipHarvestPlugin);
   }
 
-  configure(consumer: MiddlewareConsumer) {
-    consumer.apply(TenantHeaderMiddleware).forRoutes('api/finance/*');
-  }
 }
