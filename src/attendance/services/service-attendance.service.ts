@@ -96,19 +96,15 @@ export class ServiceAttendanceService {
     const today = new Date().toISOString().split('T')[0];
     const dayOfWeek = new Date().getDay();
 
-    const schedule = await this.scheduleRepo.findOne({
-      where: {
-        tenant: { id: tenantId } as any,
-        locationGroupId: locationId,
-        isActive: true,
-      },
-    });
+    const schedule = await this.scheduleRepo
+      .createQueryBuilder('ss')
+      .where('ss.tenantId = :tenantId', { tenantId })
+      .andWhere('ss.locationGroupId = :locationId', { locationId })
+      .andWhere('ss.isActive = true')
+      .andWhere(':dayOfWeek = ANY(ss.daysOfWeek)', { dayOfWeek })
+      .getOne();
+
     if (!schedule) {
-      throw new NotFoundException(
-        'No active service schedule found for this location',
-      );
-    }
-    if (!schedule.daysOfWeek.includes(dayOfWeek)) {
       throw new BadRequestException(
         'No service scheduled for today at this location',
       );
