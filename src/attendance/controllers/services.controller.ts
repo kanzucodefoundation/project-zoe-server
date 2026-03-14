@@ -47,12 +47,28 @@ export class ServicesController {
 
   @Get('schedules')
   async getSchedules(
-    @Query('locationId', new ParseIntPipe({ optional: true }))
-    locationId?: number,
+    @Query('locationId') locationId?: string,
     @Query('tags') tags?: string,
   ) {
     const tagArray = tags ? tags.split(',') : undefined;
-    return this.serviceAttendanceService.getSchedules(locationId, tagArray);
+    const locationIdNum = locationId ? parseInt(locationId, 10) : undefined;
+    return this.serviceAttendanceService.getSchedules(locationIdNum, tagArray);
+  }
+
+  @Get('instances')
+  async getInstances(
+    @Query('scheduleId') scheduleId?: string,
+    @Query('locationId') locationId?: string,
+  ) {
+    return this.serviceAttendanceService.getInstances(
+      scheduleId ? parseInt(scheduleId, 10) : undefined,
+      locationId ? parseInt(locationId, 10) : undefined,
+    );
+  }
+
+  @Get(':serviceId/attendees')
+  async getAttendees(@Param('serviceId', ParseIntPipe) serviceId: number) {
+    return this.serviceAttendanceService.getAttendees(serviceId);
   }
 
   @Get('today')

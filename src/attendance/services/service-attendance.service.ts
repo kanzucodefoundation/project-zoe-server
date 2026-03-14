@@ -272,6 +272,53 @@ export class ServiceAttendanceService {
     return savedContact;
   }
 
+  async getInstances(scheduleId?: number, locationId?: number): Promise<ServiceInstance[]> {
+    const tenantId = this.tenantContext.requireTenant();
+    const query = this.instanceRepo
+      .createQueryBuilder('si')
+      .leftJoinAndSelect('si.schedule', 'schedule')
+      .leftJoinAndSelect('schedule.location', 'location')
+      .where('si.tenantId = :tenantId', { tenantId });
+
+    if (scheduleId) {
+      query.andWhere('si.scheduleId = :scheduleId', { scheduleId });
+    }
+    if (locationId) {
+      query.andWhere('schedule.locationGroupId = :locationId', { locationId });
+    }
+
+    return query.orderBy('si.serviceDate', 'DESC').limit(60).getMany();
+  }
+
+  async getAttendees(serviceInstanceId: number) {
+    const tenantId = this.tenantContext.requireTenant();
+    const instance = await this.instanceRepo.findOne({
+      where: { id: serviceInstanceId, tenant: { id: tenantId } as any },
+    });
+    if (!instance) {
+      throw new NotFoundException('Service instance not found');
+    }
+
+    return this.attendanceRepo
+      .createQueryBuilder('sa')
+      .innerJoin('sa.contact', 'c')
+      .innerJoin('c.person', 'p')
+      .select([
+        'sa.id AS id',
+        'sa.contactId AS "contactId"',
+        'p.firstName AS "firstName"',
+        'p.lastName AS "lastName"',
+        'sa.checkedInAt AS "checkedInAt"',
+        'sa.isFirstTime AS "isFirstTime"',
+        'sa.isChild AS "isChild"',
+        'sa.notes AS notes',
+      ])
+      .where('sa.serviceInstanceId = :serviceInstanceId', { serviceInstanceId })
+      .andWhere('c.tenantId = :tenantId', { tenantId })
+      .orderBy('p.firstName', 'ASC')
+      .getRawMany();
+  }
+
   async getStats(serviceInstanceId: number) {
     const tenantId = this.tenantContext.requireTenant();
     const instance = await this.instanceRepo.findOne({
