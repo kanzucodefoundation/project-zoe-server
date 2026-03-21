@@ -157,7 +157,7 @@ export class UsersService {
       this.remove(saveUser.id);
       throw new HttpException('User Not Created', 400);
     } else {
-      this.saveUserRoles(saveUser.contactId, data.roles);
+      await this.saveUserRoles(saveUser.id, data.roles);
     }
 
     const user = await this.findOne(saveUser.id);
@@ -258,6 +258,11 @@ export class UsersService {
     data: Partial<UpdateUserDto> & { id: number },
   ): Promise<UserListDto> {
     const _user = await this.findOne(data.id);
+    console.info('Updating user:', {
+      id: data.id,
+      username: _user.username,
+      data,
+    });
 
     if (data.oldPassword) {
       const oldPassword = (await this.findByName(_user.username)).password;
@@ -324,6 +329,7 @@ export class UsersService {
       .set(update)
       .where('id = :id', { id: data.id })
       .execute();
+    console.info('Update Result:', resp);
 
     return await this.findOne(data.id);
   }
@@ -393,16 +399,18 @@ export class UsersService {
     });
     const roleIds = rolesToRegister.map((it: Roles) => it.id);
 
-    roleIds.map(async (it) => {
-      const toSave = new UserRoles();
-      toSave.userId = userid;
-      toSave.rolesId = it;
-      const saveRoles = await this.userRolesRepository.save(toSave);
+    await Promise.all(
+      roleIds.map(async (it) => {
+        const toSave = new UserRoles();
+        toSave.userId = userid;
+        toSave.rolesId = it;
+        const saveRoles = await this.userRolesRepository.save(toSave);
 
-      if (!saveRoles) {
-        throw new HttpException('Failed To Create User Roles', 400);
-      }
-    });
+        if (!saveRoles) {
+          throw new HttpException('Failed To Create User Roles', 400);
+        }
+      }),
+    );
   }
 
   compareArrays(a: any[], b: any[]) {
