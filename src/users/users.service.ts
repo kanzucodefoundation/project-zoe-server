@@ -258,11 +258,6 @@ export class UsersService {
     data: Partial<UpdateUserDto> & { id: number },
   ): Promise<UserListDto> {
     const _user = await this.findOne(data.id);
-    console.info('Updating user:', {
-      id: data.id,
-      username: _user.username,
-      data,
-    });
 
     if (data.oldPassword) {
       const oldPassword = (await this.findByName(_user.username)).password;
@@ -329,7 +324,6 @@ export class UsersService {
       .set(update)
       .where('id = :id', { id: data.id })
       .execute();
-    console.info('Update Result:', resp);
 
     return await this.findOne(data.id);
   }
