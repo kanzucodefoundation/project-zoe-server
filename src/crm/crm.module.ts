@@ -14,6 +14,8 @@ import { AddressesController } from './contollers/addresses.controller';
 import { RelationshipsController } from './contollers/relationships.controller';
 import { RequestsController } from './contollers/requests.controller';
 import { RegisterController } from './contollers/register.controller';
+import { ContactActivityService } from './contact-activity.service';
+import { ContactActivityController } from './contact-activity.controller';
 import { GoogleService } from 'src/vendor/google.service';
 import { PrismaService } from '../shared/prisma.service';
 import { ContactImportController } from './contollers/contact-import.controller';
@@ -46,6 +48,7 @@ import { VendorModule } from 'src/vendor/vendor.module';
     AddressesService,
     TenantContextInterceptor,
     AppLogger,
+    ContactActivityService,
   ],
   controllers: [
     ContactsController,
@@ -60,8 +63,9 @@ import { VendorModule } from 'src/vendor/vendor.module';
     RequestsController,
     RegisterController,
     ContactImportController,
+    ContactActivityController,
   ],
-  exports: [ContactsService, GroupFinderService],
+  exports: [ContactsService, GroupFinderService, ContactActivityService],
 })
 export class CrmModule {
   configure(consumer: MiddlewareConsumer) {

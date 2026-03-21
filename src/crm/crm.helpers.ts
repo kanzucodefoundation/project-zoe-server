@@ -12,6 +12,7 @@ import Relationship from './entities/relationship.entity';
 import Request from './entities/request.entity';
 import Group from '../groups/entities/group.entity';
 import { GroupCategoryNames } from 'src/groups/enums/groups';
+import { ContactActivity } from './entities/contact-activity.entity';
 
 export const getPersonFullName = (person: Partial<Person>): string => {
   if (hasNoValue(person)) {
@@ -34,6 +35,7 @@ export const crmEntities = [
   Identification,
   Relationship,
   Request,
+  ContactActivity,
 ];
 
 export const createAvatar = (email: string, size = 200) => {

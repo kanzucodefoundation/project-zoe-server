@@ -20,6 +20,9 @@ import { ReportsModule } from './reports/reports.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { SearchModule } from './search/search.module';
 import { FinanceModule } from './finance/finance.module';
+import { TasksModule } from './tasks/tasks.module';
+import { ServiceRecordingModule } from './service-recording/service-recording.module';
+import { AttendanceModule } from './attendance/attendance.module';
 import { Tenant } from './tenants/entities/tenant.entity';
 import { TenantHeaderMiddleware } from './middleware/tenant-header.middleware';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
@@ -62,6 +65,9 @@ import { PerformanceMonitoringInterceptor } from './interceptors/performance-mon
     DashboardModule,
     SearchModule,
     FinanceModule,
+    TasksModule,
+    ServiceRecordingModule,
+    AttendanceModule,
   ],
   exports: [AppService],
   controllers: [AuthController],

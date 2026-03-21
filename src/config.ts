@@ -7,6 +7,8 @@ import { helpEntities } from './help/help.helpers';
 import { reportsEntities } from './reports/reports.helpers';
 import { botEntities } from './bot/bot.helpers';
 import { financeEntities } from './finance/finance.helpers';
+import { tasksEntities } from './tasks/tasks.helpers';
+import { attendanceEntities } from './attendance/attendance.helpers';
 
 require('dotenv').config();
 
@@ -59,5 +61,7 @@ export const appEntities: any[] = [
   ...helpEntities,
   ...botEntities,
   ...financeEntities,
+  ...tasksEntities,
+  ...attendanceEntities,
 ];
 console.log('#################appEntities#########', appEntities);
