@@ -106,6 +106,21 @@ export class GroupsMembershipService {
     });
     return this.toDto(data, 0);
   }
+  async findOneGivenContact(id: number): Promise<GroupMembershipDto> {
+    const data = await this.repository.findOne({
+      where: { contactId: id },
+      relations: ['group', 'contact', 'contact.person'],
+    });
+    return this.toDto(data, 0);
+  }
+
+  async findOneGivenGroup(id: number): Promise<GroupMembershipDto> {
+    const data = await this.repository.findOne({
+      where: { groupId: id },
+      relations: ['group', 'contact', 'contact.person'],
+    });
+    return this.toDto(data, 0);
+  }
 
   async update(dto: UpdateGroupMembershipDto): Promise<GroupMembershipDto> {
     const update = await this.connection

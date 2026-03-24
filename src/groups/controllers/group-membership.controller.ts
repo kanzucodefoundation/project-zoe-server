@@ -54,6 +54,20 @@ export class GroupMembershipController {
     return await this.service.findOne(id);
   }
 
+  @Get('contact/:id')
+  async findOneGivenContact(
+    @Param('id') id: number,
+  ): Promise<GroupMembershipDto> {
+    return await this.service.findOneGivenContact(id);
+  }
+
+  @Get('group/:id')
+  async findOneGivenGroup(
+    @Param('id') id: number,
+  ): Promise<GroupMembershipDto> {
+    return await this.service.findOneGivenGroup(id);
+  }
+
   @Delete(':id')
   async remove(@Param('id') id: number): Promise<void> {
     await this.service.remove(id);
