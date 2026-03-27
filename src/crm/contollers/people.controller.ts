@@ -49,11 +49,13 @@ export class PeopleController {
     if (hasValue(req.query)) {
       query.where(
         new Brackets((qb) => {
-          qb.where('person.firstName LIKE :query', { query: `%${req.query}%` });
-          qb.orWhere('person.middleName LIKE :query', {
+          qb.where('person.firstName ILIKE :query', {
             query: `%${req.query}%`,
           });
-          qb.orWhere('person.lastName LIKE :query', {
+          qb.orWhere('person.middleName ILIKE :query', {
+            query: `%${req.query}%`,
+          });
+          qb.orWhere('person.lastName ILIKE :query', {
             query: `%${req.query}%`,
           });
         }),
@@ -81,13 +83,13 @@ export class PeopleController {
         ])
         .where(
           new Brackets((qb) => {
-            qb.where('person.firstName LIKE :query', {
+            qb.where('person.firstName ILIKE :query', {
               query: `%${req.query}%`,
             });
-            qb.orWhere('person.middleName LIKE :query', {
+            qb.orWhere('person.middleName ILIKE :query', {
               query: `%${req.query}%`,
             });
-            qb.orWhere('person.lastName LIKE :query', {
+            qb.orWhere('person.lastName ILIKE :query', {
               query: `%${req.query}%`,
             });
           }),
