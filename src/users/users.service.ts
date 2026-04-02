@@ -157,7 +157,7 @@ export class UsersService {
       this.remove(saveUser.id);
       throw new HttpException('User Not Created', 400);
     } else {
-      this.saveUserRoles(saveUser.contactId, data.roles);
+      await this.saveUserRoles(saveUser.id, data.roles);
     }
 
     const user = await this.findOne(saveUser.id);
@@ -393,16 +393,18 @@ export class UsersService {
     });
     const roleIds = rolesToRegister.map((it: Roles) => it.id);
 
-    roleIds.map(async (it) => {
-      const toSave = new UserRoles();
-      toSave.userId = userid;
-      toSave.rolesId = it;
-      const saveRoles = await this.userRolesRepository.save(toSave);
+    await Promise.all(
+      roleIds.map(async (it) => {
+        const toSave = new UserRoles();
+        toSave.userId = userid;
+        toSave.rolesId = it;
+        const saveRoles = await this.userRolesRepository.save(toSave);
 
-      if (!saveRoles) {
-        throw new HttpException('Failed To Create User Roles', 400);
-      }
-    });
+        if (!saveRoles) {
+          throw new HttpException('Failed To Create User Roles', 400);
+        }
+      }),
+    );
   }
 
   compareArrays(a: any[], b: any[]) {
