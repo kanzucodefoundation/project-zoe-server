@@ -208,7 +208,7 @@ export class AuthService {
 
     const user = await this.usersService.findOne(userExists.id);
     const token = (await this.jwtHelperService.generateToken(user)).token;
-    const resetLink = `${process.env.APP_URL}/#/reset-password/${token}`;
+    const resetLink = `${process.env.APP_URL}/reset-password/${token}`;
 
     const mailerData: IEmail = {
       to: `${(await user).username}`,

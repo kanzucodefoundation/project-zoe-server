@@ -18,9 +18,33 @@ describe('ContactImportController', () => {
       middleName: undefined,
       phone: '0700106164',
       email: 'email@test.com',
-      dateOfBirth: null,
+      dateOfBirth: '1900-02-20',
       ageGroup: undefined,
       gender: null,
+      placeOfWork: undefined,
+      residence: undefined,
+    });
+  });
+
+  it('parseContacts supports firstName and lastName columns', async () => {
+    const data = {
+      firstName: 'Moira',
+      lastName: 'Murungi Nageri',
+      phone: 256784092081,
+      email: 'murungimoira@gmail.com',
+      dateOfBirth: '3/9/1996',
+      gender: 'Female',
+    };
+
+    expect(parseContact(data)).toEqual({
+      firstName: 'Moira',
+      lastName: 'Murungi Nageri',
+      middleName: undefined,
+      phone: '256784092081',
+      email: 'murungimoira@gmail.com',
+      dateOfBirth: '1996-09-03',
+      ageGroup: undefined,
+      gender: 'Female',
       placeOfWork: undefined,
       residence: undefined,
     });
@@ -47,5 +71,6 @@ describe('ContactImportController', () => {
     expect(parseDateOfBirth('20/Dec')).toEqual('1900-12-20');
     expect(parseDateOfBirth('20/12')).toEqual('1900-12-20');
     expect(parseDateOfBirth('31/March')).toEqual('1900-03-31');
+    expect(parseDateOfBirth('3/9/1996')).toEqual('1996-09-03');
   });
 });
