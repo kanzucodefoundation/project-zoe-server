@@ -254,7 +254,9 @@ export class UsersService {
     return this.toListModel(data);
   }
 
-  async update(data: UpdateUserDto): Promise<UserListDto> {
+  async update(
+    data: Partial<UpdateUserDto> & { id: number },
+  ): Promise<UserListDto> {
     const _user = await this.findOne(data.id);
 
     if (data.oldPassword) {
@@ -265,9 +267,12 @@ export class UsersService {
       }
     }
 
-    const update: QueryDeepPartialEntity<User> = {
-      isActive: data.isActive,
-    };
+    const update: QueryDeepPartialEntity<User> = {};
+
+    // Only update isActive if provided
+    if ('isActive' in data && data.isActive !== undefined) {
+      update.isActive = data.isActive;
+    }
 
     if (hasValue(data.password)) {
       const user = new User();
@@ -276,7 +281,8 @@ export class UsersService {
       update.password = user.password;
     }
 
-    if (data.roles && data.roles.length > 0) {
+    // Only update roles if provided and not empty
+    if (hasValue(data.roles) && data.roles.length > 0) {
       const dbUserRolesStrArr: string[] = [];
       const sentRolesStrArr: string[] = [];
       const getdbUserRoles = await this.userRolesRepository.find({
