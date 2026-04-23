@@ -1,8 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { RolesController } from './roles.controller';
 import { RolesService } from './roles.service';
-import { Connection, Repository } from 'typeorm';
-import Roles from './entities/roles.entity';
+import { UsersService } from './users.service';
 
 describe('RolesController', () => {
   let controller: RolesController;
@@ -42,6 +41,12 @@ describe('RolesController', () => {
         {
           provide: 'CONNECTION',
           useValue: mockConnection,
+        },
+        {
+          provide: UsersService,
+          useValue: {
+            findById: jest.fn(),
+          },
         },
       ],
     }).compile();

@@ -8,13 +8,17 @@ import {
   Delete,
   UseGuards,
   Query,
+  UseInterceptors,
 } from '@nestjs/common';
 import { RolesService } from './roles.service';
 import { RolesDto } from './dto/roles.dto';
 import { ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
+import { TenantContextInterceptor } from 'src/interceptors/tenant-context.interceptor';
 import SearchDto from 'src/shared/dto/search.dto';
+import { SentryInterceptor } from 'src/utils/sentry.interceptor';
 
+@UseInterceptors(SentryInterceptor, TenantContextInterceptor)
 @UseGuards(JwtAuthGuard)
 @ApiTags('User Roles')
 @Controller('api/user-roles')
