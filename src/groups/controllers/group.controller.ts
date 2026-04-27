@@ -21,8 +21,9 @@ import UpdateGroupDto from '../dto/update-group.dto';
 import { SendSmsDto } from '../dto/send-sms.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { SentryInterceptor } from '../../utils/sentry.interceptor';
+import { TenantContextInterceptor } from 'src/interceptors/tenant-context.interceptor';
 
-@UseInterceptors(SentryInterceptor)
+@UseInterceptors(SentryInterceptor, TenantContextInterceptor)
 @UseGuards(JwtAuthGuard)
 @ApiTags('Groups')
 @Controller('api/groups')

@@ -30,11 +30,19 @@ import { AppLogger, ContextLogger } from 'src/utils/app-logger.service';
 import { TenantContext } from 'src/shared/tenant/tenant-context';
 import Phone from '../../crm/entities/phone.entity';
 import { AfricasTalkingService } from '../../vendor/africas-talking.service';
+import { GroupCategoryNames } from '../enums/groups';
 import {
   NotFoundException,
   BadRequestException,
   InternalServerErrorException,
 } from '@nestjs/common';
+import { Tenant } from 'src/tenants/entities/tenant.entity';
+
+const PURPOSE_CATEGORY_MAP: Record<string, GroupCategoryNames> = {
+  fellowship: GroupCategoryNames.MC,
+  garage_team: GroupCategoryNames.GARAGE_TEAM,
+  serving_team: GroupCategoryNames.GARAGE_TEAM,
+};
 
 @Injectable()
 export class GroupsService {
@@ -64,6 +72,11 @@ export class GroupsService {
   }
 
   async findAll(req: SearchDto): Promise<any[]> {
+    const categoryName = req.purpose ? PURPOSE_CATEGORY_MAP[req.purpose] : null;
+    if (categoryName) {
+      return this.findGroupsByPurpose(categoryName, req.parentId);
+    }
+
     // If parentId is provided, filter by parent (for drill-down navigation)
     if (req.parentId !== undefined) {
       if (req.parentId === 'null' || req.parentId === '') {
@@ -89,6 +102,32 @@ export class GroupsService {
     // Default: return all groups as a tree structure
     // Manually build tree since findTrees() has issues with closure-table
     return this.buildGroupTree();
+  }
+
+  private async findGroupsByPurpose(
+    categoryName: GroupCategoryNames,
+    parentId?: string,
+  ): Promise<Group[]> {
+    const query = this.repository
+      .createQueryBuilder('group')
+      .leftJoinAndSelect('group.category', 'category')
+      .leftJoinAndSelect('group.parent', 'parent')
+      .where('category.name = :categoryName', { categoryName });
+
+    if (parentId !== undefined) {
+      if (parentId === 'null' || parentId === '') {
+        query.andWhere('group.parentId IS NULL');
+      } else {
+        const parentIdNum = parseInt(parentId, 10);
+        if (!isNaN(parentIdNum)) {
+          query.andWhere('group.parentId = :parentId', {
+            parentId: parentIdNum,
+          });
+        }
+      }
+    }
+
+    return query.orderBy('group.name', 'ASC').getMany();
   }
 
   private async buildGroupTree(): Promise<any[]> {
@@ -331,6 +370,10 @@ export class GroupsService {
     });
 
     try {
+      const tenantId = seedingDatabase
+        ? null
+        : this.tenantContext.requireTenant();
+
       this.logger.business('log', 'Starting group creation', {
         operation: 'createGroup',
         userId: user?.id,
@@ -371,7 +414,9 @@ export class GroupsService {
       const newGroupCategory = await this.groupCategoryRepository.findOne({
         where: {
           name: data.categoryName,
+          ...(tenantId ? { tenant: { id: tenantId } } : {}),
         },
+        relations: ['tenant'],
       });
 
       if (!newGroupCategory) {
@@ -386,6 +431,8 @@ export class GroupsService {
       newGroup.name = data.name;
       newGroup.privacy = data.privacy;
       newGroup.metaData = data.metaData;
+      newGroup.tenant =
+        newGroupCategory?.tenant || ({ id: tenantId } as Tenant);
       newGroup.category = newGroupCategory;
       newGroup.address = place;
       newGroup.details = data.details;
@@ -594,11 +641,11 @@ export class GroupsService {
     return await this.repository.count();
   }
 
-  async getGroupsByCategory(categoryName: string): Promise<Group[]> {
+  async getGroupsByCategory(categoryId: string): Promise<Group[]> {
     return this.repository
       .createQueryBuilder('group')
       .leftJoinAndSelect('group.category', 'category')
-      .where('category.name = :categoryName', { categoryName })
+      .where('category.id = :categoryId', { categoryId })
       .getMany();
   }
 
@@ -638,7 +685,8 @@ export class GroupsService {
 
     // Remove duplicates (in case a child is also in user's direct groups)
     const uniqueGroups = groupsWithChildren.filter(
-      (group, index, self) => index === self.findIndex((g) => g.id === group.id),
+      (group, index, self) =>
+        index === self.findIndex((g) => g.id === group.id),
     );
 
     return uniqueGroups;
@@ -704,11 +752,15 @@ export class GroupsService {
     // Get tenant ID from context
     const tenantId = this.tenantContext.requireTenant();
 
-    this.logger.business('debug', 'Tenant context resolved for public locations', {
-      operation: 'getPublicLocations',
-      resource: 'groups',
-      metadata: { tenantId },
-    });
+    this.logger.business(
+      'debug',
+      'Tenant context resolved for public locations',
+      {
+        operation: 'getPublicLocations',
+        resource: 'groups',
+        metadata: { tenantId },
+      },
+    );
 
     // Get the Location category
     const locationCategory = await this.groupCategoryRepository.findOne({
@@ -765,15 +817,19 @@ export class GroupsService {
       }))
       .sort((a, b) => a.name.localeCompare(b.name));
 
-    this.logger.business('log', 'Public locations grouped by FOB successfully', {
-      operation: 'getPublicLocations',
-      resource: 'groups',
-      metadata: {
-        tenantId: this.tenantContext.tenantId,
-        fobCount: fobs.length,
-        totalLocations: locations.length,
+    this.logger.business(
+      'log',
+      'Public locations grouped by FOB successfully',
+      {
+        operation: 'getPublicLocations',
+        resource: 'groups',
+        metadata: {
+          tenantId: this.tenantContext.tenantId,
+          fobCount: fobs.length,
+          totalLocations: locations.length,
+        },
       },
-    });
+    );
 
     return { fobs };
   }

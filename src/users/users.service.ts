@@ -198,7 +198,7 @@ export class UsersService {
       )
     ).token;
 
-    const resetLink = `${process.env.APP_URL}/#/reset-password/${token}`;
+    const resetLink = `${process.env.APP_URL}/reset-password/${token}`;
     const mailerData: IEmail = {
       to: `${(await user).username}`,
       subject: 'Project Zoe - Worship Harvest - Account Activated!',
