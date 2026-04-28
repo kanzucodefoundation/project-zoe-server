@@ -4,7 +4,7 @@ import Group from '../entities/group.entity';
 import GroupMembership from '../entities/groupMembership.entity';
 import { GroupRole } from '../enums/groupRole';
 import ClientFriendlyException from '../../shared/exceptions/client-friendly.exception';
-import { appPermissions } from '../../auth/constants';
+import { roleAdmin } from '../../auth/constants';
 
 @Injectable()
 export class GroupPermissionsService {
@@ -19,10 +19,7 @@ export class GroupPermissionsService {
   }
 
   async hasPermissionForGroup(user: any, groupId: number) {
-    if (
-      Array.isArray(user?.permissions) &&
-      user.permissions.includes(appPermissions.roleGroupEdit)
-    ) {
+    if (Array.isArray(user?.roles) && user.roles.includes(roleAdmin.role)) {
       return true;
     }
 
