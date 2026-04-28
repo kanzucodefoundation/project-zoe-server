@@ -624,7 +624,7 @@ export class GroupsService {
           groupName: dto.name,
         },
       });
-    return await this.findOne(dto.id, true);
+    return await this.findOne(dto.id, true, user);
   }
 
   async remove(id: number, user: any): Promise<void> {
