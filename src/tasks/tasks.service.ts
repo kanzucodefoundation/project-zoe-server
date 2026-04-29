@@ -20,6 +20,26 @@ import { TaskType } from './enums/task-type.enum';
 import { ContactActivityType } from '../crm/enums/contact-activity-type.enum';
 import { GroupCategoryNames } from '../groups/enums/groups';
 
+const TASK_SUMMARY_RELATIONS = [
+  'contact',
+  'contact.person',
+  'assignedTo',
+  'assignedTo.contact',
+  'assignedTo.contact.person',
+  'createdBy',
+  'createdBy.contact',
+  'createdBy.contact.person',
+];
+
+const TASK_DETAIL_RELATIONS = [
+  ...TASK_SUMMARY_RELATIONS,
+  'comments',
+  'comments.author',
+  'comments.author.contact',
+  'comments.author.contact.person',
+  'attachments',
+];
+
 @Injectable()
 export class TasksService {
   private readonly taskRepository: Repository<Task>;
@@ -67,7 +87,7 @@ export class TasksService {
       referenceId: saved.id,
     });
 
-    return saved;
+    return this.findTaskWithRelations(saved.id, tenantId);
   }
 
   async findAll(
@@ -84,8 +104,13 @@ export class TasksService {
     const qb = this.taskRepository
       .createQueryBuilder('task')
       .leftJoinAndSelect('task.contact', 'contact')
+      .leftJoinAndSelect('contact.person', 'contactPerson')
       .leftJoinAndSelect('task.assignedTo', 'assignedTo')
+      .leftJoinAndSelect('assignedTo.contact', 'assignedToContact')
+      .leftJoinAndSelect('assignedToContact.person', 'assignedToContactPerson')
       .leftJoinAndSelect('task.createdBy', 'createdBy')
+      .leftJoinAndSelect('createdBy.contact', 'createdByContact')
+      .leftJoinAndSelect('createdByContact.person', 'createdByContactPerson')
       .where('task.tenantId = :tenantId', { tenantId })
       .orderBy('task.createdAt', 'DESC')
       .skip((page - 1) * limit)
@@ -110,36 +135,28 @@ export class TasksService {
     }
 
     const [data, total] = await qb.getManyAndCount();
+    data.forEach((task) => this.sanitizeTaskUsers(task));
     return { data, total };
   }
 
   async findAllForContact(contactId: number): Promise<Task[]> {
     const tenantId = this.tenantContext.requireTenant();
-    return this.taskRepository.find({
+    const tasks = await this.taskRepository.find({
       where: {
         tenant: { id: tenantId },
         contact: { id: contactId },
       },
-      relations: ['comments', 'attachments'],
+      relations: [...TASK_DETAIL_RELATIONS],
       order: { createdAt: 'DESC' },
     });
+
+    tasks.forEach((task) => this.sanitizeTaskUsers(task));
+    return tasks;
   }
 
   async findOne(taskId: number): Promise<Task> {
     const tenantId = this.tenantContext.requireTenant();
-    const task = await this.taskRepository.findOne({
-      where: { id: taskId, tenant: { id: tenantId } },
-      relations: [
-        'contact',
-        'assignedTo',
-        'createdBy',
-        'comments',
-        'comments.author',
-        'attachments',
-      ],
-    });
-    if (!task) throw new NotFoundException(`Task ${taskId} not found`);
-    return task;
+    return this.findTaskWithRelations(taskId, tenantId);
   }
 
   async update(
@@ -162,7 +179,8 @@ export class TasksService {
       task.dueAt = dto.dueAt ? new Date(dto.dueAt) : null;
     }
 
-    return this.taskRepository.save(task);
+    await this.taskRepository.save(task);
+    return this.findTaskWithRelations(taskId, tenantId);
   }
 
   async updateStatus(
@@ -285,7 +303,36 @@ export class TasksService {
 
     task.status = dto.status;
     task.completedAt = new Date();
-    return this.taskRepository.save(task);
+    await this.taskRepository.save(task);
+    return this.findTaskWithRelations(taskId, tenantId);
+  }
+
+  private async findTaskWithRelations(
+    taskId: number,
+    tenantId: number,
+  ): Promise<Task> {
+    const task = await this.taskRepository.findOne({
+      where: { id: taskId, tenant: { id: tenantId } },
+      relations: [...TASK_DETAIL_RELATIONS],
+    });
+
+    if (!task) {
+      throw new NotFoundException(`Task ${taskId} not found`);
+    }
+
+    this.sanitizeTaskUsers(task);
+    return task;
+  }
+
+  private sanitizeTaskUsers(task: Task): void {
+    this.sanitizeUser(task.assignedTo);
+    this.sanitizeUser(task.createdBy);
+    task.comments?.forEach((comment) => this.sanitizeUser(comment.author));
+  }
+
+  private sanitizeUser(user?: { password?: string } | null): void {
+    if (!user) return;
+    delete user.password;
   }
 
   private async ensureCategoryMembership(
@@ -447,6 +494,6 @@ export class TasksService {
       referenceId: task.id,
     });
 
-    return saved;
+    return this.findTaskWithRelations(saved.id, tenantId);
   }
 }
