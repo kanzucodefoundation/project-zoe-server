@@ -51,13 +51,16 @@ export class TasksController {
     } = {};
 
     if (status) {
-      filters.status = (Array.isArray(status) ? status : [status]) as TaskStatus[];
+      filters.status = (
+        Array.isArray(status) ? status : [status]
+      ) as TaskStatus[];
     }
     if (type) {
       filters.type = (Array.isArray(type) ? type : [type]) as TaskType[];
     }
     if (assignedToId !== undefined) {
-      filters.assignedToId = assignedToId === 'unassigned' ? 'unassigned' : Number(assignedToId);
+      filters.assignedToId =
+        assignedToId === 'unassigned' ? 'unassigned' : Number(assignedToId);
     }
 
     return this.tasksService.findAll(Number(page), Number(limit), filters);
@@ -70,22 +73,29 @@ export class TasksController {
 
   @Get('retention-report')
   async retentionReport(
-    @Query('window') window: 'month' | '90days' | 'ytd' = 'month',
+    @Query('window') window: 'month' | 'week' | '90days' | 'ytd' = 'month',
+    @Query('year') yearParam?: string,
   ) {
     const now = new Date();
-    let from: Date;
+    const year = yearParam ? parseInt(yearParam, 10) : now.getFullYear();
 
+    if (window === 'month') {
+      return this.retentionReportService.getMonthlyBreakdown(year);
+    }
+
+    if (window === 'week') {
+      return this.retentionReportService.getWeeklyBreakdown(year);
+    }
+
+    let from: Date;
     switch (window) {
       case '90days':
         from = new Date(now);
         from.setDate(from.getDate() - 90);
         break;
       case 'ytd':
-        from = new Date(now.getFullYear(), 0, 1);
-        break;
-      case 'month':
       default:
-        from = new Date(now.getFullYear(), now.getMonth(), 1);
+        from = new Date(now.getFullYear(), 0, 1);
     }
 
     return this.retentionReportService.getSummary(from, now);
@@ -97,10 +107,7 @@ export class TasksController {
   }
 
   @Patch(':id')
-  async update(
-    @Param('id') id: number,
-    @Body() dto: UpdateTaskDto,
-  ) {
+  async update(@Param('id') id: number, @Body() dto: UpdateTaskDto) {
     return this.tasksService.update(id, dto);
   }
 
@@ -137,6 +144,11 @@ export class TasksController {
     @Body() body: { url: string; label?: string },
     @Request() req: any,
   ) {
-    return this.tasksService.addAttachment(id, req.user.id, body.url, body.label);
+    return this.tasksService.addAttachment(
+      id,
+      req.user.id,
+      body.url,
+      body.label,
+    );
   }
 }
