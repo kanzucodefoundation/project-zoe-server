@@ -3,7 +3,7 @@ import { Connection } from 'typeorm';
 import { TenantContext } from '../shared/tenant/tenant-context';
 import { ContactActivityType } from '../crm/enums/contact-activity-type.enum';
 
-interface MonthlyRow {
+export interface MonthlyRow {
   month: number;
   monthName: string;
   totalNewContacts: number;
@@ -14,7 +14,7 @@ interface MonthlyRow {
   baptism: number;
 }
 
-interface WeeklyRow {
+export interface WeeklyRow {
   weekStart: string;
   label: string;
   totalNewContacts: number;
