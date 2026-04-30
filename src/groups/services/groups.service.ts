@@ -30,19 +30,13 @@ import { AppLogger, ContextLogger } from 'src/utils/app-logger.service';
 import { TenantContext } from 'src/shared/tenant/tenant-context';
 import Phone from '../../crm/entities/phone.entity';
 import { AfricasTalkingService } from '../../vendor/africas-talking.service';
-import { GroupCategoryNames } from '../enums/groups';
+import { GroupCategoryPurpose } from '../enums/groups';
 import {
   NotFoundException,
   BadRequestException,
   InternalServerErrorException,
 } from '@nestjs/common';
 import { Tenant } from 'src/tenants/entities/tenant.entity';
-
-const PURPOSE_CATEGORY_MAP: Record<string, GroupCategoryNames> = {
-  fellowship: GroupCategoryNames.MC,
-  garage_team: GroupCategoryNames.GARAGE_TEAM,
-  serving_team: GroupCategoryNames.GARAGE_TEAM,
-};
 
 @Injectable()
 export class GroupsService {
@@ -72,9 +66,11 @@ export class GroupsService {
   }
 
   async findAll(req: SearchDto): Promise<any[]> {
-    const categoryName = req.purpose ? PURPOSE_CATEGORY_MAP[req.purpose] : null;
-    if (categoryName) {
-      return this.findGroupsByPurpose(categoryName, req.parentId);
+    if (req.purpose) {
+      return this.findGroupsByPurpose(
+        req.purpose as GroupCategoryPurpose,
+        req.parentId,
+      );
     }
 
     // If parentId is provided, filter by parent (for drill-down navigation)
@@ -105,14 +101,14 @@ export class GroupsService {
   }
 
   private async findGroupsByPurpose(
-    categoryName: GroupCategoryNames,
+    purpose: GroupCategoryPurpose,
     parentId?: string,
   ): Promise<Group[]> {
     const query = this.repository
       .createQueryBuilder('group')
       .leftJoinAndSelect('group.category', 'category')
       .leftJoinAndSelect('group.parent', 'parent')
-      .where('category.name = :categoryName', { categoryName });
+      .where('category.purpose = :purpose', { purpose });
 
     if (parentId !== undefined) {
       if (parentId === 'null' || parentId === '') {

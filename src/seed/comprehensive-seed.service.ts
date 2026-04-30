@@ -28,6 +28,7 @@ import { PhoneCategory } from 'src/crm/enums/phoneCategory';
 import { AddressCategory } from 'src/crm/enums/addressCategory';
 import { GroupRole } from 'src/groups/enums/groupRole';
 import { GroupPrivacy } from 'src/groups/enums/groupPrivacy';
+import { GroupCategoryPurpose } from 'src/groups/enums/groups';
 import {
   ReportType,
   ReportFieldType,
@@ -269,14 +270,30 @@ export class ComprehensiveSeedService {
       where: { name: 'worshipharvest' },
     });
 
-    const categories = [
-      { id: 1, name: 'Missional Community' },
-      { id: 2, name: 'Zone' },
-      { id: 3, name: 'Location' },
-      { id: 4, name: 'Forward Operating Base' },
-      { id: 5, name: 'Network' },
-      { id: 6, name: 'Movement' },
-      { id: 7, name: 'Garage Team' },
+    const categories: Array<{
+      id: number;
+      name: string;
+      purpose: GroupCategoryPurpose;
+    }> = [
+      {
+        id: 1,
+        name: 'Missional Community',
+        purpose: GroupCategoryPurpose.FELLOWSHIP,
+      },
+      { id: 2, name: 'Zone', purpose: GroupCategoryPurpose.STRUCTURE },
+      { id: 3, name: 'Location', purpose: GroupCategoryPurpose.LOCATION },
+      {
+        id: 4,
+        name: 'Forward Operating Base',
+        purpose: GroupCategoryPurpose.STRUCTURE,
+      },
+      { id: 5, name: 'Network', purpose: GroupCategoryPurpose.STRUCTURE },
+      { id: 6, name: 'Movement', purpose: GroupCategoryPurpose.STRUCTURE },
+      {
+        id: 7,
+        name: 'Garage Team',
+        purpose: GroupCategoryPurpose.SERVING_TEAM,
+      },
     ];
 
     for (const catData of categories) {
@@ -287,9 +304,16 @@ export class ComprehensiveSeedService {
         const category = new GroupCategory();
         category.id = catData.id;
         category.name = catData.name;
+        category.purpose = catData.purpose;
         category.tenant = tenant;
         await this.groupCategoryRepository.save(category);
         Logger.log(`Created category: ${catData.name}`);
+      } else if (!existing.purpose) {
+        existing.purpose = catData.purpose;
+        await this.groupCategoryRepository.save(existing);
+        Logger.log(
+          `Stamped purpose '${catData.purpose}' on existing category: ${catData.name}`,
+        );
       }
     }
   }

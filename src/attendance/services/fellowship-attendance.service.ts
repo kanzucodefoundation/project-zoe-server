@@ -24,6 +24,7 @@ import { RosterSearchDto } from '../dto/check-in.dto';
 import { ContactCategory } from '../../crm/enums/contactCategory';
 import { Gender } from '../../crm/enums/gender';
 import { GroupRole } from '../../groups/enums/groupRole';
+import { GroupCategoryPurpose } from '../../groups/enums/groups';
 
 const WEEKDAY_NAMES = [
   'Sunday',
@@ -273,6 +274,13 @@ export class FellowshipAttendanceService {
     return this.instanceRepo.findOne({ where: { id: fellowshipInstanceId } });
   }
 
+  /**
+   * Returns the members of every fellowship group this contact directly leads.
+   *
+   * Scope: DIRECT fellowship leaders only (the person assigned as Leader of the
+   * MC itself). FOB / Zone leaders use report-level aggregation to view members
+   * across their subtree — see GroupPermissionsService.getUserGroupIds.
+   */
   async getMyMembers(contactId: number) {
     const tenantId = this.tenantContext.requireTenant();
 
@@ -283,7 +291,9 @@ export class FellowshipAttendanceService {
       .where('gm.contactId = :contactId', { contactId })
       .andWhere('gm.role = :role', { role: GroupRole.Leader })
       .andWhere('gm.isActive = true')
-      .andWhere('LOWER(c.name) = :category', { category: 'fellowship' })
+      .andWhere('c.purpose = :purpose', {
+        purpose: GroupCategoryPurpose.FELLOWSHIP,
+      })
       .select('gm.groupId', 'groupId')
       .getRawMany()
       .then((rows) => rows.map((r) => r.groupId));
@@ -315,6 +325,15 @@ export class FellowshipAttendanceService {
       .getRawMany();
   }
 
+  /**
+   * Returns the meeting schedule for the fellowship group(s) this contact
+   * directly leads, plus the full weekday list for use in the report form.
+   *
+   * Scope: DIRECT fellowship leaders only. A FOB or Zone leader will receive
+   * { exists: false } because they are not assigned as Leader of an individual
+   * MC — that is intentional. Higher-level leaders view aggregate schedules
+   * through the reports/group-tree layer, not this endpoint.
+   */
   async getMySchedule(contactId: number) {
     const tenantId = this.tenantContext.requireTenant();
 
@@ -325,7 +344,9 @@ export class FellowshipAttendanceService {
       .where('gm.contactId = :contactId', { contactId })
       .andWhere('gm.role = :role', { role: GroupRole.Leader })
       .andWhere('gm.isActive = true')
-      .andWhere('LOWER(c.name) = :category', { category: 'fellowship' })
+      .andWhere('c.purpose = :purpose', {
+        purpose: GroupCategoryPurpose.FELLOWSHIP,
+      })
       .select('gm.groupId', 'groupId')
       .getRawMany()
       .then((rows) => rows.map((r) => r.groupId));
@@ -355,6 +376,15 @@ export class FellowshipAttendanceService {
     };
   }
 
+  /**
+   * Records attendance for a fellowship group when a report is submitted.
+   * Re-submission replaces the existing member records for today's instance
+   * rather than appending, so leaders can correct mistakes by re-submitting.
+   *
+   * Scope: DIRECT fellowship leaders only. The submitter must be assigned as
+   * Leader of the MC — not a FOB or Zone leader. This mirrors the design of
+   * getMyMembers / getMySchedule: report submission is an MC-shepherd action.
+   */
   async recordReportAttendance(
     submitterContactId: number,
     submitterUserId: number,
@@ -370,7 +400,9 @@ export class FellowshipAttendanceService {
       .where('gm.contactId = :contactId', { contactId: submitterContactId })
       .andWhere('gm.role = :role', { role: GroupRole.Leader })
       .andWhere('gm.isActive = true')
-      .andWhere('LOWER(c.name) = :category', { category: 'fellowship' })
+      .andWhere('c.purpose = :purpose', {
+        purpose: GroupCategoryPurpose.FELLOWSHIP,
+      })
       .select('gm.groupId', 'groupId')
       .getRawMany()
       .then((rows) => rows.map((r) => r.groupId));
