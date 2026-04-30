@@ -8,6 +8,7 @@ export enum FieldType {
   DATE = 'date',
   DATETIME = 'datetime',
   SELECT = 'select',
+  CHECKBOX = 'checkbox',
 }
 
 @Entity()

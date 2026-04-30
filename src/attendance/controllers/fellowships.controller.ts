@@ -48,6 +48,16 @@ export class FellowshipsController {
     return this.fellowshipAttendanceService.updateSchedule(id, dto);
   }
 
+  @Get('my-members')
+  async getMyMembers(@Request() req: any) {
+    return this.fellowshipAttendanceService.getMyMembers(req.user.contactId);
+  }
+
+  @Get('my-schedule')
+  async getMySchedule(@Request() req: any) {
+    return this.fellowshipAttendanceService.getMySchedule(req.user.contactId);
+  }
+
   @Get('schedules')
   async getSchedules(
     @Query('fellowshipGroupId', new ParseIntPipe({ optional: true }))
@@ -60,7 +70,9 @@ export class FellowshipsController {
   async getTodayFellowship(
     @Query('fellowshipGroupId', ParseIntPipe) fellowshipGroupId: number,
   ) {
-    return this.fellowshipAttendanceService.getTodayFellowship(fellowshipGroupId);
+    return this.fellowshipAttendanceService.getTodayFellowship(
+      fellowshipGroupId,
+    );
   }
 
   @Get(':fellowshipId/roster')

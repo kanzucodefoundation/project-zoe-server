@@ -9,12 +9,14 @@ import { GroupsService } from 'src/groups/services/groups.service';
 import { GroupPermissionsService } from 'src/groups/services/group-permissions.service';
 import { GroupTreeService } from 'src/groups/services/group-tree.service';
 import { AppLogger } from 'src/utils/app-logger.service';
+import { AttendanceModule } from 'src/attendance/attendance.module';
 
 @Module({
   imports: [
     VendorModule,
     HttpModule,
     TypeOrmModule.forFeature([...appEntities]),
+    AttendanceModule,
   ],
   controllers: [ReportsController],
   providers: [

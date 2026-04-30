@@ -4,7 +4,7 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
-import { Connection, Repository } from 'typeorm';
+import { Connection, In, Repository } from 'typeorm';
 import { FellowshipSchedule } from '../entities/fellowship-schedule.entity';
 import { FellowshipInstance } from '../entities/fellowship-instance.entity';
 import { FellowshipAttendance } from '../entities/fellowship-attendance.entity';
@@ -23,6 +23,18 @@ import {
 import { RosterSearchDto } from '../dto/check-in.dto';
 import { ContactCategory } from '../../crm/enums/contactCategory';
 import { Gender } from '../../crm/enums/gender';
+import { GroupRole } from '../../groups/enums/groupRole';
+
+const WEEKDAY_NAMES = [
+  'Sunday',
+  'Monday',
+  'Tuesday',
+  'Wednesday',
+  'Thursday',
+  'Friday',
+  'Saturday',
+];
+const WEEKDAYS = WEEKDAY_NAMES.map((label, value) => ({ value, label }));
 
 @Injectable()
 export class FellowshipAttendanceService {
@@ -74,7 +86,9 @@ export class FellowshipAttendanceService {
     return this.scheduleRepo.save(schedule);
   }
 
-  async getSchedules(fellowshipGroupId?: number): Promise<FellowshipSchedule[]> {
+  async getSchedules(
+    fellowshipGroupId?: number,
+  ): Promise<FellowshipSchedule[]> {
     const tenantId = this.tenantContext.requireTenant();
     const query = this.scheduleRepo
       .createQueryBuilder('fs')
@@ -93,7 +107,9 @@ export class FellowshipAttendanceService {
       .getMany();
   }
 
-  async getTodayFellowship(fellowshipGroupId: number): Promise<FellowshipInstance> {
+  async getTodayFellowship(
+    fellowshipGroupId: number,
+  ): Promise<FellowshipInstance> {
     const tenantId = this.tenantContext.requireTenant();
     const today = new Date().toISOString().split('T')[0];
     const dayOfWeek = new Date().getDay();
@@ -177,7 +193,7 @@ export class FellowshipAttendanceService {
         'p.avatar AS avatar',
         'fa.checkedInAt AS "checkedInAt"',
         'CASE WHEN fa.id IS NOT NULL THEN true ELSE false END AS "isCheckedIn"',
-        `CASE WHEN c.id = ANY(:memberIds) THEN true ELSE false END AS "isMember"`,
+        'CASE WHEN c.id = ANY(:memberIds) THEN true ELSE false END AS "isMember"',
       ])
       .setParameter('memberIds', memberIds.length > 0 ? memberIds : [0])
       .where('c.tenantId = :tenantId', { tenantId })
@@ -187,7 +203,7 @@ export class FellowshipAttendanceService {
 
     if (searchDto?.search) {
       query = query.andWhere(
-        "(p.firstName ILIKE :search OR p.lastName ILIKE :search)",
+        '(p.firstName ILIKE :search OR p.lastName ILIKE :search)',
         { search: `%${searchDto.search}%` },
       );
     }
@@ -255,6 +271,195 @@ export class FellowshipAttendanceService {
     });
 
     return this.instanceRepo.findOne({ where: { id: fellowshipInstanceId } });
+  }
+
+  async getMyMembers(contactId: number) {
+    const tenantId = this.tenantContext.requireTenant();
+
+    const fellowshipGroupIds = await this.membershipRepo
+      .createQueryBuilder('gm')
+      .innerJoin('gm.group', 'g')
+      .innerJoin('g.category', 'c')
+      .where('gm.contactId = :contactId', { contactId })
+      .andWhere('gm.role = :role', { role: GroupRole.Leader })
+      .andWhere('gm.isActive = true')
+      .andWhere('LOWER(c.name) = :category', { category: 'fellowship' })
+      .select('gm.groupId', 'groupId')
+      .getRawMany()
+      .then((rows) => rows.map((r) => r.groupId));
+
+    if (fellowshipGroupIds.length === 0) return [];
+
+    const memberContactIds = await this.membershipRepo
+      .createQueryBuilder('gm')
+      .select('gm.contactId')
+      .where('gm.groupId IN (:...groupIds)', { groupIds: fellowshipGroupIds })
+      .andWhere('gm.isActive = true')
+      .getRawMany()
+      .then((rows) => rows.map((r) => r.gm_contact_id));
+
+    if (memberContactIds.length === 0) return [];
+
+    return this.contactRepo
+      .createQueryBuilder('c')
+      .innerJoin('c.person', 'p')
+      .where('c.id IN (:...contactIds)', { contactIds: memberContactIds })
+      .andWhere('c.tenantId = :tenantId', { tenantId })
+      .select([
+        'c.id AS id',
+        'p.firstName AS "firstName"',
+        'p.lastName AS "lastName"',
+        'p.avatar AS avatar',
+      ])
+      .orderBy('p.firstName', 'ASC')
+      .getRawMany();
+  }
+
+  async getMySchedule(contactId: number) {
+    const tenantId = this.tenantContext.requireTenant();
+
+    const fellowshipGroupIds = await this.membershipRepo
+      .createQueryBuilder('gm')
+      .innerJoin('gm.group', 'g')
+      .innerJoin('g.category', 'c')
+      .where('gm.contactId = :contactId', { contactId })
+      .andWhere('gm.role = :role', { role: GroupRole.Leader })
+      .andWhere('gm.isActive = true')
+      .andWhere('LOWER(c.name) = :category', { category: 'fellowship' })
+      .select('gm.groupId', 'groupId')
+      .getRawMany()
+      .then((rows) => rows.map((r) => r.groupId));
+
+    if (fellowshipGroupIds.length === 0) {
+      return { exists: false, weekdays: WEEKDAYS };
+    }
+
+    const schedule = await this.scheduleRepo.findOne({
+      where: {
+        tenant: { id: tenantId } as any,
+        fellowshipGroupId: In(fellowshipGroupIds),
+        isActive: true,
+      },
+    });
+
+    if (!schedule) {
+      return { exists: false, weekdays: WEEKDAYS };
+    }
+
+    const dayName = WEEKDAY_NAMES[schedule.meetingDay];
+    return {
+      exists: true,
+      day: schedule.meetingDay,
+      label: `${dayName}s`,
+      fellowshipGroupId: schedule.fellowshipGroupId,
+    };
+  }
+
+  async recordReportAttendance(
+    submitterContactId: number,
+    submitterUserId: number,
+    meetingDay: number,
+    attendedContactIds: number[],
+  ) {
+    const tenantId = this.tenantContext.requireTenant();
+
+    const fellowshipGroupIds = await this.membershipRepo
+      .createQueryBuilder('gm')
+      .innerJoin('gm.group', 'g')
+      .innerJoin('g.category', 'c')
+      .where('gm.contactId = :contactId', { contactId: submitterContactId })
+      .andWhere('gm.role = :role', { role: GroupRole.Leader })
+      .andWhere('gm.isActive = true')
+      .andWhere('LOWER(c.name) = :category', { category: 'fellowship' })
+      .select('gm.groupId', 'groupId')
+      .getRawMany()
+      .then((rows) => rows.map((r) => r.groupId));
+
+    if (fellowshipGroupIds.length === 0) {
+      throw new Error('No fellowship group found for submitting user');
+    }
+
+    const fellowshipGroupId = fellowshipGroupIds[0];
+
+    let schedule = await this.scheduleRepo.findOne({
+      where: {
+        tenant: { id: tenantId } as any,
+        fellowshipGroupId,
+        isActive: true,
+      },
+    });
+
+    if (!schedule) {
+      schedule = await this.scheduleRepo.save(
+        this.scheduleRepo.create({
+          tenant: { id: tenantId } as any,
+          fellowshipGroup: { id: fellowshipGroupId } as any,
+          fellowshipGroupId,
+          meetingDay,
+          startTime: '00:00:00',
+          frequency: 'weekly',
+          createdBy: { id: submitterUserId } as any,
+        }),
+      );
+    }
+
+    const today = new Date().toISOString().split('T')[0];
+    let instance = await this.instanceRepo.findOne({
+      where: {
+        tenant: { id: tenantId } as any,
+        scheduleId: schedule.id,
+        meetingDate: today,
+      },
+    });
+
+    if (!instance) {
+      instance = await this.instanceRepo.save(
+        this.instanceRepo.create({
+          tenant: { id: tenantId } as any,
+          schedule: { id: schedule.id } as any,
+          scheduleId: schedule.id,
+          fellowshipGroup: { id: fellowshipGroupId } as any,
+          fellowshipGroupId,
+          meetingDate: today,
+          status: 'active',
+        }),
+      );
+    }
+
+    const records = attendedContactIds.map((cId) =>
+      this.attendanceRepo.create({
+        tenant: { id: tenantId } as any,
+        fellowshipInstance: { id: instance.id } as any,
+        fellowshipInstanceId: instance.id,
+        contact: { id: cId } as any,
+        contactId: cId,
+        checkedInBy: { id: submitterUserId } as any,
+        isMember: true,
+      }),
+    );
+
+    await this.connection.transaction(async (manager) => {
+      const existing = await manager.find(FellowshipAttendance, {
+        where: { fellowshipInstanceId: instance.id, isMember: true },
+      });
+      if (existing.length > 0) {
+        await manager.remove(FellowshipAttendance, existing);
+      }
+
+      await manager.save(FellowshipAttendance, records);
+
+      const visitorCount = await manager.count(FellowshipAttendance, {
+        where: { fellowshipInstanceId: instance.id, isMember: false },
+      });
+      await manager.update(
+        FellowshipInstance,
+        { id: instance.id },
+        {
+          cachedMemberCount: records.length,
+          cachedTotalCount: records.length + visitorCount,
+        },
+      );
+    });
   }
 
   async quickVisitor(

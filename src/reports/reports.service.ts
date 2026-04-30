@@ -37,6 +37,7 @@ import { ReportStatus } from './enums/report.enum';
 import { AppLogger, ContextLogger } from 'src/utils/app-logger.service';
 import { TenantContext } from '../shared/tenant/tenant-context';
 import { Tenant } from '../tenants/entities/tenant.entity';
+import { FellowshipAttendanceService } from '../attendance/services/fellowship-attendance.service';
 
 @Injectable()
 export class ReportsService {
@@ -56,6 +57,7 @@ export class ReportsService {
     private readonly groupTreeService: GroupTreeService,
     private readonly appLogger: AppLogger,
     private readonly tenantContext: TenantContext,
+    private readonly fellowshipAttendanceService: FellowshipAttendanceService,
   ) {
     this.reportRepository = connection.getRepository(Report);
     this.reportFieldRepository = connection.getRepository(ReportField);
@@ -208,6 +210,51 @@ export class ReportsService {
 
     // Save all SubmissionData entities
     await this.reportSubmissionDataRepository.save(submissionDataEntities);
+
+    // Record fellowship attendance if the report contains the relevant dynamic fields
+    try {
+      const scheduleField = fields.find(
+        (f) =>
+          Array.isArray(f.options) &&
+          f.options.some((o: any) => o.type === 'dynamic_fellowship_schedule'),
+      );
+      const memberField = fields.find(
+        (f) =>
+          Array.isArray(f.options) &&
+          f.options.some((o: any) => o.type === 'dynamic_member_selector'),
+      );
+
+      if (scheduleField && memberField) {
+        const meetingDay = parseInt(data[scheduleField.name]);
+        const attendedContactIds = data[memberField.name];
+
+        if (
+          !isNaN(meetingDay) &&
+          Array.isArray(attendedContactIds) &&
+          attendedContactIds.length > 0
+        ) {
+          await this.fellowshipAttendanceService.recordReportAttendance(
+            submittingUser.contactId,
+            submittingUser.id,
+            meetingDay,
+            attendedContactIds,
+          );
+        }
+      }
+    } catch (err) {
+      this.logger.business(
+        'error',
+        'Failed to record fellowship attendance from report',
+        {
+          operation: 'recordFellowshipAttendance',
+          metadata: {
+            reportId,
+            submissionId: savedSubmission.id,
+            error: err.message,
+          },
+        },
+      );
+    }
 
     // Prepare the response
     const response: ApiResponse<ReportSubmissionDataDto> = {
@@ -571,7 +618,9 @@ export class ReportsService {
       }),
     );
 
-    const reportColumns = report.displayColumns ? Object.values(report.displayColumns) : []; // Convert columns object to array
+    const reportColumns = report.displayColumns
+      ? Object.values(report.displayColumns)
+      : []; // Convert columns object to array
 
     return {
       reportId: report.id,
