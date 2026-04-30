@@ -276,6 +276,7 @@ export class ComprehensiveSeedService {
       { id: 4, name: 'Forward Operating Base' },
       { id: 5, name: 'Network' },
       { id: 6, name: 'Movement' },
+      { id: 7, name: 'Garage Team' },
     ];
 
     for (const catData of categories) {

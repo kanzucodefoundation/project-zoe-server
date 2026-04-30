@@ -16,8 +16,9 @@ import SearchDto from '../../shared/dto/search.dto';
 import { ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { SentryInterceptor } from 'src/utils/sentry.interceptor';
+import { TenantContextInterceptor } from 'src/interceptors/tenant-context.interceptor';
 
-@UseInterceptors(SentryInterceptor)
+@UseInterceptors(SentryInterceptor, TenantContextInterceptor)
 @UseGuards(JwtAuthGuard)
 @ApiTags('Group Categories')
 @Controller('api/groups/category')

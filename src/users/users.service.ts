@@ -157,7 +157,7 @@ export class UsersService {
       this.remove(saveUser.id);
       throw new HttpException('User Not Created', 400);
     } else {
-      this.saveUserRoles(saveUser.contactId, data.roles);
+      await this.saveUserRoles(saveUser.id, data.roles);
     }
 
     const user = await this.findOne(saveUser.id);
@@ -198,7 +198,7 @@ export class UsersService {
       )
     ).token;
 
-    const resetLink = `${process.env.APP_URL}/#/reset-password/${token}`;
+    const resetLink = `${process.env.APP_URL}/reset-password/${token}`;
     const mailerData: IEmail = {
       to: `${(await user).username}`,
       subject: 'Project Zoe - Worship Harvest - Account Activated!',
@@ -254,7 +254,9 @@ export class UsersService {
     return this.toListModel(data);
   }
 
-  async update(data: UpdateUserDto): Promise<UserListDto> {
+  async update(
+    data: Partial<UpdateUserDto> & { id: number },
+  ): Promise<UserListDto> {
     const _user = await this.findOne(data.id);
 
     if (data.oldPassword) {
@@ -265,9 +267,12 @@ export class UsersService {
       }
     }
 
-    const update: QueryDeepPartialEntity<User> = {
-      isActive: data.isActive,
-    };
+    const update: QueryDeepPartialEntity<User> = {};
+
+    // Only update isActive if provided
+    if ('isActive' in data && data.isActive !== undefined) {
+      update.isActive = data.isActive;
+    }
 
     if (hasValue(data.password)) {
       const user = new User();
@@ -276,7 +281,8 @@ export class UsersService {
       update.password = user.password;
     }
 
-    if (data.roles && data.roles.length > 0) {
+    // Only update roles if provided and not empty
+    if (hasValue(data.roles) && data.roles.length > 0) {
       const dbUserRolesStrArr: string[] = [];
       const sentRolesStrArr: string[] = [];
       const getdbUserRoles = await this.userRolesRepository.find({
@@ -387,16 +393,18 @@ export class UsersService {
     });
     const roleIds = rolesToRegister.map((it: Roles) => it.id);
 
-    roleIds.map(async (it) => {
-      const toSave = new UserRoles();
-      toSave.userId = userid;
-      toSave.rolesId = it;
-      const saveRoles = await this.userRolesRepository.save(toSave);
+    await Promise.all(
+      roleIds.map(async (it) => {
+        const toSave = new UserRoles();
+        toSave.userId = userid;
+        toSave.rolesId = it;
+        const saveRoles = await this.userRolesRepository.save(toSave);
 
-      if (!saveRoles) {
-        throw new HttpException('Failed To Create User Roles', 400);
-      }
-    });
+        if (!saveRoles) {
+          throw new HttpException('Failed To Create User Roles', 400);
+        }
+      }),
+    );
   }
 
   compareArrays(a: any[], b: any[]) {

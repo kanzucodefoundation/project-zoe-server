@@ -8,6 +8,10 @@ export default class SearchDto {
 
   @IsString()
   @IsOptional()
+  purpose?: string;
+
+  @IsString()
+  @IsOptional()
   parentId?: string;
 
   @Type(() => Number)

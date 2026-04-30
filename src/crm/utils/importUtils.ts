@@ -2,12 +2,12 @@ import { format, isValid, parse } from 'date-fns';
 import { CreatePersonDto } from '../dto/create-person.dto';
 import { Gender } from '../enums/gender';
 
-const removeEmptySpaces = (str?: string) => {
-  try {
-    return str.replace(/\s+/g, ' ').trim();
-  } catch (e) {
-    console.log('Invalid text', str);
+const removeEmptySpaces = (value?: string | number | null) => {
+  if (value === null || value === undefined) {
+    return undefined;
   }
+
+  return `${value}`.replace(/\s+/g, ' ').trim();
 };
 
 type Name = {
@@ -18,8 +18,11 @@ type Name = {
 
 export const parseName = (name?: string): Name | null => {
   try {
-    const [firstName, middleName, ...others] =
-      removeEmptySpaces(name).split(' ');
+    const cleanName = removeEmptySpaces(name);
+    if (!cleanName) {
+      return null;
+    }
+    const [firstName, middleName, ...others] = cleanName.split(' ');
 
     if (others.length > 0) {
       return {
@@ -40,7 +43,10 @@ export const parseName = (name?: string): Name | null => {
 
 export const parseGender = (value?: string): Gender | null => {
   try {
-    const clean = removeEmptySpaces(value).toLowerCase();
+    const clean = removeEmptySpaces(value)?.toLowerCase();
+    if (!clean) {
+      return null;
+    }
     if (clean === 'male' || clean === 'm') return Gender.Male;
     if (clean === 'female' || clean === 'f') return Gender.Female;
   } catch (e) {
@@ -51,14 +57,30 @@ export const parseGender = (value?: string): Gender | null => {
 
 export const parseDateOfBirth = (dateOfBirthRaw?: string): string | null => {
   try {
-    const dateFormats = ['dd/MM/yyyy', 'dd/MMM/yyyy', 'dd/MMMM/yyyy'];
-    const dateOfBirthArray = removeEmptySpaces(dateOfBirthRaw).split(/[\s-]+/); // Split on space & hyphen
+    const cleanDateOfBirth = removeEmptySpaces(dateOfBirthRaw);
+    if (!cleanDateOfBirth) {
+      return null;
+    }
+    const dateFormats = [
+      'd/M/yyyy',
+      'dd/MM/yyyy',
+      'd/MMM/yyyy',
+      'dd/MMM/yyyy',
+      'd/MMMM/yyyy',
+      'dd/MMMM/yyyy',
+    ];
+    const dateOfBirthArray = cleanDateOfBirth
+      .replace(/[-.]+/g, '/')
+      .split(/[\/\s]+/); // Split on slash & whitespace
     if (/st|nd|rd|th/.test(dateOfBirthArray[0])) {
       // Support ordinal numbers, e.g. 1st, 2nd
       dateOfBirthArray[0] = dateOfBirthArray[0].replace(/st|nd|rd|th/gi, '');
     }
+    const hasYear = dateOfBirthArray.length >= 3;
     const formattedDayMonth = dateOfBirthArray.join('/');
-    const dateString = `${formattedDayMonth}/1900`;
+    const dateString = hasYear
+      ? formattedDayMonth
+      : `${formattedDayMonth}/1900`;
     const referenceDate = new Date(1900, 1, 1, 12, 0, 0);
     let dateOfBirth = null;
     for (const dateFormat of dateFormats) {
@@ -74,24 +96,74 @@ export const parseDateOfBirth = (dateOfBirthRaw?: string): string | null => {
   return null;
 };
 
-export function parseContact({
-  phone,
-  name,
-  email,
-  birthday,
-  gender,
-  residence,
-  placeOfWork,
-  ageGroup,
-}: any): CreatePersonDto | null {
+const getValueByKeys = (rawObject: any, aliases: string[]) => {
+  if (!rawObject || typeof rawObject !== 'object') {
+    return undefined;
+  }
+
+  for (const alias of aliases) {
+    const value = rawObject[alias];
+    if (value !== undefined && value !== null) {
+      return value;
+    }
+  }
+
+  const normalizedAliases = aliases.map((alias) =>
+    alias.toLowerCase().replace(/\s+/g, ''),
+  );
+
+  for (const [key, value] of Object.entries(rawObject)) {
+    const normalizedKey = key
+      .replace(/^\uFEFF/, '')
+      .toLowerCase()
+      .replace(/\s+/g, '');
+    if (
+      normalizedAliases.includes(normalizedKey) &&
+      value !== undefined &&
+      value !== null
+    ) {
+      return value;
+    }
+  }
+
+  return undefined;
+};
+
+export function parseContact(rawContact: any): CreatePersonDto | null {
   try {
-    const { firstName, lastName, middleName } = parseName(name);
+    const phone = getValueByKeys(rawContact, ['phone']);
+    const name = getValueByKeys(rawContact, ['name', 'fullName', 'fullname']);
+    const firstName = getValueByKeys(rawContact, ['firstName', 'firstname']);
+    const middleName = getValueByKeys(rawContact, ['middleName', 'middlename']);
+    const lastName = getValueByKeys(rawContact, ['lastName', 'lastname']);
+    const email = getValueByKeys(rawContact, ['email']);
+    const birthday = getValueByKeys(rawContact, ['birthday']);
+    const dateOfBirth = getValueByKeys(rawContact, [
+      'dateOfBirth',
+      'dateofbirth',
+      'dob',
+    ]);
+    const gender = getValueByKeys(rawContact, ['gender']);
+    const residence = getValueByKeys(rawContact, ['residence']);
+    const placeOfWork = getValueByKeys(rawContact, [
+      'placeOfWork',
+      'placeofwork',
+    ]);
+    const ageGroup = getValueByKeys(rawContact, ['ageGroup', 'agegroup']);
+
+    const parsedName = parseName(name);
+    const cleanFirstName =
+      removeEmptySpaces(firstName) || parsedName?.firstName;
+    const cleanLastName = removeEmptySpaces(lastName) || parsedName?.lastName;
+    const cleanMiddleName =
+      removeEmptySpaces(middleName) || parsedName?.middleName;
+
     return {
-      firstName,
-      lastName,
-      middleName,
+      firstName: cleanFirstName,
+      lastName: cleanLastName,
+      middleName: cleanMiddleName,
       gender: parseGender(gender),
-      dateOfBirth: parseDateOfBirth(birthday),
+      dateOfBirth: parseDateOfBirth(dateOfBirth || birthday),
       email: removeEmptySpaces(email),
       phone: removeEmptySpaces(phone),
       placeOfWork: removeEmptySpaces(placeOfWork),

@@ -14,6 +14,7 @@ import { RolesController } from './roles.controller';
 import { JwtHelperService } from 'src/auth/jwt-helpers.service';
 import { TenantsModule } from 'src/tenants/tenants.module';
 import { GroupsModule } from 'src/groups/groups.module';
+import { TenantContextInterceptor } from 'src/interceptors/tenant-context.interceptor';
 
 @Global()
 @Module({
@@ -32,6 +33,7 @@ import { GroupsModule } from 'src/groups/groups.module';
     JwtStrategy,
     RolesService,
     JwtHelperService,
+    TenantContextInterceptor,
   ],
   exports: [UsersService],
   controllers: [UsersController, RolesController],

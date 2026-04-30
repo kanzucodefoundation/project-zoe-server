@@ -4,6 +4,8 @@ import {
   Delete,
   Get,
   Param,
+  ParseIntPipe,
+  Patch,
   Post,
   Put,
   Query,
@@ -17,10 +19,10 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UserListDto } from './dto/user.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { CreateUserResponseDto } from './dto/create-user-response.dto';
 import { SentryInterceptor } from 'src/utils/sentry.interceptor';
+import { TenantContextInterceptor } from '../interceptors/tenant-context.interceptor';
 
-@UseInterceptors(SentryInterceptor)
+@UseInterceptors(SentryInterceptor, TenantContextInterceptor)
 @UseGuards(JwtAuthGuard)
 @ApiTags('Users')
 @Controller('api/users')
@@ -39,6 +41,14 @@ export class UsersController {
 
   @Put()
   async update(@Body() data: UpdateUserDto): Promise<UserListDto> {
+    return await this.service.update(data);
+  }
+
+  @Patch(':id')
+  async patch(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() data: UpdateUserDto,
+  ): Promise<UserListDto> {
     return await this.service.update(data);
   }
 

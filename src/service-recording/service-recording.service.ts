@@ -120,7 +120,10 @@ export class ServiceRecordingService {
   // Step 1: resolve uploader's church location
   // -------------------------------------------------------------------------
 
-  async getChurchLocation(userId: number, tenantId: number): Promise<string | null> {
+  async getChurchLocation(
+    userId: number,
+    tenantId: number,
+  ): Promise<string | null> {
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) return null;
 
@@ -297,7 +300,8 @@ export class ServiceRecordingService {
         const locationOverride = col(row, 'church location');
         const rawServiceDate = col(row, 'service date');
 
-        const { date: serviceDate, warning: dateWarning } = parseDate(rawServiceDate);
+        const { date: serviceDate, warning: dateWarning } =
+          parseDate(rawServiceDate);
         const location = locationOverride || defaultLocation;
 
         const { contact, isNew } = await this.resolveContact(
@@ -311,8 +315,10 @@ export class ServiceRecordingService {
           rawGender,
         );
 
-        const taskTitle = `FTG Follow up — ${firstName} ${lastName}`;
-        const prayerComment = prayerRequest ? `Prayer request: ${prayerRequest}` : undefined;
+        const taskTitle = `FTG Follow up — ${firstName} ${lastName} - ${rawPhone}`;
+        const prayerComment = prayerRequest
+          ? `Prayer request: ${prayerRequest}`
+          : undefined;
         const task = await this.createFollowUpTask(
           tenantId,
           userId,
@@ -321,7 +327,7 @@ export class ServiceRecordingService {
           prayerComment,
         );
 
-        const summaryParts: string[] = [`Recorded as first-time guest`];
+        const summaryParts: string[] = ['Recorded as first-time guest'];
         if (rawServiceDate) summaryParts.push(`on ${rawServiceDate}`);
         if (location) summaryParts.push(`at ${location}`);
         if (dateWarning) summaryParts.push(`(${dateWarning})`);
@@ -405,7 +411,8 @@ export class ServiceRecordingService {
         const rawLedToChristOn = col(row, 'led to christ on');
         const notes = col(row, 'notes');
 
-        const { date: ledToChristOn, warning: dateWarning } = parseDate(rawLedToChristOn);
+        const { date: ledToChristOn, warning: dateWarning } =
+          parseDate(rawLedToChristOn);
 
         const { contact, isNew } = await this.resolveContact(
           tenantId,
@@ -421,13 +428,12 @@ export class ServiceRecordingService {
 
         // If linked (existing contact), update bornAgainOn if not already set
         if (!isNew && ledToChristOn) {
-          await this.personRepository.update(
-            { contactId: contact.id },
-            { bornAgainOn: ledToChristOn } as any,
-          );
+          await this.personRepository.update({ contactId: contact.id }, {
+            bornAgainOn: ledToChristOn,
+          } as any);
         }
 
-        const taskTitle = `New Believer Follow up — ${firstName} ${lastName}`;
+        const taskTitle = `New Believer Follow up — ${firstName} ${lastName} - ${rawPhone}`;
         const notesComment = notes ? notes : undefined;
         const task = await this.createFollowUpTask(
           tenantId,
@@ -437,7 +443,7 @@ export class ServiceRecordingService {
           notesComment,
         );
 
-        const summaryParts: string[] = [`Gave their life to Christ`];
+        const summaryParts: string[] = ['Gave their life to Christ'];
         if (rawLedToChristOn) summaryParts.push(`on ${rawLedToChristOn}`);
         if (ledToChristBy) summaryParts.push(`, led by ${ledToChristBy}`);
         if (dateWarning) summaryParts.push(`(${dateWarning})`);

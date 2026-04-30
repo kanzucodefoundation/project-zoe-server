@@ -1,8 +1,15 @@
-import { BadRequestException, Injectable, Inject } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Inject,
+  NotFoundException,
+} from '@nestjs/common';
 import { roleAdmin } from 'src/auth/constants';
 import SearchDto from 'src/shared/dto/search.dto';
+import { TenantContext } from 'src/shared/tenant/tenant-context';
 import { hasValue } from 'src/utils/validation';
 import { ILike, Repository, Connection } from 'typeorm';
+import { Tenant } from '../tenants/entities/tenant.entity';
 import { RolesDto } from './dto/roles.dto';
 import Roles from './entities/roles.entity';
 
@@ -10,16 +17,20 @@ import Roles from './entities/roles.entity';
 export class RolesService {
   private readonly repository: Repository<Roles>;
 
-  constructor(@Inject('CONNECTION') connection: Connection) {
+  constructor(
+    @Inject('CONNECTION') connection: Connection,
+    private readonly tenantContext: TenantContext,
+  ) {
     this.repository = connection.getRepository(Roles);
   }
 
   async create(userRole: RolesDto): Promise<RolesDto> {
+    const tenantId = this.tenantContext.requireTenant();
     const checkRole = await this.repository.findOne({
-      where: [
-        { role: userRole.role },
-        // { permissions: In(userRole.permissions) },
-      ],
+      where: {
+        role: userRole.role,
+        tenant: { id: tenantId } as Tenant,
+      },
     });
 
     if (checkRole) {
@@ -28,11 +39,17 @@ export class RolesService {
           'Duplicate role or permission entry detected. Contact your administrator',
       });
     }
-    return await this.repository.save(userRole);
+    return await this.repository.save({
+      ...userRole,
+      tenant: { id: tenantId } as Tenant,
+    });
   }
 
   async findAll(req: SearchDto): Promise<RolesDto[]> {
-    const filter: Record<string, any> = {};
+    const tenantId = this.tenantContext.requireTenant();
+    const filter: Record<string, any> = {
+      tenant: { id: tenantId } as Tenant,
+    };
 
     if (hasValue(req.query)) {
       filter.role = ILike(`%${req.query.trim().toLowerCase()}%`);
@@ -44,25 +61,44 @@ export class RolesService {
   }
 
   async findOne(id: number): Promise<RolesDto> {
-    return await this.repository.findOne({ where: { id } });
+    const tenantId = this.tenantContext.requireTenant();
+    return await this.repository.findOne({
+      where: { id, tenant: { id: tenantId } as Tenant },
+    });
   }
 
   async update(userRole: RolesDto): Promise<RolesDto> {
+    const tenantId = this.tenantContext.requireTenant();
     const checkRole = await this.repository.findOne({
-      where: { id: userRole.id },
+      where: { id: userRole.id, tenant: { id: tenantId } as Tenant },
     });
+    if (!checkRole) {
+      throw new NotFoundException({
+        message: 'Role not found',
+      });
+    }
     if (checkRole.role === roleAdmin.role) {
       throw new BadRequestException({
         message: 'Unable to edit an Admin role. Contact your administrator',
       });
     }
-    return await this.repository.save(userRole);
+    return await this.repository.save({
+      ...checkRole,
+      ...userRole,
+      tenant: { id: tenantId } as Tenant,
+    });
   }
 
   async remove(roleId: number): Promise<void> {
+    const tenantId = this.tenantContext.requireTenant();
     const checkRole = await this.repository.findOne({
-      where: { id: roleId },
+      where: { id: roleId, tenant: { id: tenantId } as Tenant },
     });
+    if (!checkRole) {
+      throw new NotFoundException({
+        message: 'Role not found',
+      });
+    }
     if (checkRole.role === roleAdmin.role) {
       throw new BadRequestException({
         message: 'Unable to delete an Admin role. Contact your administrator',
@@ -75,6 +111,6 @@ export class RolesService {
           'Unable to delete an active role. Make sure no users have been assigned this role',
       });
     }
-    await this.repository.delete(roleId);
+    await this.repository.remove(checkRole);
   }
 }

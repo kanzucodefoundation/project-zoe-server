@@ -29,6 +29,7 @@ import { GroupPrivacy } from 'src/groups/enums/groupPrivacy';
 import { GroupCategoryNames } from 'src/groups/enums/groups';
 import { UsersService } from 'src/users/users.service';
 import { generateRandomPassword } from 'src/utils/stringHelpers';
+import { TenantContextInterceptor } from 'src/interceptors/tenant-context.interceptor';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const Duplex = require('stream').Duplex; // core NodeJS API
@@ -45,7 +46,7 @@ class Entity {
   email: string;
 }
 
-@UseInterceptors(SentryInterceptor)
+@UseInterceptors(SentryInterceptor, TenantContextInterceptor)
 @UseGuards(JwtAuthGuard)
 @ApiTags('Crm Contacts')
 @Controller('api/crm/import')

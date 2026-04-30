@@ -9,6 +9,7 @@ import { Task } from './entities/task.entity';
 import { TaskComment } from './entities/task-comment.entity';
 import { TaskAttachment } from './entities/task-attachment.entity';
 import GroupMembership from '../groups/entities/groupMembership.entity';
+import Group from '../groups/entities/group.entity';
 import { TenantContext } from '../shared/tenant/tenant-context';
 import { ContactActivityService } from '../crm/contact-activity.service';
 import { CreateTaskDto } from './dto/create-task.dto';
@@ -17,6 +18,27 @@ import { AddCommentDto } from './dto/add-comment.dto';
 import { CLOSED_STATUSES, TaskStatus } from './enums/task-status.enum';
 import { TaskType } from './enums/task-type.enum';
 import { ContactActivityType } from '../crm/enums/contact-activity-type.enum';
+import { GroupCategoryNames } from '../groups/enums/groups';
+
+const TASK_SUMMARY_RELATIONS = [
+  'contact',
+  'contact.person',
+  'assignedTo',
+  'assignedTo.contact',
+  'assignedTo.contact.person',
+  'createdBy',
+  'createdBy.contact',
+  'createdBy.contact.person',
+];
+
+const TASK_DETAIL_RELATIONS = [
+  ...TASK_SUMMARY_RELATIONS,
+  'comments',
+  'comments.author',
+  'comments.author.contact',
+  'comments.author.contact.person',
+  'attachments',
+];
 
 @Injectable()
 export class TasksService {
@@ -24,6 +46,7 @@ export class TasksService {
   private readonly commentRepository: Repository<TaskComment>;
   private readonly attachmentRepository: Repository<TaskAttachment>;
   private readonly membershipRepository: Repository<GroupMembership>;
+  private readonly groupRepository: Repository<Group>;
 
   constructor(
     @Inject('CONNECTION') connection: Connection,
@@ -34,6 +57,7 @@ export class TasksService {
     this.commentRepository = connection.getRepository(TaskComment);
     this.attachmentRepository = connection.getRepository(TaskAttachment);
     this.membershipRepository = connection.getRepository(GroupMembership);
+    this.groupRepository = connection.getRepository(Group);
   }
 
   async create(createdById: number, dto: CreateTaskDto): Promise<Task> {
@@ -63,7 +87,7 @@ export class TasksService {
       referenceId: saved.id,
     });
 
-    return saved;
+    return this.findTaskWithRelations(saved.id, tenantId);
   }
 
   async findAll(
@@ -80,15 +104,22 @@ export class TasksService {
     const qb = this.taskRepository
       .createQueryBuilder('task')
       .leftJoinAndSelect('task.contact', 'contact')
+      .leftJoinAndSelect('contact.person', 'contactPerson')
       .leftJoinAndSelect('task.assignedTo', 'assignedTo')
+      .leftJoinAndSelect('assignedTo.contact', 'assignedToContact')
+      .leftJoinAndSelect('assignedToContact.person', 'assignedToContactPerson')
       .leftJoinAndSelect('task.createdBy', 'createdBy')
+      .leftJoinAndSelect('createdBy.contact', 'createdByContact')
+      .leftJoinAndSelect('createdByContact.person', 'createdByContactPerson')
       .where('task.tenantId = :tenantId', { tenantId })
       .orderBy('task.createdAt', 'DESC')
       .skip((page - 1) * limit)
       .take(limit);
 
     if (filters.status?.length) {
-      qb.andWhere('task.status IN (:...statuses)', { statuses: filters.status });
+      qb.andWhere('task.status IN (:...statuses)', {
+        statuses: filters.status,
+      });
     }
 
     if (filters.type?.length) {
@@ -98,36 +129,40 @@ export class TasksService {
     if (filters.assignedToId === 'unassigned') {
       qb.andWhere('task.assignedToId IS NULL');
     } else if (filters.assignedToId !== undefined) {
-      qb.andWhere('task.assignedToId = :assignedToId', { assignedToId: filters.assignedToId });
+      qb.andWhere('task.assignedToId = :assignedToId', {
+        assignedToId: filters.assignedToId,
+      });
     }
 
     const [data, total] = await qb.getManyAndCount();
+    data.forEach((task) => this.sanitizeTaskUsers(task));
     return { data, total };
   }
 
   async findAllForContact(contactId: number): Promise<Task[]> {
     const tenantId = this.tenantContext.requireTenant();
-    return this.taskRepository.find({
+    const tasks = await this.taskRepository.find({
       where: {
         tenant: { id: tenantId },
         contact: { id: contactId },
       },
-      relations: ['comments', 'attachments'],
+      relations: [...TASK_DETAIL_RELATIONS],
       order: { createdAt: 'DESC' },
     });
+
+    tasks.forEach((task) => this.sanitizeTaskUsers(task));
+    return tasks;
   }
 
   async findOne(taskId: number): Promise<Task> {
     const tenantId = this.tenantContext.requireTenant();
-    const task = await this.taskRepository.findOne({
-      where: { id: taskId, tenant: { id: tenantId } },
-      relations: ['contact', 'assignedTo', 'createdBy', 'comments', 'comments.author', 'attachments'],
-    });
-    if (!task) throw new NotFoundException(`Task ${taskId} not found`);
-    return task;
+    return this.findTaskWithRelations(taskId, tenantId);
   }
 
-  async update(taskId: number, dto: import('./dto/update-task.dto').UpdateTaskDto): Promise<Task> {
+  async update(
+    taskId: number,
+    dto: import('./dto/update-task.dto').UpdateTaskDto,
+  ): Promise<Task> {
     const tenantId = this.tenantContext.requireTenant();
     const task = await this.taskRepository.findOne({
       where: { id: taskId, tenant: { id: tenantId } },
@@ -136,13 +171,16 @@ export class TasksService {
 
     if (dto.title !== undefined) task.title = dto.title;
     if (dto.assignedToId !== undefined) {
-      task.assignedTo = dto.assignedToId ? ({ id: dto.assignedToId } as any) : null;
+      task.assignedTo = dto.assignedToId
+        ? ({ id: dto.assignedToId } as any)
+        : null;
     }
     if (dto.dueAt !== undefined) {
       task.dueAt = dto.dueAt ? new Date(dto.dueAt) : null;
     }
 
-    return this.taskRepository.save(task);
+    await this.taskRepository.save(task);
+    return this.findTaskWithRelations(taskId, tenantId);
   }
 
   async updateStatus(
@@ -176,12 +214,19 @@ export class TasksService {
           );
         }
 
-        const membership = this.membershipRepository.create({
-          contact: { id: contactId } as any,
-          group: { id: dto.groupId } as any,
-          isActive: true,
-        });
-        const savedMembership = await this.membershipRepository.save(membership);
+        const savedMembership =
+          dto.status === TaskStatus.ATTENDED_FELLOWSHIP
+            ? await this.ensureCategoryMembership(
+                contactId,
+                dto.groupId,
+                GroupCategoryNames.MC,
+              )
+            : await this.ensureCategoryMembership(
+                contactId,
+                dto.groupId,
+                GroupCategoryNames.GARAGE_TEAM,
+                true,
+              );
 
         await this.contactActivityService.record({
           tenantId,
@@ -225,7 +270,8 @@ export class TasksService {
 
         const summaryParts = ['Got baptised'];
         if (dto.baptismLocation) summaryParts.push(`at ${dto.baptismLocation}`);
-        if (dto.baptismOfficiant) summaryParts.push(`by ${dto.baptismOfficiant}`);
+        if (dto.baptismOfficiant)
+          summaryParts.push(`by ${dto.baptismOfficiant}`);
 
         await this.contactActivityService.record({
           tenantId,
@@ -257,7 +303,125 @@ export class TasksService {
 
     task.status = dto.status;
     task.completedAt = new Date();
-    return this.taskRepository.save(task);
+    await this.taskRepository.save(task);
+    return this.findTaskWithRelations(taskId, tenantId);
+  }
+
+  private async findTaskWithRelations(
+    taskId: number,
+    tenantId: number,
+  ): Promise<Task> {
+    const task = await this.taskRepository.findOne({
+      where: { id: taskId, tenant: { id: tenantId } },
+      relations: [...TASK_DETAIL_RELATIONS],
+    });
+
+    if (!task) {
+      throw new NotFoundException(`Task ${taskId} not found`);
+    }
+
+    this.sanitizeTaskUsers(task);
+    return task;
+  }
+
+  private sanitizeTaskUsers(task: Task): void {
+    this.sanitizeUser(task.assignedTo);
+    this.sanitizeUser(task.createdBy);
+    task.comments?.forEach((comment) => this.sanitizeUser(comment.author));
+  }
+
+  private sanitizeUser(user?: { password?: string } | null): void {
+    if (!user) return;
+    delete user.password;
+  }
+
+  private async ensureCategoryMembership(
+    contactId: number,
+    groupId: number,
+    categoryName: GroupCategoryNames,
+    enforceSingleActiveMembership = false,
+  ): Promise<GroupMembership> {
+    const tenantId = this.tenantContext.requireTenant();
+    const group = await this.groupRepository
+      .createQueryBuilder('group')
+      .leftJoinAndSelect('group.category', 'category')
+      .where('group.id = :groupId', { groupId })
+      .andWhere('group.tenantId = :tenantId', { tenantId })
+      .andWhere('category.name = :categoryName', { categoryName })
+      .getOne();
+
+    if (!group) {
+      throw new BadRequestException(
+        `Selected group is not a valid ${categoryName} option`,
+      );
+    }
+
+    const categoryMemberships = await this.membershipRepository
+      .createQueryBuilder('membership')
+      .leftJoinAndSelect('membership.group', 'group')
+      .leftJoinAndSelect('group.category', 'category')
+      .where('membership.contactId = :contactId', { contactId })
+      .andWhere('category.name = :categoryName', { categoryName })
+      .orderBy('membership.id', 'DESC')
+      .getMany();
+
+    const activeMemberships = categoryMemberships.filter(
+      (membership) => membership.isActive !== false,
+    );
+    const activeTargetMembership = activeMemberships.find(
+      (membership) => membership.groupId === group.id,
+    );
+
+    if (enforceSingleActiveMembership) {
+      const membershipsToDeactivate = activeMemberships
+        .filter((membership) => membership.groupId !== group.id)
+        .map((membership) => membership.id);
+
+      if (membershipsToDeactivate.length > 0) {
+        await this.membershipRepository
+          .createQueryBuilder()
+          .update(GroupMembership)
+          .set({
+            isActive: false,
+            leftAt: () => 'CURRENT_TIMESTAMP',
+          })
+          .where('id IN (:...ids)', { ids: membershipsToDeactivate })
+          .execute();
+      }
+    }
+
+    if (activeTargetMembership) {
+      return activeTargetMembership;
+    }
+
+    const inactiveTargetMembership = categoryMemberships.find(
+      (membership) =>
+        membership.groupId === group.id && membership.isActive === false,
+    );
+
+    if (inactiveTargetMembership) {
+      await this.membershipRepository
+        .createQueryBuilder()
+        .update(GroupMembership)
+        .set({
+          isActive: true,
+          leftAt: null,
+          joinedAt: () => 'CURRENT_TIMESTAMP',
+        })
+        .where('id = :id', { id: inactiveTargetMembership.id })
+        .execute();
+
+      return this.membershipRepository.findOneOrFail({
+        where: { id: inactiveTargetMembership.id },
+      });
+    }
+
+    const membership = this.membershipRepository.create({
+      contact: { id: contactId } as any,
+      group: { id: group.id } as any,
+      isActive: true,
+    });
+    return this.membershipRepository.save(membership);
   }
 
   async addComment(
@@ -330,6 +494,6 @@ export class TasksService {
       referenceId: task.id,
     });
 
-    return saved;
+    return this.findTaskWithRelations(saved.id, tenantId);
   }
 }
