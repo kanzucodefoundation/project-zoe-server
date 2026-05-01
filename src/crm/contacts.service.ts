@@ -627,7 +627,7 @@ export class ContactsService {
         });
 
         this.logger.endTracking(tracking, true);
-        return savedContact;
+        return await this.findOne(savedContact.id);
       } catch (error) {
         this.logger.error(error, {
           operation: 'updateContact',
@@ -1310,7 +1310,7 @@ export class ContactsService {
         );
 
         this.logger.endTracking(tracking, true);
-        return savedContact;
+        return await this.findOne(savedContact.id);
       } catch (error) {
         this.logger.error(error, {
           operation: 'updateContactWithGroups',
@@ -1512,7 +1512,7 @@ export class ContactsService {
   }
 
   async findOne(id: number): Promise<Contact> {
-    return await this.repository.findOne({
+    const contact = await this.repository.findOne({
       where: { id },
       relations: [
         'person',
@@ -1526,6 +1526,14 @@ export class ContactsService {
         'groupMemberships.group',
       ],
     });
+
+    if (contact?.groupMemberships) {
+      contact.groupMemberships = contact.groupMemberships.filter(
+        (membership) => membership.isActive !== false,
+      );
+    }
+
+    return contact;
   }
 
   async remove(id: number): Promise<void> {

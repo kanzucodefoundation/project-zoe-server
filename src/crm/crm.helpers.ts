@@ -90,7 +90,9 @@ export const getCellGroup = (data: Contact): Group | null => {
   const { groupMemberships } = data;
   if (hasValue(groupMemberships)) {
     const pri = groupMemberships.find(
-      (it) => it.group?.category?.name === GroupCategoryNames.MC,
+      (it) =>
+        it.isActive !== false &&
+        it.group?.category?.name === GroupCategoryNames.MC,
     );
     if (pri) {
       return pri.group;
@@ -103,7 +105,9 @@ export const getLocation = (data: Contact): Group | null => {
   const { groupMemberships } = data;
   if (hasValue(groupMemberships)) {
     const pri = groupMemberships.find(
-      (it) => it.group?.category?.name === GroupCategoryNames.LOCATION,
+      (it) =>
+        it.isActive !== false &&
+        it.group?.category?.name === GroupCategoryNames.LOCATION,
     );
     if (pri) {
       return pri.group;
