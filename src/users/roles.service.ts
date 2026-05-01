@@ -4,6 +4,7 @@ import {
   Inject,
   NotFoundException,
 } from '@nestjs/common';
+import { REQUEST } from '@nestjs/core';
 import { roleAdmin } from 'src/auth/constants';
 import SearchDto from 'src/shared/dto/search.dto';
 import { TenantContext } from 'src/shared/tenant/tenant-context';
@@ -20,8 +21,16 @@ export class RolesService {
   constructor(
     @Inject('CONNECTION') connection: Connection,
     private readonly tenantContext: TenantContext,
+    @Inject(REQUEST) private readonly request: any,
   ) {
     this.repository = connection.getRepository(Roles);
+  }
+
+  private isLoggedInUserRoleAdmin(): boolean {
+    return (
+      Array.isArray(this.request?.user?.roles) &&
+      this.request.user.roles.includes(roleAdmin.role)
+    );
   }
 
   async create(userRole: RolesDto): Promise<RolesDto> {
@@ -77,7 +86,7 @@ export class RolesService {
         message: 'Role not found',
       });
     }
-    if (checkRole.role === roleAdmin.role) {
+    if (checkRole.role === roleAdmin.role && !this.isLoggedInUserRoleAdmin()) {
       throw new BadRequestException({
         message: 'Unable to edit an Admin role. Contact your administrator',
       });
