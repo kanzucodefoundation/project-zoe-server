@@ -54,6 +54,7 @@ export class GroupCategoriesService {
     const category = this.repository.create({
       id: data.id,
       name: data.name,
+      purpose: data.purpose ?? null,
       tenant: data.tenant ?? ({ id: tenantId } as any),
     });
 
@@ -102,6 +103,9 @@ export class GroupCategoriesService {
     }
 
     current.name = data.name ?? current.name;
+    if (Object.prototype.hasOwnProperty.call(data, 'purpose')) {
+      current.purpose = data.purpose ?? null;
+    }
     current.tenant = current.tenant ?? ({ id: tenantId } as any);
 
     return await this.repository.save(current);
