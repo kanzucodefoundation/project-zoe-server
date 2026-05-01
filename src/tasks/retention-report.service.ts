@@ -47,9 +47,14 @@ const MONTH_NAMES = [
   'December',
 ];
 
-// Converts a pg date value (string or Date) to YYYY-MM-DD
+const formatLocalDate = (d: Date): string =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(
+    d.getDate(),
+  ).padStart(2, '0')}`;
+
+// Converts a pg date value (string or Date) to YYYY-MM-DD without UTC day shifting
 const toDateStr = (d: Date | string): string =>
-  typeof d === 'string' ? d.slice(0, 10) : d.toISOString().slice(0, 10);
+  typeof d === 'string' ? d.slice(0, 10) : formatLocalDate(d);
 
 // Sunday-start week expression: the Sunday on or before the given timestamp
 const SUNDAY_WEEK_EXPR = (col: string) =>
@@ -170,7 +175,7 @@ export class RetentionReportService {
          WHERE "tenantId" = $1
            AND "occurredAt" >= $2
            AND "occurredAt" < $3
-           AND type = ANY($4::text[])
+           AND type::text = ANY($4::text[])
          GROUP BY EXTRACT(MONTH FROM "occurredAt"), type`,
         [tenantId, yearStart, yearEnd, ACTIVITY_TYPES],
       ),
@@ -197,15 +202,15 @@ export class RetentionReportService {
         totalNewContacts: newContactsMap.get(m) ?? 0,
         successfulCallsMade: callsMap.get(m) ?? 0,
         wantToJoinMC:
-          activityMap.get(
-            `${m}_${ContactActivityType.MATCHED_TO_FELLOWSHIP}`,
-          ) ?? 0,
+          activityMap.get(`${m}_${ContactActivityType.ATTENDED_FELLOWSHIP}`) ??
+          0,
         servingTeam:
           activityMap.get(`${m}_${ContactActivityType.JOINED_SERVING_TEAM}`) ??
           0,
         teaHangout:
-          activityMap.get(`${m}_${ContactActivityType.ATTENDED_FELLOWSHIP}`) ??
-          0,
+          activityMap.get(
+            `${m}_${ContactActivityType.MATCHED_TO_FELLOWSHIP}`,
+          ) ?? 0,
         baptism:
           activityMap.get(`${m}_${ContactActivityType.GOT_BAPTISED}`) ?? 0,
       };
@@ -256,7 +261,7 @@ export class RetentionReportService {
          WHERE "tenantId" = $1
            AND "occurredAt" >= $2
            AND "occurredAt" < $3
-           AND type = ANY($4::text[])
+           AND type::text = ANY($4::text[])
          GROUP BY week_start, type`,
         [tenantId, yearStart, yearEnd, ACTIVITY_TYPES],
       ),
@@ -285,7 +290,7 @@ export class RetentionReportService {
     const cursor = new Date(year, 0, 1 + daysToFirstSunday);
 
     while (cursor.getFullYear() === year) {
-      const dateStr = cursor.toISOString().slice(0, 10);
+      const dateStr = toDateStr(cursor);
       weeks.push({
         weekStart: dateStr,
         label: formatWeekLabel(cursor),
@@ -293,7 +298,7 @@ export class RetentionReportService {
         successfulCallsMade: callsMap.get(dateStr) ?? 0,
         wantToJoinMC:
           activityMap.get(
-            `${dateStr}_${ContactActivityType.MATCHED_TO_FELLOWSHIP}`,
+            `${dateStr}_${ContactActivityType.ATTENDED_FELLOWSHIP}`,
           ) ?? 0,
         servingTeams:
           activityMap.get(
@@ -301,7 +306,7 @@ export class RetentionReportService {
           ) ?? 0,
         teaHangout:
           activityMap.get(
-            `${dateStr}_${ContactActivityType.ATTENDED_FELLOWSHIP}`,
+            `${dateStr}_${ContactActivityType.MATCHED_TO_FELLOWSHIP}`,
           ) ?? 0,
         baptism:
           activityMap.get(`${dateStr}_${ContactActivityType.GOT_BAPTISED}`) ??

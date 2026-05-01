@@ -132,9 +132,10 @@ model group {
 }
 
 model group_category {
-  id    String  @id @db.VarChar(40)
-  name  String  @db.VarChar(200)
-  group group[]
+  id      String  @id @db.VarChar(40)
+  name    String  @db.VarChar(200)
+  purpose String? @db.VarChar(50)
+  group   group[]
 }
 
 model group_membership {

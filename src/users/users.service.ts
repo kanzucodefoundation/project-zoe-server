@@ -3,7 +3,6 @@ import { In, Repository, Connection, ILike } from 'typeorm';
 import { User } from './entities/user.entity';
 import Email from 'src/crm/entities/email.entity';
 import { RegisterUserDto } from '../auth/dto/register-user.dto';
-import SearchDto from '../shared/dto/search.dto';
 import { ContactsService } from '../crm/contacts.service';
 import Contact from '../crm/entities/contact.entity';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -53,17 +52,25 @@ export class UsersService {
 
       if (hasValue(req.query)) {
         hasFilter = true;
+        const query = req.query.trim();
+
+        const respUsers = await this.repository.find({
+          select: ['contactId'],
+          where: { username: ILike(`%${query}%`) },
+        });
+        idList.push(...respUsers.map((it) => it.contactId));
+
         const resp = await this.personRepository.find({
           select: ['contactId'],
           where: [
             {
-              firstName: ILike(`%${req.query.trim()}%`),
+              firstName: ILike(`%${query}%`),
             },
             {
-              lastName: ILike(`%${req.query.trim()}%`),
+              lastName: ILike(`%${query}%`),
             },
             {
-              middleName: ILike(`%${req.query.trim()}%`),
+              middleName: ILike(`%${query}%`),
             },
           ],
         });
@@ -71,7 +78,7 @@ export class UsersService {
 
         const respEmail = await this.emailRepository.find({
           select: ['contactId'],
-          where: { value: ILike(`%${req.query.trim().toLowerCase()}%`) },
+          where: { value: ILike(`%${query.toLowerCase()}%`) },
         });
         idList.push(...respEmail.map((it) => it.contactId));
       }
@@ -89,7 +96,9 @@ export class UsersService {
         ],
         skip: req.skip,
         take: req.limit,
-        where: hasValue(idList) ? { id: In(idList) } : undefined,
+        where: hasValue(idList)
+          ? { contactId: In(Array.from(new Set(idList))) }
+          : undefined,
       });
 
       return data.map((it) => {

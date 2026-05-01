@@ -6,4 +6,6 @@ export class UserSearchDto extends SearchDto {
   phone?: string;
   @IsOptional()
   email?: string;
+  @IsOptional()
+  query?: string;
 }
