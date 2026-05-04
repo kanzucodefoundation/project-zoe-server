@@ -18,5 +18,6 @@ export const createUserDto = (user: User): UserDto => {
     roles: user.userRoles.map((it) => it.roles.role),
     permissions,
     isActive: user.isActive,
+    lastLogin: user.lastLogin ?? null,
   };
 };

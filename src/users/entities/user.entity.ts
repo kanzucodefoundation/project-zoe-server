@@ -46,6 +46,9 @@ export class User {
   @Column()
   isActive: boolean;
 
+  @Column({ type: 'timestamp', nullable: true })
+  lastLogin: Date | null;
+
   @ManyToOne(() => Tenant, (tenant) => tenant.users, { nullable: false })
   tenant: Tenant;
 

@@ -95,6 +95,9 @@ export class AuthService {
 
       const valid = await user.validatePassword(pass);
       if (valid) {
+        const lastLogin = await this.usersService.updateLastLogin(user.id);
+        user.lastLogin = lastLogin;
+
         this.logger.auth('log', 'Authentication successful', {
           operation: 'validateUser',
           userId: user.id,

@@ -129,10 +129,19 @@ export class UsersService {
         it.roles.isActive ? it.roles.role : `${it.roles.role}: is disabled`,
       ),
       isActive: user.isActive,
+      lastLogin: user.lastLogin ?? null,
       username: user.username,
       contactId: user.contactId,
       fullName,
     };
+  }
+
+  async updateLastLogin(
+    id: number,
+    lastLogin: Date = new Date(),
+  ): Promise<Date> {
+    await this.repository.update({ id }, { lastLogin });
+    return lastLogin;
   }
 
   async create(data: User): Promise<User> {

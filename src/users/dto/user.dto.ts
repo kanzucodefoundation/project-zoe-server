@@ -11,6 +11,7 @@ export class UserListDto extends UserPermissions {
   avatar: string;
   roles: string[];
   isActive: boolean;
+  lastLogin: Date | null;
 }
 
 export class UserDto {
