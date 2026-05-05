@@ -559,7 +559,7 @@ export class ServiceRecordingService {
 
         const summaryParts: string[] = ['Recorded in Red Zone'];
         if (location) summaryParts.push(`at ${location}`);
-        if (reason) summaryParts.push(`(${reason})`);
+        if (notes) summaryParts.push(`(${notes})`);
 
         await this.contactActivityService.record({
           tenantId,
