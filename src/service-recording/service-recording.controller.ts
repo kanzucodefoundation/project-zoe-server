@@ -34,4 +34,13 @@ export class ServiceRecordingController {
   ) {
     return this.service.bulkUploadBelievers(req.tenantId, req.user.id, file);
   }
+
+  @Post('redzone/bulk')
+  @UseInterceptors(FileInterceptor('file'))
+  async bulkUploadRedZone(
+    @UploadedFile() file: Express.Multer.File,
+    @Request() req: any,
+  ) {
+    return this.service.bulkUploadRedZone(req.tenantId, req.user.id, file);
+  }
 }

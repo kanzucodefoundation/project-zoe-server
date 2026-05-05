@@ -84,6 +84,11 @@ function parseDate(value: string): { date: Date; warning?: string } {
   };
 }
 
+function buildComment(...parts: Array<string | undefined>): string | undefined {
+  const lines = parts.filter((part) => !!part?.trim());
+  return lines.length > 0 ? lines.join('\n') : undefined;
+}
+
 // ---------------------------------------------------------------------------
 // Service
 // ---------------------------------------------------------------------------
@@ -470,6 +475,113 @@ export class ServiceRecordingService {
         });
       } catch (err) {
         Logger.error(`Believers bulk row ${rowNumber}: ${err.message}`);
+        results.push({
+          row: rowNumber,
+          name,
+          status: 'error',
+          error: err.message,
+        });
+      }
+    }
+
+    return {
+      total: rows.length,
+      created,
+      linked,
+      errors: results.filter((r) => r.status === 'error'),
+    };
+  }
+
+  // -------------------------------------------------------------------------
+  // Step 4: Red Zone bulk upload
+  // -------------------------------------------------------------------------
+
+  async bulkUploadRedZone(
+    tenantId: number,
+    userId: number,
+    file: Express.Multer.File,
+  ): Promise<BulkUploadSummary> {
+    const defaultLocation = await this.getChurchLocation(userId, tenantId);
+    const rows = parseRows(file);
+
+    const results: BulkRowResult[] = [];
+    let created = 0;
+    let linked = 0;
+
+    for (const [index, row] of rows.entries()) {
+      const rowNumber = index + 2;
+      const firstName = col(row, 'first name');
+      const lastName = col(row, 'last name');
+      const rawPhone = col(row, 'phone');
+      const name = `${firstName} ${lastName}`.trim();
+
+      try {
+        if (!firstName || !lastName || !rawPhone) {
+          results.push({
+            row: rowNumber,
+            name: name || `Row ${rowNumber}`,
+            status: 'error',
+            error: 'Missing required field(s): First Name, Last Name, Phone',
+          });
+          continue;
+        }
+
+        const rawEmail = col(row, 'email');
+        const rawGender = col(row, 'gender');
+        const notes = col(row, 'notes', 'note', 'details', 'comments');
+        const locationOverride = col(row, 'church location', 'location');
+        const location = locationOverride || defaultLocation;
+
+        const { contact, isNew } = await this.resolveContact(
+          tenantId,
+          userId,
+          firstName,
+          lastName,
+          rawPhone,
+          rawEmail,
+          '',
+          rawGender,
+        );
+
+        const taskTitle = `Red Zone Follow up — ${firstName} ${lastName} - ${rawPhone}`;
+        const taskComment = buildComment(
+          notes ? `Notes: ${notes}` : undefined,
+          location ? `Location: ${location}` : undefined,
+        );
+
+        const task = await this.createFollowUpTask(
+          tenantId,
+          userId,
+          contact.id,
+          taskTitle,
+          taskComment,
+        );
+
+        const summaryParts: string[] = ['Recorded in Red Zone'];
+        if (location) summaryParts.push(`at ${location}`);
+        if (reason) summaryParts.push(`(${reason})`);
+
+        await this.contactActivityService.record({
+          tenantId,
+          contactId: contact.id,
+          type: ContactActivityType.TASK_CREATED,
+          summary: summaryParts.join(' '),
+          occurredAt: new Date(),
+          recordedById: userId,
+          referenceTable: 'task',
+          referenceId: task.id,
+        });
+
+        if (isNew) created++;
+        else linked++;
+
+        results.push({
+          row: rowNumber,
+          name,
+          status: isNew ? 'created' : 'linked',
+        });
+      } catch (err) {
+        Logger.error(`Red Zone bulk row ${rowNumber}: ${err.message}`);
         results.push({
           row: rowNumber,
           name,
