@@ -4,7 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Connection, Repository } from 'typeorm';
+import { Connection, In, Repository } from 'typeorm';
 import { Task } from './entities/task.entity';
 import { TaskComment } from './entities/task-comment.entity';
 import { TaskAttachment } from './entities/task-attachment.entity';
@@ -135,6 +135,40 @@ export class TasksService {
     }
 
     const [data, total] = await qb.getManyAndCount();
+
+    if (data.length > 0) {
+      const taskIds = data.map((t) => t.id);
+
+      const rows = await this.commentRepository
+        .createQueryBuilder('tc')
+        .select('MAX(tc.id)', 'maxId')
+        .where('tc.task IN (:...taskIds)', { taskIds })
+        .groupBy('tc.task')
+        .getRawMany<{ maxId: string }>();
+
+      const maxIds = rows.map((r) => Number(r.maxId)).filter(Boolean);
+
+      if (maxIds.length > 0) {
+        const comments = await this.commentRepository.find({
+          where: { id: In(maxIds) },
+          relations: [
+            'task',
+            'author',
+            'author.contact',
+            'author.contact.person',
+          ],
+        });
+        const commentMap = new Map(comments.map((c) => [c.task.id, c]));
+        data.forEach((task) => {
+          task.latestComment = commentMap.get(task.id) ?? null;
+        });
+      } else {
+        data.forEach((task) => {
+          task.latestComment = null;
+        });
+      }
+    }
+
     data.forEach((task) => this.sanitizeTaskUsers(task));
     return { data, total };
   }

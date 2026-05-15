@@ -67,4 +67,6 @@ export class Task {
 
   @CreateDateColumn()
   createdAt: Date;
+
+  latestComment?: TaskComment | null;
 }
