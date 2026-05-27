@@ -82,10 +82,25 @@ export class ContactImportController {
     const { list } = parsedData;
     const created = [];
     const notCreated = [];
+    const errors: string[] = [];
     for (const [index, uploadedContact] of list.entries()) {
       try {
         const contactModel = parseContact(uploadedContact);
         if (contactModel) {
+          if (!contactModel.email) {
+            const contactName =
+              uploadedContact.firstName || uploadedContact.name || 'Unknown';
+            const userErrorMessage = `Contact ${contactName} at position ${
+              index + 1
+            } out of ${
+              list.length
+            } contacts not created. Error message: Email is required. Email is needed to log into the system.`;
+            Logger.error(userErrorMessage);
+            errors.push(userErrorMessage);
+            notCreated.push(uploadedContact);
+            continue;
+          }
+
           contactModel['residence'] = {
             category: AddressCategory.Home,
             isPrimary: true,
@@ -94,39 +109,47 @@ export class ContactImportController {
             freeForm: uploadedContact.address,
           };
 
-          const groupData = await this.groupsService.findOne(
-            uploadedContact.groupid,
-            false,
-          );
-          if (!groupData) {
-            throw new BadRequestException({
-              message: `Specified Group with ID ${uploadedContact.groupid} does not exist. Please specify a valid group ID.`,
-            });
-          }
+          if (uploadedContact.groupid) {
+            const groupData = await this.groupsService.findOne(
+              uploadedContact.groupid,
+              false,
+            );
+            if (!groupData) {
+              throw new BadRequestException({
+                message: `Specified Group with ID ${uploadedContact.groupid} does not exist. Please specify a valid group ID.`,
+              });
+            }
 
-          const newPerson = await this.service.createPerson(contactModel);
-          const newPersonsGroup = {
-            groupId: uploadedContact.groupid,
-            members: [newPerson.id],
-            role: GroupRole.Member,
-          };
-          await this.groupMembershipService.create(newPersonsGroup);
-          created.push(newPerson);
+            const newPerson = await this.service.createPerson(contactModel);
+            const newPersonsGroup = {
+              groupId: uploadedContact.groupid,
+              members: [newPerson.id],
+              role: GroupRole.Member,
+            };
+            await this.groupMembershipService.create(newPersonsGroup);
+            created.push(newPerson);
+          } else {
+            const newPerson = await this.service.createPerson(contactModel);
+            created.push(newPerson);
+          }
         }
       } catch (err) {
         notCreated.push(uploadedContact);
-        const userErrorMessage = `Contact ${uploadedContact.name} at position ${
-          index + 1
-        } out of ${list.length - 1} contacts not created. Error message: ${
-          err.message
-        }`;
+        const userErrorMessage = `Contact ${
+          uploadedContact.firstName || uploadedContact.name || 'Unknown'
+        } at position ${index + 1} out of ${
+          list.length
+        } contacts not created. Error message: ${err.message}`;
         Logger.error(userErrorMessage);
-        throw new BadRequestException({
-          message: `${userErrorMessage}. Every contact from this one onwards has not been created. Fix this error, remove the contacts before this one and re-upload.`,
-        });
+        errors.push(userErrorMessage);
       }
     }
-    return created.map((it) => it.id);
+    return {
+      success: created.length > 0 || errors.length === 0,
+      totalRows: list.length,
+      successfulRows: created.length,
+      errors,
+    };
   }
 
   @Post('groupLeaders')

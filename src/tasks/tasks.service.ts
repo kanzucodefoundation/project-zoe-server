@@ -333,6 +333,10 @@ export class TasksService {
         });
         break;
       }
+
+      case TaskStatus.UNREACHABLE: {
+        break;
+      }
     }
 
     task.status = dto.status;

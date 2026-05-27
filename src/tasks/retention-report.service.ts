@@ -161,7 +161,7 @@ export class RetentionReportService {
          FROM task
          WHERE "tenantId" = $1
            AND type = 'call'
-           AND status = 'done'
+           AND status != 'unreachable'
            AND "completedAt" >= $2
            AND "completedAt" < $3
          GROUP BY EXTRACT(MONTH FROM "completedAt")`,
@@ -247,7 +247,7 @@ export class RetentionReportService {
          FROM task
          WHERE "tenantId" = $1
            AND type = 'call'
-           AND status = 'done'
+           AND status != 'unreachable'
            AND "completedAt" >= $2
            AND "completedAt" < $3
          GROUP BY week_start`,
