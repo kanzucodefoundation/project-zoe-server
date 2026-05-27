@@ -90,8 +90,8 @@ export class TasksController {
     let from: Date;
     switch (window) {
       case '90days':
-        from = new Date(now);
-        from.setDate(from.getDate() - 90);
+        // Start of day 89 days ago gives a 90-day window (inclusive of today)
+        from = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 89);
         break;
       case 'ytd':
       default:
