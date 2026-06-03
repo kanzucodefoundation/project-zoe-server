@@ -49,6 +49,7 @@ function parseRows(file: Express.Multer.File): Record<string, string>[] {
     skip_empty_lines: true,
     trim: true,
     bom: true,
+    relax_column_count: true,
   });
 }
 
