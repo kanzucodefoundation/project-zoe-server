@@ -18,7 +18,7 @@ import { AddCommentDto } from './dto/add-comment.dto';
 import { CLOSED_STATUSES, TaskStatus } from './enums/task-status.enum';
 import { TaskType } from './enums/task-type.enum';
 import { ContactActivityType } from '../crm/enums/contact-activity-type.enum';
-import { GroupCategoryNames } from '../groups/enums/groups';
+import { GroupCategoryPurpose } from '../groups/enums/groups';
 
 const TASK_SUMMARY_RELATIONS = [
   'contact',
@@ -253,12 +253,12 @@ export class TasksService {
             ? await this.ensureCategoryMembership(
                 contactId,
                 dto.groupId,
-                GroupCategoryNames.MC,
+                GroupCategoryPurpose.FELLOWSHIP,
               )
             : await this.ensureCategoryMembership(
                 contactId,
                 dto.groupId,
-                GroupCategoryNames.GARAGE_TEAM,
+                GroupCategoryPurpose.SERVING_TEAM,
                 true,
               );
 
@@ -376,7 +376,7 @@ export class TasksService {
   private async ensureCategoryMembership(
     contactId: number,
     groupId: number,
-    categoryName: GroupCategoryNames,
+    categoryPurpose: GroupCategoryPurpose,
     enforceSingleActiveMembership = false,
   ): Promise<GroupMembership> {
     const tenantId = this.tenantContext.requireTenant();
@@ -385,12 +385,12 @@ export class TasksService {
       .leftJoinAndSelect('group.category', 'category')
       .where('group.id = :groupId', { groupId })
       .andWhere('group.tenantId = :tenantId', { tenantId })
-      .andWhere('category.name = :categoryName', { categoryName })
+      .andWhere('category.purpose = :categoryPurpose', { categoryPurpose })
       .getOne();
 
     if (!group) {
       throw new BadRequestException(
-        `Selected group is not a valid ${categoryName} option`,
+        `Selected group is not a valid ${categoryPurpose} group`,
       );
     }
 
@@ -399,7 +399,7 @@ export class TasksService {
       .leftJoinAndSelect('membership.group', 'group')
       .leftJoinAndSelect('group.category', 'category')
       .where('membership.contactId = :contactId', { contactId })
-      .andWhere('category.name = :categoryName', { categoryName })
+      .andWhere('category.purpose = :categoryPurpose', { categoryPurpose })
       .orderBy('membership.id', 'DESC')
       .getMany();
 

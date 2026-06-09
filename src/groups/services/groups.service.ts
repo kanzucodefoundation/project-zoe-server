@@ -637,11 +637,11 @@ export class GroupsService {
     return await this.repository.count();
   }
 
-  async getGroupsByCategory(categoryId: string): Promise<Group[]> {
+  async getGroupsByCategory(categoryName: string): Promise<Group[]> {
     return this.repository
       .createQueryBuilder('group')
       .leftJoinAndSelect('group.category', 'category')
-      .where('category.id = :categoryId', { categoryId })
+      .where('category.name = :categoryName', { categoryName })
       .getMany();
   }
 

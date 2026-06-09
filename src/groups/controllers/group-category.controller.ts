@@ -21,7 +21,7 @@ import { TenantContextInterceptor } from 'src/interceptors/tenant-context.interc
 @UseInterceptors(SentryInterceptor, TenantContextInterceptor)
 @UseGuards(JwtAuthGuard)
 @ApiTags('Group Categories')
-@Controller('api/groups/category')
+@Controller('api/groups/categories')
 export class GroupCategoryController {
   constructor(private readonly service: GroupCategoriesService) {}
 
