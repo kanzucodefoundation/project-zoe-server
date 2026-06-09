@@ -39,7 +39,17 @@
     "seed:reset": "ts-node --transpile-only -r tsconfig-paths/register src/commands/seed-comprehensive.ts --clear --seed",
     "seed:whm:reports": "ts-node --transpile-only -r tsconfig-paths/register src/commands/seed-whm-reports.ts",
     "seed:whm:groups": "ts-node --transpile-only -r tsconfig-paths/register src/commands/seed-whm-groups.ts",
-    "import:whm:pga": "ts-node --transpile-only -r tsconfig-paths/register src/commands/import-whm-pga.ts"
+    "import:whm:pga": "ts-node --transpile-only -r tsconfig-paths/register src/commands/import-whm-pga.ts",
+    "import:whm:mca": "ts-node --transpile-only -r tsconfig-paths/register src/commands/import-whm-mca.ts",
+    "import:champions:pga": "ts-node --transpile-only -r tsconfig-paths/register src/commands/import-champions-pga.ts",
+    "import:champions:salvations:annual": "ts-node --transpile-only -r tsconfig-paths/register src/commands/import-champions-salvations-annual.ts",
+    "import:champions:salvations:2023": "ts-node --transpile-only -r tsconfig-paths/register src/commands/import-champions-salvations-weekly.ts -- --year 2023",
+    "import:champions:salvations:2024": "ts-node --transpile-only -r tsconfig-paths/register src/commands/import-champions-salvations-weekly.ts -- --year 2024",
+    "import:champions:oikos2022": "ts-node --transpile-only -r tsconfig-paths/register src/commands/import-champions-oikos-2022.ts",
+    "import:champions:2025:pga": "ts-node --transpile-only -r tsconfig-paths/register src/commands/import-champions-weekly-2025-pga.ts",
+    "import:champions:2025:mca": "ts-node --transpile-only -r tsconfig-paths/register src/commands/import-champions-weekly-2025-mca.ts",
+    "import:champions:categorization:2025": "ts-node --transpile-only -r tsconfig-paths/register src/commands/import-champions-categorization-2025.ts",
+    "import:champions:salvations:2025": "ts-node --transpile-only -r tsconfig-paths/register src/commands/import-champions-salvations-2025.ts"
   },
   "dependencies": {
     "@nestjs/axios": "^3.0.0",

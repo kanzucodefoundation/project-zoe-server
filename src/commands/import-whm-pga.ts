@@ -133,15 +133,16 @@ async function run() {
 
   // Build existing (reportId, groupId, reportingPeriod) set for fast dedup
   const existingKeys = new Set<string>();
-  const existing = await submissionRepo
-    .createQueryBuilder('s')
-    .where('s."reportId" = :reportId', { reportId: report.id })
-    .andWhere('s."reportingPeriod" IS NOT NULL')
-    .select(['s."groupId"', 's."reportingPeriod"'])
-    .getRawMany();
+  const existing: Array<{ groupId: number; reportingPeriod: string }> =
+    await conn.query(
+      `SELECT s."groupId", TO_CHAR(s."reportingPeriod", 'YYYY-MM-DD') AS "reportingPeriod"
+       FROM report_submission s
+       WHERE s."reportId" = $1 AND s."reportingPeriod" IS NOT NULL`,
+      [report.id],
+    );
 
   for (const row of existing) {
-    existingKeys.add(`${row['s_groupId']}::${row['s_reportingPeriod']}`);
+    existingKeys.add(`${row.groupId}::${row.reportingPeriod}`);
   }
   Logger.log(`${existingKeys.size} submissions already exist — will skip`);
 

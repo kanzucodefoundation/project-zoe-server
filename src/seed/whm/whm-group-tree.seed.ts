@@ -187,6 +187,7 @@ const WHM_LOCATIONS: { code: string; name: string }[] = [
   { code: 'WHMTWE', name: 'WHMTWE' },
   { code: 'WHMTYN', name: 'WH Mityana' },
   { code: 'WHMWFU', name: 'WH Muwafu' },
+  { code: 'WHMWGL', name: 'WH Mawangala' },
   { code: 'WHMWRD', name: 'WH Mawanda Road' },
   { code: 'WHMYNG', name: 'WH Muyenga' },
   { code: 'WHNAJJ', name: 'WH Najjera' },

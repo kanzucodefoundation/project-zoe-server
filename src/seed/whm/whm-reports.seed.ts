@@ -23,7 +23,7 @@ interface FieldDef {
 interface ReportDef {
   name: string;
   description: string;
-  submissionFrequency: 'weekly' | 'monthly';
+  submissionFrequency: 'daily' | 'weekly' | 'monthly' | 'custom';
   functionName?: string;
   targetCategoryPurpose: GroupCategoryPurpose;
   targetCategoryName: string;
@@ -112,6 +112,18 @@ const WHM_REPORTS: ReportDef[] = [
       { name: 'salvations', label: 'Salvations', type: FieldType.NUMBER },
       { name: 'baptisms', label: 'Baptisms', type: FieldType.NUMBER },
       { name: 'visitations', label: 'Visitations', type: FieldType.NUMBER },
+    ],
+  },
+  {
+    name: 'Annual Salvations & Baptisms',
+    description:
+      'Annual cumulative salvations and baptisms per Location (Champions Network)',
+    submissionFrequency: 'custom',
+    targetCategoryPurpose: GroupCategoryPurpose.LOCATION,
+    targetCategoryName: 'Location',
+    fields: [
+      { name: 'salvations', label: 'Salvations', type: FieldType.NUMBER },
+      { name: 'baptisms', label: 'Baptisms', type: FieldType.NUMBER },
     ],
   },
   {
