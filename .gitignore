@@ -44,5 +44,13 @@ lerna-debug.log*
 .qodo
 .codex
 
-# WHM historical data import — source spreadsheets/PDFs and generated JSON (not used by production code)
-/data
+# Python cache
+__pycache__/
+*.pyc
+
+# WHM historical data import — ignore everything except scripts/docs
+# (source spreadsheets/PDFs and generated JSON are not used by production code)
+/data/*
+!/data/scripts/
+!/data/scripts/**
+!/data/PENDING.md
