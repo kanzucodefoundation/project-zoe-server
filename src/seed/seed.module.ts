@@ -1,6 +1,8 @@
 import { forwardRef, Module } from '@nestjs/common';
 import { SeedService } from './seed.service';
 import { ComprehensiveSeedService } from './comprehensive-seed.service';
+import { WhmReportsSeedService } from './whm/whm-reports.seed';
+import { WhmGroupTreeSeedService } from './whm/whm-group-tree.seed';
 import { CrmModule } from '../crm/crm.module';
 import { UsersModule } from '../users/users.module';
 import { GroupsModule } from '../groups/groups.module';
@@ -28,7 +30,17 @@ import { eventEntities } from '../events/events.helpers';
       ...eventEntities,
     ]),
   ],
-  providers: [SeedService, ComprehensiveSeedService],
-  exports: [SeedService, ComprehensiveSeedService],
+  providers: [
+    SeedService,
+    ComprehensiveSeedService,
+    WhmReportsSeedService,
+    WhmGroupTreeSeedService,
+  ],
+  exports: [
+    SeedService,
+    ComprehensiveSeedService,
+    WhmReportsSeedService,
+    WhmGroupTreeSeedService,
+  ],
 })
 export class SeedModule {}

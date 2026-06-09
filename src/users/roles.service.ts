@@ -38,7 +38,7 @@ export class RolesService {
     const checkRole = await this.repository.findOne({
       where: {
         role: userRole.role,
-        tenant: { id: tenantId } as Tenant,
+        tenant: { id: tenantId } as any,
       },
     });
 
@@ -57,7 +57,7 @@ export class RolesService {
   async findAll(req: SearchDto): Promise<RolesDto[]> {
     const tenantId = this.tenantContext.requireTenant();
     const filter: Record<string, any> = {
-      tenant: { id: tenantId } as Tenant,
+      tenant: { id: tenantId } as any,
     };
 
     if (hasValue(req.query)) {
@@ -72,14 +72,14 @@ export class RolesService {
   async findOne(id: number): Promise<RolesDto> {
     const tenantId = this.tenantContext.requireTenant();
     return await this.repository.findOne({
-      where: { id, tenant: { id: tenantId } as Tenant },
+      where: { id, tenant: { id: tenantId } as any },
     });
   }
 
   async update(userRole: RolesDto): Promise<RolesDto> {
     const tenantId = this.tenantContext.requireTenant();
     const checkRole = await this.repository.findOne({
-      where: { id: userRole.id, tenant: { id: tenantId } as Tenant },
+      where: { id: userRole.id, tenant: { id: tenantId } as any },
     });
     if (!checkRole) {
       throw new NotFoundException({
@@ -101,7 +101,7 @@ export class RolesService {
   async remove(roleId: number): Promise<void> {
     const tenantId = this.tenantContext.requireTenant();
     const checkRole = await this.repository.findOne({
-      where: { id: roleId, tenant: { id: tenantId } as Tenant },
+      where: { id: roleId, tenant: { id: tenantId } as any },
     });
     if (!checkRole) {
       throw new NotFoundException({

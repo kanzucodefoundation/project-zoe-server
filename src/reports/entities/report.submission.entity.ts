@@ -21,6 +21,9 @@ export class ReportSubmission {
   @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
   submittedAt: Date;
 
+  @Column({ type: 'date', nullable: true })
+  reportingPeriod?: string;
+
   @ManyToOne(() => User, (user) => user.reportSubmissions)
   @JoinColumn()
   user: User;
