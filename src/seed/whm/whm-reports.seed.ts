@@ -39,6 +39,7 @@ const WHM_REPORTS: ReportDef[] = [
     name: 'Sunday Service Report',
     description: 'Weekly Sunday service attendance by slot for a Location',
     submissionFrequency: 'weekly',
+    functionName: 'whmSundayService',
     targetCategoryPurpose: GroupCategoryPurpose.LOCATION,
     targetCategoryName: 'Location',
     fields: [
@@ -79,6 +80,8 @@ const WHM_REPORTS: ReportDef[] = [
         required: true,
       },
       { name: 'kids', label: 'Kids', type: FieldType.NUMBER, required: true },
+      // PGA = 1Sv + 2Sv + YXP + kids — computed by backend, hidden from submission form
+      { name: 'pga', label: 'PGA', type: FieldType.NUMBER, hidden: true },
       // Optional slots
       { name: 'local', label: 'Local Language', type: FieldType.NUMBER },
       { name: 'hc1', label: 'HC 1', type: FieldType.NUMBER },
@@ -180,9 +183,39 @@ export class WhmReportsSeedService {
     for (const def of WHM_REPORTS) {
       const existing = await this.reportRepo.findOne({
         where: { name: def.name, tenant: { id: tenant.id } },
+        relations: ['fields'],
       });
       if (existing) {
-        Logger.log(`[WHM] Report already exists, skipping: ${def.name}`);
+        const existingFieldNames = (existing.fields ?? [])
+          .map((f) => f.name)
+          .sort()
+          .join(',');
+        const expectedFieldNames = def.fields
+          .map((f) => f.name)
+          .sort()
+          .join(',');
+        if (existingFieldNames === expectedFieldNames) {
+          Logger.log(`[WHM] Report up to date, skipping: ${def.name}`);
+          continue;
+        }
+        Logger.log(
+          `[WHM] Report exists with wrong fields — replacing: ${def.name}`,
+        );
+        await this.fieldRepo.delete({ report: { id: existing.id } });
+        for (const f of def.fields) {
+          const field = new ReportField();
+          field.name = f.name;
+          field.label = f.label;
+          field.type = f.type;
+          field.required = f.required ?? false;
+          field.hidden = f.hidden ?? false;
+          field.options = f.options ?? null;
+          field.report = existing;
+          await this.fieldRepo.save(field);
+        }
+        Logger.log(
+          `[WHM] Updated fields for: ${def.name} (${def.fields.length} fields)`,
+        );
         continue;
       }
 

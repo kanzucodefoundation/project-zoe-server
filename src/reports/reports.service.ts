@@ -211,6 +211,31 @@ export class ReportsService {
     // Save all SubmissionData entities
     await this.reportSubmissionDataRepository.save(submissionDataEntities);
 
+    // WHM Sunday Service Report: compute and persist PGA = 1Sv + 2Sv + YXP + kids
+    if (report.functionName === 'whmSundayService') {
+      const slot = (name: string) => {
+        const v = data[name];
+        return typeof v === 'number' ? v : parseFloat(String(v ?? 0)) || 0;
+      };
+      const pga =
+        slot('1Sv') +
+        slot('2Sv') +
+        slot('YXP') +
+        slot('kids') +
+        slot('local') +
+        slot('hc1') +
+        slot('hc2') +
+        slot('hc3');
+      const pgaField = fieldNameToFieldMap.get('pga');
+      if (pgaField) {
+        const pgaRow = new ReportSubmissionData();
+        pgaRow.reportSubmission = savedSubmission;
+        pgaRow.reportField = pgaField;
+        pgaRow.fieldValue = String(pga);
+        await this.reportSubmissionDataRepository.save(pgaRow);
+      }
+    }
+
     // Record fellowship attendance if the report contains the relevant dynamic fields
     try {
       const scheduleField = fields.find(

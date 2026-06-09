@@ -19,7 +19,9 @@ import { Logger } from '@nestjs/common';
 import { AppModule } from '../app.module';
 import { Connection } from 'typeorm';
 import { Report } from '../reports/entities/report.entity';
+import { ReportField } from '../reports/entities/report.field.entity';
 import { ReportSubmission } from '../reports/entities/report.submission.entity';
+import { ReportSubmissionData } from '../reports/entities/report.submission.data.entity';
 import Group from '../groups/entities/group.entity';
 import { Tenant } from '../tenants/entities/tenant.entity';
 import { User } from '../users/entities/user.entity';
@@ -59,8 +61,10 @@ async function run() {
 
   const tenantRepo = conn.getRepository(Tenant);
   const reportRepo = conn.getRepository(Report);
+  const fieldRepo = conn.getRepository(ReportField);
   const groupRepo = conn.getRepository(Group);
   const submissionRepo = conn.getRepository(ReportSubmission);
+  const submissionDataRepo = conn.getRepository(ReportSubmissionData);
   const userRepo = conn.getRepository(User);
 
   // Resolve tenant
@@ -80,6 +84,24 @@ async function run() {
   if (!report) {
     Logger.error(
       'Sunday Service Report not found. Run seed:whm:reports first.',
+    );
+    await app.close();
+    process.exit(1);
+  }
+
+  // Resolve the fields written by the importer
+  const [pgaField, locationNameField, locationIdField] = await Promise.all([
+    fieldRepo.findOne({ where: { name: 'pga', report: { id: report.id } } }),
+    fieldRepo.findOne({
+      where: { name: 'serviceLocationName', report: { id: report.id } },
+    }),
+    fieldRepo.findOne({
+      where: { name: 'serviceLocationId', report: { id: report.id } },
+    }),
+  ]);
+  if (!pgaField || !locationNameField || !locationIdField) {
+    Logger.error(
+      'Required fields missing on Sunday Service Report. Run seed:whm:reports first.',
     );
     await app.close();
     process.exit(1);
@@ -128,13 +150,41 @@ async function run() {
   let skipped = 0;
   let noGroup = 0;
   const BATCH = 200;
+
+  interface BatchMeta {
+    pga: number;
+    locationName: string;
+    locationId: number;
+  }
   const toInsert: Partial<ReportSubmission>[] = [];
+  const batchMeta: BatchMeta[] = [];
 
   const flush = async () => {
     if (toInsert.length === 0) return;
-    await submissionRepo.save(toInsert as ReportSubmission[]);
-    created += toInsert.length;
+    const saved = await submissionRepo.save(toInsert as ReportSubmission[]);
+    const dataRows: Partial<ReportSubmissionData>[] = saved.flatMap(
+      (sub, i) => [
+        {
+          reportSubmission: sub,
+          reportField: pgaField,
+          fieldValue: String(batchMeta[i].pga),
+        },
+        {
+          reportSubmission: sub,
+          reportField: locationNameField,
+          fieldValue: batchMeta[i].locationName,
+        },
+        {
+          reportSubmission: sub,
+          reportField: locationIdField,
+          fieldValue: String(batchMeta[i].locationId),
+        },
+      ],
+    );
+    await submissionDataRepo.save(dataRows as ReportSubmissionData[]);
+    created += saved.length;
     toInsert.length = 0;
+    batchMeta.length = 0;
   };
 
   for (const rec of raw.records) {
@@ -155,9 +205,13 @@ async function run() {
       group,
       user: adminUser,
       reportingPeriod: rec.weekDate,
-      data: { pga: rec.pga },
     });
-    existingKeys.add(dedupKey); // prevent duplicates within this run
+    batchMeta.push({
+      pga: rec.pga,
+      locationName: group.name,
+      locationId: group.id,
+    });
+    existingKeys.add(dedupKey);
 
     if (toInsert.length >= BATCH) await flush();
   }
