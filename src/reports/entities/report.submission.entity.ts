@@ -37,9 +37,6 @@ export class ReportSubmission {
   })
   group: Group;
 
-  @Column({ type: 'jsonb', nullable: true })
-  data: Record<string, any>;
-
   @OneToMany(
     () => ReportSubmissionData,
     (reportSubmissionData) => reportSubmissionData.reportSubmission,
