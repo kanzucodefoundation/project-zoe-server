@@ -9,6 +9,17 @@ import Contact from '../crm/entities/contact.entity';
 import { TenantContext } from '../shared/tenant/tenant-context';
 import { ContactCategory } from '../crm/enums/contactCategory';
 
+interface PgaTrendPoint {
+  period: string;
+  total: number;
+}
+
+interface LocationPgaRanking {
+  groupId: number;
+  name: string;
+  pga: number;
+}
+
 @Injectable()
 export class DashboardService {
   private readonly reportSubmissionRepository: Repository<ReportSubmission>;
@@ -99,6 +110,17 @@ export class DashboardService {
       filteredSubmissions.slice(0, 10),
     );
 
+    // PGA trend and location ranking, scoped to the same group selection
+    const chartGroupIds = await this.resolveAccessibleGroupIds(user, groupId);
+    const pgaTrend = await this.getPgaTrend(
+      sundayServiceReport.id,
+      chartGroupIds,
+    );
+    const locationRanking = await this.getLocationPgaRanking(
+      sundayServiceReport.id,
+      chartGroupIds,
+    );
+
     return {
       timeRange: {
         label: this.getTimeRangeLabel(timeRange),
@@ -108,12 +130,12 @@ export class DashboardService {
       metrics,
       recentSubmissions,
       totalSubmissions: filteredSubmissions.length,
+      pgaTrend,
+      locationRanking,
     };
   }
 
-  private calculateSundayServiceMetrics(
-    submissions: ReportSubmission[],
-  ): any {
+  private calculateSundayServiceMetrics(submissions: ReportSubmission[]): any {
     const serviceFields = [
       'firstService',
       'secondService',
@@ -213,10 +235,7 @@ export class DashboardService {
         }
       });
 
-      const total = numericFields.reduce(
-        (sum, field) => sum + data[field],
-        0,
-      );
+      const total = numericFields.reduce((sum, field) => sum + data[field], 0);
 
       return {
         date: submission.submittedAt,
@@ -284,6 +303,117 @@ export class DashboardService {
 
     await collectDescendants(groupId);
     return ids;
+  }
+
+  /**
+   * Resolve the set of group IDs a user's dashboard query should be scoped
+   * to: either their full accessible tree, or - if a specific group is
+   * selected - that group and its descendants, intersected with what the
+   * user can access.
+   */
+  private async resolveAccessibleGroupIds(
+    user: any,
+    groupId?: number,
+  ): Promise<number[]> {
+    const userGroupIds =
+      await this.groupPermissionsService.getUserGroupIds(user);
+
+    if (!groupId) {
+      return userGroupIds;
+    }
+
+    if (!userGroupIds.includes(groupId)) {
+      return [];
+    }
+
+    const groupIdsToFilter = await this.getGroupAndDescendantIds(groupId);
+    return groupIdsToFilter.filter((id) => userGroupIds.includes(id));
+  }
+
+  /**
+   * Weekly PGA totals (last 12 reporting periods) across the given groups,
+   * oldest first - for the dashboard trend chart.
+   */
+  private async getPgaTrend(
+    reportId: number,
+    groupIds: number[],
+    weeks = 12,
+  ): Promise<PgaTrendPoint[]> {
+    if (groupIds.length === 0) {
+      return [];
+    }
+
+    const rows = await this.reportSubmissionRepository
+      .createQueryBuilder('rs')
+      .innerJoin('rs.report', 'r')
+      .innerJoin('rs.group', 'g')
+      .innerJoin('rs.submissionData', 'rsd')
+      .innerJoin('rsd.reportField', 'rf')
+      .select("to_char(rs.reportingPeriod, 'YYYY-MM-DD')", 'period')
+      .addSelect('SUM(rsd."fieldValue"::numeric)', 'total')
+      .where('r.id = :reportId', { reportId })
+      .andWhere('rf.name = :fieldName', { fieldName: 'pga' })
+      .andWhere('g.id IN (:...groupIds)', { groupIds })
+      .groupBy("to_char(rs.reportingPeriod, 'YYYY-MM-DD')")
+      .orderBy("to_char(rs.reportingPeriod, 'YYYY-MM-DD')", 'DESC')
+      .limit(weeks)
+      .getRawMany();
+
+    return rows
+      .map((row) => ({ period: row.period, total: Number(row.total) }))
+      .reverse();
+  }
+
+  /**
+   * PGA per location for the most recent reporting period, sorted highest
+   * first - for the dashboard location ranking chart.
+   */
+  private async getLocationPgaRanking(
+    reportId: number,
+    groupIds: number[],
+    limit = 10,
+  ): Promise<LocationPgaRanking[]> {
+    if (groupIds.length === 0) {
+      return [];
+    }
+
+    const latest = await this.reportSubmissionRepository
+      .createQueryBuilder('rs')
+      .innerJoin('rs.report', 'r')
+      .innerJoin('rs.group', 'g')
+      .select("MAX(to_char(rs.reportingPeriod, 'YYYY-MM-DD'))", 'period')
+      .where('r.id = :reportId', { reportId })
+      .andWhere('g.id IN (:...groupIds)', { groupIds })
+      .getRawOne();
+
+    if (!latest?.period) {
+      return [];
+    }
+
+    const rows = await this.reportSubmissionRepository
+      .createQueryBuilder('rs')
+      .innerJoin('rs.report', 'r')
+      .innerJoin('rs.group', 'g')
+      .innerJoin('rs.submissionData', 'rsd')
+      .innerJoin('rsd.reportField', 'rf')
+      .select('g.id', 'groupId')
+      .addSelect('g.name', 'name')
+      .addSelect('rsd."fieldValue"::numeric', 'pga')
+      .where('r.id = :reportId', { reportId })
+      .andWhere('rf.name = :fieldName', { fieldName: 'pga' })
+      .andWhere('g.id IN (:...groupIds)', { groupIds })
+      .andWhere("to_char(rs.reportingPeriod, 'YYYY-MM-DD') = :period", {
+        period: latest.period,
+      })
+      .orderBy('rsd."fieldValue"::numeric', 'DESC')
+      .limit(limit)
+      .getRawMany();
+
+    return rows.map((row) => ({
+      groupId: row.groupId,
+      name: row.name,
+      pga: Number(row.pga),
+    }));
   }
 
   /**
