@@ -1,18 +1,19 @@
 /**
- * import-champions-categorization-2025.ts
- * -----------------------------------------
- * Reads data/outputs/champions_categorization_2025.json and populates
- * monthly categorization data on the Monthly Location Categorization report
- * for Champions locations (Jul–Oct 2025).
+ * import-whm-categorization.ts
+ * -------------------------------
+ * Reads data/outputs/whm_categorization.json and populates monthly
+ * categorization data on the Monthly Location Categorization report for the
+ * full WHM network (Sep 2025 - Mar 2026).
  *
  * Fields imported: grade, rank, pga, mca, mcs, plants, opsInc, fts
  * Fields not in source (skipped): mission, missionLabel, criteriaBreakdown, healthScore
  *
  * Idempotent: skips (group, reportingPeriod) that already have ANY submission
- * for this report.
+ * for this report — including the Champions-subset rows already imported for
+ * Jul-Oct 2025 via import:champions:categorization:2025.
  *
  * Run:
- *   npm run import:champions:categorization:2025
+ *   npm run import:whm:categorization
  */
 
 import 'reflect-metadata';
@@ -32,7 +33,7 @@ import { User } from '../users/entities/user.entity';
 
 const DATA_FILE = path.join(
   __dirname,
-  '../../data/outputs/champions_categorization_2025.json',
+  '../../data/outputs/whm_categorization.json',
 );
 
 const IMPORTABLE_FIELDS = [
@@ -50,7 +51,7 @@ async function run() {
   if (!fs.existsSync(DATA_FILE)) {
     Logger.error(`Data file not found: ${DATA_FILE}`);
     Logger.error(
-      'Run: python3 data/scripts/extract_champions_categorization_2025.py first',
+      'Run: python3 data/scripts/extract_whm_categorization.py first',
     );
     process.exit(1);
   }
@@ -131,7 +132,8 @@ async function run() {
   }
   Logger.log(`Found ${locationByCode.size} seeded locations`);
 
-  // Index existing submissions for idempotency. Keyed on submission
+  // Index existing submissions for idempotency (also covers Jul-Oct 2025
+  // Champions-subset rows imported separately). Keyed on submission
   // existence for (group, reportingPeriod, report) — NOT on whether a
   // specific field (e.g. 'grade') is present, since most records have no
   // grade value.
@@ -202,7 +204,7 @@ async function run() {
   Logger.log(`Submissions created  : ${created}`);
   Logger.log(`Skipped (exists)     : ${skipped}`);
   Logger.log(`No group match       : ${noGroup}`);
-  Logger.log('✅ Champions 2025 categorization import complete');
+  Logger.log('✅ WHM network-wide categorization import complete');
 
   await app.close();
 }

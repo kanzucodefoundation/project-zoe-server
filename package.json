@@ -50,7 +50,8 @@
     "import:champions:2025:mca": "ts-node --transpile-only -r tsconfig-paths/register src/commands/import-champions-weekly-2025-mca.ts",
     "import:champions:categorization:2025": "ts-node --transpile-only -r tsconfig-paths/register src/commands/import-champions-categorization-2025.ts",
     "import:champions:salvations:2025": "ts-node --transpile-only -r tsconfig-paths/register src/commands/import-champions-salvations-2025.ts",
-    "import:whktkt:oikos": "ts-node --transpile-only -r tsconfig-paths/register src/commands/import-whktkt-oikos-zonal.ts"
+    "import:whktkt:oikos": "ts-node --transpile-only -r tsconfig-paths/register src/commands/import-whktkt-oikos-zonal.ts",
+    "import:whm:categorization": "ts-node --transpile-only -r tsconfig-paths/register src/commands/import-whm-categorization.ts"
   },
   "dependencies": {
     "@nestjs/axios": "^3.0.0",
