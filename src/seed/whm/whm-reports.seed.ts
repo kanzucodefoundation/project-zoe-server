@@ -198,6 +198,15 @@ export class WhmReportsSeedService {
         relations: ['fields'],
       });
       if (existing) {
+        const expectedFunctionName = def.functionName ?? null;
+        if (existing.functionName !== expectedFunctionName) {
+          existing.functionName = expectedFunctionName;
+          await this.reportRepo.save(existing);
+          Logger.log(
+            `[WHM] Corrected functionName for: ${def.name} -> ${expectedFunctionName}`,
+          );
+        }
+
         const existingFieldNames = (existing.fields ?? [])
           .map((f) => f.name)
           .sort()
