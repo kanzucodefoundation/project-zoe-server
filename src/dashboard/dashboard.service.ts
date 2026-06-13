@@ -1,5 +1,5 @@
 import { Injectable, Inject, NotFoundException } from '@nestjs/common';
-import { Connection, In, Repository } from 'typeorm';
+import { Between, Connection, In, Repository } from 'typeorm';
 import { ReportSubmission } from '../reports/entities/report.submission.entity';
 import { Report } from '../reports/entities/report.entity';
 import { GroupPermissionsService } from '../groups/services/group-permissions.service';
@@ -52,6 +52,8 @@ export class DashboardService {
 
     // Get date range based on timeRange parameter
     const { startDate, endDate } = this.getDateRange(timeRange);
+    const startPeriod = this.toDateString(startDate);
+    const endPeriod = this.toDateString(endDate);
 
     // Find the Sunday Service report
     const sundayServiceReport = await this.reportRepository.findOne({
@@ -84,6 +86,10 @@ export class DashboardService {
       where.group = { id: In(userGroupIds) };
     }
 
+    // Filter by reporting period, not submittedAt (see CLAUDE.md: reportingPeriod
+    // is the time axis for trend/period queries; submittedAt is audit-only)
+    where.reportingPeriod = Between(startPeriod, endPeriod);
+
     const submissions = await this.reportSubmissionRepository.find({
       where,
       relations: [
@@ -94,20 +100,15 @@ export class DashboardService {
         'user.contact.person',
         'group',
       ],
-      order: { submittedAt: 'DESC' },
+      order: { reportingPeriod: 'DESC' },
     });
 
-    // Filter by date range
-    const filteredSubmissions = submissions.filter(
-      (s) => s.submittedAt >= startDate && s.submittedAt <= endDate,
-    );
-
     // Calculate aggregated metrics
-    const metrics = this.calculateSundayServiceMetrics(filteredSubmissions);
+    const metrics = this.calculateSundayServiceMetrics(submissions);
 
     // Get recent submissions (last 10)
     const recentSubmissions = this.formatRecentSubmissions(
-      filteredSubmissions.slice(0, 10),
+      submissions.slice(0, 10),
     );
 
     // PGA trend and location ranking, scoped to the same group selection
@@ -129,118 +130,69 @@ export class DashboardService {
       },
       metrics,
       recentSubmissions,
-      totalSubmissions: filteredSubmissions.length,
+      totalSubmissions: submissions.length,
       pgaTrend,
       locationRanking,
     };
   }
 
   private calculateSundayServiceMetrics(submissions: ReportSubmission[]): any {
-    const serviceFields = [
-      'firstService',
-      'secondService',
-      'yxp',
-      'kids',
-      'local',
-      'hostingCenter1',
-      'hostingCenter2',
-    ];
-
-    const numericFields = [
-      ...serviceFields,
-      'visitors',
-      'salvations',
-      'baptisms',
-    ];
-
     if (submissions.length === 0) {
       return {
         summary: {
           avgAttendance: 0,
-          totalVisitors: 0,
-          salvations: 0,
-          baptisms: 0,
+          peakAttendance: 0,
+          totalAttendance: 0,
+          locationsReporting: 0,
         },
-        firstService: 0,
-        secondService: 0,
-        yxp: 0,
-        kids: 0,
-        local: 0,
-        hostingCenter1: 0,
-        hostingCenter2: 0,
-        overall: 0,
       };
     }
 
-    // Initialize totals
-    const totals: Record<string, number> = {};
-    numericFields.forEach((field) => (totals[field] = 0));
+    let pgaSum = 0;
+    let pgaCount = 0;
+    let pgaMax = 0;
+    const locationIds = new Set<number>();
 
-    // Sum up all submission values
     submissions.forEach((submission) => {
+      if (submission.group?.id) {
+        locationIds.add(submission.group.id);
+      }
       submission.submissionData.forEach((data) => {
-        const fieldName = data.reportField.name;
-        if (numericFields.includes(fieldName)) {
-          totals[fieldName] += parseInt(data.fieldValue) || 0;
+        if (data.reportField.name === 'pga') {
+          const value = parseInt(data.fieldValue) || 0;
+          pgaSum += value;
+          pgaCount += 1;
+          if (value > pgaMax) {
+            pgaMax = value;
+          }
         }
       });
     });
 
-    // Calculate overall (sum of service fields only)
-    const overall = serviceFields.reduce(
-      (sum, field) => sum + totals[field],
-      0,
-    );
-
-    // Calculate average attendance per submission
-    const avgAttendance = Math.round(overall / submissions.length);
-
     return {
       summary: {
-        avgAttendance,
-        totalVisitors: totals.visitors || 0,
-        salvations: totals.salvations || 0,
-        baptisms: totals.baptisms || 0,
+        avgAttendance: pgaCount > 0 ? Math.round(pgaSum / pgaCount) : 0,
+        peakAttendance: pgaMax,
+        totalAttendance: pgaSum,
+        locationsReporting: locationIds.size,
       },
-      firstService: totals.firstService,
-      secondService: totals.secondService,
-      yxp: totals.yxp,
-      kids: totals.kids,
-      local: totals.local,
-      hostingCenter1: totals.hostingCenter1,
-      hostingCenter2: totals.hostingCenter2,
-      overall,
     };
   }
 
   private formatRecentSubmissions(submissions: ReportSubmission[]): any[] {
-    const numericFields = [
-      'firstService',
-      'secondService',
-      'yxp',
-      'kids',
-      'local',
-      'hostingCenter1',
-      'hostingCenter2',
-    ];
-
     return submissions.map((submission) => {
-      // Build data object from submission data
-      const data: Record<string, number> = {};
-      numericFields.forEach((field) => (data[field] = 0));
-
+      let pga = 0;
       submission.submissionData.forEach((sd) => {
-        if (numericFields.includes(sd.reportField.name)) {
-          data[sd.reportField.name] = parseInt(sd.fieldValue) || 0;
+        if (sd.reportField.name === 'pga') {
+          pga = parseInt(sd.fieldValue) || 0;
         }
       });
 
-      const total = numericFields.reduce((sum, field) => sum + data[field], 0);
-
       return {
-        date: submission.submittedAt,
-        ...data,
-        total,
+        id: submission.id,
+        date: submission.reportingPeriod,
+        location: submission.group?.name || '-',
+        pga,
       };
     });
   }
@@ -267,6 +219,17 @@ export class DashboardService {
     endDate.setHours(23, 59, 59, 999);
 
     return { startDate, endDate };
+  }
+
+  /**
+   * Format a Date as a local 'YYYY-MM-DD' string for comparing against
+   * reportingPeriod (a date column with no time component).
+   */
+  private toDateString(date: Date): string {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   }
 
   private getTimeRangeLabel(timeRange: string): string {
