@@ -1,4 +1,5 @@
 import { GroupPrivacy } from '../enums/groupPrivacy';
+import { GroupCategoryPurpose } from '../enums/groups';
 import ComboDto from '../../shared/dto/combo.dto';
 
 export default class GroupListDto {
@@ -7,7 +8,7 @@ export default class GroupListDto {
   name: string;
   details?: string;
   categoryId?: number;
-  category?: ComboDto;
+  category?: ComboDto & { purpose?: GroupCategoryPurpose | null };
   parentId?: number;
   parent?: ComboDto;
 }

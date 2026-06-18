@@ -44,11 +44,11 @@ import { AppLogger } from 'src/utils/app-logger.service';
     AppLogger,
   ],
   controllers: [
-    GroupController,
     GroupCategoryController,
     GroupComboController,
     GroupMembershipController,
     GroupMembershipReqeustController,
+    GroupController,
   ],
   exports: [
     GroupsService,
@@ -62,6 +62,9 @@ export class GroupsModule {
   configure(consumer: MiddlewareConsumer) {
     consumer
       .apply(TenantHeaderMiddleware)
-      .forRoutes('api/groups/combo/locations', 'api/groups/combo/locations/public');
+      .forRoutes(
+        'api/groups/combo/locations',
+        'api/groups/combo/locations/public',
+      );
   }
 }

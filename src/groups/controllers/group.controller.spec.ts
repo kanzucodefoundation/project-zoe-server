@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { GroupPrivacy } from '../enums/groupPrivacy';
 import { GroupsService } from '../services/groups.service';
 import { GroupController } from './group.controller';
+import { UsersService } from '../../users/users.service';
 
 describe('GroupController', () => {
   let controller: GroupController;
@@ -50,7 +51,15 @@ describe('GroupController', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [GroupController],
-      providers: [GroupsService],
+      providers: [
+        GroupsService,
+        {
+          provide: UsersService,
+          useValue: {
+            findById: jest.fn(),
+          },
+        },
+      ],
     })
       .overrideProvider(GroupsService)
       .useValue(mockGroupService)

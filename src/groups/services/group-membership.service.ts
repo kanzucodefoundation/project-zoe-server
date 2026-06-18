@@ -1,4 +1,10 @@
-import { Injectable, Logger, Inject } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  Inject,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { Connection, In, Repository, TreeRepository } from 'typeorm';
 import GroupMembership from '../entities/groupMembership.entity';
 import GroupMembershipDto from '../dto/membership/group-membership.dto';
@@ -7,20 +13,25 @@ import GroupMembershipSearchDto from '../dto/membership/group-membership-search.
 import ClientFriendlyException from '../../shared/exceptions/client-friendly.exception';
 import UpdateGroupMembershipDto from '../dto/membership/update-group-membership.dto';
 import BatchGroupMembershipDto from '../dto/membership/batch-group-membership.dto';
-import { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
 import { hasNoValue, hasValue } from '../../utils/validation';
 import Group from '../entities/group.entity';
+import { AppLogger, ContextLogger } from 'src/utils/app-logger.service';
 
 @Injectable()
 export class GroupsMembershipService {
   private readonly repository: Repository<GroupMembership>;
   private readonly groupTreeRepository: TreeRepository<Group>;
   private readonly connection: Connection;
+  private readonly logger: ContextLogger;
 
-  constructor(@Inject('CONNECTION') connection: Connection) {
+  constructor(
+    @Inject('CONNECTION') connection: Connection,
+    private readonly appLogger: AppLogger,
+  ) {
     this.repository = connection.getRepository(GroupMembership);
     this.groupTreeRepository = connection.getTreeRepository(Group);
     this.connection = connection;
+    this.logger = this.appLogger.createContextLogger('GroupsMembershipService');
   }
 
   async findAll(req: GroupMembershipSearchDto): Promise<GroupMembershipDto[]> {
@@ -54,8 +65,8 @@ export class GroupsMembershipService {
 
     const data = await this.repository.find({
       relations: ['contact', 'contact.person', 'group', 'group.category'],
-      skip: req.skip,
-      take: req.limit,
+      skip: req.skip ?? 0,
+      take: req.limit ?? 100,
       where: filter,
     });
     return data.map((it) => this.toDto(it, req.groupId));
@@ -65,7 +76,7 @@ export class GroupsMembershipService {
     const { group, contact, ...rest } = membership;
     return {
       ...rest,
-      isInferred: refGroupId !== refGroupId,
+      isInferred: hasValue(refGroupId) && membership.groupId !== refGroupId,
       group: group ? { name: group.name, id: group.id } : null,
       category: group.category
         ? { name: group.category.name, id: group.category.id }
@@ -79,24 +90,38 @@ export class GroupsMembershipService {
 
   async create(data: BatchGroupMembershipDto): Promise<number> {
     const { groupId, members, role } = data;
-    const toInsert: QueryDeepPartialEntity<GroupMembership>[] = [];
-    members.forEach((contactId) => {
-      toInsert.push({
+    const uniqueMemberIds = [...new Set(members)];
+
+    if (uniqueMemberIds.length === 0) {
+      throw new BadRequestException('At least one member is required');
+    }
+
+    const memberships = uniqueMemberIds.map((contactId) =>
+      this.repository.create({
         groupId,
         contactId,
         role,
         isActive: true,
-        // joinedAt will be set automatically by @CreateDateColumn
-        // leftAt remains null for new memberships
-      });
+      }),
+    );
+
+    const savedMemberships = await this.repository.save(memberships);
+
+    this.logger.business('log', 'Group memberships created', {
+      resource: 'group_membership',
+      resourceId: groupId,
+      metadata: {
+        groupId,
+        memberCount: savedMemberships.length,
+        contactIds: savedMemberships.map((membership) => membership.contactId),
+        role,
+      },
     });
-    await this.repository
-      .createQueryBuilder()
-      .insert()
-      .into(GroupMembership)
-      .values(toInsert)
-      .execute();
-    return members.length;
+
+    Logger.log(
+      `Inserted ${savedMemberships.length} memberships for group ${groupId}`,
+    );
+    return savedMemberships.length;
   }
 
   async findOne(id: number): Promise<GroupMembershipDto> {
@@ -104,21 +129,16 @@ export class GroupsMembershipService {
       where: { id },
       relations: ['group', 'contact', 'contact.person'],
     });
+    if (!data) throw new NotFoundException(`Membership ${id} not found`);
     return this.toDto(data, 0);
   }
+
   async findOneGivenContact(id: number): Promise<GroupMembershipDto> {
     const data = await this.repository.findOne({
       where: { contactId: id },
       relations: ['group', 'contact', 'contact.person'],
     });
-    return this.toDto(data, 0);
-  }
-
-  async findOneGivenGroup(id: number): Promise<GroupMembershipDto> {
-    const data = await this.repository.findOne({
-      where: { groupId: id },
-      relations: ['group', 'contact', 'contact.person'],
-    });
+    if (!data) throw new NotFoundException(`No membership for contact ${id}`);
     return this.toDto(data, 0);
   }
 

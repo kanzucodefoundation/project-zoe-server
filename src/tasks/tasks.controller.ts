@@ -43,11 +43,13 @@ export class TasksController {
     @Query('status') status?: string | string[],
     @Query('type') type?: string | string[],
     @Query('assignedToId') assignedToId?: string,
+    @Query('locationGroupIds') locationGroupIds?: string | string[],
   ) {
     const filters: {
       status?: TaskStatus[];
       type?: TaskType[];
       assignedToId?: number | 'unassigned';
+      locationGroupIds?: number[];
     } = {};
 
     if (status) {
@@ -61,6 +63,11 @@ export class TasksController {
     if (assignedToId !== undefined) {
       filters.assignedToId =
         assignedToId === 'unassigned' ? 'unassigned' : Number(assignedToId);
+    }
+    if (locationGroupIds !== undefined) {
+      filters.locationGroupIds = (
+        Array.isArray(locationGroupIds) ? locationGroupIds : [locationGroupIds]
+      ).map(Number);
     }
 
     return this.tasksService.findAll(Number(page), Number(limit), filters);

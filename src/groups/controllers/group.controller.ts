@@ -51,7 +51,7 @@ export class GroupController {
 
   @Get(':id/members')
   async getGroupMembers(
-    @Param('id') id: number,
+    @Param('id', ParseIntPipe) id: number,
     @Query('limit') limit: number = 50,
     @Query('offset') offset: number = 0,
     @Request() rawRequest: any,
@@ -61,7 +61,7 @@ export class GroupController {
 
   @Get(':id/sms-info')
   async getGroupSmsInfo(
-    @Param('id') id: number,
+    @Param('id', ParseIntPipe) id: number,
     @Request() rawRequest: any,
   ): Promise<any> {
     return this.service.getGroupSmsInfo(id, rawRequest.user);
@@ -102,7 +102,7 @@ export class GroupController {
 
   @Get(':id')
   async findOne(
-    @Param('id') id: number,
+    @Param('id', ParseIntPipe) id: number,
     @Request() rawRequest: any,
   ): Promise<GroupListDto> {
     return await this.service.findOne(id, true, rawRequest.user);
@@ -110,7 +110,7 @@ export class GroupController {
 
   @Delete(':id')
   async remove(
-    @Param('id') id: number,
+    @Param('id', ParseIntPipe) id: number,
     @Request() rawRequest: any,
   ): Promise<void> {
     await this.service.remove(id, rawRequest.user);

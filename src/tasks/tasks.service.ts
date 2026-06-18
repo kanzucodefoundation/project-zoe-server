@@ -40,6 +40,26 @@ const TASK_DETAIL_RELATIONS = [
   'attachments',
 ];
 
+type TaskLocationGroup = {
+  id: number;
+  name: string;
+};
+
+type TaskWithLocationGroup = Task & {
+  locationGroup: TaskLocationGroup | null;
+};
+
+type TaskLocationGroupPayload = {
+  locationGroup: TaskLocationGroup | null;
+  tasks: TaskWithLocationGroup[];
+};
+
+type TaskListPayload = {
+  data: TaskWithLocationGroup[];
+  groups: TaskLocationGroupPayload[];
+  total: number;
+};
+
 @Injectable()
 export class TasksService {
   private readonly taskRepository: Repository<Task>;
@@ -97,8 +117,9 @@ export class TasksService {
       status?: TaskStatus[];
       type?: TaskType[];
       assignedToId?: number | 'unassigned';
+      locationGroupIds?: number[];
     } = {},
-  ): Promise<{ data: Task[]; total: number }> {
+  ): Promise<TaskListPayload> {
     const tenantId = this.tenantContext.requireTenant();
 
     const qb = this.taskRepository
@@ -131,6 +152,22 @@ export class TasksService {
     } else if (filters.assignedToId !== undefined) {
       qb.andWhere('task.assignedToId = :assignedToId', {
         assignedToId: filters.assignedToId,
+      });
+    }
+
+    if (filters.locationGroupIds?.length) {
+      qb.andWhere((sub) => {
+        const sq = sub
+          .subQuery()
+          .select('1')
+          .from(GroupMembership, 'gm')
+          .where('gm.contactId = task.contactId')
+          .andWhere('gm.groupId IN (:...locationGroupIds)', {
+            locationGroupIds: filters.locationGroupIds,
+          })
+          .andWhere('gm.isActive = true')
+          .getQuery();
+        return `EXISTS ${sq}`;
       });
     }
 
@@ -169,8 +206,17 @@ export class TasksService {
       }
     }
 
-    data.forEach((task) => this.sanitizeTaskUsers(task));
-    return { data, total };
+    const tasksWithLocationGroups = await this.attachLocationGroups(
+      data,
+      tenantId,
+    );
+
+    tasksWithLocationGroups.forEach((task) => this.sanitizeTaskUsers(task));
+    return {
+      data: tasksWithLocationGroups,
+      groups: this.groupTasksByLocation(tasksWithLocationGroups),
+      total,
+    };
   }
 
   async findAllForContact(contactId: number): Promise<Task[]> {
@@ -371,6 +417,81 @@ export class TasksService {
   private sanitizeUser(user?: { password?: string } | null): void {
     if (!user) return;
     delete user.password;
+  }
+
+  private async attachLocationGroups(
+    tasks: Task[],
+    tenantId: number,
+  ): Promise<TaskWithLocationGroup[]> {
+    const contactIds = [
+      ...new Set(
+        tasks
+          .map((task) => task.contact?.id)
+          .filter((contactId): contactId is number => contactId !== undefined),
+      ),
+    ];
+
+    if (contactIds.length === 0) {
+      return tasks.map((task) => {
+        const taskWithLocationGroup = task as TaskWithLocationGroup;
+        taskWithLocationGroup.locationGroup = null;
+        return taskWithLocationGroup;
+      });
+    }
+
+    const memberships = await this.membershipRepository
+      .createQueryBuilder('membership')
+      .innerJoinAndSelect('membership.group', 'group')
+      .innerJoinAndSelect('group.category', 'category')
+      .where('membership.contactId IN (:...contactIds)', { contactIds })
+      .andWhere('membership.isActive = true')
+      .andWhere('group.tenantId = :tenantId', { tenantId })
+      .andWhere('category.purpose = :categoryPurpose', {
+        categoryPurpose: GroupCategoryPurpose.LOCATION,
+      })
+      .orderBy('membership.id', 'DESC')
+      .getMany();
+
+    const locationByContactId = new Map<number, TaskLocationGroup>();
+
+    memberships.forEach((membership) => {
+      if (locationByContactId.has(membership.contactId)) return;
+      locationByContactId.set(membership.contactId, {
+        id: membership.group.id,
+        name: membership.group.name,
+      });
+    });
+
+    return tasks.map((task) => {
+      const taskWithLocationGroup = task as TaskWithLocationGroup;
+      taskWithLocationGroup.locationGroup =
+        locationByContactId.get(task.contact?.id) ?? null;
+      return taskWithLocationGroup;
+    });
+  }
+
+  private groupTasksByLocation(
+    tasks: TaskWithLocationGroup[],
+  ): TaskLocationGroupPayload[] {
+    const groups = new Map<string, TaskLocationGroupPayload>();
+
+    tasks.forEach((task) => {
+      const locationGroup = task.locationGroup;
+      const key = locationGroup ? String(locationGroup.id) : 'ungrouped';
+      const existingGroup = groups.get(key);
+
+      if (existingGroup) {
+        existingGroup.tasks.push(task);
+        return;
+      }
+
+      groups.set(key, {
+        locationGroup,
+        tasks: [task],
+      });
+    });
+
+    return [...groups.values()];
   }
 
   private async ensureCategoryMembership(

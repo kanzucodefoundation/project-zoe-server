@@ -67,11 +67,15 @@ export class TenantsService {
     } as any;
 
     // Initialize services with tenant context
+    const appLogger = new AppLogger();
     const groupCategoriesService = new GroupCategoriesService(
       this.connection,
       mockTenantContext,
     );
-    const groupMembershipService = new GroupsMembershipService(this.connection);
+    const groupMembershipService = new GroupsMembershipService(
+      this.connection,
+      appLogger,
+    );
     const groupTreeService = new GroupTreeService(this.connection, null); // Pass null for cache manager in this context
 
     const contactService: ContactsService = new ContactsService(
@@ -81,7 +85,7 @@ export class TenantsService {
       groupFinderService,
       addressesService,
       groupTreeService,
-      new AppLogger(),
+      appLogger,
       groupMembershipService,
       mockTenantContext,
     );

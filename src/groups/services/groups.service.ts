@@ -288,7 +288,13 @@ export class GroupsService {
       details,
       parentId,
       privacy,
-      category: category ? { name: category.name, id: category.id } : null,
+      category: category
+        ? {
+            name: category.name,
+            id: category.id,
+            purpose: category.purpose ?? null,
+          }
+        : null,
       parent: parent ? { name: parent.name, id: parent.id } : null,
     };
   }
@@ -647,8 +653,8 @@ export class GroupsService {
 
   async getMyGroups(user: any): Promise<GroupListDto[]> {
     // Get groups that the user has access to based on their role/permissions
-    const groupIds = await this.groupsPermissionsService.getUserGroupIds(user);
-
+    const groupIds =
+      await this.groupsPermissionsService.getUserIsMemberLeaderGroupIds(user);
     if (groupIds.length === 0) {
       return [];
     }

@@ -92,4 +92,26 @@ export class GroupPermissionsService {
     ]);
     return Array.from(idList);
   }
+
+  async getUserIsMemberLeaderGroupIds(user: any) {
+    const membershipData = await this.membershipRepository.find({
+      select: ['groupId'],
+      where: {
+        contactId: user.contactId,
+        role: In([GroupRole.Member, GroupRole.Leader]),
+      },
+    });
+    const descendants = [];
+    for (const mData of membershipData) {
+      const res = await this.treeRepository.findDescendants({
+        id: mData.groupId,
+      } as Group);
+      descendants.push(...res);
+    }
+    const idList = new Set([
+      ...membershipData.map((it) => it.groupId),
+      ...descendants.map((it) => it.id),
+    ]);
+    return Array.from(idList);
+  }
 }

@@ -1,4 +1,11 @@
-import { IsArray, IsEnum, IsNotEmpty, IsNumber } from 'class-validator';
+import {
+  ArrayNotEmpty,
+  IsArray,
+  IsEnum,
+  IsInt,
+  IsNotEmpty,
+  IsNumber,
+} from 'class-validator';
 import { GroupRole } from '../../enums/groupRole';
 
 export default class BatchGroupMembershipDto {
@@ -7,6 +14,8 @@ export default class BatchGroupMembershipDto {
   groupId: number;
 
   @IsArray()
+  @ArrayNotEmpty()
+  @IsInt({ each: true })
   members: number[];
 
   @IsEnum(GroupRole)

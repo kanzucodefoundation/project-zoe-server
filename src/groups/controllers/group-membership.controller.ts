@@ -4,6 +4,7 @@ import {
   Delete,
   Get,
   Param,
+  ParseIntPipe,
   Post,
   Put,
   Query,
@@ -49,27 +50,22 @@ export class GroupMembershipController {
     return await this.service.update(data);
   }
 
-  @Get(':id')
-  async findOne(@Param('id') id: number): Promise<GroupMembershipDto> {
-    return await this.service.findOne(id);
-  }
-
   @Get('contact/:id')
   async findOneGivenContact(
-    @Param('id') id: number,
+    @Param('id', ParseIntPipe) id: number,
   ): Promise<GroupMembershipDto> {
     return await this.service.findOneGivenContact(id);
   }
 
-  @Get('group/:id')
-  async findOneGivenGroup(
-    @Param('id') id: number,
+  @Get(':id')
+  async findOne(
+    @Param('id', ParseIntPipe) id: number,
   ): Promise<GroupMembershipDto> {
-    return await this.service.findOneGivenGroup(id);
+    return await this.service.findOne(id);
   }
 
   @Delete(':id')
-  async remove(@Param('id') id: number): Promise<void> {
+  async remove(@Param('id', ParseIntPipe) id: number): Promise<void> {
     await this.service.remove(id);
   }
 }
