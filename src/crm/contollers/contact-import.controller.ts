@@ -4,6 +4,7 @@ import {
   Get,
   Post,
   Logger,
+  Req,
   Res,
   UploadedFile,
   UseGuards,
@@ -30,6 +31,7 @@ import { GroupCategoryNames } from 'src/groups/enums/groups';
 import { UsersService } from 'src/users/users.service';
 import { generateRandomPassword } from 'src/utils/stringHelpers';
 import { TenantContextInterceptor } from 'src/interceptors/tenant-context.interceptor';
+import { ServiceRecordingService } from 'src/service-recording/service-recording.service';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const Duplex = require('stream').Duplex; // core NodeJS API
@@ -60,6 +62,7 @@ export class ContactImportController {
     private readonly groupMembershipService: GroupsMembershipService,
     private readonly groupsService: GroupsService,
     private readonly usersService: UsersService,
+    private readonly serviceRecordingService: ServiceRecordingService,
   ) {
     this.companyRepository = connection.getRepository(Company);
   }
@@ -71,7 +74,13 @@ export class ContactImportController {
 
   @Post()
   @UseInterceptors(FileInterceptor('file'))
-  async uploadFile(@UploadedFile() file: Express.Multer.File) {
+  async uploadFile(@UploadedFile() file: Express.Multer.File, @Req() req: any) {
+    const locationGroup =
+      await this.serviceRecordingService.getUploaderLocationGroup(
+        req.user.id,
+        req.tenantId,
+      );
+
     const parsedData = await this.csvParser.parse(
       bufferToStream(file.buffer),
       Entity,
@@ -102,12 +111,13 @@ export class ContactImportController {
             continue;
           }
 
-          if (!uploadedContact.groupId) {
+          const effectiveGroupId = uploadedContact.groupId || locationGroup?.id;
+          if (!effectiveGroupId) {
             const userErrorMessage = `Contact ${contactName} at position ${
               index + 1
             } out of ${
               list.length
-            } contacts not created. Error message: Group ID is required. Every contact must be assigned to a group.`;
+            } contacts not created. Error message: Group ID is required and could not be inferred from your profile.`;
             Logger.error(userErrorMessage);
             errors.push(userErrorMessage);
             notCreated.push(uploadedContact);
@@ -123,12 +133,12 @@ export class ContactImportController {
           };
 
           const groupData = await this.groupsService.findOne(
-            uploadedContact.groupId,
+            effectiveGroupId,
             false,
           );
           if (!groupData) {
             throw new BadRequestException({
-              message: `Specified Group with ID ${uploadedContact.groupId} does not exist. Please specify a valid group ID.`,
+              message: `Specified Group with ID ${effectiveGroupId} does not exist. Please specify a valid group ID.`,
             });
           }
 
@@ -137,7 +147,7 @@ export class ContactImportController {
             person = await this.service.createPerson(contactModel);
           }
           await this.groupMembershipService.create({
-            groupId: uploadedContact.groupId,
+            groupId: effectiveGroupId,
             members: [person.id],
             role: GroupRole.Member,
           });

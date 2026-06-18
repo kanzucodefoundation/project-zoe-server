@@ -138,7 +138,7 @@ export class ServiceRecordingService {
     return group?.name ?? null;
   }
 
-  private async getUploaderLocationGroup(
+  async getUploaderLocationGroup(
     userId: number,
     tenantId: number,
   ): Promise<{ id: number; name: string } | null> {

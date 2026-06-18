@@ -94,4 +94,5 @@ async function main() {
   }
 }
 
+//  ALTER TABLE group_membership ADD CONSTRAINT "UQ_group_membership_contact_group" UNIQUE ("contactId", "groupId");
 main();

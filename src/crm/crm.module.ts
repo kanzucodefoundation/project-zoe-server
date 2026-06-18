@@ -31,10 +31,16 @@ import { GroupTreeService } from 'src/groups/services/group-tree.service';
 import { TenantContextInterceptor } from '../interceptors/tenant-context.interceptor';
 import { AppLogger } from 'src/utils/app-logger.service';
 import { VendorModule } from 'src/vendor/vendor.module';
+import { ServiceRecordingService } from 'src/service-recording/service-recording.service';
 
 @Global()
 @Module({
-  imports: [CsvModule, HttpModule, TypeOrmModule.forFeature(appEntities), VendorModule],
+  imports: [
+    CsvModule,
+    HttpModule,
+    TypeOrmModule.forFeature(appEntities),
+    VendorModule,
+  ],
   providers: [
     ContactsService,
     GoogleService,
@@ -49,6 +55,7 @@ import { VendorModule } from 'src/vendor/vendor.module';
     TenantContextInterceptor,
     AppLogger,
     ContactActivityService,
+    ServiceRecordingService,
   ],
   controllers: [
     ContactsController,
