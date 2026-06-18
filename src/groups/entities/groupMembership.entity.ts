@@ -5,6 +5,7 @@ import {
   ManyToOne,
   PrimaryGeneratedColumn,
   CreateDateColumn,
+  Unique,
 } from 'typeorm';
 import Group from './group.entity';
 
@@ -12,6 +13,7 @@ import { GroupRole } from '../enums/groupRole';
 import Contact from '../../crm/entities/contact.entity';
 
 @Entity()
+@Unique(['contactId', 'groupId'])
 export default class GroupMembership {
   @PrimaryGeneratedColumn()
   id: number;

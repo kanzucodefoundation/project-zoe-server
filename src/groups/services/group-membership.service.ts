@@ -96,32 +96,49 @@ export class GroupsMembershipService {
       throw new BadRequestException('At least one member is required');
     }
 
-    const memberships = uniqueMemberIds.map((contactId) =>
-      this.repository.create({
-        groupId,
-        contactId,
-        role,
-        isActive: true,
-      }),
-    );
+    const existing = await this.repository.find({
+      where: uniqueMemberIds.map((contactId) => ({ contactId, groupId })),
+    });
+    const existingByContactId = new Map(existing.map((m) => [m.contactId, m]));
 
-    const savedMemberships = await this.repository.save(memberships);
+    const toReactivate: GroupMembership[] = [];
+    const toCreate: GroupMembership[] = [];
 
-    this.logger.business('log', 'Group memberships created', {
+    for (const contactId of uniqueMemberIds) {
+      const found = existingByContactId.get(contactId);
+      if (found) {
+        if (!found.isActive) {
+          found.isActive = true;
+          found.leftAt = null;
+          found.role = role;
+          toReactivate.push(found);
+        }
+        // already active — skip
+      } else {
+        toCreate.push(
+          this.repository.create({ groupId, contactId, role, isActive: true }),
+        );
+      }
+    }
+
+    const saved = await this.repository.save([...toReactivate, ...toCreate]);
+
+    this.logger.business('log', 'Group memberships upserted', {
       resource: 'group_membership',
       resourceId: groupId,
       metadata: {
         groupId,
-        memberCount: savedMemberships.length,
-        contactIds: savedMemberships.map((membership) => membership.contactId),
+        created: toCreate.length,
+        reactivated: toReactivate.length,
+        contactIds: saved.map((m) => m.contactId),
         role,
       },
     });
 
     Logger.log(
-      `Inserted ${savedMemberships.length} memberships for group ${groupId}`,
+      `Upserted ${saved.length} memberships for group ${groupId} (${toCreate.length} new, ${toReactivate.length} reactivated)`,
     );
-    return savedMemberships.length;
+    return saved.length;
   }
 
   async findOne(id: number): Promise<GroupMembershipDto> {
