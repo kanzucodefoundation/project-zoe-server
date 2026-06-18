@@ -20,7 +20,11 @@ import { Gender } from '../crm/enums/gender';
 import { PhoneCategory } from '../crm/enums/phoneCategory';
 import { EmailCategory } from '../crm/enums/emailCategory';
 import { AddressCategory } from '../crm/enums/addressCategory';
-import { GroupCategoryNames } from '../groups/enums/groups';
+import {
+  GroupCategoryNames,
+  GroupCategoryPurpose,
+} from '../groups/enums/groups';
+import { GroupRole } from '../groups/enums/groupRole';
 import { TaskType } from '../tasks/enums/task-type.enum';
 import { TaskStatus } from '../tasks/enums/task-status.enum';
 import { ContactActivityType } from '../crm/enums/contact-activity-type.enum';
@@ -130,21 +134,58 @@ export class ServiceRecordingService {
     userId: number,
     tenantId: number,
   ): Promise<string | null> {
-    const user = await this.userRepository.findOne({ where: { id: userId } });
-    if (!user) return null;
+    const group = await this.getUploaderLocationGroup(userId, tenantId);
+    return group?.name ?? null;
+  }
 
-    const memberships = await this.groupMembershipRepository.find({
-      where: { contactId: user.contactId, isActive: true },
-      relations: ['group', 'group.category'],
+  private async getUploaderLocationGroup(
+    userId: number,
+    tenantId: number,
+  ): Promise<{ id: number; name: string } | null> {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user || !user.contactId) return null;
+
+    const membership = await this.groupMembershipRepository
+      .createQueryBuilder('membership')
+      .innerJoinAndSelect('membership.group', 'group')
+      .innerJoinAndSelect('group.category', 'category')
+      .where('membership.contactId = :contactId', { contactId: user.contactId })
+      .andWhere('membership.isActive = true')
+      .andWhere('group.tenantId = :tenantId', { tenantId })
+      .andWhere('category.purpose = :purpose', {
+        purpose: GroupCategoryPurpose.LOCATION,
+      })
+      .getOne();
+
+    if (!membership) return null;
+    return { id: membership.group.id, name: membership.group.name };
+  }
+
+  private async ensureLocationMembership(
+    contactId: number,
+    locationGroupId: number,
+  ): Promise<void> {
+    const existing = await this.groupMembershipRepository.findOne({
+      where: { contactId, groupId: locationGroupId },
     });
 
-    const locationMemberships = memberships.filter(
-      (m) => m.group?.category?.name === GroupCategoryNames.LOCATION,
-    );
+    if (existing) {
+      if (!existing.isActive) {
+        await this.groupMembershipRepository.update(existing.id, {
+          isActive: true,
+          leftAt: null as any,
+        });
+      }
+      return;
+    }
 
-    return locationMemberships.length === 1
-      ? locationMemberships[0].group.name
-      : null;
+    const membership = this.groupMembershipRepository.create({
+      contact: { id: contactId } as any,
+      group: { id: locationGroupId } as any,
+      role: GroupRole.Member,
+      isActive: true,
+    });
+    await this.groupMembershipRepository.save(membership);
   }
 
   // -------------------------------------------------------------------------
@@ -273,7 +314,8 @@ export class ServiceRecordingService {
     userId: number,
     file: Express.Multer.File,
   ): Promise<BulkUploadSummary> {
-    const defaultLocation = await this.getChurchLocation(userId, tenantId);
+    const locationGroup = await this.getUploaderLocationGroup(userId, tenantId);
+    const defaultLocation = locationGroup?.name ?? null;
     const rows = parseRows(file);
 
     const results: BulkRowResult[] = [];
@@ -320,6 +362,10 @@ export class ServiceRecordingService {
           rawAddress,
           rawGender,
         );
+
+        if (locationGroup) {
+          await this.ensureLocationMembership(contact.id, locationGroup.id);
+        }
 
         const taskTitle = `FTG Follow up — ${firstName} ${lastName} - ${rawPhone}`;
         const prayerComment = prayerRequest
@@ -386,6 +432,7 @@ export class ServiceRecordingService {
     userId: number,
     file: Express.Multer.File,
   ): Promise<BulkUploadSummary> {
+    const locationGroup = await this.getUploaderLocationGroup(userId, tenantId);
     const rows = parseRows(file);
 
     const results: BulkRowResult[] = [];
@@ -437,6 +484,10 @@ export class ServiceRecordingService {
           await this.personRepository.update({ contactId: contact.id }, {
             bornAgainOn: ledToChristOn,
           } as any);
+        }
+
+        if (locationGroup) {
+          await this.ensureLocationMembership(contact.id, locationGroup.id);
         }
 
         const taskTitle = `New Believer Follow up — ${firstName} ${lastName} - ${rawPhone}`;
@@ -502,7 +553,8 @@ export class ServiceRecordingService {
     userId: number,
     file: Express.Multer.File,
   ): Promise<BulkUploadSummary> {
-    const defaultLocation = await this.getChurchLocation(userId, tenantId);
+    const locationGroup = await this.getUploaderLocationGroup(userId, tenantId);
+    const defaultLocation = locationGroup?.name ?? null;
     const rows = parseRows(file);
 
     const results: BulkRowResult[] = [];
@@ -543,6 +595,10 @@ export class ServiceRecordingService {
           '',
           rawGender,
         );
+
+        if (locationGroup) {
+          await this.ensureLocationMembership(contact.id, locationGroup.id);
+        }
 
         const taskTitle = `Red Zone Follow up — ${firstName} ${lastName} - ${rawPhone}`;
         const taskComment = buildComment(
