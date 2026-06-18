@@ -87,14 +87,27 @@ export class ContactImportController {
       try {
         const contactModel = parseContact(uploadedContact);
         if (contactModel) {
+          const contactName =
+            uploadedContact.firstName || uploadedContact.name || 'Unknown';
+
           if (!contactModel.email) {
-            const contactName =
-              uploadedContact.firstName || uploadedContact.name || 'Unknown';
             const userErrorMessage = `Contact ${contactName} at position ${
               index + 1
             } out of ${
               list.length
             } contacts not created. Error message: Email is required. Email is needed to log into the system.`;
+            Logger.error(userErrorMessage);
+            errors.push(userErrorMessage);
+            notCreated.push(uploadedContact);
+            continue;
+          }
+
+          if (!uploadedContact.groupId) {
+            const userErrorMessage = `Contact ${contactName} at position ${
+              index + 1
+            } out of ${
+              list.length
+            } contacts not created. Error message: Group ID is required. Every contact must be assigned to a group.`;
             Logger.error(userErrorMessage);
             errors.push(userErrorMessage);
             notCreated.push(uploadedContact);
@@ -109,29 +122,26 @@ export class ContactImportController {
             freeForm: uploadedContact.address,
           };
 
-          if (uploadedContact.groupid) {
-            const groupData = await this.groupsService.findOne(
-              uploadedContact.groupid,
-              false,
-            );
-            if (!groupData) {
-              throw new BadRequestException({
-                message: `Specified Group with ID ${uploadedContact.groupid} does not exist. Please specify a valid group ID.`,
-              });
-            }
-
-            const newPerson = await this.service.createPerson(contactModel);
-            const newPersonsGroup = {
-              groupId: uploadedContact.groupid,
-              members: [newPerson.id],
-              role: GroupRole.Member,
-            };
-            await this.groupMembershipService.create(newPersonsGroup);
-            created.push(newPerson);
-          } else {
-            const newPerson = await this.service.createPerson(contactModel);
-            created.push(newPerson);
+          const groupData = await this.groupsService.findOne(
+            uploadedContact.groupId,
+            false,
+          );
+          if (!groupData) {
+            throw new BadRequestException({
+              message: `Specified Group with ID ${uploadedContact.groupId} does not exist. Please specify a valid group ID.`,
+            });
           }
+
+          let person = await this.service.findByEmail(contactModel.email);
+          if (!person) {
+            person = await this.service.createPerson(contactModel);
+          }
+          await this.groupMembershipService.create({
+            groupId: uploadedContact.groupId,
+            members: [person.id],
+            role: GroupRole.Member,
+          });
+          created.push(person);
         }
       } catch (err) {
         notCreated.push(uploadedContact);
@@ -178,14 +188,14 @@ export class ContactImportController {
           };
 
           let groupData;
-          if (uploadedContact.groupid) {
+          if (uploadedContact.groupId) {
             groupData = await this.groupsService.findOne(
-              uploadedContact.groupid,
+              uploadedContact.groupId,
               false,
             );
             if (!groupData) {
               throw new BadRequestException({
-                message: `Specified Group with ID ${uploadedContact.groupid} does not exist. Please specify a valid group ID.`,
+                message: `Specified Group with ID ${uploadedContact.groupId} does not exist. Please specify a valid group ID.`,
               });
             }
           } else {

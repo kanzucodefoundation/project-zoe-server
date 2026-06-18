@@ -1540,6 +1540,14 @@ export class ContactsService {
     await this.repository.delete(id);
   }
 
+  async findByEmail(email: string): Promise<Contact | undefined> {
+    const emailRecord = await this.emailRepository.findOne({
+      where: { value: email },
+      relations: ['contact'],
+    });
+    return emailRecord?.contact;
+  }
+
   async findByName(username: string): Promise<Contact | undefined> {
     return await this.repository
       .createQueryBuilder('user')
