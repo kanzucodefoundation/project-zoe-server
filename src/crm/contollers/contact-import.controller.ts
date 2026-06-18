@@ -75,19 +75,32 @@ export class ContactImportController {
   @Post()
   @UseInterceptors(FileInterceptor('file'))
   async uploadFile(@UploadedFile() file: Express.Multer.File, @Req() req: any) {
+    if (!file) {
+      throw new BadRequestException({ message: 'No file was uploaded.' });
+    }
+
     const locationGroup =
       await this.serviceRecordingService.getUploaderLocationGroup(
         req.user.id,
         req.tenantId,
       );
 
-    const parsedData = await this.csvParser.parse(
-      bufferToStream(file.buffer),
-      Entity,
-      null,
-      null,
-      { strict: true, separator: ',' },
-    );
+    let parsedData: any;
+    try {
+      parsedData = await this.csvParser.parse(
+        bufferToStream(file.buffer),
+        Entity,
+        null,
+        null,
+        { strict: true, separator: ',' },
+      );
+    } catch (parseErr) {
+      throw new BadRequestException({
+        message:
+          'The CSV file could not be parsed. Please ensure every row has a value for each column and that the file uses comma-separated format.',
+      });
+    }
+
     const { list } = parsedData;
     const created = [];
     const notCreated = [];
