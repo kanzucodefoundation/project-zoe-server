@@ -58,4 +58,8 @@ export class RosterSearchDto {
   @IsNumber()
   @IsOptional()
   limit?: number;
+
+  @IsNumber()
+  @IsOptional()
+  locationId?: number;
 }

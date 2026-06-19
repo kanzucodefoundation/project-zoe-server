@@ -10,12 +10,17 @@ import { ServiceInstance } from '../entities/service-instance.entity';
 import { ServiceAttendance } from '../entities/service-attendance.entity';
 import Contact from '../../crm/entities/contact.entity';
 import Person from '../../crm/entities/person.entity';
+import GroupMembership from '../../groups/entities/groupMembership.entity';
 import { TenantContext } from '../../shared/tenant/tenant-context';
 import {
   CreateServiceScheduleDto,
   UpdateServiceScheduleDto,
 } from '../dto/service-schedule.dto';
-import { CheckInDto, QuickGuestDto, RosterSearchDto } from '../dto/check-in.dto';
+import {
+  CheckInDto,
+  QuickGuestDto,
+  RosterSearchDto,
+} from '../dto/check-in.dto';
 import { ContactCategory } from '../../crm/enums/contactCategory';
 import { Gender } from '../../crm/enums/gender';
 
@@ -169,9 +174,18 @@ export class ServiceAttendanceService {
         category: ContactCategory.Person,
       });
 
+    if (searchDto?.locationId) {
+      query = query.innerJoin(
+        GroupMembership,
+        'gm',
+        'gm.contactId = c.id AND gm.groupId = :locationId AND gm.isActive = true',
+        { locationId: searchDto.locationId },
+      );
+    }
+
     if (searchDto?.search) {
       query = query.andWhere(
-        "(p.firstName ILIKE :search OR p.lastName ILIKE :search)",
+        '(p.firstName ILIKE :search OR p.lastName ILIKE :search)',
         { search: `%${searchDto.search}%` },
       );
     }
@@ -272,7 +286,10 @@ export class ServiceAttendanceService {
     return savedContact;
   }
 
-  async getInstances(scheduleId?: number, locationId?: number): Promise<ServiceInstance[]> {
+  async getInstances(
+    scheduleId?: number,
+    locationId?: number,
+  ): Promise<ServiceInstance[]> {
     const tenantId = this.tenantContext.requireTenant();
     const query = this.instanceRepo
       .createQueryBuilder('si')
