@@ -174,14 +174,12 @@ export class ServiceAttendanceService {
         category: ContactCategory.Person,
       });
 
-    if (searchDto?.locationId) {
-      query = query.innerJoin(
-        GroupMembership,
-        'gm',
-        'gm.contactId = c.id AND gm.groupId = :locationId AND gm.isActive = true',
-        { locationId: searchDto.locationId },
-      );
-    }
+    query = query.innerJoin(
+      GroupMembership,
+      'gm',
+      'gm.contactId = c.id AND gm.groupId = :locationId AND gm.isActive = true',
+      { locationId: searchDto.locationId },
+    );
 
     if (searchDto?.search) {
       query = query.andWhere(

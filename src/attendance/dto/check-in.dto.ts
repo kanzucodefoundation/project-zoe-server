@@ -6,6 +6,7 @@ import {
   IsString,
   ArrayMinSize,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class CheckInDto {
   @IsArray()
@@ -55,11 +56,12 @@ export class RosterSearchDto {
   @IsOptional()
   search?: string;
 
+  @Type(() => Number)
   @IsNumber()
   @IsOptional()
   limit?: number;
 
+  @Type(() => Number)
   @IsNumber()
-  @IsOptional()
-  locationId?: number;
+  locationId: number;
 }
