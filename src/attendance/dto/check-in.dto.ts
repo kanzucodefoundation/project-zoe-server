@@ -63,5 +63,6 @@ export class RosterSearchDto {
 
   @Type(() => Number)
   @IsNumber()
-  locationId: number;
+  @IsOptional()
+  locationId?: number;
 }

@@ -3,6 +3,7 @@ import {
   Inject,
   NotFoundException,
   BadRequestException,
+  ConflictException,
 } from '@nestjs/common';
 import { Connection, Repository } from 'typeorm';
 import { ServiceSchedule } from '../entities/service-schedule.entity';
@@ -48,6 +49,21 @@ export class ServiceAttendanceService {
     userId: number,
   ): Promise<ServiceSchedule> {
     const tenantId = this.tenantContext.requireTenant();
+
+    const existing = await this.scheduleRepo.findOne({
+      where: {
+        tenant: { id: tenantId } as any,
+        locationGroupId: dto.locationGroupId,
+        startTime: dto.startTime,
+        isActive: true,
+      },
+    });
+    if (existing) {
+      throw new ConflictException(
+        `A schedule with startTime "${dto.startTime}" already exists for this location`,
+      );
+    }
+
     const schedule = this.scheduleRepo.create({
       ...dto,
       tenant: { id: tenantId } as any,
@@ -96,51 +112,59 @@ export class ServiceAttendanceService {
     return query.orderBy('ss.startTime', 'ASC').getMany();
   }
 
-  async getTodayService(locationId: number): Promise<ServiceInstance> {
+  async getTodayService(locationId: number): Promise<ServiceInstance[]> {
     const tenantId = this.tenantContext.requireTenant();
     const today = new Date().toISOString().split('T')[0];
     const dayOfWeek = new Date().getDay();
 
-    const schedule = await this.scheduleRepo
+    const schedules = await this.scheduleRepo
       .createQueryBuilder('ss')
       .where('ss.tenantId = :tenantId', { tenantId })
       .andWhere('ss.locationGroupId = :locationId', { locationId })
       .andWhere('ss.isActive = true')
-      .andWhere(':dayOfWeek = ANY(ss.daysOfWeek)', { dayOfWeek })
-      .getOne();
+      .andWhere('CAST(:dayOfWeek AS integer) = ANY(ss.daysOfWeek)', {
+        dayOfWeek,
+      })
+      .getMany();
 
-    if (!schedule) {
+    if (!schedules.length) {
       throw new BadRequestException(
         'No service scheduled for today at this location',
       );
     }
 
-    let instance = await this.instanceRepo.findOne({
-      where: {
-        tenant: { id: tenantId } as any,
-        scheduleId: schedule.id,
-        serviceDate: today,
-      },
-      relations: ['schedule', 'schedule.location'],
-    });
+    const instances = await Promise.all(
+      schedules.map(async (schedule) => {
+        let instance = await this.instanceRepo.findOne({
+          where: {
+            tenant: { id: tenantId } as any,
+            scheduleId: schedule.id,
+            serviceDate: today,
+          },
+          relations: ['schedule', 'schedule.location'],
+        });
 
-    if (!instance) {
-      instance = await this.instanceRepo.save(
-        this.instanceRepo.create({
-          tenant: { id: tenantId } as any,
-          schedule: { id: schedule.id } as any,
-          scheduleId: schedule.id,
-          serviceDate: today,
-          status: 'active',
-        }),
-      );
-      instance = await this.instanceRepo.findOne({
-        where: { id: instance.id },
-        relations: ['schedule', 'schedule.location'],
-      });
-    }
+        if (!instance) {
+          instance = await this.instanceRepo.save(
+            this.instanceRepo.create({
+              tenant: { id: tenantId } as any,
+              schedule: { id: schedule.id } as any,
+              scheduleId: schedule.id,
+              serviceDate: today,
+              status: 'active',
+            }),
+          );
+          instance = await this.instanceRepo.findOne({
+            where: { id: instance.id },
+            relations: ['schedule', 'schedule.location'],
+          });
+        }
 
-    return instance;
+        return instance;
+      }),
+    );
+
+    return instances.filter((i): i is ServiceInstance => i !== null);
   }
 
   async getRoster(serviceInstanceId: number, searchDto?: RosterSearchDto) {
@@ -174,12 +198,14 @@ export class ServiceAttendanceService {
         category: ContactCategory.Person,
       });
 
-    query = query.innerJoin(
-      GroupMembership,
-      'gm',
-      'gm.contactId = c.id AND gm.groupId = :locationId AND gm.isActive = true',
-      { locationId: searchDto.locationId },
-    );
+    if (searchDto?.locationId) {
+      query = query.innerJoin(
+        GroupMembership,
+        'gm',
+        'gm.contactId = c.id AND gm.groupId = :locationId AND gm.isActive = true',
+        { locationId: searchDto.locationId },
+      );
+    }
 
     if (searchDto?.search) {
       query = query.andWhere(
