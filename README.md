@@ -71,6 +71,14 @@ This repo holds the NestJS API server.
 
    Default login credentials are in `src/seed/data/users.ts`.
 
+7. Load comprehensive demo data (contacts, groups, reports):
+
+   ```bash
+   npm run seed:comprehensive
+   ```
+
+   This gives you a realistic dataset to work with locally. You can reset it at any time with `npm run seed:reset`.
+
 > **Note:** This server is designed to work alongside the client at https://github.com/kanzucodefoundation/project-zoe-client.
 
 ## Available scripts
