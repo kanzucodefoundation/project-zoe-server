@@ -37,6 +37,7 @@
     "seed:comprehensive": "ts-node --transpile-only -r tsconfig-paths/register src/commands/seed-comprehensive.ts",
     "seed:clear": "ts-node --transpile-only -r tsconfig-paths/register src/commands/seed-comprehensive.ts --clear",
     "seed:reset": "ts-node --transpile-only -r tsconfig-paths/register src/commands/seed-comprehensive.ts --clear --seed",
+    "seed:whm:production": "ts-node --transpile-only -r tsconfig-paths/register src/commands/seed-whm-production.ts",
     "seed:whm:reports": "ts-node --transpile-only -r tsconfig-paths/register src/commands/seed-whm-reports.ts",
     "seed:whm:groups": "ts-node --transpile-only -r tsconfig-paths/register src/commands/seed-whm-groups.ts",
     "import:whm:pga": "ts-node --transpile-only -r tsconfig-paths/register src/commands/import-whm-pga.ts",

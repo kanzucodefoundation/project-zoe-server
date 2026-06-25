@@ -294,6 +294,7 @@ export class ComprehensiveSeedService {
         name: 'Garage Team',
         purpose: GroupCategoryPurpose.SERVING_TEAM,
       },
+      { id: 8, name: 'Region', purpose: GroupCategoryPurpose.STRUCTURE },
     ];
 
     for (const catData of categories) {
@@ -698,6 +699,75 @@ export class ComprehensiveSeedService {
         }
       }
     }
+  }
+
+  async seedAdminUser(credentials: {
+    email: string;
+    firstName: string;
+    lastName: string;
+    password: string;
+  }): Promise<void> {
+    this.initializeRepositories();
+    Logger.log(`👤 Creating admin user: ${credentials.email}`);
+
+    const tenant = await this.tenantRepository.findOne({
+      where: { name: 'worshipharvest' },
+    });
+    if (!tenant) throw new Error('Tenant not found — run base seed first');
+
+    const existing = await this.userRepository.findOne({
+      where: { username: credentials.email },
+    });
+    if (existing) {
+      Logger.log(`[Admin] User ${credentials.email} already exists — skipping`);
+      return;
+    }
+
+    // Contact + Person
+    const contact = await this.contactRepository.save(
+      this.contactRepository.create({ category: ContactCategory.Person, tenant }),
+    );
+    const person = await this.personRepository.save(
+      this.personRepository.create({
+        firstName: credentials.firstName,
+        lastName: credentials.lastName,
+        contactId: contact.id,
+      }),
+    );
+    contact.person = person;
+    await this.contactRepository.save(contact);
+
+    // Email
+    const emailRecord = this.emailRepository.create({
+      category: EmailCategory.Personal,
+      value: credentials.email,
+      isPrimary: true,
+      contact,
+    });
+    await this.emailRepository.save(emailRecord);
+
+    // User
+    const user = await this.userRepository.save(
+      this.userRepository.create({
+        username: credentials.email,
+        password: bcrypt.hashSync(credentials.password, hashCost),
+        contactId: contact.id,
+        isActive: true,
+        tenant,
+      }),
+    );
+
+    // RoleAdmin role
+    const adminRole = await this.rolesRepository.findOne({
+      where: { role: 'RoleAdmin' },
+    });
+    if (adminRole) {
+      await this.userRolesRepository.save(
+        this.userRolesRepository.create({ user, roles: adminRole }),
+      );
+    }
+
+    Logger.log(`✅ Admin user created: ${credentials.email}`);
   }
 
   async clearAll(): Promise<void> {
