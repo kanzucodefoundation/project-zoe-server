@@ -122,6 +122,7 @@ export class ComprehensiveSeedService {
   }
 
   async ensureDefaultTenant(): Promise<Tenant> {
+    this.initializeRepositories();
     let tenant = await this.tenantRepository.findOne({
       where: { name: 'worshipharvest' },
     });
@@ -139,6 +140,7 @@ export class ComprehensiveSeedService {
   }
 
   async seedRoles(): Promise<void> {
+    this.initializeRepositories();
     Logger.log('🔐 Seeding roles...');
 
     const tenant = await this.tenantRepository.findOne({
@@ -264,6 +266,7 @@ export class ComprehensiveSeedService {
   }
 
   async seedGroupCategories(): Promise<void> {
+    this.initializeRepositories();
     Logger.log('📂 Seeding group categories...');
 
     const tenant = await this.tenantRepository.findOne({
@@ -294,6 +297,7 @@ export class ComprehensiveSeedService {
         name: 'Garage Team',
         purpose: GroupCategoryPurpose.SERVING_TEAM,
       },
+      { id: 8, name: 'Region', purpose: GroupCategoryPurpose.STRUCTURE },
     ];
 
     for (const catData of categories) {
@@ -698,6 +702,90 @@ export class ComprehensiveSeedService {
         }
       }
     }
+  }
+
+  async seedAdminUser(credentials: {
+    email: string;
+    firstName: string;
+    lastName: string;
+    password: string;
+  }): Promise<void> {
+    this.initializeRepositories();
+    Logger.log('👤 Seeding admin user...');
+
+    const tenant = await this.tenantRepository.findOne({
+      where: { name: 'worshipharvest' },
+    });
+    if (!tenant) throw new Error('Tenant not found — run base seed first');
+
+    // Tenant-scoped role lookup
+    const adminRole = await this.rolesRepository.findOne({
+      where: { role: 'RoleAdmin', tenant: { id: tenant.id } },
+    });
+
+    let user = await this.userRepository.findOne({
+      where: { username: credentials.email, tenant: { id: tenant.id } },
+    });
+
+    if (user) {
+      Logger.log(
+        '[Admin] User already exists — ensuring RoleAdmin is assigned',
+      );
+    } else {
+      // Contact + Person
+      const contact = await this.contactRepository.save(
+        this.contactRepository.create({
+          category: ContactCategory.Person,
+          tenant,
+        }),
+      );
+      const person = await this.personRepository.save(
+        this.personRepository.create({
+          firstName: credentials.firstName,
+          lastName: credentials.lastName,
+          contactId: contact.id,
+        }),
+      );
+      contact.person = person;
+      await this.contactRepository.save(contact);
+
+      // Email
+      await this.emailRepository.save(
+        this.emailRepository.create({
+          category: EmailCategory.Personal,
+          value: credentials.email,
+          isPrimary: true,
+          contact,
+        }),
+      );
+
+      // User
+      user = await this.userRepository.save(
+        this.userRepository.create({
+          username: credentials.email,
+          password: bcrypt.hashSync(credentials.password, hashCost),
+          contactId: contact.id,
+          isActive: true,
+          tenant,
+        }),
+      );
+      Logger.log('👤 Admin user created');
+    }
+
+    // Idempotent role assignment — ensure RoleAdmin regardless of path taken above
+    if (adminRole) {
+      const hasRole = await this.userRolesRepository.findOne({
+        where: { user: { id: user.id }, roles: { id: adminRole.id } },
+      });
+      if (!hasRole) {
+        await this.userRolesRepository.save(
+          this.userRolesRepository.create({ user, roles: adminRole }),
+        );
+        Logger.log('[Admin] RoleAdmin assigned');
+      }
+    }
+
+    Logger.log('✅ Admin user ready');
   }
 
   async clearAll(): Promise<void> {
