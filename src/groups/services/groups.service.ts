@@ -498,11 +498,31 @@ export class GroupsService {
       });
       const groupData = this.toSimpleView(data);
 
-      const ancestors = await this.treeRepository.findAncestors(data);
-      groupData.parents = ancestors.map((it) => it.id);
+      const groupMetadata = this.repository.metadata;
+      const closureMetadata = groupMetadata.closureJunctionTable;
+      const groupTable = groupMetadata.tablePath;
+      const closureTable = closureMetadata.tablePath;
+      const ancestorColumn = closureMetadata.ancestorColumns[0].databaseName;
+      const descendantColumn =
+        closureMetadata.descendantColumns[0].databaseName;
 
-      const descendants = await this.treeRepository.findDescendants(data);
-      groupData.children = descendants.map((it) => it.id);
+      const ancestorRows: Array<{ id: number }> = await this.repository.query(
+        `SELECT g.id FROM ${groupTable} g
+         JOIN ${closureTable} c ON c."${ancestorColumn}" = g.id
+         WHERE c."${descendantColumn}" = $1
+           AND g.id != $1`,
+        [data.id],
+      );
+      groupData.parents = ancestorRows.map((it) => it.id);
+
+      const descendantRows: Array<{ id: number }> = await this.repository.query(
+        `SELECT g.id FROM ${groupTable} g
+         JOIN ${closureTable} c ON c."${descendantColumn}" = g.id
+         WHERE c."${ancestorColumn}" = $1
+           AND g.id != $1`,
+        [data.id],
+      );
+      groupData.children = descendantRows.map((it) => it.id);
 
       const filter = {
         groupId: In(groupData.children),
