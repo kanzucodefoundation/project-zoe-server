@@ -1,7 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ContactsService } from './contacts.service';
 import { GoogleService } from '../vendor/google.service';
-import { PrismaService } from '../shared/prisma.service';
 import { GroupFinderService } from './group-finder/group-finder.service';
 import { AddressesService } from './addresses.service';
 import { GroupTreeService } from '../groups/services/group-tree.service';
@@ -60,7 +59,8 @@ describe('ContactsService', () => {
         if (entity === Email) return mockRepositories.email;
         if (entity === Address) return mockRepositories.address;
         if (entity === GroupMembership) return mockRepositories.membership;
-        if (entity === GroupMembershipRequest) return mockRepositories.gmRequest;
+        if (entity === GroupMembershipRequest)
+          return mockRepositories.gmRequest;
         if (entity === Tenant) return mockRepositories.tenant;
         return mockRepositories.contact;
       }),
@@ -77,10 +77,6 @@ describe('ContactsService', () => {
         {
           provide: GoogleService,
           useValue: { searchPlaces: jest.fn() },
-        },
-        {
-          provide: PrismaService,
-          useValue: { contact: { findMany: jest.fn() } },
         },
         {
           provide: GroupFinderService,
@@ -128,7 +124,9 @@ describe('ContactsService', () => {
     expect(mockConnection.getRepository).toHaveBeenCalledWith(Email);
     expect(mockConnection.getRepository).toHaveBeenCalledWith(Address);
     expect(mockConnection.getRepository).toHaveBeenCalledWith(GroupMembership);
-    expect(mockConnection.getRepository).toHaveBeenCalledWith(GroupMembershipRequest);
+    expect(mockConnection.getRepository).toHaveBeenCalledWith(
+      GroupMembershipRequest,
+    );
     expect(mockConnection.getRepository).toHaveBeenCalledWith(Tenant);
     expect(mockConnection.getTreeRepository).toHaveBeenCalledWith(Group);
   });
