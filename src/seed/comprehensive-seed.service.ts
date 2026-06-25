@@ -793,29 +793,29 @@ export class ComprehensiveSeedService {
   async clearAll(): Promise<void> {
     Logger.log('🧹 Clearing all seeded data...');
 
-    // Initialize repositories first
-    this.initializeRepositories();
+    // TRUNCATE every table in the public schema with CASCADE so PostgreSQL
+    // handles FK ordering automatically. This is more robust than a manually
+    // ordered delete list which breaks whenever a new FK-to-user entity is added.
+    // typeorm_metadata holds TypeORM internals and must be preserved.
+    const tables: { tablename: string }[] = await this.connection.query(`
+      SELECT tablename FROM pg_tables
+      WHERE schemaname = 'public'
+        AND tablename NOT IN ('typeorm_metadata')
+      ORDER BY tablename
+    `);
 
-    // TypeORM rejects delete({}) with "Empty criteria not allowed" — use QB instead.
-    // Order: dependents first, then parents.
-    const del = (repo: Repository<any>) =>
-      repo.createQueryBuilder().delete().execute();
+    if (tables.length === 0) {
+      Logger.log('[clearAll] No tables found — nothing to clear');
+      return;
+    }
 
-    await del(this.reportSubmissionDataRepository);
-    await del(this.reportSubmissionRepository);
-    await del(this.reportFieldRepository);
-    await del(this.reportRepository);
-    await del(this.groupMembershipRepository);
-    await del(this.userRolesRepository);
-    await del(this.userRepository);
-    await del(this.addressRepository);
-    await del(this.phoneRepository);
-    await del(this.emailRepository);
-    await del(this.contactRepository);
-    await del(this.personRepository);
-    await del(this.groupRepository);
-    await del(this.groupCategoryRepository);
-    await del(this.rolesRepository);
+    const tableList = tables
+      .map(({ tablename }) => `"${tablename}"`)
+      .join(', ');
+
+    await this.connection.query(
+      `TRUNCATE TABLE ${tableList} RESTART IDENTITY CASCADE`,
+    );
 
     Logger.log('✅ All data cleared');
   }
