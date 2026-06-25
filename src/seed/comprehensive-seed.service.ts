@@ -24,6 +24,7 @@ import { Tenant } from 'src/tenants/entities/tenant.entity';
 // Import enums
 import { ContactCategory } from 'src/crm/enums/contactCategory';
 import { EmailCategory } from 'src/crm/enums/emailCategory';
+import { Gender } from 'src/crm/enums/gender';
 import { PhoneCategory } from 'src/crm/enums/phoneCategory';
 import { AddressCategory } from 'src/crm/enums/addressCategory';
 import { GroupRole } from 'src/groups/enums/groupRole';
@@ -743,6 +744,7 @@ export class ComprehensiveSeedService {
         this.personRepository.create({
           firstName: credentials.firstName,
           lastName: credentials.lastName,
+          gender: Gender.Male,
           contactId: contact.id,
         }),
       );
