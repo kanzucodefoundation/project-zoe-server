@@ -6,6 +6,7 @@ export enum ContactActivityType {
   ATTENDED_FELLOWSHIP = 'attended_fellowship',
   JOINED_SERVING_TEAM = 'joined_serving_team',
   GOT_BAPTISED = 'got_baptised',
+  UNREACHABLE = 'unreachable',
   // Task lifecycle
   TASK_CREATED = 'task_created',
   TASK_ASSIGNED = 'task_assigned',
