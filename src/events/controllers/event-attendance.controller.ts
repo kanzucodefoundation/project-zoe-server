@@ -14,7 +14,6 @@ import {
   Inject,
   ValidationPipe,
 } from '@nestjs/common';
-import { PrismaService } from '../../shared/prisma.service';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { ApiTags } from '@nestjs/swagger';
 import { Repository, Connection } from 'typeorm';
@@ -38,10 +37,7 @@ export class EventsAttendanceController {
   private readonly groupRepository: Repository<GroupEvent>;
   private readonly membershipRepository: Repository<GroupMembership>;
 
-  constructor(
-    @Inject('CONNECTION') connection: Connection,
-    private prisma: PrismaService,
-  ) {
+  constructor(@Inject('CONNECTION') connection: Connection) {
     this.repository = connection.getRepository(EventAttendance);
     this.groupRepository = connection.getRepository(GroupEvent);
     this.membershipRepository = connection.getRepository(GroupMembership);
@@ -56,20 +52,9 @@ export class EventsAttendanceController {
     if (req.groupId) {
       filter['groupId'] = { equals: req.groupId };
     }
-    const data = await this.prisma.group_membership.findMany({
-      include: {
-        group: {
-          select: { id: true, name: true },
-        },
-        contact: {
-          include: {
-            person: {
-              select: { firstName: true, lastName: true, middleName: true },
-            },
-          },
-        },
-      },
-      where: { groupId: { equals: req.groupId } },
+    const data = await this.membershipRepository.find({
+      where: { groupId: req.groupId },
+      relations: { group: true, contact: { person: true } },
     });
     const memberships: GroupMembershipDto[] = data.map((it) => {
       return {
@@ -89,17 +74,9 @@ export class EventsAttendanceController {
       };
     });
 
-    const attData = await this.prisma.event_attendance.findMany({
-      include: {
-        contact: {
-          include: {
-            person: {
-              select: { firstName: true, lastName: true, middleName: true },
-            },
-          },
-        },
-      },
-      where: { eventId: { equals: req.eventId } },
+    const attData = await this.repository.find({
+      where: { eventId: req.eventId },
+      relations: { contact: { person: true } },
     });
     const attendance: EventAttendanceDto[] = attData.map((it) => {
       return {
@@ -180,17 +157,9 @@ export class EventsAttendanceController {
   async findOne(
     @Param('id', ParseIntPipe) id: number,
   ): Promise<EventAttendanceDto> {
-    const it = await this.prisma.event_attendance.findFirst({
-      include: {
-        contact: {
-          include: {
-            person: {
-              select: { firstName: true, lastName: true, middleName: true },
-            },
-          },
-        },
-      },
-      where: { id: { equals: id } },
+    const it = await this.repository.findOne({
+      where: { id },
+      relations: { contact: { person: true } },
     });
     return {
       id: it.id,

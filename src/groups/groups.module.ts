@@ -13,7 +13,6 @@ import { GroupMembershipReqeustController } from './controllers/group-membership
 import { GroupMembershipRequestService } from './services/group-membership-request.service';
 import { ContactsService } from 'src/crm/contacts.service';
 import { GoogleService } from '../vendor/google.service';
-import { PrismaService } from '../shared/prisma.service';
 import { EventsService } from 'src/events/events.service';
 import { appEntities } from '../config';
 import { AddressesService } from 'src/crm/addresses.service';
@@ -37,7 +36,6 @@ import { AppLogger } from 'src/utils/app-logger.service';
     ContactsService,
     GoogleService,
     AddressesService,
-    PrismaService,
     EventsService,
     GroupPermissionsService,
     GroupTreeService,

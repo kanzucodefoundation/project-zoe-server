@@ -17,7 +17,6 @@ import { RegisterController } from './contollers/register.controller';
 import { ContactActivityService } from './contact-activity.service';
 import { ContactActivityController } from './contact-activity.controller';
 import { GoogleService } from 'src/vendor/google.service';
-import { PrismaService } from '../shared/prisma.service';
 import { ContactImportController } from './contollers/contact-import.controller';
 import { GroupFinderService } from './group-finder/group-finder.service';
 import { appEntities } from '../config';
@@ -44,7 +43,6 @@ import { ServiceRecordingService } from 'src/service-recording/service-recording
   providers: [
     ContactsService,
     GoogleService,
-    PrismaService,
     GroupsMembershipService,
     GroupsService,
     GroupPermissionsService,

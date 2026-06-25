@@ -47,7 +47,6 @@ import {
   GetClosestGroupDto,
   GetGroupResponseDto,
 } from 'src/groups/dto/membershipRequest/new-request.dto';
-import { PrismaService } from '../shared/prisma.service';
 import { getContactModel } from './utils/creationUtils';
 import { GroupFinderService } from './group-finder/group-finder.service';
 import { AddressesService } from './addresses.service';
@@ -74,7 +73,6 @@ export class ContactsService {
   constructor(
     @Inject('CONNECTION') connection: Connection,
     private googleService: GoogleService,
-    private prisma: PrismaService,
     private groupFinderService: GroupFinderService,
     private addressesService: AddressesService,
     private groupTreeService: GroupTreeService,
@@ -1475,16 +1473,9 @@ export class ContactsService {
       if (!hasValue(closestGroup)) {
         Logger.log('Invalid group data');
       }
-      const leader = await this.prisma.group_membership.findFirst({
+      const leader = await this.membershipRepository.findOne({
         where: { groupId: closestGroup.id, role: GroupRole.Leader },
-        include: {
-          contact: {
-            include: {
-              person: { select: { firstName: true } },
-              email: true,
-            },
-          },
-        },
+        relations: { contact: { person: true, emails: true } },
       });
       if (leader) {
         Logger.log(

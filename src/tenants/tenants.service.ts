@@ -9,7 +9,6 @@ import { Connection } from 'typeorm';
 import { JwtHelperService } from 'src/auth/jwt-helpers.service';
 import { ContactsService } from 'src/crm/contacts.service';
 import { GoogleService } from 'src/vendor/google.service';
-import { PrismaService } from 'src/shared/prisma.service';
 import { GroupFinderService } from 'src/crm/group-finder/group-finder.service';
 import { AddressesService } from 'src/crm/addresses.service';
 import { GroupCategoriesService } from 'src/groups/services/group-categories.service';
@@ -36,7 +35,6 @@ export class TenantsService {
     seedService: SeedService,
     googleService: GoogleService,
     jwtHelperService: JwtHelperService,
-    prisma: PrismaService,
     groupFinderService: GroupFinderService,
     addressesService: AddressesService,
     groupsPermissionsService: GroupPermissionsService,
@@ -81,7 +79,6 @@ export class TenantsService {
     const contactService: ContactsService = new ContactsService(
       this.connection,
       googleService,
-      prisma,
       groupFinderService,
       addressesService,
       groupTreeService,
