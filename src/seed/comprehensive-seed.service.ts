@@ -24,6 +24,7 @@ import { Tenant } from 'src/tenants/entities/tenant.entity';
 // Import enums
 import { ContactCategory } from 'src/crm/enums/contactCategory';
 import { EmailCategory } from 'src/crm/enums/emailCategory';
+import { Gender } from 'src/crm/enums/gender';
 import { PhoneCategory } from 'src/crm/enums/phoneCategory';
 import { AddressCategory } from 'src/crm/enums/addressCategory';
 import { GroupRole } from 'src/groups/enums/groupRole';
@@ -743,6 +744,7 @@ export class ComprehensiveSeedService {
         this.personRepository.create({
           firstName: credentials.firstName,
           lastName: credentials.lastName,
+          gender: Gender.Male,
           contactId: contact.id,
         }),
       );
@@ -794,22 +796,26 @@ export class ComprehensiveSeedService {
     // Initialize repositories first
     this.initializeRepositories();
 
-    // Clear in reverse order of dependencies
-    await this.reportSubmissionDataRepository.delete({});
-    await this.reportSubmissionRepository.delete({});
-    await this.reportFieldRepository.delete({});
-    await this.reportRepository.delete({});
-    await this.groupMembershipRepository.delete({});
-    await this.userRolesRepository.delete({});
-    await this.userRepository.delete({});
-    await this.addressRepository.delete({});
-    await this.phoneRepository.delete({});
-    await this.emailRepository.delete({});
-    await this.contactRepository.delete({});
-    await this.personRepository.delete({});
-    await this.groupRepository.delete({});
-    await this.groupCategoryRepository.delete({});
-    await this.rolesRepository.delete({});
+    // TypeORM rejects delete({}) with "Empty criteria not allowed" — use QB instead.
+    // Order: dependents first, then parents.
+    const del = (repo: Repository<any>) =>
+      repo.createQueryBuilder().delete().execute();
+
+    await del(this.reportSubmissionDataRepository);
+    await del(this.reportSubmissionRepository);
+    await del(this.reportFieldRepository);
+    await del(this.reportRepository);
+    await del(this.groupMembershipRepository);
+    await del(this.userRolesRepository);
+    await del(this.userRepository);
+    await del(this.addressRepository);
+    await del(this.phoneRepository);
+    await del(this.emailRepository);
+    await del(this.contactRepository);
+    await del(this.personRepository);
+    await del(this.groupRepository);
+    await del(this.groupCategoryRepository);
+    await del(this.rolesRepository);
 
     Logger.log('✅ All data cleared');
   }
