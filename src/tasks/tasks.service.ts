@@ -381,6 +381,16 @@ export class TasksService {
       }
 
       case TaskStatus.UNREACHABLE: {
+        await this.contactActivityService.record({
+          tenantId,
+          contactId,
+          type: ContactActivityType.UNREACHABLE,
+          summary: `${task.type} task marked as unreachable`,
+          occurredAt: new Date(),
+          recordedById: userId,
+          referenceTable: 'task',
+          referenceId: task.id,
+        });
         break;
       }
     }
