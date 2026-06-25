@@ -112,18 +112,6 @@ export class ContactImportController {
           const contactName =
             uploadedContact.firstName || uploadedContact.name || 'Unknown';
 
-          if (!contactModel.email) {
-            const userErrorMessage = `Contact ${contactName} at position ${
-              index + 1
-            } out of ${
-              list.length
-            } contacts not created. Error message: Email is required. Email is needed to log into the system.`;
-            Logger.error(userErrorMessage);
-            errors.push(userErrorMessage);
-            notCreated.push(uploadedContact);
-            continue;
-          }
-
           const effectiveGroupId = uploadedContact.groupId || locationGroup?.id;
           if (!effectiveGroupId) {
             const userErrorMessage = `Contact ${contactName} at position ${
