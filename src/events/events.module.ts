@@ -7,7 +7,6 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { EventsCategoriesController } from '../events/controllers/event-categories.controller';
 import { EventsFieldsController } from '../events/controllers/event-fields.controller';
 import { EventsAttendanceController } from './controllers/event-attendance.controller';
-import { PrismaService } from '../shared/prisma.service';
 import { EventsMetricsController } from '../events/controllers/event-metrics.controller';
 import { appEntities } from '../config';
 
@@ -38,13 +37,11 @@ import { EventRegistrationService } from './event-registration.service';
   ],
   providers: [
     EventsService,
-    PrismaService,
     EventActivitiesService,
     MemberEventActivitiesService,
 
     EventRegistrationService,
   ],
-  //providers: [EventsService, PrismaService, EventRegistrationService],
 
   exports: [EventsService],
 })

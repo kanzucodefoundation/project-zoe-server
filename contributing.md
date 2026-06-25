@@ -1,41 +1,69 @@
-# Project Zoe Contributing Guide
-# Table of Contents
-1. [Git Workflow](#git-workflow)
+# Contributing to Project Zoe Server
 
+Thank you for your interest in contributing! Please read this guide before opening a pull request.
 
-# Git Workflow
+## Before you start
 
-The workflow will be as follows:
+- Get the project running locally by following the [README](./README.md).
+- Check the [open issues](https://github.com/kanzucodefoundation/project-zoe-server/issues) to see if someone is already working on what you have in mind.
+- For significant changes, open an issue first to discuss the approach before writing code.
 
-- Clone or fork the official repository to create a personal version of it on your local machine.
+## Workflow
 
-- Branch off develop to create your development branch
+```
+feature branch → develop (staging) → master (production)
+```
 
-- Push your personal changes to this branch
+1. **Branch from `develop`** — never from `master`:
 
-- Create a Pull Request against `develop` branch.
+   ```bash
+   git checkout develop
+   git pull origin develop
+   git checkout -b feat/your-feature-name
+   ```
 
-- We will review and give feedback
+2. **Make your changes.** Keep commits small and focused.
 
-# Branches
-We will be using master and develop branches to manage and store our product release history. Master will be used to store the official release history, while develop will be used an integration branch for all features.
+3. **Test your changes locally** before opening a PR. Make sure the server starts cleanly and existing behaviour is not broken.
 
-- Master
-- Develop
-# Branch Naming
-Branches created should be named using the following format:
+4. **Open a PR against `develop`** and fill in every section of the PR template — especially _how to test_. Incomplete PRs will be sent back.
 
-``` {story type}/{story summary} ```
+5. Your PR will be reviewed. Address any feedback, then it will be merged into `develop` and deployed automatically to staging.
 
-` story type ` - Indicates the context of the branch and should be one of:
+6. Once the change is verified on staging, it is promoted to `master` via a separate PR, which triggers the production deploy.
 
-- feature
-- bug
-- chore
+## Branch naming
 
-` story summary ` - Short 2-3 words summary about what the branch contains
+```
+{type}/{short-summary}
+```
 
-## Example
+| Type | When to use |
+|------|-------------|
+| `feat` | New feature |
+| `fix` | Bug fix |
+| `chore` | Maintenance, dependencies, config |
+| `docs` | Documentation only |
+| `refactor` | Code restructure without behaviour change |
 
-``` feature/login```
+**Examples:** `feat/bulk-contact-import`, `fix/attendance-query`, `chore/update-deps`
 
+## Code style
+
+ESLint and Prettier are configured. Run `npm run lint` before pushing. The pre-commit hook will catch most issues automatically.
+
+Use conventional commit messages:
+
+```
+feat: add bulk contact import endpoint
+fix: correct attendance count query
+chore: upgrade NestJS to v10
+```
+
+## Architecture
+
+Before making structural changes, review `CLAUDE.md` at the repo root and the `docs/` folder. Key things to know:
+
+- The codebase uses **row-level multi-tenancy** — every database query must be tenant-scoped. Extend `TenantAwareRepository` for any new entities that hold tenant data.
+- The group hierarchy has four purposes (`fellowship`, `location`, `serving_team`, `structure`) — understand this before touching group or attendance logic.
+- Attendance tracking (individual check-in) and aggregate reporting are intentionally separate systems. Do not add reporting fields to `ServiceInstance` or `FellowshipInstance`.

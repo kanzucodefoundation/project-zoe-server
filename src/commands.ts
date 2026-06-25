@@ -12,7 +12,6 @@ import { ContactsService } from './crm/contacts.service';
 import { JwtHelperService } from './auth/jwt-helpers.service';
 import { CrmModule } from './crm/crm.module';
 import { GoogleService } from './vendor/google.service';
-import { PrismaService } from './shared/prisma.service';
 import { GroupFinderService } from './crm/group-finder/group-finder.service';
 import { AddressesService } from './crm/addresses.service';
 import { GroupsService } from './groups/services/groups.service';
@@ -32,7 +31,6 @@ async function bootstrap() {
       const seedService = application.get(SeedService);
       const jwtHelperService = application.get(JwtHelperService);
       const googleService = application.get(GoogleService);
-      const prismaService = application.get(PrismaService);
       const groupFinderService = application.get(GroupFinderService);
       const addressesService = application.get(AddressesService);
       const groupsPermissionsService = application.get(GroupPermissionsService);
@@ -44,7 +42,6 @@ async function bootstrap() {
         seedService,
         googleService,
         jwtHelperService,
-        prismaService,
         groupFinderService,
         addressesService,
         groupsPermissionsService,

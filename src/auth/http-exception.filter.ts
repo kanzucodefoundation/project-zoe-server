@@ -11,20 +11,14 @@ import { Request, Response } from 'express';
 import ClientFriendlyException from '../shared/exceptions/client-friendly.exception';
 import { QueryFailedError } from 'typeorm';
 
-function parseValidationErrors(exception: any) {
-  try {
-    if (exception instanceof BadRequestException) {
-      return {
-        message: exception.message,
-        errors: [exception.message],
-      };
-    }
-  } catch (ex) {
-    return {
-      message: 'Validation Error',
-      errorMessage: exception.message,
-    };
+function parseValidationErrors(exception: BadRequestException) {
+  const response = exception.getResponse();
+  // getResponse() returns the structured body NestJS built (with message, error, statusCode)
+  // or a plain string when thrown as new BadRequestException('some message').
+  if (typeof response === 'object') {
+    return response;
   }
+  return { message: response, errors: [response] };
 }
 
 function handleHttpException(exception: HttpException, host: ArgumentsHost) {

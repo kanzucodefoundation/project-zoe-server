@@ -24,6 +24,7 @@ import { Tenant } from 'src/tenants/entities/tenant.entity';
 // Import enums
 import { ContactCategory } from 'src/crm/enums/contactCategory';
 import { EmailCategory } from 'src/crm/enums/emailCategory';
+import { Gender } from 'src/crm/enums/gender';
 import { PhoneCategory } from 'src/crm/enums/phoneCategory';
 import { AddressCategory } from 'src/crm/enums/addressCategory';
 import { GroupRole } from 'src/groups/enums/groupRole';
@@ -122,6 +123,7 @@ export class ComprehensiveSeedService {
   }
 
   async ensureDefaultTenant(): Promise<Tenant> {
+    this.initializeRepositories();
     let tenant = await this.tenantRepository.findOne({
       where: { name: 'worshipharvest' },
     });
@@ -139,6 +141,7 @@ export class ComprehensiveSeedService {
   }
 
   async seedRoles(): Promise<void> {
+    this.initializeRepositories();
     Logger.log('🔐 Seeding roles...');
 
     const tenant = await this.tenantRepository.findOne({
@@ -264,6 +267,7 @@ export class ComprehensiveSeedService {
   }
 
   async seedGroupCategories(): Promise<void> {
+    this.initializeRepositories();
     Logger.log('📂 Seeding group categories...');
 
     const tenant = await this.tenantRepository.findOne({
@@ -294,6 +298,7 @@ export class ComprehensiveSeedService {
         name: 'Garage Team',
         purpose: GroupCategoryPurpose.SERVING_TEAM,
       },
+      { id: 8, name: 'Region', purpose: GroupCategoryPurpose.STRUCTURE },
     ];
 
     for (const catData of categories) {
@@ -700,28 +705,117 @@ export class ComprehensiveSeedService {
     }
   }
 
+  async seedAdminUser(credentials: {
+    email: string;
+    firstName: string;
+    lastName: string;
+    password: string;
+  }): Promise<void> {
+    this.initializeRepositories();
+    Logger.log('👤 Seeding admin user...');
+
+    const tenant = await this.tenantRepository.findOne({
+      where: { name: 'worshipharvest' },
+    });
+    if (!tenant) throw new Error('Tenant not found — run base seed first');
+
+    // Tenant-scoped role lookup
+    const adminRole = await this.rolesRepository.findOne({
+      where: { role: 'RoleAdmin', tenant: { id: tenant.id } },
+    });
+
+    let user = await this.userRepository.findOne({
+      where: { username: credentials.email, tenant: { id: tenant.id } },
+    });
+
+    if (user) {
+      Logger.log(
+        '[Admin] User already exists — ensuring RoleAdmin is assigned',
+      );
+    } else {
+      // Contact + Person
+      const contact = await this.contactRepository.save(
+        this.contactRepository.create({
+          category: ContactCategory.Person,
+          tenant,
+        }),
+      );
+      const person = await this.personRepository.save(
+        this.personRepository.create({
+          firstName: credentials.firstName,
+          lastName: credentials.lastName,
+          gender: Gender.Male,
+          contactId: contact.id,
+        }),
+      );
+      contact.person = person;
+      await this.contactRepository.save(contact);
+
+      // Email
+      await this.emailRepository.save(
+        this.emailRepository.create({
+          category: EmailCategory.Personal,
+          value: credentials.email,
+          isPrimary: true,
+          contact,
+        }),
+      );
+
+      // User
+      user = await this.userRepository.save(
+        this.userRepository.create({
+          username: credentials.email,
+          password: bcrypt.hashSync(credentials.password, hashCost),
+          contactId: contact.id,
+          isActive: true,
+          tenant,
+        }),
+      );
+      Logger.log('👤 Admin user created');
+    }
+
+    // Idempotent role assignment — ensure RoleAdmin regardless of path taken above
+    if (adminRole) {
+      const hasRole = await this.userRolesRepository.findOne({
+        where: { user: { id: user.id }, roles: { id: adminRole.id } },
+      });
+      if (!hasRole) {
+        await this.userRolesRepository.save(
+          this.userRolesRepository.create({ user, roles: adminRole }),
+        );
+        Logger.log('[Admin] RoleAdmin assigned');
+      }
+    }
+
+    Logger.log('✅ Admin user ready');
+  }
+
   async clearAll(): Promise<void> {
     Logger.log('🧹 Clearing all seeded data...');
 
-    // Initialize repositories first
-    this.initializeRepositories();
+    // TRUNCATE every table in the public schema with CASCADE so PostgreSQL
+    // handles FK ordering automatically. This is more robust than a manually
+    // ordered delete list which breaks whenever a new FK-to-user entity is added.
+    // typeorm_metadata holds TypeORM internals and must be preserved.
+    const tables: { tablename: string }[] = await this.connection.query(`
+      SELECT tablename FROM pg_tables
+      WHERE schemaname = 'public'
+        AND tablename NOT IN ('typeorm_metadata')
+      ORDER BY tablename
+    `);
 
-    // Clear in reverse order of dependencies
-    await this.reportSubmissionDataRepository.delete({});
-    await this.reportSubmissionRepository.delete({});
-    await this.reportFieldRepository.delete({});
-    await this.reportRepository.delete({});
-    await this.groupMembershipRepository.delete({});
-    await this.userRolesRepository.delete({});
-    await this.userRepository.delete({});
-    await this.addressRepository.delete({});
-    await this.phoneRepository.delete({});
-    await this.emailRepository.delete({});
-    await this.contactRepository.delete({});
-    await this.personRepository.delete({});
-    await this.groupRepository.delete({});
-    await this.groupCategoryRepository.delete({});
-    await this.rolesRepository.delete({});
+    if (tables.length === 0) {
+      Logger.log('[clearAll] No tables found — nothing to clear');
+      return;
+    }
+
+    const tableList = tables
+      .map(({ tablename }) => `"${tablename}"`)
+      .join(', ');
+
+    await this.connection.query(
+      `TRUNCATE TABLE ${tableList} RESTART IDENTITY CASCADE`,
+    );
 
     Logger.log('✅ All data cleared');
   }
