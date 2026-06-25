@@ -43,7 +43,7 @@ const WHM_LOCATIONS: { code: string; name: string }[] = [
   { code: 'WHBUSK', name: 'WH Busiika' },
   { code: 'WHBWBJ', name: 'WH Bwebajja' },
   { code: 'WHBWGA', name: 'WH Bwerenga' },
-  { code: 'WHBWMB', name: 'WH Buwambo' },        // new 2026-06-25
+  { code: 'WHBWMB', name: 'WH Buwambo' }, // new 2026-06-25
   { code: 'WHBWNG', name: 'WH Buwenge' },
   { code: 'WHBWYA', name: 'WH Buwaya' },
   { code: 'WHBYGR', name: 'WH Bweyogerere' },
@@ -103,7 +103,7 @@ const WHM_LOCATIONS: { code: string; name: string }[] = [
   { code: 'WHKMLI', name: 'WH Kamuli' },
   { code: 'WHKMNY', name: 'WH Kimwanyi' },
   { code: 'WHKRCH', name: 'WH Kericho' },
-  { code: 'WHKRKU', name: 'WH Kireku' },          // new 2026-06-25
+  { code: 'WHKRKU', name: 'WH Kireku' }, // new 2026-06-25
   { code: 'WHKRNY', name: 'WH Kirinya' },
   { code: 'WHKSAS', name: 'WH Kisaasi' },
   { code: 'WHKSBI', name: 'WH Kasubi' },
@@ -162,7 +162,7 @@ const WHM_LOCATIONS: { code: string; name: string }[] = [
   { code: 'WHMPGI', name: 'WH Mpigi' },
   { code: 'WHMPRW', name: 'WH Mpererwe' },
   { code: 'WHMSDY', name: 'WH Misindye' },
-  { code: 'WHMSJJ', name: 'WH Masajja' },         // new 2026-06-25
+  { code: 'WHMSJJ', name: 'WH Masajja' }, // new 2026-06-25
   { code: 'WHMSKA', name: 'WH Masaka' },
   { code: 'WHMSLT', name: 'WH Masulita' },
   { code: 'WHMSND', name: 'WH Masindi' },
@@ -200,7 +200,7 @@ const WHM_LOCATIONS: { code: string; name: string }[] = [
   { code: 'WHNMGR', name: 'WH Namagera' },
   { code: 'WHNMLG', name: 'WH Namulonge' },
   { code: 'WHNMNV', name: 'WH Namanve' },
-  { code: 'WHNMPG', name: 'WH Nampunge' },  // unassigned — no FOB in current list
+  { code: 'WHNMPG', name: 'WH Nampunge' }, // unassigned — no FOB in current list
   { code: 'WHNMTB', name: 'WH Namataba' },
   { code: 'WHNMWD', name: 'WH Namwendwa' },
   { code: 'WHNMWG', name: 'WH Namuwongo' },
@@ -221,7 +221,7 @@ const WHM_LOCATIONS: { code: string; name: string }[] = [
   { code: 'WHONGR', name: 'WH Ongata Rongai' },
   { code: 'WHPDHA', name: 'WH Paidha' },
   { code: 'WHPKCH', name: 'WH Pakwach' },
-  { code: 'WHPLSA', name: 'WH Pallisa' },  // unassigned — no FOB in current list
+  { code: 'WHPLSA', name: 'WH Pallisa' }, // unassigned — no FOB in current list
   { code: 'WHRBGA', name: 'WH Rubaga' },
   { code: 'WHRUIR', name: 'WH Ruiru' },
   { code: 'WHSEGK', name: 'WH Seguku' },
@@ -230,7 +230,7 @@ const WHM_LOCATIONS: { code: string; name: string }[] = [
   { code: 'WHSNTM', name: 'WH Sentema' },
   { code: 'WHSOND', name: 'WH Sonde' },
   { code: 'WHSROT', name: 'WH Soroti' },
-  { code: 'WHSTMG', name: 'WH Seeta-Magere' },    // new 2026-06-25
+  { code: 'WHSTMG', name: 'WH Seeta-Magere' }, // new 2026-06-25
   { code: 'WHTEXS', name: 'WH Texas' },
   { code: 'WHTHKA', name: 'WH Thika' },
   { code: 'WHTRRO', name: 'WH Tororo' },
@@ -265,11 +265,29 @@ const REGION_FOB_LOCATION_MAP: {
       },
       {
         name: 'Mukono FOB',
-        codes: ['WHKBMB', 'WHKYNG', 'WHKITO', 'WHLUGZ', 'WHMKNO', 'WHMCTY', 'WHNKFM', 'WHNTWO'],
+        codes: [
+          'WHKBMB',
+          'WHKYNG',
+          'WHKITO',
+          'WHLUGZ',
+          'WHMKNO',
+          'WHMCTY',
+          'WHNKFM',
+          'WHNTWO',
+        ],
       },
       {
         name: 'Kitukutwe FOB',
-        codes: ['WHKLGI', 'WHKJBJ', 'WHKTKT', 'WHNBSG', 'WHNKSJ', 'WHNKWR', 'WHNSSA', 'WHKMNY'],
+        codes: [
+          'WHKLGI',
+          'WHKJBJ',
+          'WHKTKT',
+          'WHNBSG',
+          'WHNKSJ',
+          'WHNKWR',
+          'WHNSSA',
+          'WHKMNY',
+        ],
       },
       {
         name: 'Makerere FOB',
@@ -289,7 +307,15 @@ const REGION_FOB_LOCATION_MAP: {
       },
       {
         name: 'Sonde FOB',
-        codes: ['WHBYGR', 'WHKWGA', 'WHMSDY', 'WHNTDA', 'WHSOND', 'WHSETA', 'WHBLID'],
+        codes: [
+          'WHBYGR',
+          'WHKWGA',
+          'WHMSDY',
+          'WHNTDA',
+          'WHSOND',
+          'WHSETA',
+          'WHBLID',
+        ],
       },
     ],
   },
@@ -299,14 +325,33 @@ const REGION_FOB_LOCATION_MAP: {
       {
         name: 'Kansanga FOB',
         codes: [
-          'WHBSBL', 'WHBZGA', 'WHDWTN', 'WHGBRD', 'WHKBLI', 'WHKBYE',
-          'WHMKND', 'WHMTND', 'WHMYNG', 'WHNDJE', 'WHRBGA', 'WHSLRD',
-          'WHNSBY', 'WHMSJJ',
+          'WHBSBL',
+          'WHBZGA',
+          'WHDWTN',
+          'WHGBRD',
+          'WHKBLI',
+          'WHKBYE',
+          'WHMKND',
+          'WHMTND',
+          'WHMYNG',
+          'WHNDJE',
+          'WHRBGA',
+          'WHSLRD',
+          'WHNSBY',
+          'WHMSJJ',
         ],
       },
       {
         name: 'Bugolobi FOB',
-        codes: ['WHBGLB', 'WHBKSA', 'WHKRNY', 'WHLZRA', 'WHMTGB', 'WHNMWG', 'WHKRKU'],
+        codes: [
+          'WHBGLB',
+          'WHBKSA',
+          'WHKRNY',
+          'WHLZRA',
+          'WHMTGB',
+          'WHNMWG',
+          'WHKRKU',
+        ],
       },
       {
         name: 'Nakawa FOB',
@@ -322,7 +367,15 @@ const REGION_FOB_LOCATION_MAP: {
       },
       {
         name: 'Kajjansi FOB',
-        codes: ['WHBNMY', 'WHBWBJ', 'WHKJNS', 'WHKITD', 'WHSEGK', 'WHNLMY', 'WHBWGA'],
+        codes: [
+          'WHBNMY',
+          'WHBWBJ',
+          'WHKJNS',
+          'WHKITD',
+          'WHSEGK',
+          'WHNLMY',
+          'WHBWGA',
+        ],
       },
       {
         name: 'Nakawuka FOB',
@@ -335,13 +388,30 @@ const REGION_FOB_LOCATION_MAP: {
     fobs: [
       {
         name: 'Gayaza FOB',
-        codes: ['WHGYZA', 'WHKSAS', 'WHKYBD', 'WHLSNJ', 'WHMGRE', 'WHMPRW', 'WHNGBO'],
+        codes: [
+          'WHGYZA',
+          'WHKSAS',
+          'WHKYBD',
+          'WHLSNJ',
+          'WHMGRE',
+          'WHMPRW',
+          'WHNGBO',
+        ],
       },
       {
         name: 'Wakiso FOB',
         codes: [
-          'WHBULB', 'WHBSGA', 'WHKKRI', 'WHKSGJ', 'WHKYGW',
-          'WHMSLT', 'WHMTYN', 'WHNSNA', 'WHNGND', 'WHWKSO', 'WHNYSA',
+          'WHBULB',
+          'WHBSGA',
+          'WHKKRI',
+          'WHKSGJ',
+          'WHKYGW',
+          'WHMSLT',
+          'WHMTYN',
+          'WHNSNA',
+          'WHNGND',
+          'WHWKSO',
+          'WHNYSA',
         ],
       },
       {
@@ -350,15 +420,39 @@ const REGION_FOB_LOCATION_MAP: {
       },
       {
         name: 'Matugga FOB',
-        codes: ['WHKVLE', 'WHMTUG', 'WHNKSK', 'WHNDJB', 'WHWTBA', 'WHWBLZ', 'WHLWRO'],
+        codes: [
+          'WHKVLE',
+          'WHMTUG',
+          'WHNKSK',
+          'WHNDJB',
+          'WHWTBA',
+          'WHWBLZ',
+          'WHLWRO',
+        ],
       },
       {
         name: 'Mpigi FOB',
-        codes: ['WHBUDO', 'WHGOMB', 'WHKTND', 'WHKYGR', 'WHMPGI', 'WHNSGI', 'WHMAYA'],
+        codes: [
+          'WHBUDO',
+          'WHGOMB',
+          'WHKTND',
+          'WHKYGR',
+          'WHMPGI',
+          'WHNSGI',
+          'WHMAYA',
+        ],
       },
       {
         name: 'Kiti FOB',
-        codes: ['WHKWND', 'WHKWMP', 'WHKLMZ', 'WHKITI', 'WHLGBA', 'WHMGJO', 'WHTULA'],
+        codes: [
+          'WHKWND',
+          'WHKWMP',
+          'WHKLMZ',
+          'WHKITI',
+          'WHLGBA',
+          'WHMGJO',
+          'WHTULA',
+        ],
       },
       {
         name: 'Sentema FOB',
@@ -372,8 +466,17 @@ const REGION_FOB_LOCATION_MAP: {
       {
         name: 'Jinja FOB',
         codes: [
-          'WHBDND', 'WHBGMB', 'WHBWNG', 'WHJNJA', 'WHKBBI',
-          'WHMBKO', 'WHMTAI', 'WHNJRU', 'WHNWPD', 'WHNMGR', 'WHMFBR',
+          'WHBDND',
+          'WHBGMB',
+          'WHBWNG',
+          'WHJNJA',
+          'WHKBBI',
+          'WHMBKO',
+          'WHMTAI',
+          'WHNJRU',
+          'WHNWPD',
+          'WHNMGR',
+          'WHMFBR',
         ],
       },
       {
@@ -403,7 +506,15 @@ const REGION_FOB_LOCATION_MAP: {
     fobs: [
       {
         name: 'Arua FOB',
-        codes: ['WHARUA', 'WHKBKO', 'WHNEBB', 'WHPDHA', 'WHPKCH', 'WHWNDI', 'WHBNDO'],
+        codes: [
+          'WHARUA',
+          'WHKBKO',
+          'WHNEBB',
+          'WHPDHA',
+          'WHPKCH',
+          'WHWNDI',
+          'WHBNDO',
+        ],
       },
       {
         name: 'Masaka FOB',
@@ -411,7 +522,16 @@ const REGION_FOB_LOCATION_MAP: {
       },
       {
         name: 'Mbarara FOB',
-        codes: ['WHBHRW', 'WHIBND', 'WHISHK', 'WHKBLE', 'WHKKBA', 'WHMBRA', 'WHNTGM', 'WHBSHY'],
+        codes: [
+          'WHBHRW',
+          'WHIBND',
+          'WHISHK',
+          'WHKBLE',
+          'WHKKBA',
+          'WHMBRA',
+          'WHNTGM',
+          'WHBSHY',
+        ],
       },
       {
         name: 'Fort Portal FOB',
@@ -428,7 +548,18 @@ const REGION_FOB_LOCATION_MAP: {
     fobs: [
       {
         name: 'Kenya FOB',
-        codes: ['WHJUJA', 'WHKEOL', 'WHKRCH', 'WHKMBU', 'WHKTGL', 'WHNRBI', 'WHONGR', 'WHRUIR', 'WHTHKA', 'WHMBSA'],
+        codes: [
+          'WHJUJA',
+          'WHKEOL',
+          'WHKRCH',
+          'WHKMBU',
+          'WHKTGL',
+          'WHNRBI',
+          'WHONGR',
+          'WHRUIR',
+          'WHTHKA',
+          'WHMBSA',
+        ],
       },
       {
         name: 'Rest of Africa FOB',
@@ -436,7 +567,18 @@ const REGION_FOB_LOCATION_MAP: {
       },
       {
         name: 'Europe & Oceania FOB',
-        codes: ['WHAUST', 'WHEONL', 'WHGNVA', 'WHGMNY', 'WHLEDS', 'WHLUTN', 'WHNWLS', 'WHUKDM', 'WHKFLD', 'WHWGAN'],
+        codes: [
+          'WHAUST',
+          'WHEONL',
+          'WHGNVA',
+          'WHGMNY',
+          'WHLEDS',
+          'WHLUTN',
+          'WHNWLS',
+          'WHUKDM',
+          'WHKFLD',
+          'WHWGAN',
+        ],
       },
       {
         name: 'Americas FOB',
@@ -457,77 +599,120 @@ const WHKTKT_ZONES: { name: string; mcs: { name: string }[] }[] = [
   {
     name: 'Cathedral Zone',
     mcs: [
-      { name: 'Beloved (A)' }, { name: 'Beyond Self (A)' }, { name: 'Blessed Kids (C)' },
-      { name: 'Feathers of Greatness (T)' }, { name: 'Hopeful (T)' }, { name: 'Matthew (A)' },
-      { name: 'Miraculous (A)' }, { name: 'Obedience (A)' }, { name: 'Revelation (T)' },
-      { name: 'Righteous (T)' }, { name: 'Zion (C)' },
+      { name: 'Beloved (A)' },
+      { name: 'Beyond Self (A)' },
+      { name: 'Blessed Kids (C)' },
+      { name: 'Feathers of Greatness (T)' },
+      { name: 'Hopeful (T)' },
+      { name: 'Matthew (A)' },
+      { name: 'Miraculous (A)' },
+      { name: 'Obedience (A)' },
+      { name: 'Revelation (T)' },
+      { name: 'Righteous (T)' },
+      { name: 'Zion (C)' },
     ],
   },
   {
     name: 'Kazinga',
     mcs: [
-      { name: "Be'zri (A)" }, { name: 'Divine (C)' }, { name: 'Grace (A)' }, { name: 'Nissi (C)' },
+      { name: "Be'zri (A)" },
+      { name: 'Divine (C)' },
+      { name: 'Grace (A)' },
+      { name: 'Nissi (C)' },
     ],
   },
   {
     name: 'Kijabijjo',
     mcs: [
-      { name: 'Bethel (T)' }, { name: 'Christ The King (T)' }, { name: 'Faithful (A)' },
-      { name: 'Galatians (T)' }, { name: 'Gates of Heaven (T)' }, { name: 'Genesis (T)' },
-      { name: 'Glory (C)' }, { name: 'Justified (T)' }, { name: 'Majesty (T)' },
-      { name: 'Mulungi (A)' }, { name: 'Overcomers (A)' }, { name: 'Peace (C)' },
-      { name: 'Peniel (T)' }, { name: 'True Star (C)' }, { name: 'Victory (T)' },
+      { name: 'Bethel (T)' },
+      { name: 'Christ The King (T)' },
+      { name: 'Faithful (A)' },
+      { name: 'Galatians (T)' },
+      { name: 'Gates of Heaven (T)' },
+      { name: 'Genesis (T)' },
+      { name: 'Glory (C)' },
+      { name: 'Justified (T)' },
+      { name: 'Majesty (T)' },
+      { name: 'Mulungi (A)' },
+      { name: 'Overcomers (A)' },
+      { name: 'Peace (C)' },
+      { name: 'Peniel (T)' },
+      { name: 'True Star (C)' },
+      { name: 'Victory (T)' },
     ],
   },
   {
     name: 'Kira',
     mcs: [
-      { name: 'Glorious (C)' }, { name: 'Icons (A)' },
-      { name: 'Kira Kapeera (A)' }, { name: 'Sufficient (A)' },
+      { name: 'Glorious (C)' },
+      { name: 'Icons (A)' },
+      { name: 'Kira Kapeera (A)' },
+      { name: 'Sufficient (A)' },
     ],
   },
   {
     name: 'Kitukutwe',
     mcs: [
-      { name: 'Arrows (C)' }, { name: 'Beautiful (A)' }, { name: 'Gratitude (A)' },
-      { name: 'Multitudes (A)' }, { name: 'Rooted (A)' }, { name: 'Shalom (C)' },
+      { name: 'Arrows (C)' },
+      { name: 'Beautiful (A)' },
+      { name: 'Gratitude (A)' },
+      { name: 'Multitudes (A)' },
+      { name: 'Rooted (A)' },
+      { name: 'Shalom (C)' },
     ],
   },
   {
     name: 'Kitukutwe 2',
     mcs: [
-      { name: 'Agape (A)' }, { name: 'Beacon of Power (A)' },
-      { name: 'Kwagala (A)' }, { name: 'Zoe (A)' },
+      { name: 'Agape (A)' },
+      { name: 'Beacon of Power (A)' },
+      { name: 'Kwagala (A)' },
+      { name: 'Zoe (A)' },
     ],
   },
   {
     name: 'Kiwologoma',
     mcs: [
-      { name: 'Harvest (T)' }, { name: 'Little Lighters (C)' }, { name: 'Redemption (A)' },
-      { name: 'Redemption Kids (C)' }, { name: 'Restoration (A)' },
-      { name: 'Solomon (A)' }, { name: 'Zion Wave (A)' },
+      { name: 'Harvest (T)' },
+      { name: 'Little Lighters (C)' },
+      { name: 'Redemption (A)' },
+      { name: 'Redemption Kids (C)' },
+      { name: 'Restoration (A)' },
+      { name: 'Solomon (A)' },
+      { name: 'Zion Wave (A)' },
     ],
   },
   {
     name: 'Najjera',
     mcs: [
-      { name: 'Faraja (A)' }, { name: "God's Will (A)" }, { name: 'Heirs of The Promise (A)' },
-      { name: 'Hosanna (A)' }, { name: 'Hosanna Kids (C)' }, { name: 'New Life (A)' },
+      { name: 'Faraja (A)' },
+      { name: "God's Will (A)" },
+      { name: 'Heirs of The Promise (A)' },
+      { name: 'Hosanna (A)' },
+      { name: 'Hosanna Kids (C)' },
+      { name: 'New Life (A)' },
     ],
   },
   {
     name: 'Namirembe rd',
     mcs: [
-      { name: 'Cubs of Judah(C)' }, { name: 'Lion of Judah (A)' },
-      { name: "Messiah's Own (T)" }, { name: 'Tendo (C)' },
+      { name: 'Cubs of Judah(C)' },
+      { name: 'Lion of Judah (A)' },
+      { name: "Messiah's Own (T)" },
+      { name: 'Tendo (C)' },
     ],
   },
   {
     name: 'Nsasa',
     mcs: [
-      { name: 'Abundance (A)' }, { name: 'Called to Greatness (C)' }, { name: 'Glory MC (A)' },
-      { name: "Heaven's little Heroes (C)" }, { name: 'Renaissance (T)' },
-      { name: 'Shalac (T)' }, { name: 'Shape (A)' }, { name: 'Steadfast (T)' },
+      { name: 'Abundance (A)' },
+      { name: 'Called to Greatness (C)' },
+      { name: 'Glory MC (A)' },
+      { name: "Heaven's little Heroes (C)" },
+      { name: 'Renaissance (T)' },
+      { name: 'Shalac (T)' },
+      { name: 'Shape (A)' },
+      { name: 'Steadfast (T)' },
     ],
   },
 ];
@@ -554,25 +739,41 @@ export class WhmGroupTreeSeedService {
     this.init();
     Logger.log('🌲 [WHM] Seeding group tree...');
 
-    const tenant = await this.tenantRepo.findOne({ where: { name: 'worshipharvest' } });
+    const tenant = await this.tenantRepo.findOne({
+      where: { name: 'worshipharvest' },
+    });
     if (!tenant) throw new Error('WHM tenant not found — run base seed first');
 
-    const movementCat  = await this.cat(tenant, 'Movement');
-    const regionCat    = await this.cat(tenant, 'Region');
-    const fobCat       = await this.cat(tenant, 'Forward Operating Base');
-    const locationCat  = await this.cat(tenant, 'Location');
-    const zoneCat      = await this.cat(tenant, 'Zone');
-    const mcCat        = await this.cat(tenant, 'Missional Community');
+    const movementCat = await this.cat(tenant, 'Movement');
+    const regionCat = await this.cat(tenant, 'Region');
+    const fobCat = await this.cat(tenant, 'Forward Operating Base');
+    const locationCat = await this.cat(tenant, 'Location');
+    const zoneCat = await this.cat(tenant, 'Zone');
+    const mcCat = await this.cat(tenant, 'Missional Community');
 
-    if (!movementCat || !regionCat || !fobCat || !locationCat || !zoneCat || !mcCat) {
-      throw new Error('Required group categories missing — run seedGroupCategories first');
+    if (
+      !movementCat ||
+      !regionCat ||
+      !fobCat ||
+      !locationCat ||
+      !zoneCat ||
+      !mcCat
+    ) {
+      throw new Error(
+        'Required group categories missing — run seedGroupCategories first',
+      );
     }
 
     // Build code → definition lookup
     const locationDefs = new Map(WHM_LOCATIONS.map((l) => [l.code, l]));
 
     // 1. Movement root
-    const movement = await this.findOrCreate('Worship Harvest', movementCat, tenant, null);
+    const movement = await this.findOrCreate(
+      'Worship Harvest',
+      movementCat,
+      tenant,
+      null,
+    );
 
     let fobCount = 0;
     let locCreated = 0;
@@ -582,21 +783,37 @@ export class WhmGroupTreeSeedService {
 
     // 2. Regions → FOBs → Locations
     for (const regionDef of REGION_FOB_LOCATION_MAP) {
-      const region = await this.findOrCreate(regionDef.region, regionCat, tenant, movement);
+      const region = await this.findOrCreate(
+        regionDef.region,
+        regionCat,
+        tenant,
+        movement,
+      );
 
       for (const fobDef of regionDef.fobs) {
-        const fob = await this.findOrCreate(fobDef.name, fobCat, tenant, region);
+        const fob = await this.findOrCreate(
+          fobDef.name,
+          fobCat,
+          tenant,
+          region,
+        );
         fobCount++;
 
         for (const code of fobDef.codes) {
           assignedCodes.add(code);
           const def = locationDefs.get(code);
           if (!def) {
-            Logger.warn(`[WHM] Code ${code} (${fobDef.name}) not in location master list`);
+            Logger.warn(
+              `[WHM] Code ${code} (${fobDef.name}) not in location master list`,
+            );
             continue;
           }
           const [loc, created] = await this.findOrCreateLocation(
-            def.code, def.name, locationCat, tenant, fob,
+            def.code,
+            def.name,
+            locationCat,
+            tenant,
+            fob,
           );
           if (created) locCreated++;
           else locExisting++;
@@ -620,23 +837,45 @@ export class WhmGroupTreeSeedService {
     return;
   }
 
-  /** Attach a group membership for an admin user to the top-level movement. */
+  /** Attach (or repair) a Leader membership for an admin user on the top-level Movement. */
   async assignAdminToMovement(username: string): Promise<void> {
     this.init();
-    const tenant = await this.tenantRepo.findOne({ where: { name: 'worshipharvest' } });
-    const movement = await this.groupRepo
-      .createQueryBuilder('g')
-      .where('g."tenantId" = :t', { t: tenant?.id })
-      .andWhere('g.name = :n', { n: 'Worship Harvest' })
-      .getOne();
+    const tenant = await this.tenantRepo.findOne({
+      where: { name: 'worshipharvest' },
+    });
+    if (!tenant) return;
+
+    // Scope movement lookup to the Movement category so a same-name group in
+    // another category cannot match.
+    const movementCat = await this.categoryRepo.findOne({
+      where: { name: 'Movement', tenant: { id: tenant.id } },
+    });
+    const movement = movementCat
+      ? await this.groupRepo
+          .createQueryBuilder('g')
+          .where('g."tenantId" = :t', { t: tenant.id })
+          .andWhere('g."categoryId" = :cat', { cat: movementCat.id })
+          .andWhere('g.name = :n', { n: 'Worship Harvest' })
+          .getOne()
+      : null;
 
     const user = await this.userRepo.findOne({ where: { username } });
     if (!user || !movement) return;
 
-    const exists = await this.membershipRepo.findOne({
+    const existing = await this.membershipRepo.findOne({
       where: { contactId: user.contactId, groupId: movement.id },
     });
-    if (exists) return;
+
+    if (existing) {
+      // Repair if the membership is inactive or not Leader
+      if (!existing.isActive || existing.role !== GroupRole.Leader) {
+        existing.isActive = true;
+        existing.role = GroupRole.Leader;
+        await this.membershipRepo.save(existing);
+        Logger.log('[WHM] Repaired admin membership on Worship Harvest');
+      }
+      return;
+    }
 
     await this.membershipRepo.save(
       this.membershipRepo.create({
@@ -646,15 +885,20 @@ export class WhmGroupTreeSeedService {
         isActive: true,
       }),
     );
-    Logger.log(`[WHM] Admin user ${username} assigned to Worship Harvest`);
+    Logger.log('[WHM] Admin assigned to Worship Harvest');
   }
 
   // ---------------------------------------------------------------------------
   // Private helpers
   // ---------------------------------------------------------------------------
 
-  private async cat(tenant: Tenant, name: string): Promise<GroupCategory | null> {
-    return this.categoryRepo.findOne({ where: { name, tenant: { id: tenant.id } } });
+  private async cat(
+    tenant: Tenant,
+    name: string,
+  ): Promise<GroupCategory | null> {
+    return this.categoryRepo.findOne({
+      where: { name, tenant: { id: tenant.id } },
+    });
   }
 
   private async findOrCreate(
@@ -663,7 +907,12 @@ export class WhmGroupTreeSeedService {
     tenant: Tenant,
     parent: Group | null,
   ): Promise<Group> {
-    const [group] = await this.findOrCreateByNameAndParent(name, category, tenant, parent);
+    const [group] = await this.findOrCreateByNameAndParent(
+      name,
+      category,
+      tenant,
+      parent,
+    );
     return group;
   }
 
@@ -688,7 +937,13 @@ export class WhmGroupTreeSeedService {
 
     return [
       await this.groupRepo.save(
-        this.groupRepo.create({ name, category, tenant, parent: parent ?? undefined, privacy: GroupPrivacy.Public }),
+        this.groupRepo.create({
+          name,
+          category,
+          tenant,
+          parent: parent ?? undefined,
+          privacy: GroupPrivacy.Public,
+        }),
       ),
       true,
     ];
@@ -701,19 +956,47 @@ export class WhmGroupTreeSeedService {
     tenant: Tenant,
     parent: Group,
   ): Promise<[Group, boolean]> {
-    const existing = await this.groupRepo
+    // 1. Primary lookup: match by metaData.code (stable identity)
+    const byCode = await this.groupRepo
       .createQueryBuilder('g')
       .where('g."tenantId" = :tenantId', { tenantId: tenant.id })
       .andWhere('g."categoryId" = :catId', { catId: category.id })
-      .andWhere(`g."metaData"->>'code' = :code`, { code })
+      .andWhere('g."metaData"->>\'code\' = :code', { code })
       .getOne();
 
-    if (existing) return [existing, false];
+    if (byCode) {
+      // Reparent if the location moved to a different FOB
+      if (byCode.parentId !== parent.id) {
+        byCode.parent = parent;
+        await this.groupRepo.save(byCode);
+      }
+      return [byCode, false];
+    }
 
+    // 2. Fallback: match legacy rows by name (no code in metaData yet)
+    const byName = await this.groupRepo
+      .createQueryBuilder('g')
+      .where('g."tenantId" = :tenantId', { tenantId: tenant.id })
+      .andWhere('g."categoryId" = :catId', { catId: category.id })
+      .andWhere('g.name = :name', { name })
+      .getOne();
+
+    if (byName) {
+      // Stamp the code and reparent to the correct FOB
+      byName.metaData = { ...(byName.metaData ?? {}), code };
+      byName.parent = parent;
+      await this.groupRepo.save(byName);
+      return [byName, false];
+    }
+
+    // 3. Create new
     return [
       await this.groupRepo.save(
         this.groupRepo.create({
-          name, category, tenant, parent,
+          name,
+          category,
+          tenant,
+          parent,
           privacy: GroupPrivacy.Public,
           metaData: { code },
         }),
@@ -731,10 +1014,20 @@ export class WhmGroupTreeSeedService {
     let zones = 0;
     let mcs = 0;
     for (const zoneDef of WHKTKT_ZONES) {
-      const [zone, zc] = await this.findOrCreateByNameAndParent(zoneDef.name, zoneCat, tenant, whktkt);
+      const [zone, zc] = await this.findOrCreateByNameAndParent(
+        zoneDef.name,
+        zoneCat,
+        tenant,
+        whktkt,
+      );
       if (zc) zones++;
       for (const mcDef of zoneDef.mcs) {
-        const [, mc] = await this.findOrCreateByNameAndParent(mcDef.name, mcCat, tenant, zone);
+        const [, mc] = await this.findOrCreateByNameAndParent(
+          mcDef.name,
+          mcCat,
+          tenant,
+          zone,
+        );
         if (mc) mcs++;
       }
     }

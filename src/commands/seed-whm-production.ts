@@ -9,7 +9,8 @@
  *
  * Usage:
  *   npm run seed:whm:production
- *   npm run seed:whm:production -- --dry-run   (skip clear; add/update on top of existing data)
+ *   npm run seed:whm:production -- --no-clear   (skip wipe; add/update on top of existing data)
+ *   npm run seed:whm:production -- --no-admin   (skip admin account creation)
  */
 
 import * as readline from 'readline';
@@ -37,9 +38,9 @@ async function promptAdminCredentials(): Promise<{
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
   const firstName = await ask('  First name  : ');
-  const lastName  = await ask('  Last name   : ');
-  const email     = await ask('  Email       : ');
-  const password  = await ask('  Password    : ');
+  const lastName = await ask('  Last name   : ');
+  const email = await ask('  Email       : ');
+  const password = await ask('  Password    : ');
 
   rl.close();
   console.log('');
@@ -51,11 +52,13 @@ async function promptAdminCredentials(): Promise<{
 }
 
 async function run() {
-  const isDryRun = process.argv.includes('--dry-run');
+  const noClear = process.argv.includes('--no-clear');
   const skipAdmin = process.argv.includes('--no-admin');
 
   // Collect admin credentials before starting the app (keeps stdin clean)
-  let adminCredentials: Awaited<ReturnType<typeof promptAdminCredentials>> | null = null;
+  let adminCredentials: Awaited<
+    ReturnType<typeof promptAdminCredentials>
+  > | null = null;
   if (!skipAdmin) {
     adminCredentials = await promptAdminCredentials();
   }
@@ -65,8 +68,10 @@ async function run() {
   const groupTreeSeed = app.get(WhmGroupTreeSeedService);
 
   try {
-    if (isDryRun) {
-      Logger.log('🔍 DRY RUN — skipping clear step');
+    if (noClear) {
+      Logger.log(
+        '⏭️  --no-clear: skipping database wipe, adding/updating on top of existing data',
+      );
     } else {
       Logger.log('🧹 Clearing all existing data...');
       await comprehensiveSeed.clearAll();
@@ -82,7 +87,9 @@ async function run() {
     Logger.log('📂 Seeding group categories...');
     await comprehensiveSeed.seedGroupCategories();
 
-    Logger.log('🌲 Seeding group tree (Movement → Regions → FOBs → Locations)...');
+    Logger.log(
+      '🌲 Seeding group tree (Movement → Regions → FOBs → Locations)...',
+    );
     await groupTreeSeed.seedGroupTree();
 
     if (adminCredentials) {
@@ -94,11 +101,13 @@ async function run() {
     Logger.log('\n✅ Production seed complete.');
     Logger.log('   Worship Harvest → 6 Regions → 37 FOBs → locations');
     if (adminCredentials) {
-      Logger.log(`   Admin login: ${adminCredentials.email}`);
+      Logger.log(
+        '   Admin account ready — use the credentials you entered to log in.',
+      );
     }
   } catch (error) {
     Logger.error('❌ Production seed failed:', error);
-    process.exit(1);
+    process.exitCode = 1; // let finally run so app.close() still executes
   } finally {
     await app.close();
   }
