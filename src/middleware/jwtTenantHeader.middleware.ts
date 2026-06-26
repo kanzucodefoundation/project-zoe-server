@@ -23,11 +23,16 @@ export class JwtTenantHeaderMiddleware implements NestMiddleware {
       : authHeader;
 
     try {
-      const tokenPayload = await this.jwtService.decodeToken(jwtToken);
+      const verifiedPayload = await this.jwtService.verifyToken(jwtToken);
+      const tenantValue = verifiedPayload?.aud;
       const tenant =
-        tokenPayload &&
-        Object.prototype.hasOwnProperty.call(tokenPayload, 'aud')
-          ? tokenPayload.aud
+        typeof tenantValue === 'string'
+          ? tenantValue
+          : Array.isArray(tenantValue)
+          ? tenantValue.find(
+              (value): value is string =>
+                typeof value === 'string' && value.trim().length > 0,
+            ) || ''
           : '';
       if (tenant) {
         req.headers.tenant = tenant;
@@ -35,7 +40,7 @@ export class JwtTenantHeaderMiddleware implements NestMiddleware {
       }
     } catch (err) {
       Logger.warn(
-        'Failed to decode JWT in JwtTenantHeaderMiddleware',
+        'Failed to verify JWT in JwtTenantHeaderMiddleware',
         err?.message || err,
       );
       // proceed without tenant header on decode failure

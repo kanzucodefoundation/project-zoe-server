@@ -53,8 +53,10 @@ export class EventsService {
     });
 
     if (membership?.group) {
-      const _descendants = await this.getDescendantIds(membership.group.id);
-      descendants = _descendants ?? [];
+      const descendantIds = await this.getDescendantIds(membership.group.id);
+      descendants = Array.from(
+        new Set([membership.group.id, ...descendantIds]),
+      );
     }
 
     if (hasValue(req.groupIdList)) {
@@ -104,8 +106,8 @@ export class EventsService {
 
       const _children = await Promise.all(
         parents.map(async (parent) => {
-          const single = await this.getDescendantIds(parent.id);
-          return single;
+          const descendantIds = await this.getDescendantIds(parent.id);
+          return [parent.id, ...descendantIds];
         }),
       );
 

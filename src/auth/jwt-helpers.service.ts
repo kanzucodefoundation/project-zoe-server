@@ -22,4 +22,8 @@ export class JwtHelperService {
     const decoded = await this.jwtService.decode(token);
     return decoded;
   }
+  async verifyToken(token: string, options?: JwtSignOptions): Promise<any> {
+    const verified = await this.jwtService.verifyAsync(token, options);
+    return verified;
+  }
 }

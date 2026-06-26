@@ -9,8 +9,6 @@ import config from './config';
 import { ValidationPipe } from '@nestjs/common';
 import { HttpExceptionFilter } from './auth/http-exception.filter';
 import * as Sentry from '@sentry/node';
-import { JwtTenantHeaderMiddleware } from './middleware/jwtTenantHeader.middleware';
-
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.use(helmet());
@@ -27,14 +25,6 @@ async function bootstrap() {
       max: 10000, // limit each IP to 100 requests per windowMs
     }),
   );
-  const jwtTenantHeaderMiddleware = app.get(JwtTenantHeaderMiddleware);
-  app.use((req, res, next) => {
-    jwtTenantHeaderMiddleware.use(req, res, next).catch((error) => {
-      console.error('JWT tenant middleware error:', error);
-      next(error);
-    });
-  });
-
   app.useGlobalFilters(new HttpExceptionFilter());
   app.useGlobalPipes(
     new ValidationPipe({

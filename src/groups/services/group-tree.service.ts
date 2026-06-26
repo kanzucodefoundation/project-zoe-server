@@ -4,6 +4,7 @@ import { Cache } from 'cache-manager';
 import { Connection, In, Repository } from 'typeorm';
 import Group from '../entities/group.entity';
 import GroupCategory from '../entities/groupCategory.entity';
+import { quoteIdentifier } from 'src/utils/quote-identifier';
 
 @Injectable()
 export class GroupTreeService {
@@ -98,14 +99,16 @@ export class GroupTreeService {
       try {
         const ancestorIds = await this.getAncestorIds(group.id);
 
-        for (const ancestorId of ancestorIds) {
-          const ancestorWithCategory = await this.repository.findOne({
-            where: { id: ancestorId },
+        if (ancestorIds.length > 0) {
+          const ancestorsWithCategory = await this.repository.find({
+            where: { id: In(ancestorIds) },
             relations: ['category'],
           });
 
-          if (ancestorWithCategory?.category) {
-            categories.add(ancestorWithCategory.category.name);
+          for (const ancestorWithCategory of ancestorsWithCategory) {
+            if (ancestorWithCategory?.category) {
+              categories.add(ancestorWithCategory.category.name);
+            }
           }
         }
       } catch (error) {
@@ -206,17 +209,19 @@ export class GroupTreeService {
     try {
       const ancestorIds = await this.getAncestorIds(group.id);
 
-      for (const ancestorId of ancestorIds) {
-        const ancestorWithCategory = await this.repository.findOne({
-          where: { id: ancestorId },
+      if (ancestorIds.length > 0) {
+        const ancestorsWithCategory = await this.repository.find({
+          where: { id: In(ancestorIds) },
           relations: ['category'],
         });
 
-        if (
-          ancestorWithCategory?.category &&
-          allowedCategories.includes(ancestorWithCategory.category.name)
-        ) {
-          return true;
+        for (const ancestorWithCategory of ancestorsWithCategory) {
+          if (
+            ancestorWithCategory?.category &&
+            allowedCategories.includes(ancestorWithCategory.category.name)
+          ) {
+            return true;
+          }
         }
       }
     } catch (error) {
@@ -273,11 +278,13 @@ export class GroupTreeService {
     const metadata = this.repository.metadata;
     const closureMetadata = metadata.closureJunctionTable;
     const groupTable = metadata.schema
-      ? `"${metadata.schema}"."${metadata.tableName}"`
-      : `"${metadata.tableName}"`;
+      ? quoteIdentifier(`${metadata.schema}.${metadata.tableName}`)
+      : quoteIdentifier(metadata.tableName);
     const closureTable = closureMetadata.schema
-      ? `"${closureMetadata.schema}"."${closureMetadata.tableName}"`
-      : `"${closureMetadata.tableName}"`;
+      ? quoteIdentifier(
+          `${closureMetadata.schema}.${closureMetadata.tableName}`,
+        )
+      : quoteIdentifier(closureMetadata.tableName);
     const ancestorColumn = closureMetadata.ancestorColumns[0].databaseName;
     const descendantColumn = closureMetadata.descendantColumns[0].databaseName;
     return { groupTable, closureTable, ancestorColumn, descendantColumn };

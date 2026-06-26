@@ -37,6 +37,7 @@ import {
   InternalServerErrorException,
 } from '@nestjs/common';
 import { Tenant } from 'src/tenants/entities/tenant.entity';
+import { quoteIdentifier } from 'src/utils/quote-identifier';
 
 @Injectable()
 export class GroupsService {
@@ -506,9 +507,12 @@ export class GroupsService {
       const descendantColumn =
         closureMetadata.descendantColumns[0].databaseName;
 
+      const quotedGroupTable = quoteIdentifier(groupTable);
+      const quotedClosureTable = quoteIdentifier(closureTable);
+
       const ancestorRows: Array<{ id: number }> = await this.repository.query(
-        `SELECT g.id FROM ${groupTable} g
-         JOIN ${closureTable} c ON c."${ancestorColumn}" = g.id
+        `SELECT g.id FROM ${quotedGroupTable} g
+         JOIN ${quotedClosureTable} c ON c."${ancestorColumn}" = g.id
          WHERE c."${descendantColumn}" = $1
            AND g.id != $1`,
         [data.id],
@@ -516,16 +520,19 @@ export class GroupsService {
       groupData.parents = ancestorRows.map((it) => it.id);
 
       const descendantRows: Array<{ id: number }> = await this.repository.query(
-        `SELECT g.id FROM ${groupTable} g
-         JOIN ${closureTable} c ON c."${descendantColumn}" = g.id
+        `SELECT g.id FROM ${quotedGroupTable} g
+         JOIN ${quotedClosureTable} c ON c."${descendantColumn}" = g.id
          WHERE c."${ancestorColumn}" = $1
            AND g.id != $1`,
         [data.id],
       );
+      const scopedGroupIds = Array.from(
+        new Set([data.id, ...descendantRows.map((it) => it.id)]),
+      );
       groupData.children = descendantRows.map((it) => it.id);
 
       const filter = {
-        groupId: In(groupData.children),
+        groupId: In(scopedGroupIds),
         startDate: MoreThanOrEqual(startOfMonth(new Date())),
         endDate: LessThanOrEqual(endOfMonth(new Date())),
       };
@@ -552,7 +559,7 @@ export class GroupsService {
         await this.groupsPermissionsService.hasPermissionForGroup(user, id);
       groupData.reports = await this.eventRepository.find({
         relations: ['category', 'attendance'],
-        where: { groupId: In(groupData.children) },
+        where: { groupId: In(scopedGroupIds) },
         select: ['id', 'name', 'startDate'],
       });
 
