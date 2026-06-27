@@ -6,6 +6,7 @@ import {
   MoreThanOrEqual,
   Repository,
   Connection,
+  TreeRepository,
 } from 'typeorm';
 import { GoogleService } from '../vendor/google.service';
 import GooglePlaceDto from '../vendor/google-place.dto';
@@ -27,7 +28,7 @@ import GroupMembership from 'src/groups/entities/groupMembership.entity';
 export class EventsService {
   private readonly repository: Repository<GroupEvent>;
   private readonly categoryRepository: Repository<EventCategory>;
-  private readonly groupRepository: Repository<Group>;
+  private readonly groupRepository: TreeRepository<Group>;
   private readonly membershipRepository: Repository<GroupMembership>;
 
   constructor(
@@ -36,7 +37,7 @@ export class EventsService {
   ) {
     this.repository = connection.getRepository(GroupEvent);
     this.categoryRepository = connection.getRepository(EventCategory);
-    this.groupRepository = connection.getRepository(Group);
+    this.groupRepository = connection.getTreeRepository(Group);
     this.membershipRepository = connection.getRepository(GroupMembership);
   }
 
@@ -53,10 +54,10 @@ export class EventsService {
     });
 
     if (membership?.group) {
-      const descendantIds = await this.getDescendantIds(membership.group.id);
-      descendants = Array.from(
-        new Set([membership.group.id, ...descendantIds]),
+      const _descendants = await this.groupRepository.findDescendants(
+        membership.group,
       );
+      descendants = _descendants?.map((it) => it.id) ?? [];
     }
 
     if (hasValue(req.groupIdList)) {
@@ -106,8 +107,8 @@ export class EventsService {
 
       const _children = await Promise.all(
         parents.map(async (parent) => {
-          const descendantIds = await this.getDescendantIds(parent.id);
-          return [parent.id, ...descendantIds];
+          const single = await this.groupRepository.findDescendants(parent);
+          return single.map((g) => g.id);
         }),
       );
 
@@ -189,34 +190,6 @@ export class EventsService {
       category: category ? { id: category.id, name: category.name } : null,
       categoryFields: category.fields,
     };
-  }
-
-  private getClosureQueryParams() {
-    const metadata = this.groupRepository.metadata;
-    const closureMetadata = metadata.closureJunctionTable;
-    const groupTable = metadata.schema
-      ? `"${metadata.schema}"."${metadata.tableName}"`
-      : `"${metadata.tableName}"`;
-    const closureTable = closureMetadata.schema
-      ? `"${closureMetadata.schema}"."${closureMetadata.tableName}"`
-      : `"${closureMetadata.tableName}"`;
-    const ancestorColumn = closureMetadata.ancestorColumns[0].databaseName;
-    const descendantColumn = closureMetadata.descendantColumns[0].databaseName;
-    return { groupTable, closureTable, ancestorColumn, descendantColumn };
-  }
-
-  private async getDescendantIds(groupId: number): Promise<number[]> {
-    const { groupTable, closureTable, ancestorColumn, descendantColumn } =
-      this.getClosureQueryParams();
-
-    const rows: Array<{ id: number }> = await this.groupRepository.query(
-      `SELECT g.id FROM ${groupTable} g
-       JOIN ${closureTable} c ON c."${descendantColumn}" = g.id
-       WHERE c."${ancestorColumn}" = $1
-         AND g.id != $1`,
-      [groupId],
-    );
-    return rows.map((row) => row.id);
   }
 
   async create(data: CreateEventDto): Promise<GroupEventDto> {

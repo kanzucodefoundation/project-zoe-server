@@ -9,43 +9,17 @@ export class JwtTenantHeaderMiddleware implements NestMiddleware {
   constructor(private readonly jwtService: JwtHelperService) {}
 
   async use(req: any, res: any, next: () => void) {
-    // Safely handle missing Authorization header
-    const authHeader =
-      req?.headers?.authorization || req?.headers?.Authorization;
-    if (!authHeader) {
-      // No auth header present; don't set tenant and continue
-      return next();
-    }
+    // @TODO Check if req.headers.authorization exists. Throw error if not
+    const jwtToken = req.headers.authorization.slice(7);
+    const tokenPayload = await this.jwtService.decodeToken(jwtToken);
+    const tenant =
+      tokenPayload && tokenPayload.hasOwnProperty('aud')
+        ? tokenPayload.aud
+        : '';
 
-    // Support 'Bearer <token>' or raw token
-    const jwtToken = authHeader.startsWith('Bearer ')
-      ? authHeader.slice(7)
-      : authHeader;
+    req.headers.tenant = tenant;
+    Logger.log(`New request received from church: ${tenant}`);
 
-    try {
-      const verifiedPayload = await this.jwtService.verifyToken(jwtToken);
-      const tenantValue = verifiedPayload?.aud;
-      const tenant =
-        typeof tenantValue === 'string'
-          ? tenantValue
-          : Array.isArray(tenantValue)
-          ? tenantValue.find(
-              (value): value is string =>
-                typeof value === 'string' && value.trim().length > 0,
-            ) || ''
-          : '';
-      if (tenant) {
-        req.headers.tenant = tenant;
-        Logger.log(`New request received from church: ${tenant}`);
-      }
-    } catch (err) {
-      Logger.warn(
-        'Failed to verify JWT in JwtTenantHeaderMiddleware',
-        err?.message || err,
-      );
-      // proceed without tenant header on decode failure
-    }
-
-    return next();
+    next();
   }
 }

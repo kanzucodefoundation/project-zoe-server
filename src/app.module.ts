@@ -1,9 +1,4 @@
-import {
-  Global,
-  Module,
-  MiddlewareConsumer,
-  RequestMethod,
-} from '@nestjs/common';
+import { Global, Module, MiddlewareConsumer } from '@nestjs/common';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { AuthController } from './auth/auth.controller';
 import { AppService } from './app.service';
@@ -34,7 +29,6 @@ import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { redisStore } from 'cache-manager-redis-yet';
 import { AppLogger } from './utils/app-logger.service';
 import { PerformanceMonitoringInterceptor } from './interceptors/performance-monitoring.interceptor';
-import { JwtTenantHeaderMiddleware } from './middleware/jwtTenantHeader.middleware';
 
 @Global()
 @Module({
@@ -80,7 +74,6 @@ import { JwtTenantHeaderMiddleware } from './middleware/jwtTenantHeader.middlewa
   providers: [
     AppService,
     AppLogger,
-    JwtTenantHeaderMiddleware,
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard,
@@ -103,9 +96,5 @@ export class AppModule {
         'api/tenants',
         'api/tenants/seed',
       );
-
-    consumer
-      .apply(JwtTenantHeaderMiddleware)
-      .forRoutes({ path: '*', method: RequestMethod.ALL });
   }
 }
