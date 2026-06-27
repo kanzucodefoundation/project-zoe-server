@@ -143,7 +143,17 @@ export class ContactImportController {
             });
           }
 
-          let person = await this.service.findByEmail(contactModel.email);
+          // Email-less contacts (e.g. children) fall back to (firstName, lastName, groupId)
+          // dedup — weaker than email since name collisions within a group are possible.
+          // Once child-to-parent linking lands, the parent becomes the authoritative anchor.
+          // See: https://github.com/kanzucodefoundation/project-zoe-server/issues/208
+          let person = contactModel.email
+            ? await this.service.findByEmail(contactModel.email)
+            : await this.service.findByNameAndGroup(
+                contactModel.firstName,
+                contactModel.lastName,
+                effectiveGroupId,
+              );
           if (!person) {
             person = await this.service.createPerson(contactModel);
           }

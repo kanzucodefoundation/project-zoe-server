@@ -1539,6 +1539,25 @@ export class ContactsService {
     return emailRecord?.contact;
   }
 
+  async findByNameAndGroup(
+    firstName: string,
+    lastName: string,
+    groupId: number,
+  ): Promise<Contact | undefined> {
+    const tenantId = this.tenantContext.requireTenant();
+    const membership = await this.membershipRepository
+      .createQueryBuilder('gm')
+      .innerJoinAndSelect('gm.contact', 'contact')
+      .innerJoin('contact.person', 'person')
+      .innerJoin('contact.tenant', 'tenant')
+      .where('gm.groupId = :groupId', { groupId })
+      .andWhere('LOWER(person.firstName) = LOWER(:firstName)', { firstName })
+      .andWhere('LOWER(person.lastName) = LOWER(:lastName)', { lastName })
+      .andWhere('tenant.id = :tenantId', { tenantId })
+      .getOne();
+    return membership?.contact;
+  }
+
   async findByName(username: string): Promise<Contact | undefined> {
     return await this.repository
       .createQueryBuilder('user')
