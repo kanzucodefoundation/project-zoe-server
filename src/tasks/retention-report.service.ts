@@ -8,6 +8,7 @@ export interface MonthlyRow {
   monthName: string;
   totalNewContacts: number;
   successfulCallsMade: number;
+  unreachable: number;
   wantToJoinMC: number;
   servingTeam: number;
   teaHangout: number;
@@ -19,6 +20,7 @@ export interface WeeklyRow {
   label: string;
   totalNewContacts: number;
   successfulCallsMade: number;
+  unreachable: number;
   wantToJoinMC: number;
   servingTeams: number;
   teaHangout: number;
@@ -30,6 +32,7 @@ const ACTIVITY_TYPES = [
   ContactActivityType.JOINED_SERVING_TEAM,
   ContactActivityType.ATTENDED_FELLOWSHIP,
   ContactActivityType.GOT_BAPTISED,
+  ContactActivityType.UNREACHABLE,
 ];
 
 const MONTH_NAMES = [
@@ -73,6 +76,7 @@ export class RetentionReportService {
   ): Promise<{
     recorded: number;
     retained: number;
+    unreachable: number;
     joinedFellowship: number;
     joinedServingTeam: number;
     baptised: number;
@@ -126,9 +130,14 @@ export class RetentionReportService {
       ContactActivityType.GOT_BAPTISED,
     ]);
 
+    const unreachable = await countDistinctByType([
+      ContactActivityType.UNREACHABLE,
+    ]);
+
     return {
       recorded,
       retained,
+      unreachable,
       joinedFellowship,
       joinedServingTeam,
       baptised,
@@ -201,6 +210,8 @@ export class RetentionReportService {
         monthName: name,
         totalNewContacts: newContactsMap.get(m) ?? 0,
         successfulCallsMade: callsMap.get(m) ?? 0,
+        unreachable:
+          activityMap.get(`${m}_${ContactActivityType.UNREACHABLE}`) ?? 0,
         wantToJoinMC:
           activityMap.get(`${m}_${ContactActivityType.ATTENDED_FELLOWSHIP}`) ??
           0,
@@ -296,6 +307,8 @@ export class RetentionReportService {
         label: formatWeekLabel(cursor),
         totalNewContacts: newContactsMap.get(dateStr) ?? 0,
         successfulCallsMade: callsMap.get(dateStr) ?? 0,
+        unreachable:
+          activityMap.get(`${dateStr}_${ContactActivityType.UNREACHABLE}`) ?? 0,
         wantToJoinMC:
           activityMap.get(
             `${dateStr}_${ContactActivityType.ATTENDED_FELLOWSHIP}`,

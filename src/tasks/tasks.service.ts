@@ -4,7 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Connection, In, Repository } from 'typeorm';
+import { Connection, EntityManager, In, Repository } from 'typeorm';
 import { Task } from './entities/task.entity';
 import { TaskComment } from './entities/task-comment.entity';
 import { TaskAttachment } from './entities/task-attachment.entity';
@@ -62,6 +62,7 @@ type TaskListPayload = {
 
 @Injectable()
 export class TasksService {
+  private readonly connection: Connection;
   private readonly taskRepository: Repository<Task>;
   private readonly commentRepository: Repository<TaskComment>;
   private readonly attachmentRepository: Repository<TaskAttachment>;
@@ -73,6 +74,7 @@ export class TasksService {
     private readonly tenantContext: TenantContext,
     private readonly contactActivityService: ContactActivityService,
   ) {
+    this.connection = connection;
     this.taskRepository = connection.getRepository(Task);
     this.commentRepository = connection.getRepository(TaskComment);
     this.attachmentRepository = connection.getRepository(TaskAttachment);
@@ -285,109 +287,151 @@ export class TasksService {
 
     const contactId = task.contact.id;
 
-    switch (dto.status) {
-      case TaskStatus.ATTENDED_FELLOWSHIP:
-      case TaskStatus.JOINED_SERVING_TEAM: {
-        if (!dto.groupId || !dto.activityDate) {
-          throw new BadRequestException(
-            'groupId and activityDate are required for this status',
-          );
-        }
-
-        const savedMembership =
-          dto.status === TaskStatus.ATTENDED_FELLOWSHIP
-            ? await this.ensureCategoryMembership(
-                contactId,
-                dto.groupId,
-                GroupCategoryPurpose.FELLOWSHIP,
-              )
-            : await this.ensureCategoryMembership(
-                contactId,
-                dto.groupId,
-                GroupCategoryPurpose.SERVING_TEAM,
-                true,
-              );
-
-        await this.contactActivityService.record({
-          tenantId,
-          contactId,
-          type:
-            dto.status === TaskStatus.ATTENDED_FELLOWSHIP
-              ? ContactActivityType.ATTENDED_FELLOWSHIP
-              : ContactActivityType.JOINED_SERVING_TEAM,
-          summary:
-            dto.status === TaskStatus.ATTENDED_FELLOWSHIP
-              ? 'Attended fellowship'
-              : 'Joined serving team',
-          occurredAt: new Date(dto.activityDate),
-          recordedById: userId,
-          referenceTable: 'group_membership',
-          referenceId: savedMembership.id,
-        });
-        break;
-      }
-
-      case TaskStatus.MATCHED_TO_FELLOWSHIP: {
-        await this.contactActivityService.record({
-          tenantId,
-          contactId,
-          type: ContactActivityType.MATCHED_TO_FELLOWSHIP,
-          summary: 'Matched to a fellowship',
-          occurredAt: new Date(),
-          recordedById: userId,
-        });
-        break;
-      }
-
-      case TaskStatus.GOT_BAPTISED: {
-        if (!dto.baptismDate) {
-          throw new BadRequestException(
-            'baptismDate is required when status is GOT_BAPTISED',
-          );
-        }
-
-        // TODO: Wire up EventAttendance once event tracking module is built
-
-        const summaryParts = ['Got baptised'];
-        if (dto.baptismLocation) summaryParts.push(`at ${dto.baptismLocation}`);
-        if (dto.baptismOfficiant)
-          summaryParts.push(`by ${dto.baptismOfficiant}`);
-
-        await this.contactActivityService.record({
-          tenantId,
-          contactId,
-          type: ContactActivityType.GOT_BAPTISED,
-          summary: summaryParts.join(' '),
-          occurredAt: new Date(dto.baptismDate),
-          recordedById: userId,
-          referenceTable: 'task',
-          referenceId: task.id,
-        });
-        break;
-      }
-
-      case TaskStatus.DONE: {
-        await this.contactActivityService.record({
-          tenantId,
-          contactId,
-          type: ContactActivityType.TASK_COMPLETED,
-          summary: `${task.type} task completed`,
-          occurredAt: new Date(),
-          recordedById: userId,
-          referenceTable: 'task',
-          referenceId: task.id,
-        });
-        break;
-      }
-
-      case TaskStatus.UNREACHABLE: {
-        break;
-      }
+    // Validate inputs that would throw before opening the transaction
+    if (
+      (dto.status === TaskStatus.ATTENDED_FELLOWSHIP ||
+        dto.status === TaskStatus.JOINED_SERVING_TEAM) &&
+      (!dto.groupId || !dto.activityDate)
+    ) {
+      throw new BadRequestException(
+        'groupId and activityDate are required for this status',
+      );
+    }
+    if (dto.status === TaskStatus.GOT_BAPTISED && !dto.baptismDate) {
+      throw new BadRequestException(
+        'baptismDate is required when status is GOT_BAPTISED',
+      );
     }
 
-    task.status = dto.status;
-    task.completedAt = new Date();
-    await this.taskRepository.save(task);
+    // Side effects that must happen before the transaction (membership writes
+    // use class-bound repos; making them transactional is a separate refactor)
+    let membershipId: number | undefined;
+    if (
+      dto.status === TaskStatus.ATTENDED_FELLOWSHIP ||
+      dto.status === TaskStatus.JOINED_SERVING_TEAM
+    ) {
+      const savedMembership =
+        dto.status === TaskStatus.ATTENDED_FELLOWSHIP
+          ? await this.ensureCategoryMembership(
+              contactId,
+              dto.groupId,
+              GroupCategoryPurpose.FELLOWSHIP,
+            )
+          : await this.ensureCategoryMembership(
+              contactId,
+              dto.groupId,
+              GroupCategoryPurpose.SERVING_TEAM,
+              true,
+            );
+      membershipId = savedMembership.id;
+    }
+
+    // contact_activity insert and task status update are atomic
+    await this.connection.transaction(async (em: EntityManager) => {
+      switch (dto.status) {
+        case TaskStatus.ATTENDED_FELLOWSHIP:
+        case TaskStatus.JOINED_SERVING_TEAM: {
+          await this.contactActivityService.record(
+            {
+              tenantId,
+              contactId,
+              type:
+                dto.status === TaskStatus.ATTENDED_FELLOWSHIP
+                  ? ContactActivityType.ATTENDED_FELLOWSHIP
+                  : ContactActivityType.JOINED_SERVING_TEAM,
+              summary:
+                dto.status === TaskStatus.ATTENDED_FELLOWSHIP
+                  ? 'Attended fellowship'
+                  : 'Joined serving team',
+              occurredAt: new Date(dto.activityDate),
+              recordedById: userId,
+              referenceTable: 'group_membership',
+              referenceId: membershipId,
+            },
+            em,
+          );
+          break;
+        }
+
+        case TaskStatus.MATCHED_TO_FELLOWSHIP: {
+          await this.contactActivityService.record(
+            {
+              tenantId,
+              contactId,
+              type: ContactActivityType.MATCHED_TO_FELLOWSHIP,
+              summary: 'Matched to a fellowship',
+              occurredAt: new Date(),
+              recordedById: userId,
+            },
+            em,
+          );
+          break;
+        }
+
+        case TaskStatus.GOT_BAPTISED: {
+          // TODO: Wire up EventAttendance once event tracking module is built
+          const summaryParts = ['Got baptised'];
+          if (dto.baptismLocation)
+            summaryParts.push(`at ${dto.baptismLocation}`);
+          if (dto.baptismOfficiant)
+            summaryParts.push(`by ${dto.baptismOfficiant}`);
+
+          await this.contactActivityService.record(
+            {
+              tenantId,
+              contactId,
+              type: ContactActivityType.GOT_BAPTISED,
+              summary: summaryParts.join(' '),
+              occurredAt: new Date(dto.baptismDate),
+              recordedById: userId,
+              referenceTable: 'task',
+              referenceId: task.id,
+            },
+            em,
+          );
+          break;
+        }
+
+        case TaskStatus.DONE: {
+          await this.contactActivityService.record(
+            {
+              tenantId,
+              contactId,
+              type: ContactActivityType.TASK_COMPLETED,
+              summary: `${task.type} task completed`,
+              occurredAt: new Date(),
+              recordedById: userId,
+              referenceTable: 'task',
+              referenceId: task.id,
+            },
+            em,
+          );
+          break;
+        }
+
+        case TaskStatus.UNREACHABLE: {
+          await this.contactActivityService.record(
+            {
+              tenantId,
+              contactId,
+              type: ContactActivityType.UNREACHABLE,
+              summary: `${task.type} task marked as unreachable`,
+              occurredAt: new Date(),
+              recordedById: userId,
+              referenceTable: 'task',
+              referenceId: task.id,
+            },
+            em,
+          );
+          break;
+        }
+      }
+
+      task.status = dto.status;
+      task.completedAt = new Date();
+      await em.save(task);
+    });
+
     return this.findTaskWithRelations(taskId, tenantId);
   }
 

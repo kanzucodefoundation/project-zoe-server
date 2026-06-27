@@ -112,18 +112,6 @@ export class ContactImportController {
           const contactName =
             uploadedContact.firstName || uploadedContact.name || 'Unknown';
 
-          if (!contactModel.email) {
-            const userErrorMessage = `Contact ${contactName} at position ${
-              index + 1
-            } out of ${
-              list.length
-            } contacts not created. Error message: Email is required. Email is needed to log into the system.`;
-            Logger.error(userErrorMessage);
-            errors.push(userErrorMessage);
-            notCreated.push(uploadedContact);
-            continue;
-          }
-
           const effectiveGroupId = uploadedContact.groupId || locationGroup?.id;
           if (!effectiveGroupId) {
             const userErrorMessage = `Contact ${contactName} at position ${
@@ -155,7 +143,17 @@ export class ContactImportController {
             });
           }
 
-          let person = await this.service.findByEmail(contactModel.email);
+          // Email-less contacts (e.g. children) fall back to (firstName, lastName, groupId)
+          // dedup — weaker than email since name collisions within a group are possible.
+          // Once child-to-parent linking lands, the parent becomes the authoritative anchor.
+          // See: https://github.com/kanzucodefoundation/project-zoe-server/issues/208
+          let person = contactModel.email
+            ? await this.service.findByEmail(contactModel.email)
+            : await this.service.findByNameAndGroup(
+                contactModel.firstName,
+                contactModel.lastName,
+                effectiveGroupId,
+              );
           if (!person) {
             person = await this.service.createPerson(contactModel);
           }
