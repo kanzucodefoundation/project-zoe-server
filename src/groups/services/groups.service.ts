@@ -37,7 +37,6 @@ import {
   InternalServerErrorException,
 } from '@nestjs/common';
 import { Tenant } from 'src/tenants/entities/tenant.entity';
-import { quoteIdentifier } from 'src/utils/quote-identifier';
 
 @Injectable()
 export class GroupsService {
@@ -499,40 +498,14 @@ export class GroupsService {
       });
       const groupData = this.toSimpleView(data);
 
-      const groupMetadata = this.repository.metadata;
-      const closureMetadata = groupMetadata.closureJunctionTable;
-      const groupTable = groupMetadata.tablePath;
-      const closureTable = closureMetadata.tablePath;
-      const ancestorColumn = closureMetadata.ancestorColumns[0].databaseName;
-      const descendantColumn =
-        closureMetadata.descendantColumns[0].databaseName;
+      const ancestors = await this.treeRepository.findAncestors(data);
+      groupData.parents = ancestors.map((it) => it.id);
 
-      const quotedGroupTable = quoteIdentifier(groupTable);
-      const quotedClosureTable = quoteIdentifier(closureTable);
-
-      const ancestorRows: Array<{ id: number }> = await this.repository.query(
-        `SELECT g.id FROM ${quotedGroupTable} g
-         JOIN ${quotedClosureTable} c ON c."${ancestorColumn}" = g.id
-         WHERE c."${descendantColumn}" = $1
-           AND g.id != $1`,
-        [data.id],
-      );
-      groupData.parents = ancestorRows.map((it) => it.id);
-
-      const descendantRows: Array<{ id: number }> = await this.repository.query(
-        `SELECT g.id FROM ${quotedGroupTable} g
-         JOIN ${quotedClosureTable} c ON c."${descendantColumn}" = g.id
-         WHERE c."${ancestorColumn}" = $1
-           AND g.id != $1`,
-        [data.id],
-      );
-      const scopedGroupIds = Array.from(
-        new Set([data.id, ...descendantRows.map((it) => it.id)]),
-      );
-      groupData.children = descendantRows.map((it) => it.id);
+      const descendants = await this.treeRepository.findDescendants(data);
+      groupData.children = descendants.map((it) => it.id);
 
       const filter = {
-        groupId: In(scopedGroupIds),
+        groupId: In(groupData.children),
         startDate: MoreThanOrEqual(startOfMonth(new Date())),
         endDate: LessThanOrEqual(endOfMonth(new Date())),
       };
@@ -559,7 +532,7 @@ export class GroupsService {
         await this.groupsPermissionsService.hasPermissionForGroup(user, id);
       groupData.reports = await this.eventRepository.find({
         relations: ['category', 'attendance'],
-        where: { groupId: In(scopedGroupIds) },
+        where: { groupId: In(groupData.children) },
         select: ['id', 'name', 'startDate'],
       });
 
