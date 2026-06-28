@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { Connection, In, Repository } from 'typeorm';
+import { Connection, In, Repository, TreeRepository } from 'typeorm';
 import Group from '../entities/group.entity';
 import GroupMembership from '../entities/groupMembership.entity';
 import { GroupRole } from '../enums/groupRole';
@@ -9,10 +9,12 @@ import { roleAdmin } from '../../auth/constants';
 @Injectable()
 export class GroupPermissionsService {
   private readonly repository: Repository<Group>;
+  private readonly treeRepository: TreeRepository<Group>;
   private readonly membershipRepository: Repository<GroupMembership>;
 
   constructor(@Inject('CONNECTION') connection: Connection) {
     this.repository = connection.getRepository(Group);
+    this.treeRepository = connection.getTreeRepository(Group);
     this.membershipRepository = connection.getRepository(GroupMembership);
   }
 
@@ -42,7 +44,8 @@ export class GroupPermissionsService {
       return false;
     }
 
-    const ancestorIds = await this.getAncestorIds(targetGroup.id);
+    const ancestors = await this.treeRepository.findAncestors(targetGroup);
+    const ancestorIds = ancestors.map((it) => it.id);
 
     if (ancestorIds.length > 0) {
       const parentLeadership = await this.membershipRepository.count({
@@ -78,8 +81,10 @@ export class GroupPermissionsService {
     });
     const descendants = [];
     for (const mData of membershipData) {
-      const res = await this.getDescendantIds(mData.groupId);
-      descendants.push(...res.map((id) => ({ id })));
+      const res = await this.treeRepository.findDescendants({
+        id: mData.groupId,
+      } as Group);
+      descendants.push(...res);
     }
     const idList = new Set([
       ...membershipData.map((it) => it.groupId),
@@ -98,53 +103,15 @@ export class GroupPermissionsService {
     });
     const descendants = [];
     for (const mData of membershipData) {
-      const res = await this.getDescendantIds(mData.groupId);
-      descendants.push(...res.map((id) => ({ id })));
+      const res = await this.treeRepository.findDescendants({
+        id: mData.groupId,
+      } as Group);
+      descendants.push(...res);
     }
     const idList = new Set([
       ...membershipData.map((it) => it.groupId),
       ...descendants.map((it) => it.id),
     ]);
     return Array.from(idList);
-  }
-
-  private getClosureQueryParams() {
-    const metadata = this.repository.metadata;
-    const closureMetadata = metadata.closureJunctionTable;
-    const groupTable = metadata.schema
-      ? `"${metadata.schema}"."${metadata.tableName}"`
-      : `"${metadata.tableName}"`;
-    const closureTable = closureMetadata.schema
-      ? `"${closureMetadata.schema}"."${closureMetadata.tableName}"`
-      : `"${closureMetadata.tableName}"`;
-    const ancestorColumn = closureMetadata.ancestorColumns[0].databaseName;
-    const descendantColumn = closureMetadata.descendantColumns[0].databaseName;
-    return { groupTable, closureTable, ancestorColumn, descendantColumn };
-  }
-
-  private async getAncestorIds(groupId: number): Promise<number[]> {
-    const { groupTable, closureTable, ancestorColumn, descendantColumn } =
-      this.getClosureQueryParams();
-    const rows: Array<{ id: number }> = await this.repository.query(
-      `SELECT g.id FROM ${groupTable} g
-       JOIN ${closureTable} c ON c."${ancestorColumn}" = g.id
-       WHERE c."${descendantColumn}" = $1
-         AND g.id != $1`,
-      [groupId],
-    );
-    return rows.map((row) => row.id);
-  }
-
-  private async getDescendantIds(groupId: number): Promise<number[]> {
-    const { groupTable, closureTable, ancestorColumn, descendantColumn } =
-      this.getClosureQueryParams();
-    const rows: Array<{ id: number }> = await this.repository.query(
-      `SELECT g.id FROM ${groupTable} g
-       JOIN ${closureTable} c ON c."${descendantColumn}" = g.id
-       WHERE c."${ancestorColumn}" = $1
-         AND g.id != $1`,
-      [groupId],
-    );
-    return rows.map((row) => row.id);
   }
 }

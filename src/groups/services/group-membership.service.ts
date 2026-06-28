@@ -5,7 +5,7 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
-import { Connection, In, Repository } from 'typeorm';
+import { Connection, In, Repository, TreeRepository } from 'typeorm';
 import GroupMembership from '../entities/groupMembership.entity';
 import GroupMembershipDto from '../dto/membership/group-membership.dto';
 import { getPersonFullName } from '../../crm/crm.helpers';
@@ -20,7 +20,7 @@ import { AppLogger, ContextLogger } from 'src/utils/app-logger.service';
 @Injectable()
 export class GroupsMembershipService {
   private readonly repository: Repository<GroupMembership>;
-  private readonly groupRepository: Repository<Group>;
+  private readonly groupTreeRepository: TreeRepository<Group>;
   private readonly connection: Connection;
   private readonly logger: ContextLogger;
 
@@ -29,7 +29,7 @@ export class GroupsMembershipService {
     private readonly appLogger: AppLogger,
   ) {
     this.repository = connection.getRepository(GroupMembership);
-    this.groupRepository = connection.getRepository(Group);
+    this.groupTreeRepository = connection.getTreeRepository(Group);
     this.connection = connection;
     this.logger = this.appLogger.createContextLogger('GroupsMembershipService');
   }
@@ -42,30 +42,11 @@ export class GroupsMembershipService {
     }
 
     if (hasValue(req.groupId)) {
-      const parentGroup = await this.groupRepository.findOneOrFail({
+      const parentGroup = await this.groupTreeRepository.findOneOrFail({
         where: { id: req.groupId },
       });
-      const groupMetadata = this.groupRepository.metadata;
-      const closureMetadata = groupMetadata.closureJunctionTable;
-      const groupTable = groupMetadata.schema
-        ? `"${groupMetadata.schema}"."${groupMetadata.tableName}"`
-        : `"${groupMetadata.tableName}"`;
-      const closureTable = closureMetadata.schema
-        ? `"${closureMetadata.schema}"."${closureMetadata.tableName}"`
-        : `"${closureMetadata.tableName}"`;
-      const ancestorColumn = closureMetadata.ancestorColumns[0].databaseName;
-      const descendantColumn =
-        closureMetadata.descendantColumns[0].databaseName;
-
-      const childGroupIds: Array<{ id: number }> =
-        await this.groupRepository.query(
-          `SELECT g.id FROM ${groupTable} g
-         JOIN ${closureTable} c ON c."${descendantColumn}" = g.id
-         WHERE c."${ancestorColumn}" = $1
-           AND g.id != $1`,
-          [parentGroup.id],
-        );
-
+      const childGroupIds =
+        await this.groupTreeRepository.findDescendants(parentGroup);
       const idList = new Set([
         req.groupId,
         ...childGroupIds.map((it) => it.id),

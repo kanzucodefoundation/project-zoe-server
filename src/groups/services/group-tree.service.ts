@@ -1,15 +1,15 @@
 import { Injectable, Inject, Logger } from '@nestjs/common';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
-import { Connection, In, Repository } from 'typeorm';
+import { Connection, In, Repository, TreeRepository } from 'typeorm';
 import Group from '../entities/group.entity';
 import GroupCategory from '../entities/groupCategory.entity';
-import { quoteIdentifier } from 'src/utils/quote-identifier';
 
 @Injectable()
 export class GroupTreeService {
   private readonly logger = new Logger(GroupTreeService.name);
   private readonly repository: Repository<Group>;
+  private readonly treeRepository: TreeRepository<Group>;
   private readonly categoryRepository: Repository<GroupCategory>;
 
   constructor(
@@ -17,6 +17,7 @@ export class GroupTreeService {
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
   ) {
     this.repository = connection.getRepository(Group);
+    this.treeRepository = connection.getTreeRepository(Group);
     this.categoryRepository = connection.getRepository(GroupCategory);
   }
 
@@ -46,8 +47,8 @@ export class GroupTreeService {
         const group = await this.repository.findOne({ where: { id: groupId } });
         if (!group) continue;
 
-        const descendants = await this.getDescendantIds(groupId);
-        descendants.forEach((descendantId) => allGroupIds.add(descendantId));
+        const descendants = await this.treeRepository.findDescendants(group);
+        descendants.forEach((descendant) => allGroupIds.add(descendant.id));
       } catch (error) {
         this.logger.error(
           `Error finding descendants for group ${groupId}:`,
@@ -97,18 +98,16 @@ export class GroupTreeService {
 
       // Get all ancestor groups to find their categories too
       try {
-        const ancestorIds = await this.getAncestorIds(group.id);
+        const ancestors = await this.treeRepository.findAncestors(group);
 
-        if (ancestorIds.length > 0) {
-          const ancestorsWithCategory = await this.repository.find({
-            where: { id: In(ancestorIds) },
+        for (const ancestor of ancestors) {
+          const ancestorWithCategory = await this.repository.findOne({
+            where: { id: ancestor.id },
             relations: ['category'],
           });
 
-          for (const ancestorWithCategory of ancestorsWithCategory) {
-            if (ancestorWithCategory?.category) {
-              categories.add(ancestorWithCategory.category.name);
-            }
+          if (ancestorWithCategory?.category) {
+            categories.add(ancestorWithCategory.category.name);
           }
         }
       } catch (error) {
@@ -207,21 +206,19 @@ export class GroupTreeService {
 
     // Check if group is a descendant of a group with an allowed category
     try {
-      const ancestorIds = await this.getAncestorIds(group.id);
+      const ancestors = await this.treeRepository.findAncestors(group);
 
-      if (ancestorIds.length > 0) {
-        const ancestorsWithCategory = await this.repository.find({
-          where: { id: In(ancestorIds) },
+      for (const ancestor of ancestors) {
+        const ancestorWithCategory = await this.repository.findOne({
+          where: { id: ancestor.id },
           relations: ['category'],
         });
 
-        for (const ancestorWithCategory of ancestorsWithCategory) {
-          if (
-            ancestorWithCategory?.category &&
-            allowedCategories.includes(ancestorWithCategory.category.name)
-          ) {
-            return true;
-          }
+        if (
+          ancestorWithCategory?.category &&
+          allowedCategories.includes(ancestorWithCategory.category.name)
+        ) {
+          return true;
         }
       }
     } catch (error) {
@@ -274,50 +271,6 @@ export class GroupTreeService {
     this.logger.debug(`Cleared cache for keys: ${cacheKeys.join(', ')}`);
   }
 
-  private getClosureQueryParams() {
-    const metadata = this.repository.metadata;
-    const closureMetadata = metadata.closureJunctionTable;
-    const groupTable = metadata.schema
-      ? quoteIdentifier(`${metadata.schema}.${metadata.tableName}`)
-      : quoteIdentifier(metadata.tableName);
-    const closureTable = closureMetadata.schema
-      ? quoteIdentifier(
-          `${closureMetadata.schema}.${closureMetadata.tableName}`,
-        )
-      : quoteIdentifier(closureMetadata.tableName);
-    const ancestorColumn = closureMetadata.ancestorColumns[0].databaseName;
-    const descendantColumn = closureMetadata.descendantColumns[0].databaseName;
-    return { groupTable, closureTable, ancestorColumn, descendantColumn };
-  }
-
-  private async getAncestorIds(groupId: number): Promise<number[]> {
-    const { groupTable, closureTable, ancestorColumn, descendantColumn } =
-      this.getClosureQueryParams();
-
-    const rows: Array<{ id: number }> = await this.repository.query(
-      `SELECT g.id FROM ${groupTable} g
-       JOIN ${closureTable} c ON c."${ancestorColumn}" = g.id
-       WHERE c."${descendantColumn}" = $1
-         AND g.id != $1`,
-      [groupId],
-    );
-    return rows.map((row) => row.id);
-  }
-
-  private async getDescendantIds(groupId: number): Promise<number[]> {
-    const { groupTable, closureTable, ancestorColumn, descendantColumn } =
-      this.getClosureQueryParams();
-
-    const rows: Array<{ id: number }> = await this.repository.query(
-      `SELECT g.id FROM ${groupTable} g
-       JOIN ${closureTable} c ON c."${descendantColumn}" = g.id
-       WHERE c."${ancestorColumn}" = $1
-         AND g.id != $1`,
-      [groupId],
-    );
-    return rows.map((row) => row.id);
-  }
-
   /**
    * Invalidate cache when group structure changes
    * This should be called when groups are created, updated, or deleted
@@ -329,11 +282,15 @@ export class GroupTreeService {
 
     // Get ancestors and descendants that might be cached
     const [ancestors, descendants] = await Promise.all([
-      this.getAncestorIds(groupId),
-      this.getDescendantIds(groupId),
+      this.treeRepository.findAncestors(group),
+      this.treeRepository.findDescendants(group),
     ]);
 
-    const affectedGroups = [groupId, ...ancestors, ...descendants];
+    const affectedGroups = [
+      groupId,
+      ...ancestors.map((g) => g.id),
+      ...descendants.map((g) => g.id),
+    ];
 
     // Clear relevant cache entries
     await this.clearGroupTreeCache(affectedGroups);
