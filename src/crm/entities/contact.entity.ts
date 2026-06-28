@@ -18,6 +18,7 @@ import Occasion from './occasion.entity';
 import Address from './address.entity';
 import Identification from './identification.entity';
 import { ContactCategory } from '../enums/contactCategory';
+import { ContactStatus } from '../enums/contactStatus';
 import GroupMembership from '../../groups/entities/groupMembership.entity';
 import Relationship from './relationship.entity';
 import GroupMembershipRequest from '../../groups/entities/groupMembershipRequest.entity';
@@ -41,6 +42,14 @@ export default class Contact {
     default: ContactCategory.Person,
   })
   category: ContactCategory;
+
+  @Column({
+    type: 'enum',
+    enum: ContactStatus,
+    nullable: true,
+    default: ContactStatus.Active,
+  })
+  status: ContactStatus;
 
   @OneToOne((type) => Person, (it) => it.contact, {
     cascade: true,
