@@ -36,6 +36,7 @@ import { hasNoValue, hasValue } from 'src/utils/validation';
 import Address from './entities/address.entity';
 import GroupMembership from '../groups/entities/groupMembership.entity';
 import { GroupRole } from '../groups/enums/groupRole';
+import { roleAdmin } from '../auth/constants';
 import ContactListDto from './dto/contact-list.dto';
 import Group from '../groups/entities/group.entity';
 import { GoogleService } from 'src/vendor/google.service';
@@ -244,70 +245,83 @@ export class ContactsService {
 
       // Apply user permission filtering
       if (user) {
-        this.logger.security(
-          'log',
-          'Applying user permission filtering to contacts',
-          {
-            operation: 'findAllContacts',
-            userId: user?.id,
-            contactId: user?.contactId,
-            metadata: {
-              contactCountBeforeFilter: idList.length || 'unlimited',
-            },
-          },
-        );
+        const isAdmin =
+          Array.isArray(user.roles) && user.roles.includes(roleAdmin.role);
 
-        const permissionFilteredIds =
-          await this.getContactsInUserAccessibleGroups(user);
-        if (permissionFilteredIds.length === 0) {
-          this.logger.security(
-            'warn',
-            'User has no accessible groups - returning empty result',
-            {
-              operation: 'findAllContacts',
-              userId: user?.id,
-              contactId: user?.contactId,
-            },
-          );
-          this.logger.endTracking(tracking, true);
-          return []; // User has no accessible groups
-        }
-
-        if (hasValue(idList)) {
-          // Intersect with existing filter
-          const originalCount = idList.length;
-          idList = intersection(idList, permissionFilteredIds);
+        if (isAdmin) {
           this.logger.security(
             'log',
-            'Applied permission intersection filter',
+            'Admin user - skipping permission filter',
             {
               operation: 'findAllContacts',
               userId: user?.id,
               contactId: user?.contactId,
-              metadata: {
-                originalCount,
-                filteredCount: idList.length,
-                permissionGroupCount: permissionFilteredIds.length,
-              },
             },
           );
         } else {
-          // Use permission filter as the primary filter
-          idList = permissionFilteredIds;
           this.logger.security(
             'log',
-            'Using permission filter as primary filter',
+            'Applying user permission filtering to contacts',
             {
               operation: 'findAllContacts',
               userId: user?.id,
               contactId: user?.contactId,
               metadata: {
-                permissionContactCount: permissionFilteredIds.length,
+                contactCountBeforeFilter: idList.length || 'unlimited',
               },
             },
           );
+
+          const permissionFilteredIds =
+            await this.getContactsInUserAccessibleGroups(user);
+          if (permissionFilteredIds.length === 0) {
+            this.logger.security(
+              'warn',
+              'User has no accessible groups - returning empty result',
+              {
+                operation: 'findAllContacts',
+                userId: user?.id,
+                contactId: user?.contactId,
+              },
+            );
+            this.logger.endTracking(tracking, true);
+            return []; // User has no accessible groups
+          }
+
+          if (hasValue(idList)) {
+            const originalCount = idList.length;
+            idList = intersection(idList, permissionFilteredIds);
+            this.logger.security(
+              'log',
+              'Applied permission intersection filter',
+              {
+                operation: 'findAllContacts',
+                userId: user?.id,
+                contactId: user?.contactId,
+                metadata: {
+                  originalCount,
+                  filteredCount: idList.length,
+                  permissionGroupCount: permissionFilteredIds.length,
+                },
+              },
+            );
+          } else {
+            idList = permissionFilteredIds;
+            this.logger.security(
+              'log',
+              'Using permission filter as primary filter',
+              {
+                operation: 'findAllContacts',
+                userId: user?.id,
+                contactId: user?.contactId,
+                metadata: {
+                  permissionContactCount: permissionFilteredIds.length,
+                },
+              },
+            );
+          }
+          hasFilter = true;
         }
-        hasFilter = true;
       }
 
       if (hasFilter && hasNoValue(idList)) {
