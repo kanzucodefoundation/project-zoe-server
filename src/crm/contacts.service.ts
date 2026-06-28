@@ -389,6 +389,7 @@ export class ContactsService {
       dateOfBirth: it.person.dateOfBirth,
       email: getEmail(it),
       phone: getPhone(it),
+      status: it.status,
       cellGroup: hasValue(cellGroup)
         ? { id: cellGroup.id, name: cellGroup.name }
         : null,
