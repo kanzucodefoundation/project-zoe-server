@@ -15,6 +15,7 @@ import ContactListDto from '../dto/contact-list.dto';
 import { SentryInterceptor } from 'src/utils/sentry.interceptor';
 import { UsersService } from 'src/users/users.service';
 import { Public } from '../../auth/decorators/public.decorator';
+import { GroupRole } from '../../groups/enums/groupRole';
 
 @UseInterceptors(SentryInterceptor)
 @ApiTags('Register')
@@ -45,7 +46,7 @@ export class RegisterController {
       roles: ['DASHBOARD', 'USER_VIEW'],
       isActive: true,
       groupId: data.groupId,
-      groupRole: data.groupRole,
+      groupRole: GroupRole.Member,
     });
 
     return contact;
