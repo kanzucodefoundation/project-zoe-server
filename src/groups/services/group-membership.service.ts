@@ -122,7 +122,7 @@ export class GroupsMembershipService {
     const existingByContactId = new Map(existing.map((m) => [m.contactId, m]));
 
     if (role !== GroupRole.Leader) {
-      const conflictingLeaderIds = [...existingByContactId.values()]
+      const conflictingLeaderIds = existing
         .filter((m) => m.role === GroupRole.Leader && m.isActive)
         .map((m) => m.contactId);
       if (conflictingLeaderIds.length > 0) {
