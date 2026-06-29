@@ -15,6 +15,7 @@ import UpdateGroupMembershipDto from '../dto/membership/update-group-membership.
 import BatchGroupMembershipDto from '../dto/membership/batch-group-membership.dto';
 import { hasNoValue, hasValue } from '../../utils/validation';
 import Group from '../entities/group.entity';
+import { GroupRole } from '../enums/groupRole';
 import { AppLogger, ContextLogger } from 'src/utils/app-logger.service';
 
 @Injectable()
@@ -100,6 +101,19 @@ export class GroupsMembershipService {
       where: uniqueMemberIds.map((contactId) => ({ contactId, groupId })),
     });
     const existingByContactId = new Map(existing.map((m) => [m.contactId, m]));
+
+    if (role !== GroupRole.Leader) {
+      const conflictingLeaderIds = existing
+        .filter((m) => m.role === GroupRole.Leader && m.isActive)
+        .map((m) => m.contactId);
+      if (conflictingLeaderIds.length > 0) {
+        throw new BadRequestException(
+          `Contact(s) ${conflictingLeaderIds.join(
+            ', ',
+          )} are already leaders of this group and cannot be added as members`,
+        );
+      }
+    }
 
     const toReactivate: GroupMembership[] = [];
     const toCreate: GroupMembership[] = [];

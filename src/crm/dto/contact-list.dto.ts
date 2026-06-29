@@ -1,4 +1,5 @@
 import ComboDto from '../../shared/dto/combo.dto';
+import { ContactStatus } from '../enums/contactStatus';
 
 export default class ContactListDto {
   id: number;
@@ -10,4 +11,5 @@ export default class ContactListDto {
   phone: string;
   cellGroup: ComboDto;
   location: ComboDto;
+  status?: ContactStatus | null;
 }
