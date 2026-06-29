@@ -28,8 +28,11 @@ export class ContactsController {
   constructor(private readonly service: ContactsService) {}
 
   @Get()
-  async findAll(@Query() req: ContactSearchDto): Promise<ContactListDto[]> {
-    return this.service.findAll(req);
+  async findAll(
+    @Query() req: ContactSearchDto,
+    @Req() request: any,
+  ): Promise<ContactListDto[]> {
+    return this.service.findAll(req, request.user);
   }
 
   @Post()

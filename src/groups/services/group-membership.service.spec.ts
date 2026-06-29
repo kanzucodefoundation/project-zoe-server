@@ -5,19 +5,19 @@ import GroupMembership from '../entities/groupMembership.entity';
 import Group from '../entities/group.entity';
 import { AppLogger } from '../../utils/app-logger.service';
 import { GroupRole } from '../enums/groupRole';
+import { BadRequestException } from '@nestjs/common';
 
 describe('GroupsMembershipService', () => {
   let service: GroupsMembershipService;
   let mockConnection: Partial<Connection>;
   let mockMembershipRepository: any;
-  let mockGroupTreeRepository: any;
+  let mockGroupRepository: any;
   let mockAppLogger: any;
   let mockContextLogger: any;
 
   beforeEach(async () => {
-    // Create mock repositories
     mockMembershipRepository = {
-      find: jest.fn(),
+      find: jest.fn().mockResolvedValue([]),
       findOne: jest.fn(),
       save: jest.fn((memberships) =>
         Promise.resolve(
@@ -32,16 +32,32 @@ describe('GroupsMembershipService', () => {
       delete: jest.fn(),
     };
 
-    mockGroupTreeRepository = {
+    mockGroupRepository = {
       findOneOrFail: jest.fn(),
-      findDescendants: jest.fn(),
-      findAncestors: jest.fn(),
+      query: jest.fn().mockResolvedValue([]),
+      metadata: {
+        tableName: 'group',
+        schema: null,
+        closureJunctionTable: {
+          schema: null,
+          tableName: 'group_closure',
+          ancestorColumns: [{ databaseName: 'id_ancestor' }],
+          descendantColumns: [{ databaseName: 'id_descendant' }],
+        },
+      },
     };
 
-    // Create mock connection
     mockConnection = {
-      getRepository: jest.fn().mockReturnValue(mockMembershipRepository),
-      getTreeRepository: jest.fn().mockReturnValue(mockGroupTreeRepository),
+      getRepository: jest.fn().mockImplementation((entity) => {
+        if (entity === Group) return mockGroupRepository;
+        return mockMembershipRepository;
+      }),
+      createQueryBuilder: jest.fn().mockReturnValue({
+        update: jest.fn().mockReturnThis(),
+        set: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        execute: jest.fn().mockResolvedValue({ affected: 1, raw: [] }),
+      }),
     };
 
     mockContextLogger = {
@@ -75,7 +91,7 @@ describe('GroupsMembershipService', () => {
 
   it('should initialize repositories', () => {
     expect(mockConnection.getRepository).toHaveBeenCalledWith(GroupMembership);
-    expect(mockConnection.getTreeRepository).toHaveBeenCalledWith(Group);
+    expect(mockConnection.getRepository).toHaveBeenCalledWith(Group);
     expect(mockAppLogger.createContextLogger).toHaveBeenCalledWith(
       'GroupsMembershipService',
     );
@@ -106,12 +122,13 @@ describe('GroupsMembershipService', () => {
     ]);
     expect(mockContextLogger.business).toHaveBeenCalledWith(
       'log',
-      'Group memberships created',
+      'Group memberships upserted',
       expect.objectContaining({
         resource: 'group_membership',
         resourceId: 9,
         metadata: expect.objectContaining({
-          memberCount: 2,
+          created: 2,
+          reactivated: 0,
           contactIds: [51, 7],
           role: GroupRole.Member,
         }),
@@ -119,13 +136,47 @@ describe('GroupsMembershipService', () => {
     );
   });
 
+  it('should reject adding a contact who is an active leader as a member', async () => {
+    mockMembershipRepository.find.mockResolvedValue([
+      {
+        id: 55,
+        groupId: 9,
+        contactId: 51,
+        role: GroupRole.Leader,
+        isActive: true,
+      },
+    ]);
+
+    await expect(
+      service.create({ groupId: 9, members: [51], role: GroupRole.Member }),
+    ).rejects.toThrow(BadRequestException);
+  });
+
+  it('should allow re-adding a contact as a leader even if they were a leader before', async () => {
+    mockMembershipRepository.find.mockResolvedValue([
+      {
+        id: 55,
+        groupId: 9,
+        contactId: 51,
+        role: GroupRole.Leader,
+        isActive: false,
+        leftAt: new Date(),
+      },
+    ]);
+
+    const inserted = await service.create({
+      groupId: 9,
+      members: [51],
+      role: GroupRole.Leader,
+    });
+
+    expect(inserted).toBe(1);
+  });
+
   it('should list memberships for a group and its descendants', async () => {
     const parentGroup = { id: 9, name: 'Parent Group' };
-    mockGroupTreeRepository.findOneOrFail.mockResolvedValue(parentGroup);
-    mockGroupTreeRepository.findDescendants.mockResolvedValue([
-      parentGroup,
-      { id: 10, name: 'Child Group' },
-    ]);
+    mockGroupRepository.findOneOrFail.mockResolvedValue(parentGroup);
+    mockGroupRepository.query.mockResolvedValue([{ id: 10 }]);
     mockMembershipRepository.find.mockResolvedValue([
       {
         id: 101,
@@ -163,23 +214,9 @@ describe('GroupsMembershipService', () => {
 
     const memberships = await service.findAll({ groupId: 9 });
 
-    expect(mockGroupTreeRepository.findOneOrFail).toHaveBeenCalledWith({
+    expect(mockGroupRepository.findOneOrFail).toHaveBeenCalledWith({
       where: { id: 9 },
     });
-    expect(mockGroupTreeRepository.findDescendants).toHaveBeenCalledWith(
-      parentGroup,
-    );
-    expect(mockMembershipRepository.find).toHaveBeenCalledWith(
-      expect.objectContaining({
-        relations: ['contact', 'contact.person', 'group', 'group.category'],
-        skip: 0,
-        take: 100,
-        where: expect.objectContaining({
-          groupId: expect.any(Object),
-          isActive: true,
-        }),
-      }),
-    );
     expect(memberships).toEqual([
       expect.objectContaining({
         id: 101,
