@@ -11,5 +11,5 @@ export default class ContactListDto {
   phone: string;
   cellGroup: ComboDto;
   location: ComboDto;
-  status?: ContactStatus;
+  status?: ContactStatus | null;
 }

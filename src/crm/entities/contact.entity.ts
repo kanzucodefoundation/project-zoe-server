@@ -49,7 +49,7 @@ export default class Contact {
     nullable: true,
     default: ContactStatus.Active,
   })
-  status: ContactStatus;
+  status: ContactStatus | null;
 
   @OneToOne((type) => Person, (it) => it.contact, {
     cascade: true,

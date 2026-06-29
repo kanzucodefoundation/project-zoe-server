@@ -334,6 +334,7 @@ export class ContactsService {
         return [];
       }
 
+      const tenantId = this.tenantContext.requireTenant();
       const data = await this.repository.find({
         relations: [
           'person',
@@ -345,7 +346,9 @@ export class ContactsService {
         ],
         skip: req.skip,
         take: req.limit,
-        where: hasValue(idList) ? { id: In(idList) } : undefined,
+        where: hasValue(idList)
+          ? { id: In(idList), tenant: { id: tenantId } }
+          : { tenant: { id: tenantId } },
       });
 
       this.logger.business('log', 'Contact search completed successfully', {
@@ -1825,9 +1828,9 @@ export class ContactsService {
         return [];
       }
 
-      // Get contacts that are members of these groups
+      // Get contacts that are active members of these groups
       const memberships = await this.membershipRepository.find({
-        where: { groupId: In(userGroupIds) },
+        where: { groupId: In(userGroupIds), isActive: true },
         select: ['contactId'],
       });
 
@@ -1850,6 +1853,7 @@ export class ContactsService {
         where: {
           contactId: user.contactId,
           role: GroupRole.Leader,
+          isActive: true,
         },
         select: ['groupId'],
       });
