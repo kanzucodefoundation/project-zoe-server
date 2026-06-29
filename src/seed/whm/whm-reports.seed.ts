@@ -34,7 +34,114 @@ const LOCATION_SELECTOR = [
   { type: 'dynamic_group_selector', scope: 'user', group_category: 'location' },
 ];
 
+const FELLOWSHIP_SCHEDULE_SELECTOR = [{ type: 'dynamic_fellowship_schedule' }];
+const FELLOWSHIP_MEMBER_SELECTOR = [{ type: 'dynamic_member_selector' }];
+
 const WHM_REPORTS: ReportDef[] = [
+  {
+    name: 'MC Attendance Report',
+    description: 'Weekly Missional Community attendance and activity report',
+    submissionFrequency: 'weekly',
+    functionName: 'getSmallGroupSummaryAttendance',
+    targetCategoryPurpose: GroupCategoryPurpose.FELLOWSHIP,
+    targetCategoryName: 'Missional Community',
+    fields: [
+      {
+        name: 'date',
+        label: 'Date of MC gathering',
+        type: FieldType.DATE,
+        required: true,
+      },
+      {
+        name: 'smallGroupName',
+        label: 'MC Name',
+        type: FieldType.TEXT,
+        required: true,
+      },
+      {
+        name: 'smallGroupId',
+        label: 'Small Group ID',
+        type: FieldType.NUMBER,
+        required: false,
+        hidden: true,
+      },
+      {
+        name: 'mcHostHome',
+        label: "Who's home hosted the MC?",
+        type: FieldType.TEXT,
+        required: true,
+      },
+      {
+        name: 'smallGroupNumberOfMembers',
+        label: 'How many members are in the MC?',
+        type: FieldType.NUMBER,
+        required: true,
+      },
+      {
+        name: 'mcStreamPlatform',
+        label: 'How did you stream MC?',
+        type: FieldType.SELECT,
+        required: false,
+        options: [
+          'YouTube Live',
+          'YouTube Later',
+          'Facebook',
+          'TikTok',
+          'Instagram',
+          'TV',
+          'FM Radio',
+          'Online Radio',
+          'Other platform',
+          'Did not stream',
+        ],
+      },
+      {
+        name: 'smallGroupAttendanceCount',
+        label: 'How many attended MC?',
+        type: FieldType.NUMBER,
+        required: true,
+      },
+      {
+        name: 'fellowshipSchedule',
+        label: 'MC Meeting Day',
+        type: FieldType.SELECT,
+        required: true,
+        options: FELLOWSHIP_SCHEDULE_SELECTOR,
+      },
+      {
+        name: 'fellowshipMembers',
+        label: 'MC Members Present',
+        type: FieldType.SELECT,
+        required: true,
+        options: FELLOWSHIP_MEMBER_SELECTOR,
+      },
+      {
+        name: 'mcVisitorsNames',
+        label: 'Who visited the MC?',
+        type: FieldType.TEXTAREA,
+        required: false,
+      },
+      {
+        name: 'mcGeneralFeedback',
+        label: 'General Highlights from MC today',
+        type: FieldType.TEXTAREA,
+        required: true,
+      },
+      {
+        name: 'mcTestimonies',
+        label: 'Testimonies from the MC (2 to 3)',
+        type: FieldType.TEXTAREA,
+        required: false,
+      },
+      {
+        name: 'mcPrayerRequest',
+        label:
+          'How may we pray for you? (Share challenges, things you are believing God for)',
+        type: FieldType.TEXTAREA,
+        required: false,
+      },
+    ],
+  },
   {
     name: 'Sunday Service Report',
     description: 'Weekly Sunday service attendance by slot for a Location',
