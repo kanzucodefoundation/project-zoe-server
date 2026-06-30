@@ -518,16 +518,17 @@ export class ReportsService {
       (s) => s.submittedAt >= startDate && s.submittedAt <= endDate,
     );
 
+    const nameById = await this.fetchMemberSelectorContactNames(
+      filteredSubmissions.map((s) => s.submissionData),
+    );
+
     const submissionResponses = filteredSubmissions.map((submission) => {
       const transformedData: Record<string, any> = {
         id: submission.id,
         submittedAt: submission.submittedAt.toISOString(),
         submittedBy: getUserDisplayName(submission.user),
+        ...this.buildSubmissionDataRecord(submission.submissionData, nameById),
       };
-
-      submission.submissionData.forEach((sd) => {
-        transformedData[sd.reportField.name] = sd.fieldValue;
-      });
 
       return transformedData;
     });
@@ -615,6 +616,9 @@ export class ReportsService {
 
     // Let's get the relevant submissions
     const submissions: ReportSubmission[] = await query.getMany();
+    const nameById = await this.fetchMemberSelectorContactNames(
+      submissions.map((s) => s.submissionData),
+    );
     // For each of the retrieved submissions, let's get the user display name & small group parent (The "Zone" in the case of Worship Harvest)
     const submissionResponses = await Promise.all(
       submissions.map(async (submission) => {
@@ -639,10 +643,12 @@ export class ReportsService {
           transformedData['parentGroupName'] = smallGroup?.parent?.name || '';
         }
 
-        // Aggregate submission data into a single object
-        submission.submissionData.forEach((sd) => {
-          transformedData[sd.reportField.name] = sd.fieldValue;
-        });
+        // Aggregate submission data into a single object, resolving
+        // contact-ID fields (e.g. 'fellowshipMembers') to readable names
+        Object.assign(
+          transformedData,
+          this.buildSubmissionDataRecord(submission.submissionData, nameById),
+        );
 
         return transformedData;
       }),
@@ -740,14 +746,15 @@ export class ReportsService {
       );
     }
 
-    // Transform submissionData into a structured object
-    const data = submission.submissionData.reduce((acc, curr) => {
-      acc[curr.reportField.name] = curr.fieldValue;
-      return acc;
-    }, {});
-
-    // Resolve contact-ID fields (e.g. 'fellowshipMembers') to readable names
-    await this.resolveContactSelectorFields(submission.submissionData, data);
+    // Transform submissionData into a structured object, resolving
+    // contact-ID fields (e.g. 'fellowshipMembers') to readable names
+    const nameById = await this.fetchMemberSelectorContactNames([
+      submission.submissionData,
+    ]);
+    const data = this.buildSubmissionDataRecord(
+      submission.submissionData,
+      nameById,
+    );
 
     // Extract labels from submissionData
     const labels = submission.submissionData.map((sd) => {
@@ -770,43 +777,46 @@ export class ReportsService {
   /**
    * Fields backed by the 'dynamic_member_selector' widget store a Postgres
    * array of contact IDs as their fieldValue (e.g. '{"51","58","26"}').
-   * Replace that raw value with a comma-separated list of contact names.
+   * These helpers resolve those IDs to readable contact names wherever
+   * submissionData is turned into a plain data object.
    */
-  private async resolveContactSelectorFields(
-    submissionData: ReportSubmissionData[],
-    data: Record<string, any>,
-  ): Promise<void> {
-    const memberFields = submissionData.filter(
-      (sd) =>
-        Array.isArray(sd.reportField.options) &&
-        sd.reportField.options.some(
-          (o: any) => o?.type === 'dynamic_member_selector',
-        ),
+  private isDynamicMemberSelectorField(field: ReportField): boolean {
+    return (
+      Array.isArray(field.options) &&
+      field.options.some((o: any) => o?.type === 'dynamic_member_selector')
     );
+  }
 
-    if (memberFields.length === 0) {
-      return;
+  /**
+   * Looks up contact names for every dynamic_member_selector field across
+   * one or more submissions' submissionData, in a single batched query.
+   */
+  private async fetchMemberSelectorContactNames(
+    submissionDataLists: ReportSubmissionData[][],
+  ): Promise<Map<number, string>> {
+    const contactIds = new Set<number>();
+    for (const list of submissionDataLists) {
+      for (const sd of list) {
+        if (this.isDynamicMemberSelectorField(sd.reportField)) {
+          parsePostgresTextArray(sd.fieldValue).forEach((id) => {
+            const numericId = Number(id);
+            if (!isNaN(numericId)) {
+              contactIds.add(numericId);
+            }
+          });
+        }
+      }
     }
 
-    const idsByField = new Map<string, number[]>();
-    const allContactIds = new Set<number>();
-    for (const sd of memberFields) {
-      const ids = parsePostgresTextArray(sd.fieldValue)
-        .map((id) => Number(id))
-        .filter((id) => !isNaN(id));
-      idsByField.set(sd.reportField.name, ids);
-      ids.forEach((id) => allContactIds.add(id));
-    }
-
-    if (allContactIds.size === 0) {
-      return;
+    if (contactIds.size === 0) {
+      return new Map();
     }
 
     const contacts = await this.contactRepository
       .createQueryBuilder('c')
       .innerJoin('c.person', 'p')
       .where('c.id IN (:...contactIds)', {
-        contactIds: Array.from(allContactIds),
+        contactIds: Array.from(contactIds),
       })
       .select([
         'c.id AS id',
@@ -816,15 +826,32 @@ export class ReportsService {
       ])
       .getRawMany();
 
-    const nameById = new Map<number, string>(
-      contacts.map((c) => [c.id, getPersonFullName(c)]),
-    );
+    return new Map(contacts.map((c) => [c.id, getPersonFullName(c)]));
+  }
 
-    for (const [fieldName, ids] of idsByField) {
-      data[fieldName] = ids
-        .map((id) => nameById.get(id) || `Unknown (${id})`)
-        .join(', ');
-    }
+  /**
+   * Builds a { fieldName: value } object from submissionData, replacing
+   * dynamic_member_selector values with resolved contact names using a
+   * name map produced by fetchMemberSelectorContactNames.
+   */
+  private buildSubmissionDataRecord(
+    submissionData: ReportSubmissionData[],
+    nameById: Map<number, string>,
+  ): Record<string, any> {
+    return submissionData.reduce(
+      (acc, sd) => {
+        if (this.isDynamicMemberSelectorField(sd.reportField)) {
+          const ids = parsePostgresTextArray(sd.fieldValue);
+          acc[sd.reportField.name] = ids
+            .map((id) => nameById.get(Number(id)) || `Unknown (${id})`)
+            .join(', ');
+        } else {
+          acc[sd.reportField.name] = sd.fieldValue;
+        }
+        return acc;
+      },
+      {} as Record<string, any>,
+    );
   }
 
   async updateReport(id: number, updateDto: ReportDto): Promise<Report> {
@@ -1076,6 +1103,10 @@ export class ReportsService {
 
     const total = await this.reportSubmissionRepository.count({ where });
 
+    const nameById = await this.fetchMemberSelectorContactNames(
+      submissions.map((s) => s.submissionData),
+    );
+
     return {
       submissions: submissions.map((submission) => ({
         id: submission.id,
@@ -1089,10 +1120,10 @@ export class ReportsService {
           name: getUserDisplayName(submission.user),
         },
         status: ReportStatus.SUBMITTED,
-        data: submission.submissionData.reduce((acc, curr) => {
-          acc[curr.reportField.name] = curr.fieldValue;
-          return acc;
-        }, {}),
+        data: this.buildSubmissionDataRecord(
+          submission.submissionData,
+          nameById,
+        ),
         canEdit: false, // submission.user.id === user.id // User can edit their own submissions. @TODOKEY: Temporarily disabled
       })),
       pagination: {
@@ -1180,6 +1211,10 @@ export class ReportsService {
       }
     }
 
+    const nameById = await this.fetchMemberSelectorContactNames(
+      paginatedSubmissions.map((s) => s.submissionData),
+    );
+
     return {
       submissions: paginatedSubmissions.map((submission) => ({
         id: submission.id,
@@ -1193,10 +1228,10 @@ export class ReportsService {
           name: getUserDisplayName(submission.user),
         },
         status: ReportStatus.SUBMITTED,
-        data: submission.submissionData.reduce((acc, curr) => {
-          acc[curr.reportField.name] = curr.fieldValue;
-          return acc;
-        }, {}),
+        data: this.buildSubmissionDataRecord(
+          submission.submissionData,
+          nameById,
+        ),
         canEdit: false,
       })),
       columns,
@@ -1227,10 +1262,13 @@ export class ReportsService {
     // Check if user has permission to view this submission
     // TODO: Implement permission check
 
-    const data = submission.submissionData.reduce((acc, curr) => {
-      acc[curr.reportField.name] = curr.fieldValue;
-      return acc;
-    }, {});
+    const nameById = await this.fetchMemberSelectorContactNames([
+      submission.submissionData,
+    ]);
+    const data = this.buildSubmissionDataRecord(
+      submission.submissionData,
+      nameById,
+    );
 
     return {
       id: submission.id,
