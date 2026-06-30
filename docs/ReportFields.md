@@ -220,4 +220,124 @@
   - Empty options show appropriate error messages
   - Standard Flutter form validation integration
 
- 
+---
+
+## Dynamic Fellowship Schedule Selector (`dynamic_fellowship_schedule`)
+
+Populates a field with the meeting schedule for the fellowship group (MC) that
+the current user directly leads. Used in the MC Attendance Report to capture
+which meeting day the report covers.
+
+### Field Configuration
+
+  {
+    "name": "fellowshipSchedule",
+    "label": "MC Meeting Day",
+    "type": "select",
+    "required": true,
+    "options": [{ "type": "dynamic_fellowship_schedule" }]
+  }
+
+### Backend endpoint
+
+  GET /fellowships/my-schedule
+
+### Response shape
+
+When a schedule exists:
+
+  {
+    "exists": true,
+    "day": 4,           // 0 = Sunday … 6 = Saturday
+    "label": "Thursdays",
+    "fellowshipGroupId": 42
+  }
+
+When no schedule is configured:
+
+  {
+    "exists": false,
+    "weekdays": [
+      { "value": 0, "label": "Sunday" },
+      ...
+      { "value": 6, "label": "Saturday" }
+    ]
+  }
+
+### Prerequisites for non-empty response
+
+1. The logged-in user's contact must be an **active Leader** of a group whose
+   category has `purpose = fellowship` (a direct MC leader — FOB/Zone leaders
+   always receive `{ exists: false }`).
+2. That MC group must have an **active `FellowshipSchedule` row**.
+   Create one via `POST /fellowships/schedules`:
+
+     {
+       "fellowshipGroupId": 42,
+       "meetingDay": 4,    // 0–6
+       "startTime": "19:00",
+       "frequency": "weekly"
+     }
+
+### Form submission
+
+The field value submitted is the `day` integer (e.g. `4`). On the backend,
+`reports.service.ts` reads this value to identify the fellowship instance when
+recording attendance via `fellowshipAttendanceService.recordReportAttendance`.
+
+---
+
+## Dynamic Member Selector (`dynamic_member_selector`)
+
+Populates a multi-select field with the active members of the MC(s) the current
+user directly leads. Used in the MC Attendance Report to mark which members were
+present at the meeting.
+
+### Field Configuration
+
+  {
+    "name": "fellowshipMembers",
+    "label": "MC Members Present",
+    "type": "select",
+    "required": true,
+    "options": [{ "type": "dynamic_member_selector" }]
+  }
+
+### Backend endpoint
+
+  GET /fellowships/my-members
+
+### Response shape
+
+  [
+    { "id": 101, "firstName": "Alice", "lastName": "Nakato", "avatar": null },
+    { "id": 102, "firstName": "Bob",   "lastName": "Onen",   "avatar": null }
+  ]
+
+### Prerequisites for non-empty response
+
+1. The logged-in user's contact must be an **active Leader** of a fellowship
+   group (same scope rule as `dynamic_fellowship_schedule`).
+2. That MC group must have **active `GroupMembership` rows** (contacts assigned
+   as members with `isActive = true`).
+
+### Form submission
+
+The field value submitted is an **array of contact IDs** for members who
+attended (e.g. `[101, 102]`). The backend records individual
+`FellowshipAttendance` rows for each ID.
+
+---
+
+## How the two fields work together on submission
+
+When a report containing both a `dynamic_fellowship_schedule` field and a
+`dynamic_member_selector` field is submitted, `reports.service.ts` automatically:
+
+1. Finds the schedule field by its sentinel option type.
+2. Finds the member field by its sentinel option type.
+3. Calls `fellowshipAttendanceService.recordReportAttendance(contactId, userId, meetingDay, attendedContactIds)`.
+
+This writes individual `FellowshipAttendance` rows for the MC meeting, so
+attendance is tracked at the per-member level without the MC leader needing to
+use the separate check-in flow.
