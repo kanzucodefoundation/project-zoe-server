@@ -16,6 +16,7 @@ import { IEmail, sendEmail } from 'src/utils/mailer';
 import {
   getUserDisplayName,
   getHumanReadableDate,
+  parsePostgresTextArray,
 } from 'src/utils/stringHelpers';
 
 import {
@@ -38,6 +39,8 @@ import { AppLogger, ContextLogger } from 'src/utils/app-logger.service';
 import { TenantContext } from '../shared/tenant/tenant-context';
 import { Tenant } from '../tenants/entities/tenant.entity';
 import { FellowshipAttendanceService } from '../attendance/services/fellowship-attendance.service';
+import Contact from 'src/crm/entities/contact.entity';
+import { getPersonFullName } from 'src/crm/crm.helpers';
 
 @Injectable()
 export class ReportsService {
@@ -48,6 +51,7 @@ export class ReportsService {
   private readonly reportFieldRepository: Repository<ReportField>;
   private readonly groupMembershipRepo: Repository<GroupMembership>;
   private readonly treeRepository: TreeRepository<Group>;
+  private readonly contactRepository: Repository<Contact>;
   private readonly logger: ContextLogger;
 
   constructor(
@@ -68,6 +72,7 @@ export class ReportsService {
       connection.getRepository(ReportSubmission);
     this.treeRepository = connection.getTreeRepository(Group);
     this.userRepository = connection.getRepository(User);
+    this.contactRepository = connection.getRepository(Contact);
     this.logger = this.appLogger.createContextLogger('ReportsService');
   }
 
@@ -741,6 +746,9 @@ export class ReportsService {
       return acc;
     }, {});
 
+    // Resolve contact-ID fields (e.g. 'fellowshipMembers') to readable names
+    await this.resolveContactSelectorFields(submission.submissionData, data);
+
     // Extract labels from submissionData
     const labels = submission.submissionData.map((sd) => {
       return {
@@ -757,6 +765,66 @@ export class ReportsService {
       submittedAt: submission.submittedAt.toISOString(), // Ensure consistent date formatting
       submittedBy: getUserDisplayName(submission.user),
     };
+  }
+
+  /**
+   * Fields backed by the 'dynamic_member_selector' widget store a Postgres
+   * array of contact IDs as their fieldValue (e.g. '{"51","58","26"}').
+   * Replace that raw value with a comma-separated list of contact names.
+   */
+  private async resolveContactSelectorFields(
+    submissionData: ReportSubmissionData[],
+    data: Record<string, any>,
+  ): Promise<void> {
+    const memberFields = submissionData.filter(
+      (sd) =>
+        Array.isArray(sd.reportField.options) &&
+        sd.reportField.options.some(
+          (o: any) => o?.type === 'dynamic_member_selector',
+        ),
+    );
+
+    if (memberFields.length === 0) {
+      return;
+    }
+
+    const idsByField = new Map<string, number[]>();
+    const allContactIds = new Set<number>();
+    for (const sd of memberFields) {
+      const ids = parsePostgresTextArray(sd.fieldValue)
+        .map((id) => Number(id))
+        .filter((id) => !isNaN(id));
+      idsByField.set(sd.reportField.name, ids);
+      ids.forEach((id) => allContactIds.add(id));
+    }
+
+    if (allContactIds.size === 0) {
+      return;
+    }
+
+    const contacts = await this.contactRepository
+      .createQueryBuilder('c')
+      .innerJoin('c.person', 'p')
+      .where('c.id IN (:...contactIds)', {
+        contactIds: Array.from(allContactIds),
+      })
+      .select([
+        'c.id AS id',
+        'p.firstName AS "firstName"',
+        'p.lastName AS "lastName"',
+        'p.middleName AS "middleName"',
+      ])
+      .getRawMany();
+
+    const nameById = new Map<number, string>(
+      contacts.map((c) => [c.id, getPersonFullName(c)]),
+    );
+
+    for (const [fieldName, ids] of idsByField) {
+      data[fieldName] = ids
+        .map((id) => nameById.get(id) || `Unknown (${id})`)
+        .join(', ');
+    }
   }
 
   async updateReport(id: number, updateDto: ReportDto): Promise<Report> {
