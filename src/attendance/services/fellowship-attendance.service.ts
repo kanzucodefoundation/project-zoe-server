@@ -1,6 +1,7 @@
 import {
   Injectable,
   Inject,
+  Logger,
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
@@ -39,6 +40,7 @@ const WEEKDAYS = WEEKDAY_NAMES.map((label, value) => ({ value, label }));
 
 @Injectable()
 export class FellowshipAttendanceService {
+  private readonly logger = new Logger(FellowshipAttendanceService.name);
   private readonly scheduleRepo: Repository<FellowshipSchedule>;
   private readonly instanceRepo: Repository<FellowshipInstance>;
   private readonly attendanceRepo: Repository<FellowshipAttendance>;
@@ -284,6 +286,7 @@ export class FellowshipAttendanceService {
   async getMyMembers(contactId: number) {
     const tenantId = this.tenantContext.requireTenant();
 
+    // Step 1: fellowship groups this contact directly leads
     const fellowshipGroupIds = await this.membershipRepo
       .createQueryBuilder('gm')
       .innerJoin('gm.group', 'g')
@@ -300,17 +303,17 @@ export class FellowshipAttendanceService {
 
     if (fellowshipGroupIds.length === 0) return [];
 
-    const memberContactIds = await this.membershipRepo
-      .createQueryBuilder('gm')
-      .select('gm.contactId')
-      .where('gm.groupId IN (:...groupIds)', { groupIds: fellowshipGroupIds })
-      .andWhere('gm.isActive = true')
-      .getRawMany()
-      .then((rows) => rows.map((r) => r.gm_contact_id));
+    // Step 2: active members of those groups (find+In avoids raw-alias fragility)
+    const memberships = await this.membershipRepo.find({
+      where: { groupId: In(fellowshipGroupIds), isActive: true },
+      select: ['contactId'],
+    });
+    const memberContactIds = [...new Set(memberships.map((m) => m.contactId))];
 
     if (memberContactIds.length === 0) return [];
 
-    return this.contactRepo
+    // Step 3: resolve contact details, scoped to this tenant
+    const members = await this.contactRepo
       .createQueryBuilder('c')
       .innerJoin('c.person', 'p')
       .where('c.id IN (:...contactIds)', { contactIds: memberContactIds })
@@ -323,6 +326,7 @@ export class FellowshipAttendanceService {
       ])
       .orderBy('p.firstName', 'ASC')
       .getRawMany();
+    return members;
   }
 
   /**
