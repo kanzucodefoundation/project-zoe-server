@@ -26,6 +26,7 @@ import { ContactCategory } from '../../crm/enums/contactCategory';
 import { Gender } from '../../crm/enums/gender';
 import { GroupRole } from '../../groups/enums/groupRole';
 import { GroupCategoryPurpose } from '../../groups/enums/groups';
+import { ContactStatus } from 'src/crm/enums/contactStatus';
 
 const WEEKDAY_NAMES = [
   'Sunday',
@@ -317,6 +318,7 @@ export class FellowshipAttendanceService {
       .createQueryBuilder('c')
       .innerJoin('c.person', 'p')
       .where('c.id IN (:...contactIds)', { contactIds: memberContactIds })
+      .andWhere('c.status = :status', { status: ContactStatus.Active })
       .andWhere('c.tenantId = :tenantId', { tenantId })
       .select([
         'c.id AS id',
