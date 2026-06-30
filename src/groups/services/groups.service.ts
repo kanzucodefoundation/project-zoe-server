@@ -37,6 +37,7 @@ import {
   InternalServerErrorException,
 } from '@nestjs/common';
 import { Tenant } from 'src/tenants/entities/tenant.entity';
+import { FellowshipSchedule } from '../../attendance/entities/fellowship-schedule.entity';
 
 @Injectable()
 export class GroupsService {
@@ -46,6 +47,7 @@ export class GroupsService {
   private readonly eventRepository: Repository<GroupEvent>;
   private readonly groupCategoryRepository: Repository<GroupCategory>;
   private readonly phoneRepository: Repository<Phone>;
+  private readonly fellowshipScheduleRepository: Repository<FellowshipSchedule>;
   private readonly logger: ContextLogger;
 
   constructor(
@@ -62,6 +64,8 @@ export class GroupsService {
     this.eventRepository = connection.getRepository(GroupEvent);
     this.groupCategoryRepository = connection.getRepository(GroupCategory);
     this.phoneRepository = connection.getRepository(Phone);
+    this.fellowshipScheduleRepository =
+      connection.getRepository(FellowshipSchedule);
     this.logger = this.appLogger.createContextLogger('GroupsService');
   }
 
@@ -443,6 +447,22 @@ export class GroupsService {
         : null;
 
       const savedGroup = await this.treeRepository.save(newGroup);
+
+      if (newGroupCategory?.purpose === GroupCategoryPurpose.FELLOWSHIP) {
+        const tenantId =
+          savedGroup.tenant?.id ?? (newGroupCategory?.tenant?.id as any);
+        await this.fellowshipScheduleRepository.save(
+          this.fellowshipScheduleRepository.create({
+            tenant: { id: tenantId } as any,
+            fellowshipGroup: { id: savedGroup.id } as any,
+            fellowshipGroupId: savedGroup.id,
+            meetingDay: 3,
+            startTime: '19:00',
+            frequency: 'weekly',
+            isActive: true,
+          }),
+        );
+      }
 
       this.logger.business('log', 'Group created successfully', {
         operation: 'createGroup',
