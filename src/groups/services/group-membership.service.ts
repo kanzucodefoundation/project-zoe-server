@@ -70,7 +70,23 @@ export class GroupsMembershipService {
       take: req.limit ?? 100,
       where: filter,
     });
-    return data.map((it) => this.toDto(it, req.groupId));
+
+    // When filtering by groupId (which includes descendants), a contact may hold
+    // memberships in multiple groups in the subtree. Keep only the direct membership
+    // when one exists; otherwise keep the first encountered child-group membership.
+    let results = data;
+    if (hasValue(req.groupId)) {
+      const best = new Map<number, GroupMembership>();
+      for (const m of data) {
+        const prior = best.get(m.contactId);
+        if (!prior || m.groupId === req.groupId) {
+          best.set(m.contactId, m);
+        }
+      }
+      results = [...best.values()];
+    }
+
+    return results.map((it) => this.toDto(it, req.groupId));
   }
 
   toDto(membership: GroupMembership, refGroupId: number): GroupMembershipDto {
