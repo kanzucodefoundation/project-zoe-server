@@ -44,8 +44,13 @@ export class FellowshipsController {
   async updateSchedule(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateFellowshipScheduleDto,
+    @Request() req: any,
   ) {
-    return this.fellowshipAttendanceService.updateSchedule(id, dto);
+    return this.fellowshipAttendanceService.updateSchedule(
+      id,
+      dto,
+      req.user.contactId,
+    );
   }
 
   @Get('my-members')

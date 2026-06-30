@@ -4,6 +4,7 @@ import {
   Logger,
   NotFoundException,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { Connection, In, Repository } from 'typeorm';
 import { FellowshipSchedule } from '../entities/fellowship-schedule.entity';
@@ -77,6 +78,7 @@ export class FellowshipAttendanceService {
   async updateSchedule(
     id: number,
     dto: UpdateFellowshipScheduleDto,
+    contactId: number,
   ): Promise<FellowshipSchedule> {
     const tenantId = this.tenantContext.requireTenant();
     const schedule = await this.scheduleRepo.findOne({
@@ -85,6 +87,28 @@ export class FellowshipAttendanceService {
     if (!schedule) {
       throw new NotFoundException(`Fellowship schedule ${id} not found`);
     }
+
+    const isLeader = await this.membershipRepo
+      .createQueryBuilder('gm')
+      .innerJoin('gm.group', 'g')
+      .innerJoin('g.category', 'c')
+      .where('gm.contactId = :contactId', { contactId })
+      .andWhere('gm.groupId = :groupId', {
+        groupId: schedule.fellowshipGroupId,
+      })
+      .andWhere('gm.role = :role', { role: GroupRole.Leader })
+      .andWhere('gm.isActive = true')
+      .andWhere('c.purpose = :purpose', {
+        purpose: GroupCategoryPurpose.FELLOWSHIP,
+      })
+      .getCount();
+
+    if (!isLeader) {
+      throw new ForbiddenException(
+        'You are not a leader of this fellowship group',
+      );
+    }
+
     Object.assign(schedule, dto);
     return this.scheduleRepo.save(schedule);
   }
@@ -374,8 +398,11 @@ export class FellowshipAttendanceService {
     const dayName = WEEKDAY_NAMES[schedule.meetingDay];
     return {
       exists: true,
+      id: schedule.id,
       day: schedule.meetingDay,
       label: `${dayName}s`,
+      startTime: schedule.startTime,
+      frequency: schedule.frequency,
       fellowshipGroupId: schedule.fellowshipGroupId,
     };
   }
