@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags } from '@nestjs/swagger';
+import { parse } from 'csv-parse/sync';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { SentryInterceptor } from '../../utils/sentry.interceptor';
 import { TenantContextInterceptor } from 'src/interceptors/tenant-context.interceptor';
@@ -17,19 +18,35 @@ import {
   BulkImportResult,
 } from '../services/group-import.service';
 
-const EXPECTED_HEADERS = ['location', 'zone', 'sector', 'mc'];
+const MAX_CSV_BYTES = 5 * 1024 * 1024; // 5 MB
+
+function csvFileFilter(
+  _req: any,
+  file: Express.Multer.File,
+  cb: (err: Error | null, accept: boolean) => void,
+) {
+  const isCsv =
+    file.originalname.toLowerCase().endsWith('.csv') ||
+    file.mimetype === 'text/csv' ||
+    file.mimetype === 'application/csv';
+  cb(
+    isCsv ? null : new BadRequestException('Only CSV files are accepted.'),
+    isCsv,
+  );
+}
 
 function parseCsv(buffer: Buffer): BulkGroupRow[] {
-  const lines = buffer
-    .toString('utf-8')
-    .replace(/\r/g, '')
-    .split('\n')
-    .filter((l) => l.trim());
+  const records: Record<string, string>[] = parse(buffer, {
+    columns: true,
+    skip_empty_lines: true,
+    trim: true,
+    bom: true,
+    relax_column_count: true,
+  });
 
-  if (lines.length < 2) return [];
+  if (records.length === 0) return [];
 
-  const headers = lines[0].split(',').map((h) => h.trim().toLowerCase());
-
+  const headers = Object.keys(records[0]).map((h) => h.toLowerCase());
   if (!headers.includes('location') || !headers.includes('mc')) {
     throw new Error(
       `CSV must include at minimum "location" and "mc" columns. Got: ${headers.join(
@@ -38,13 +55,15 @@ function parseCsv(buffer: Buffer): BulkGroupRow[] {
     );
   }
 
-  return lines.slice(1).map((line) => {
-    const values = line.split(',').map((v) => v.trim());
-    const row: any = {};
-    headers.forEach((h, i) => {
-      row[h] = values[i] ?? '';
-    });
-    return row as BulkGroupRow;
+  return records.map((rec) => {
+    const lower: Record<string, string> = {};
+    for (const [k, v] of Object.entries(rec)) lower[k.toLowerCase()] = v;
+    return {
+      location: lower['location'] ?? '',
+      zone: lower['zone'] ?? '',
+      sector: lower['sector'] ?? '',
+      mc: lower['mc'] ?? '',
+    };
   });
 }
 
@@ -56,7 +75,12 @@ export class GroupImportController {
   constructor(private readonly importService: GroupImportService) {}
 
   @Post('bulk')
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: { fileSize: MAX_CSV_BYTES },
+      fileFilter: csvFileFilter,
+    }),
+  )
   async bulkImport(
     @UploadedFile() file: Express.Multer.File,
   ): Promise<BulkImportResult> {
