@@ -1,6 +1,8 @@
 import {
   Controller,
+  Get,
   Post,
+  Res,
   UploadedFile,
   UseInterceptors,
   UseGuards,
@@ -73,6 +75,11 @@ function parseCsv(buffer: Buffer): BulkGroupRow[] {
 @Controller('api/groups/import')
 export class GroupImportController {
   constructor(private readonly importService: GroupImportService) {}
+
+  @Get('bulk/sample')
+  getSample(@Res() res: any) {
+    return res.sendFile('bulk-group-import-sample.csv', { root: './public' });
+  }
 
   @Post('bulk')
   @UseInterceptors(
