@@ -42,26 +42,66 @@ export class GroupsMembershipService {
       filter.contactId = req.contactId;
     }
 
+    let groupIds: number[] = [];
     if (hasValue(req.groupId)) {
       const parentGroup = await this.groupTreeRepository.findOneOrFail({
         where: { id: req.groupId },
       });
-      const childGroupIds =
+      const childGroups =
         await this.groupTreeRepository.findDescendants(parentGroup);
-      const idList = new Set([
-        req.groupId,
-        ...childGroupIds.map((it) => it.id),
-      ]);
-      filter.groupId = In([...idList.values()]);
+      groupIds = [...new Set([req.groupId, ...childGroups.map((it) => it.id)])];
+      filter.groupId = In(groupIds);
     }
 
     if (hasNoValue(filter)) {
       throw new ClientFriendlyException('Please specify groupId or contactId');
     }
 
-    // By default, only show active memberships unless explicitly requested
-    if (!req.hasOwnProperty('includeInactive') || !req.includeInactive) {
+    const activeOnly =
+      !req.hasOwnProperty('includeInactive') || !req.includeInactive;
+    if (activeOnly) {
       filter.isActive = true;
+    }
+
+    if (hasValue(req.groupId)) {
+      // Two-step: paginate distinct contactIds first so that limit/skip count
+      // unique contacts rather than raw membership rows (a contact in multiple
+      // sub-groups would otherwise consume multiple row slots per page).
+      const qb = this.repository
+        .createQueryBuilder('m')
+        .select('m.contactId', 'contactId')
+        .where('m.groupId IN (:...groupIds)', { groupIds })
+        .groupBy('m.contactId');
+
+      if (activeOnly) {
+        qb.andWhere('m.isActive = :isActive', { isActive: true });
+      }
+      if (hasValue(req.contactId)) {
+        qb.andWhere('m.contactId = :contactId', { contactId: req.contactId });
+      }
+
+      const rows: { contactId: number }[] = await qb
+        .offset(req.skip ?? 0)
+        .limit(req.limit ?? 100)
+        .getRawMany();
+
+      if (rows.length === 0) return [];
+
+      const contactIds = rows.map((r) => r.contactId);
+      const data = await this.repository.find({
+        relations: ['contact', 'contact.person', 'group', 'group.category'],
+        where: { ...filter, contactId: In(contactIds) },
+        order: { id: 'ASC' },
+      });
+
+      const best = new Map<number, GroupMembership>();
+      for (const m of data) {
+        const prior = best.get(m.contactId);
+        if (!prior || m.groupId === req.groupId) {
+          best.set(m.contactId, m);
+        }
+      }
+      return [...best.values()].map((it) => this.toDto(it, req.groupId));
     }
 
     const data = await this.repository.find({
@@ -71,22 +111,7 @@ export class GroupsMembershipService {
       where: filter,
     });
 
-    // When filtering by groupId (which includes descendants), a contact may hold
-    // memberships in multiple groups in the subtree. Keep only the direct membership
-    // when one exists; otherwise keep the first encountered child-group membership.
-    let results = data;
-    if (hasValue(req.groupId)) {
-      const best = new Map<number, GroupMembership>();
-      for (const m of data) {
-        const prior = best.get(m.contactId);
-        if (!prior || m.groupId === req.groupId) {
-          best.set(m.contactId, m);
-        }
-      }
-      results = [...best.values()];
-    }
-
-    return results.map((it) => this.toDto(it, req.groupId));
+    return data.map((it) => this.toDto(it, req.groupId));
   }
 
   toDto(membership: GroupMembership, refGroupId: number): GroupMembershipDto {
