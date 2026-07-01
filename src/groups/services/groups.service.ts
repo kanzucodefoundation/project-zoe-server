@@ -69,11 +69,20 @@ export class GroupsService {
     this.logger = this.appLogger.createContextLogger('GroupsService');
   }
 
-  async findAll(req: SearchDto): Promise<any[]> {
+  async findAll(req: SearchDto, user?: any): Promise<any[]> {
+    // Groups the user leads (directly or via an ancestor) or, for admins,
+    // null meaning unrestricted. Mirrors GroupPermissionsService.hasPermissionForGroup.
+    const accessibleGroupIds =
+      await this.groupsPermissionsService.getAccessibleGroupIds(user);
+    if (accessibleGroupIds !== null && accessibleGroupIds.length === 0) {
+      return [];
+    }
+
     if (req.purpose) {
       return this.findGroupsByPurpose(
         req.purpose as GroupCategoryPurpose,
         req.parentId,
+        accessibleGroupIds,
       );
     }
 
@@ -82,7 +91,10 @@ export class GroupsService {
       if (req.parentId === 'null' || req.parentId === '') {
         // Return root groups (no parent)
         return this.repository.find({
-          where: { parentId: IsNull() },
+          where: {
+            parentId: IsNull(),
+            ...(accessibleGroupIds ? { id: In(accessibleGroupIds) } : {}),
+          },
           relations: ['category', 'parent'],
           order: { name: 'ASC' },
         });
@@ -92,7 +104,10 @@ export class GroupsService {
       if (!isNaN(parentIdNum)) {
         // Return direct children of the specified group
         return this.repository.find({
-          where: { parentId: parentIdNum },
+          where: {
+            parentId: parentIdNum,
+            ...(accessibleGroupIds ? { id: In(accessibleGroupIds) } : {}),
+          },
           relations: ['category', 'parent'],
           order: { name: 'ASC' },
         });
@@ -101,12 +116,13 @@ export class GroupsService {
 
     // Default: return all groups as a tree structure
     // Manually build tree since findTrees() has issues with closure-table
-    return this.buildGroupTree();
+    return this.buildGroupTree(accessibleGroupIds);
   }
 
   private async findGroupsByPurpose(
     purpose: GroupCategoryPurpose,
     parentId?: string,
+    accessibleGroupIds?: number[] | null,
   ): Promise<Group[]> {
     const query = this.repository
       .createQueryBuilder('group')
@@ -127,14 +143,24 @@ export class GroupsService {
       }
     }
 
+    if (accessibleGroupIds) {
+      query.andWhere('group.id IN (:...accessibleGroupIds)', {
+        accessibleGroupIds:
+          accessibleGroupIds.length > 0 ? accessibleGroupIds : [-1],
+      });
+    }
+
     return query.orderBy('group.name', 'ASC').getMany();
   }
 
-  private async buildGroupTree(): Promise<any[]> {
+  private async buildGroupTree(
+    accessibleGroupIds?: number[] | null,
+  ): Promise<any[]> {
     // Fetch all groups flat
     const allGroups = await this.repository.find({
       relations: ['category'],
       order: { name: 'ASC' },
+      ...(accessibleGroupIds ? { where: { id: In(accessibleGroupIds) } } : {}),
     });
 
     // Build a map for quick lookup

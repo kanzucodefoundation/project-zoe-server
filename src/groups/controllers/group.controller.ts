@@ -81,7 +81,7 @@ export class GroupController {
     @Query() req: SearchDto,
     @Request() rawRequest?: any,
   ): Promise<any> {
-    return this.service.findAll(req);
+    return this.service.findAll(req, rawRequest?.user);
   }
 
   @Post()
