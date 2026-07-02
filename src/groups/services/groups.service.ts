@@ -8,6 +8,7 @@ import {
   Repository,
   Connection,
   TreeRepository,
+  Not,
 } from 'typeorm';
 import Group from '../entities/group.entity';
 import GroupEvent from '../../events/entities/event.entity';
@@ -91,10 +92,15 @@ export class GroupsService {
       if (req.parentId === 'null' || req.parentId === '') {
         // Return root groups (no parent)
         return this.repository.find({
-          where: {
-            parentId: IsNull(),
-            ...(accessibleGroupIds ? { id: In(accessibleGroupIds) } : {}),
-          },
+          where: accessibleGroupIds
+            ? [
+                { id: In(accessibleGroupIds), parentId: IsNull() },
+                {
+                  id: In(accessibleGroupIds),
+                  parentId: Not(In(accessibleGroupIds)),
+                },
+              ]
+            : { parentId: IsNull() },
           relations: ['category', 'parent'],
           order: { name: 'ASC' },
         });
@@ -132,7 +138,20 @@ export class GroupsService {
 
     if (parentId !== undefined) {
       if (parentId === 'null' || parentId === '') {
-        query.andWhere('group.parentId IS NULL');
+        if (accessibleGroupIds) {
+          // Treat as a root any accessible group whose parent isn't also
+          // accessible (mirrors buildGroupTree's visible-root logic), not
+          // just physical roots with no parent at all.
+          query.andWhere(
+            '(group.parentId IS NULL OR group.parentId NOT IN (:...rootParentIds))',
+            {
+              rootParentIds:
+                accessibleGroupIds.length > 0 ? accessibleGroupIds : [-1],
+            },
+          );
+        } else {
+          query.andWhere('group.parentId IS NULL');
+        }
       } else {
         const parentIdNum = parseInt(parentId, 10);
         if (!isNaN(parentIdNum)) {
