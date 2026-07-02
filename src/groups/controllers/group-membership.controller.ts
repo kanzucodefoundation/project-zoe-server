@@ -38,7 +38,7 @@ export class GroupMembershipController {
   async create(@Body() data: BatchGroupMembershipDto): Promise<any> {
     const created = await this.service.create(data);
     return {
-      message: 'Operation succeeded',
+      message: 'Members added successfully',
       inserted: created,
     };
   }
