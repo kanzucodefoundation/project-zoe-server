@@ -5,7 +5,7 @@ import {
   HttpStatus,
   BadRequestException,
 } from '@nestjs/common';
-import { Connection, Repository, In, Not } from 'typeorm';
+import { Connection, Repository, In, Not, Between } from 'typeorm';
 import { UserDto } from 'src/auth/dto/user.dto';
 import { Report } from './entities/report.entity';
 import { ReportSubmission } from './entities/report.submission.entity';
@@ -122,6 +122,23 @@ export class ReportsService {
     });
     if (!submittingUser) {
       throw new NotFoundException(`User with ID ${user.id} not found`);
+    }
+
+    // A user may only submit a given report once per week (week starts Sunday)
+    const weekStart = this.getStartOfWeek(new Date());
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekEnd.getDate() + 7);
+    const existingSubmission = await this.reportSubmissionRepository.findOne({
+      where: {
+        report: { id: reportId },
+        user: { id: submittingUser.id },
+        submittedAt: Between(weekStart, weekEnd),
+      },
+    });
+    if (existingSubmission) {
+      throw new BadRequestException(
+        `You have already submitted "${report.name}" for this week`,
+      );
     }
 
     let targetGroup: Group | null = null;
@@ -419,6 +436,13 @@ export class ReportsService {
       this.logger.endTracking(tracking, false);
       throw error;
     }
+  }
+
+  private getStartOfWeek(date: Date): Date {
+    const startOfWeek = new Date(date);
+    startOfWeek.setHours(0, 0, 0, 0);
+    startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay()); // Sunday = 0
+    return startOfWeek;
   }
 
   async getReport(reportId: number): Promise<Report> {
