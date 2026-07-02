@@ -83,6 +83,9 @@ export class GroupPermissionsService {
     if (this.isAdmin(user)) {
       return null;
     }
+    if (!user?.contactId) {
+      return [];
+    }
     return this.getUserGroupIds(user);
   }
 
