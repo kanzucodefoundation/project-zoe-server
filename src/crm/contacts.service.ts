@@ -155,17 +155,16 @@ export class ContactsService {
       if (hasValue(req.query)) {
         hasFilter = true;
         const searchTerms = req.query.trim().split(/\s+/);        
+        const tenantId = this.tenantContext.requireTenant();
         const qb = this.personRepository.createQueryBuilder('person')
-          .select(['person.contactId']);
+          .innerJoin('person.contact', 'contact')
+          .select(['person.contactId'])
+          .where('contact.tenantId = :tenantId', { tenantId });
         // Dynamically add an AND condition for every word keyword typed
         searchTerms.forEach((term, index) => {
           const condition = `(person.firstName ILIKE :term${index} OR person.lastName ILIKE :term${index} OR person.middleName ILIKE :term${index})`;
           const params = { [`term${index}`]: `%${ContactsService.escapeLike(term)}%` };
-          if (index === 0) {
-            qb.where(condition, params);
-          } else {
-            qb.andWhere(condition, params);
-          }
+          qb.andWhere(condition, params);
         });
         const resp = await qb.getMany();
         this.logger.dataAccess('debug', 'Name search results found', {
