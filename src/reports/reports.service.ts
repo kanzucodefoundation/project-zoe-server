@@ -27,6 +27,7 @@ import { TreeRepository } from 'typeorm';
 import Group from 'src/groups/entities/group.entity';
 import { UsersService } from 'src/users/users.service';
 import { GroupsService } from 'src/groups/services/groups.service';
+import { GroupPermissionsService } from 'src/groups/services/group-permissions.service';
 import { GroupTreeService } from 'src/groups/services/group-tree.service';
 import { ReportField } from './entities/report.field.entity';
 import { ReportSubmissionData } from './entities/report.submission.data.entity';
@@ -54,6 +55,7 @@ export class ReportsService {
     @Inject('CONNECTION') connection: Connection,
     private readonly usersService: UsersService,
     private readonly groupsService: GroupsService,
+    private readonly groupPermissionsService: GroupPermissionsService,
     private readonly groupTreeService: GroupTreeService,
     private readonly appLogger: AppLogger,
     private readonly tenantContext: TenantContext,
@@ -110,7 +112,7 @@ export class ReportsService {
     // Retrieve the report by its ID
     const report = await this.reportRepository.findOne({
       where: { id: reportId, status: ReportStatus.ACTIVE },
-      relations: ['targetGroupCategory'],
+      relations: ['targetGroupCategory', 'fields'],
     });
     if (!report) {
       throw new NotFoundException(`Report with ID ${reportId} not found`);
@@ -144,16 +146,62 @@ export class ReportsService {
     let targetGroup: Group | null = null;
     let selectedGroupId: number | null = null;
 
+    // The designated group field can either be configured explicitly via
+    // report.groupFieldName, or inferred from a field marked as a
+    // 'dynamic_group_selector' (e.g. serviceLocationId on the Sunday Service
+    // Report). Prefer the hidden field, since the selector marker is applied
+    // to both the display field (e.g. serviceLocationName) and the id field.
+    const groupSelectorFields = (report.fields ?? []).filter(
+      (f) =>
+        Array.isArray(f.options) &&
+        f.options.some((o: any) => o.type === 'dynamic_group_selector'),
+    );
+    const groupSelectorField =
+      groupSelectorFields.find((f) => f.hidden) ?? groupSelectorFields[0];
+    const groupFieldName = report.groupFieldName || groupSelectorField?.name;
+
+    this.logger.business('log', 'Resolved report group field', {
+      operation: 'submitReport',
+      resource: 'reports',
+      resourceId: report.id,
+      metadata: {
+        staticGroupFieldName: report.groupFieldName ?? null,
+        groupSelectorFieldNames: groupSelectorFields.map((f) => f.name),
+        selectedGroupSelectorField: groupSelectorField?.name ?? null,
+        resolvedGroupFieldName: groupFieldName ?? null,
+      },
+    });
+
     // Check if report has a designated group field
-    if (report.groupFieldName && submissionDto.data[report.groupFieldName]) {
-      selectedGroupId = parseInt(submissionDto.data[report.groupFieldName]);
+    if (groupFieldName && submissionDto.data[groupFieldName]) {
+      selectedGroupId = parseInt(submissionDto.data[groupFieldName]);
+
+      this.logger.business('log', 'Resolved selected group for submission', {
+        operation: 'submitReport',
+        resource: 'reports',
+        resourceId: report.id,
+        contactId: submittingUser.contactId,
+        metadata: {
+          groupFieldName,
+          rawGroupFieldValue: submissionDto.data[groupFieldName],
+          selectedGroupId,
+        },
+      });
 
       // Validate user can submit for this group
       const canSubmitForGroup = await this.validateUserGroupPermission(
-        submittingUser.contactId,
+        user,
         selectedGroupId,
         report.targetGroupCategory?.id,
       );
+
+      this.logger.business('log', 'Group submission permission check', {
+        operation: 'submitReport',
+        resource: 'reports',
+        resourceId: report.id,
+        contactId: submittingUser.contactId,
+        metadata: { selectedGroupId, canSubmitForGroup },
+      });
 
       if (!canSubmitForGroup) {
         throw new BadRequestException(
@@ -1201,23 +1249,29 @@ export class ReportsService {
   }
 
   private async validateUserGroupPermission(
-    contactId: number,
+    user: UserDto,
     groupId: number,
     categoryId?: number,
   ): Promise<boolean> {
     const membership = await this.groupMembershipRepo.findOne({
       where: {
-        contactId,
+        contactId: user.contactId,
         group: { id: groupId },
       },
       relations: ['group', 'group.category'],
     });
 
-    if (!membership) return false;
-    if (categoryId && membership.group.category?.id !== categoryId)
-      return false;
+    if (
+      membership &&
+      (!categoryId || membership.group.category?.id === categoryId)
+    ) {
+      return true;
+    }
 
-    return true;
+    // Allow users who lead a group higher in the hierarchy (e.g. a FOB or
+    // Zone leader submitting on behalf of a Location/MC nested beneath them).
+    // GroupPermissionsService.hasPermissionForGroup walks ancestors for this.
+    return this.groupPermissionsService.hasPermissionForGroup(user, groupId);
   }
 
   private async getUserGroupsInCategory(
