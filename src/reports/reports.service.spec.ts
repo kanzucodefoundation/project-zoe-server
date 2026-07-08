@@ -2,8 +2,11 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ReportsService } from './reports.service';
 import { UsersService } from '../users/users.service';
 import { GroupsService } from '../groups/services/groups.service';
+import { GroupPermissionsService } from '../groups/services/group-permissions.service';
 import { GroupTreeService } from '../groups/services/group-tree.service';
 import { AppLogger } from '../utils/app-logger.service';
+import { TenantContext } from '../shared/tenant/tenant-context';
+import { FellowshipAttendanceService } from '../attendance/services/fellowship-attendance.service';
 import { Connection, Repository, TreeRepository } from 'typeorm';
 import { Report } from './entities/report.entity';
 import { ReportSubmission } from './entities/report.submission.entity';
@@ -18,8 +21,11 @@ describe('ReportsService', () => {
   let mockConnection: Partial<Connection>;
   let mockUsersService: Partial<UsersService>;
   let mockGroupsService: Partial<GroupsService>;
+  let mockGroupPermissionsService: Partial<GroupPermissionsService>;
   let mockGroupTreeService: Partial<GroupTreeService>;
   let mockAppLogger: Partial<AppLogger>;
+  let mockTenantContext: Partial<TenantContext>;
+  let mockFellowshipAttendanceService: Partial<FellowshipAttendanceService>;
   let mockRepositories: any;
 
   beforeEach(async () => {
@@ -93,12 +99,30 @@ describe('ReportsService', () => {
       getReportAccessibleGroups: jest.fn(),
     };
 
+    mockGroupPermissionsService = {
+      hasPermissionForGroup: jest.fn(),
+      assertPermissionForGroup: jest.fn(),
+      getUserGroupIds: jest.fn(),
+      getUserIsMemberLeaderGroupIds: jest.fn(),
+    };
+
+    mockTenantContext = {
+      tenantId: 1,
+      hasTenant: jest.fn().mockReturnValue(true),
+      requireTenant: jest.fn().mockReturnValue(1),
+    };
+
+    mockFellowshipAttendanceService = {
+      recordReportAttendance: jest.fn(),
+      getMyMembers: jest.fn(),
+    };
+
     mockAppLogger = {
       createContextLogger: jest.fn().mockReturnValue({
         startTracking: jest.fn().mockReturnValue('tracking-id'),
         endTracking: jest.fn(),
         apiLog: jest.fn(),
-        businessLog: jest.fn(),
+        business: jest.fn(),
         error: jest.fn(),
       }),
     };
@@ -119,12 +143,24 @@ describe('ReportsService', () => {
           useValue: mockGroupsService,
         },
         {
+          provide: GroupPermissionsService,
+          useValue: mockGroupPermissionsService,
+        },
+        {
           provide: GroupTreeService,
           useValue: mockGroupTreeService,
         },
         {
           provide: AppLogger,
           useValue: mockAppLogger,
+        },
+        {
+          provide: TenantContext,
+          useValue: mockTenantContext,
+        },
+        {
+          provide: FellowshipAttendanceService,
+          useValue: mockFellowshipAttendanceService,
         },
       ],
     }).compile();
