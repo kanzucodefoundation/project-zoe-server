@@ -72,7 +72,7 @@ describe('Group Membership', () => {
     };
     const result = await controller.create(dto);
     expect(result).toEqual({
-      message: 'Operation succeeded',
+      message: 'Members added successfully',
       inserted: dto.members.length,
     });
   });

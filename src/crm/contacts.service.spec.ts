@@ -6,6 +6,7 @@ import { AddressesService } from './addresses.service';
 import { GroupTreeService } from '../groups/services/group-tree.service';
 import { AppLogger } from '../utils/app-logger.service';
 import { GroupsMembershipService } from '../groups/services/group-membership.service';
+import { TenantContext } from '../shared/tenant/tenant-context';
 import { Connection, Repository, TreeRepository } from 'typeorm';
 import Contact from './entities/contact.entity';
 import Person from './entities/person.entity';
@@ -105,6 +106,10 @@ describe('ContactsService', () => {
         {
           provide: GroupsMembershipService,
           useValue: { addMember: jest.fn() },
+        },
+        {
+          provide: TenantContext,
+          useValue: { requireTenant: jest.fn().mockReturnValue(1) },
         },
       ],
     }).compile();

@@ -14,8 +14,19 @@ describe('GroupsMembershipService', () => {
   let mockGroupRepository: any;
   let mockAppLogger: any;
   let mockContextLogger: any;
+  let mockQb: any;
 
   beforeEach(async () => {
+    mockQb = {
+      select: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      groupBy: jest.fn().mockReturnThis(),
+      offset: jest.fn().mockReturnThis(),
+      limit: jest.fn().mockReturnThis(),
+      getRawMany: jest.fn().mockResolvedValue([]),
+    };
+
     mockMembershipRepository = {
       find: jest.fn().mockResolvedValue([]),
       findOne: jest.fn(),
@@ -30,6 +41,7 @@ describe('GroupsMembershipService', () => {
       create: jest.fn((membership) => membership),
       update: jest.fn(),
       delete: jest.fn(),
+      createQueryBuilder: jest.fn().mockReturnValue(mockQb),
     };
 
     mockGroupRepository = {
@@ -51,6 +63,10 @@ describe('GroupsMembershipService', () => {
       getRepository: jest.fn().mockImplementation((entity) => {
         if (entity === Group) return mockGroupRepository;
         return mockMembershipRepository;
+      }),
+      getTreeRepository: jest.fn().mockReturnValue({
+        ...mockGroupRepository,
+        findDescendants: jest.fn().mockResolvedValue([]),
       }),
       createQueryBuilder: jest.fn().mockReturnValue({
         update: jest.fn().mockReturnThis(),
@@ -91,7 +107,7 @@ describe('GroupsMembershipService', () => {
 
   it('should initialize repositories', () => {
     expect(mockConnection.getRepository).toHaveBeenCalledWith(GroupMembership);
-    expect(mockConnection.getRepository).toHaveBeenCalledWith(Group);
+    expect(mockConnection.getTreeRepository).toHaveBeenCalledWith(Group);
     expect(mockAppLogger.createContextLogger).toHaveBeenCalledWith(
       'GroupsMembershipService',
     );
@@ -177,6 +193,7 @@ describe('GroupsMembershipService', () => {
     const parentGroup = { id: 9, name: 'Parent Group' };
     mockGroupRepository.findOneOrFail.mockResolvedValue(parentGroup);
     mockGroupRepository.query.mockResolvedValue([{ id: 10 }]);
+    mockQb.getRawMany.mockResolvedValue([{ contactId: 51 }, { contactId: 52 }]);
     mockMembershipRepository.find.mockResolvedValue([
       {
         id: 101,

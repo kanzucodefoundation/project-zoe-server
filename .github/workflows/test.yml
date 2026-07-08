@@ -1,0 +1,37 @@
+name: Tests
+
+on:
+  push:
+    branches-ignore:
+      - master
+      - develop
+  pull_request:
+    branches:
+      - master
+      - develop
+
+jobs:
+  test:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: volta-cli/action@v1
+        with:
+          node-version: '18.x'
+          npm-version: '8.x'
+
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: '**/node_modules'
+          key: ${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run tests
+        run: npm test -- --forceExit --passWithNoTests
