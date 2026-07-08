@@ -6,7 +6,8 @@ export class CreateUserDto {
   @IsNumber()
   contactId: number;
 
-  username: string;
+  @IsOptional()
+  username?: string;
   @IsNotEmpty()
   password: string;
   @IsNotEmpty()

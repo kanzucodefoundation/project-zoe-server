@@ -131,6 +131,7 @@ export class UsersService {
       isActive: user.isActive,
       lastLogin: user.lastLogin ?? null,
       username: user.username,
+      email: user.email ?? null,
       contactId: user.contactId,
       fullName,
     };
@@ -158,16 +159,31 @@ export class UsersService {
     if (!(await this.contactsService.findOne(data.contactId))) {
       throw new HttpException('Visitor Not Found', 404);
     }
-    const email = await this.emailRepository.findOne({
+
+    const emailRecord = await this.emailRepository.findOne({
       where: { contactId: data.contactId },
     });
+
     const toSave = new User();
     toSave.id = data.contactId;
-    toSave.username = email.value;
     toSave.contactId = data.contactId;
     toSave.password = data.password;
     toSave.isActive = data.isActive;
-    // Password will be hashed in create() method
+
+    if (emailRecord?.value) {
+      // Email-bearing user: email doubles as login username
+      toSave.username = emailRecord.value;
+      toSave.email = emailRecord.value;
+    } else if (hasValue(data.username)) {
+      // Email-less user: admin supplies a login username (e.g. phone number)
+      toSave.username = data.username;
+      toSave.email = null;
+    } else {
+      throw new HttpException(
+        'Contact has no email address. Provide a username for this user.',
+        400,
+      );
+    }
 
     const saveUser = await this.create(toSave);
 
@@ -182,7 +198,6 @@ export class UsersService {
 
     if (!user) {
       this.remove(user.id);
-
       throw new HttpException('Failed To Create User', 400);
     }
 
@@ -200,35 +215,38 @@ export class UsersService {
       }
     }
 
-    const tokenOptions = { expiresIn: '1d' };
-    const token = (
-      await this.jwtHelperService.generateToken(
-        {
-          id: user.id,
-          contactId: user.contactId,
-          username: user.username,
-          email: user.username,
-          fullName: user.fullName,
-          roles: user.roles,
-          isActive: user.isActive,
-        },
-        tokenOptions,
-      )
-    ).token;
+    // Only send welcome email when an email address is on file
+    if (user.email) {
+      const tokenOptions = { expiresIn: '1d' };
+      const token = (
+        await this.jwtHelperService.generateToken(
+          {
+            id: user.id,
+            contactId: user.contactId,
+            username: user.username,
+            email: user.email,
+            fullName: user.fullName,
+            roles: user.roles,
+            isActive: user.isActive,
+          },
+          tokenOptions,
+        )
+      ).token;
 
-    const resetLink = `${process.env.APP_URL}/reset-password/${token}`;
-    const mailerData: IEmail = {
-      to: `${(await user).username}`,
-      subject: 'Project Zoe - Worship Harvest - Account Activated!',
-      html: `
+      const resetLink = `${process.env.APP_URL}/reset-password/${token}`;
+      const mailerData: IEmail = {
+        to: user.email,
+        subject: 'Project Zoe - Worship Harvest - Account Activated!',
+        html: `
                 <p>Hello ${user.fullName},</p></br>
                 <p>The Lamb has won! So, your account has been created in the Project Zoe church management platform.<p></br>
                 <p>Follow this <a href=${resetLink}>link</a> to reset your password</p>
                 <p>This link will expire in 1 day</p>
             `,
-    };
-    const mailURL = await sendEmail(mailerData);
-    // return { token, mailURL, user };
+      };
+      await sendEmail(mailerData);
+    }
+
     return user;
   }
 
@@ -241,6 +259,7 @@ export class UsersService {
     const contact = await this.contactsService.createPerson({ ...rest, email });
     const user = new User();
     user.username = email;
+    user.email = email;
     user.password = password;
     user.contact = Contact.ref(contact.id);
     user.isActive = true;

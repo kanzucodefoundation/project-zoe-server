@@ -8,8 +8,8 @@ export class UserDto extends UserPermissions {
   contactId: number;
   @ApiProperty()
   username: string;
-  @ApiProperty()
-  email: string;
+  @ApiProperty({ required: false, nullable: true })
+  email: string | null;
   @ApiProperty()
   fullName: string;
   @ApiProperty()

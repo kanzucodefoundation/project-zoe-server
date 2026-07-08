@@ -205,16 +205,26 @@ export class AuthService {
     const message =
       'An email has been sent to the provided address if it exists in our system';
     if (!userExists) {
-      Logger.error('Provided email address not registered');
+      Logger.error('Provided username not registered');
       return { token: '', mailURL: '', message };
     }
 
     const user = await this.usersService.findOne(userExists.id);
+
+    if (!user.email) {
+      return {
+        token: '',
+        mailURL: '',
+        message:
+          'No email address is on file for this account. Please contact your administrator to reset your password.',
+      };
+    }
+
     const token = (await this.jwtHelperService.generateToken(user)).token;
     const resetLink = `${process.env.APP_URL}/reset-password/${token}`;
 
     const mailerData: IEmail = {
-      to: `${(await user).username}`,
+      to: user.email,
       subject: 'Project Zoe - Reset Password',
       html: `
             <p>Hello ${user.fullName}</p></br>
@@ -247,21 +257,22 @@ export class AuthService {
     if (!user) {
       throw new HttpException('User Password Not Updated', 404);
     }
-    const mailerData: IEmail = {
-      to: `${(await user).username}`,
-      subject: 'Password Change Confirmation',
-      html: `
-          <h3>Hello ${(await user).fullName},</h3></br>
+    const resolvedUser = await user;
+    if (resolvedUser.email) {
+      const mailerData: IEmail = {
+        to: resolvedUser.email,
+        subject: 'Password Change Confirmation',
+        html: `
+          <h3>Hello ${resolvedUser.fullName},</h3></br>
           <h4>Your Password has been changed successfully!<h4></br>
       `,
-    };
-    const mailURL = await sendEmail(mailerData);
-    if (mailURL) {
-      const message = 'Password Change Successful';
-      return { message, mailURL, user };
-    } else {
-      Logger.error('Email not sent');
+      };
+      const mailURL = await sendEmail(mailerData);
+      if (!mailURL) {
+        Logger.error('Password change confirmation email not sent');
+      }
     }
+    return { message: 'Password Change Successful', mailURL: '', user };
   }
 
   async getPermissions(roles: string[]) {

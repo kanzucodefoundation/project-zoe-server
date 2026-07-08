@@ -11,7 +11,7 @@ export const createUserDto = (user: User): UserDto => {
   user.userRoles.forEach((it) => permissions.concat(it.roles.permissions));
   return {
     contactId: user.contact.id,
-    email: user.username,
+    email: user.email ?? null,
     username: user.username,
     fullName: getPersonFullName(user.contact.person),
     id: user.id,
