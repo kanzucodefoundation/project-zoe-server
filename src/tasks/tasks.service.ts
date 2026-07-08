@@ -23,6 +23,7 @@ import { GroupCategoryPurpose } from '../groups/enums/groups';
 const TASK_SUMMARY_RELATIONS = [
   'contact',
   'contact.person',
+  'contact.addresses',
   'assignedTo',
   'assignedTo.contact',
   'assignedTo.contact.person',
@@ -128,6 +129,7 @@ export class TasksService {
       .createQueryBuilder('task')
       .leftJoinAndSelect('task.contact', 'contact')
       .leftJoinAndSelect('contact.person', 'contactPerson')
+      .leftJoinAndSelect('contact.addresses', 'contactAddresses')
       .leftJoinAndSelect('task.assignedTo', 'assignedTo')
       .leftJoinAndSelect('assignedTo.contact', 'assignedToContact')
       .leftJoinAndSelect('assignedToContact.person', 'assignedToContactPerson')
@@ -213,7 +215,10 @@ export class TasksService {
       tenantId,
     );
 
-    tasksWithLocationGroups.forEach((task) => this.sanitizeTaskUsers(task));
+    tasksWithLocationGroups.forEach((task) => {
+      this.sanitizeTaskUsers(task);
+      this.attachContactAddress(task);
+    });
     return {
       data: tasksWithLocationGroups,
       groups: this.groupTasksByLocation(tasksWithLocationGroups),
@@ -232,7 +237,10 @@ export class TasksService {
       order: { createdAt: 'DESC' },
     });
 
-    tasks.forEach((task) => this.sanitizeTaskUsers(task));
+    tasks.forEach((task) => {
+      this.sanitizeTaskUsers(task);
+      this.attachContactAddress(task);
+    });
     return tasks;
   }
 
@@ -449,6 +457,7 @@ export class TasksService {
     }
 
     this.sanitizeTaskUsers(task);
+    this.attachContactAddress(task);
     return task;
   }
 
@@ -456,11 +465,27 @@ export class TasksService {
     this.sanitizeUser(task.assignedTo);
     this.sanitizeUser(task.createdBy);
     task.comments?.forEach((comment) => this.sanitizeUser(comment.author));
+
+    const createdBy = task.createdBy as
+      | (Task['createdBy'] & { contact?: unknown })
+      | null;
+    if (createdBy?.contact) {
+      delete createdBy.contact;
+    }
   }
 
   private sanitizeUser(user?: { password?: string } | null): void {
     if (!user) return;
     delete user.password;
+  }
+
+  private attachContactAddress(task: Task): void {
+    const contact = task.contact as
+      | (Task['contact'] & { address?: string | null })
+      | undefined;
+    if (!contact) return;
+    contact.address = contact.addresses?.[0]?.freeForm ?? null;
+    delete contact.addresses;
   }
 
   private async attachLocationGroups(
