@@ -29,6 +29,31 @@ export function getFormattedDateString(currentDate: Date) {
   return `${year}${month}${day}`;
 }
 
+/**
+ * Parses a Postgres text-array literal (e.g. '{"51","58","26"}') into a
+ * plain string array. Falls back to comma-splitting for plain CSV input.
+ */
+export function parsePostgresTextArray(value: string): string[] {
+  if (!value) {
+    return [];
+  }
+  const trimmed = value.trim();
+  if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+    const inner = trimmed.slice(1, -1);
+    if (inner === '') {
+      return [];
+    }
+    return inner
+      .split(',')
+      .map((v) => v.trim().replace(/^"(.*)"$/, '$1'))
+      .filter((v) => v !== '');
+  }
+  return trimmed
+    .split(',')
+    .map((v) => v.trim())
+    .filter((v) => v !== '');
+}
+
 export function getUserDisplayName(user: User): string {
   const firstName = user?.contact?.person?.firstName ?? '';
   const lastName = user?.contact?.person?.lastName ?? '';
