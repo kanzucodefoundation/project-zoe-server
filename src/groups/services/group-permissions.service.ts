@@ -18,8 +18,12 @@ export class GroupPermissionsService {
     this.membershipRepository = connection.getRepository(GroupMembership);
   }
 
+  private isAdmin(user: any): boolean {
+    return Array.isArray(user?.roles) && user.roles.includes(roleAdmin.role);
+  }
+
   async hasPermissionForGroup(user: any, groupId: number) {
-    if (Array.isArray(user?.roles) && user.roles.includes(roleAdmin.role)) {
+    if (this.isAdmin(user)) {
       return true;
     }
 
@@ -69,6 +73,20 @@ export class GroupPermissionsService {
         'You have no permissions to modify this group',
       );
     }
+  }
+
+  // Bulk equivalent of hasPermissionForGroup: the set of group IDs for which
+  // hasPermissionForGroup(user, id) would return true. Returns null when the
+  // user is an admin, signalling "all groups accessible" without materialising
+  // the full ID list.
+  async getAccessibleGroupIds(user: any): Promise<number[] | null> {
+    if (this.isAdmin(user)) {
+      return null;
+    }
+    if (!user?.contactId) {
+      return [];
+    }
+    return this.getUserGroupIds(user);
   }
 
   async getUserGroupIds(user: any) {

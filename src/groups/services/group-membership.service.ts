@@ -106,12 +106,14 @@ export class GroupsMembershipService {
 
     const data = await this.repository.find({
       relations: ['contact', 'contact.person', 'group', 'group.category'],
-      skip: req.skip ?? 0,
-      take: req.limit ?? 100,
       where: filter,
     });
 
-    return data.map((it) => this.toDto(it, req.groupId));
+    const skip = req.skip ?? 0;
+    const limit = req.limit ?? 100;
+    return data
+      .slice(skip, skip + limit)
+      .map((it) => this.toDto(it, req.groupId));
   }
 
   toDto(membership: GroupMembership, refGroupId: number): GroupMembershipDto {
