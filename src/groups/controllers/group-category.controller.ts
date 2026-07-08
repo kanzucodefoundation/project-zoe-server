@@ -4,8 +4,8 @@ import {
   Delete,
   Get,
   Param,
+  Patch,
   Post,
-  Put,
   Query,
   UseGuards,
   UseInterceptors,
@@ -35,7 +35,7 @@ export class GroupCategoryController {
     return await this.service.create(data);
   }
 
-  @Put()
+  @Patch()
   async update(@Body() data: GroupCategory): Promise<GroupCategory> {
     return await this.service.update(data);
   }
@@ -47,7 +47,6 @@ export class GroupCategoryController {
 
   @Delete(':id')
   async remove(@Param('id') id: string): Promise<void> {
-    console.log('*****', id);
     await this.service.remove(id);
   }
 }
