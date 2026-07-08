@@ -222,6 +222,7 @@ export class GroupsMembershipService {
         role: dto.role,
       })
       .where('id = :id', { id: dto.id })
+      .andWhere('groupId = :groupId', { groupId: dto.groupId })
       .execute();
     Logger.log(`Updated data ${update.affected} ${JSON.stringify(update.raw)}`);
     return await this.findOne(dto.id);
