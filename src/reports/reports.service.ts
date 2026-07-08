@@ -1289,7 +1289,18 @@ export class ReportsService {
 
     // Allow users who lead a group higher in the hierarchy (e.g. a FOB or
     // Zone leader submitting on behalf of a Location/MC nested beneath them).
-    // GroupPermissionsService.hasPermissionForGroup walks ancestors for this.
+    // First confirm the target group is in the required category so a structural
+    // leader cannot be authorized for a group in the wrong category.
+    if (categoryId) {
+      const targetGroup = await this.treeRepository.findOne({
+        where: { id: groupId },
+        relations: ['category'],
+      });
+      if (!targetGroup || targetGroup.category?.id !== categoryId) {
+        return false;
+      }
+    }
+
     return this.groupPermissionsService.hasPermissionForGroup(user, groupId);
   }
 
