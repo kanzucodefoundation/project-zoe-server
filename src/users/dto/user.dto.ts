@@ -5,6 +5,7 @@ export class UserPermissions {
 export class UserListDto extends UserPermissions {
   id: number;
   username: string;
+  email: string | null;
   fullName: string;
   contactId: number;
   contact: any;

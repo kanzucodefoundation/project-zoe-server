@@ -25,12 +25,16 @@ const hashCost = 12;
 @Entity()
 @Unique(['username'])
 @Index(['tenant'])
+@Index(['email', 'tenant'], { unique: true })
 export class User {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ length: 40 })
+  @Column({ length: 254 })
   username: string;
+
+  @Column({ length: 100, nullable: true })
+  email: string | null;
 
   @Column({ length: 100 })
   @Exclude()
