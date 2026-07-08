@@ -197,7 +197,7 @@ export class UsersService {
     const user = await this.findOne(saveUser.id);
 
     if (!user) {
-      this.remove(user.id);
+      await this.remove(saveUser.id);
       throw new HttpException('Failed To Create User', 400);
     }
 

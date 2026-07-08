@@ -257,22 +257,22 @@ export class AuthService {
     if (!user) {
       throw new HttpException('User Password Not Updated', 404);
     }
-    const resolvedUser = await user;
-    if (resolvedUser.email) {
+    let mailURL = '';
+    if (user.email) {
       const mailerData: IEmail = {
-        to: resolvedUser.email,
+        to: user.email,
         subject: 'Password Change Confirmation',
         html: `
-          <h3>Hello ${resolvedUser.fullName},</h3></br>
+          <h3>Hello ${user.fullName},</h3></br>
           <h4>Your Password has been changed successfully!<h4></br>
       `,
       };
-      const mailURL = await sendEmail(mailerData);
+      mailURL = await sendEmail(mailerData);
       if (!mailURL) {
         Logger.error('Password change confirmation email not sent');
       }
     }
-    return { message: 'Password Change Successful', mailURL: '', user };
+    return { message: 'Password Change Successful', mailURL, user };
   }
 
   async getPermissions(roles: string[]) {
