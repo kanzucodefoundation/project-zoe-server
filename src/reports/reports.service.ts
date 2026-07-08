@@ -174,7 +174,12 @@ export class ReportsService {
 
     // Check if report has a designated group field
     if (groupFieldName && submissionDto.data[groupFieldName]) {
-      selectedGroupId = parseInt(submissionDto.data[groupFieldName]);
+      selectedGroupId = parseInt(submissionDto.data[groupFieldName], 10);
+      if (Number.isNaN(selectedGroupId)) {
+        throw new BadRequestException(
+          `Invalid group value for field "${groupFieldName}"`,
+        );
+      }
 
       this.logger.business('log', 'Resolved selected group for submission', {
         operation: 'submitReport',
@@ -1266,6 +1271,20 @@ export class ReportsService {
       (!categoryId || membership.group.category?.id === categoryId)
     ) {
       return true;
+    }
+
+    // hasPermissionForGroup only checks leadership ancestry, not category, so
+    // the target group's category must be re-checked here before allowing the
+    // hierarchical fallback (otherwise an ancestor leader could submit for a
+    // descendant group in the wrong category).
+    if (categoryId) {
+      const targetGroup = await this.treeRepository.findOne({
+        where: { id: groupId },
+        relations: ['category'],
+      });
+      if (targetGroup?.category?.id !== categoryId) {
+        return false;
+      }
     }
 
     // Allow users who lead a group higher in the hierarchy (e.g. a FOB or

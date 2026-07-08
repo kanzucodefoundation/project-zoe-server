@@ -3,6 +3,9 @@ import { ReportsService } from './reports.service';
 import { UsersService } from '../users/users.service';
 import { GroupsService } from '../groups/services/groups.service';
 import { GroupTreeService } from '../groups/services/group-tree.service';
+import { GroupPermissionsService } from '../groups/services/group-permissions.service';
+import { TenantContext } from '../shared/tenant/tenant-context';
+import { FellowshipAttendanceService } from '../attendance/services/fellowship-attendance.service';
 import { AppLogger } from '../utils/app-logger.service';
 import { Connection, Repository, TreeRepository } from 'typeorm';
 import { Report } from './entities/report.entity';
@@ -19,6 +22,9 @@ describe('ReportsService', () => {
   let mockUsersService: Partial<UsersService>;
   let mockGroupsService: Partial<GroupsService>;
   let mockGroupTreeService: Partial<GroupTreeService>;
+  let mockGroupPermissionsService: Partial<GroupPermissionsService>;
+  let mockTenantContext: Partial<TenantContext>;
+  let mockFellowshipAttendanceService: Partial<FellowshipAttendanceService>;
   let mockAppLogger: Partial<AppLogger>;
   let mockRepositories: any;
 
@@ -93,6 +99,21 @@ describe('ReportsService', () => {
       getReportAccessibleGroups: jest.fn(),
     };
 
+    mockGroupPermissionsService = {
+      hasPermissionForGroup: jest.fn(),
+      assertPermissionForGroup: jest.fn(),
+      getUserGroupIds: jest.fn(),
+      getUserIsMemberLeaderGroupIds: jest.fn(),
+    };
+
+    mockTenantContext = {
+      requireTenant: jest.fn().mockReturnValue(1),
+    };
+
+    mockFellowshipAttendanceService = {
+      recordReportAttendance: jest.fn(),
+    };
+
     mockAppLogger = {
       createContextLogger: jest.fn().mockReturnValue({
         startTracking: jest.fn().mockReturnValue('tracking-id'),
@@ -121,6 +142,18 @@ describe('ReportsService', () => {
         {
           provide: GroupTreeService,
           useValue: mockGroupTreeService,
+        },
+        {
+          provide: GroupPermissionsService,
+          useValue: mockGroupPermissionsService,
+        },
+        {
+          provide: TenantContext,
+          useValue: mockTenantContext,
+        },
+        {
+          provide: FellowshipAttendanceService,
+          useValue: mockFellowshipAttendanceService,
         },
         {
           provide: AppLogger,
