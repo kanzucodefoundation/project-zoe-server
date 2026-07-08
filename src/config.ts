@@ -1,4 +1,5 @@
 import { TypeOrmModuleOptions } from '@nestjs/typeorm';
+import * as path from 'path';
 import { usersEntities } from './users/users.helpers';
 import { crmEntities } from './crm/crm.helpers';
 import { groupEntities } from './groups/groups.helpers';
@@ -39,6 +40,8 @@ const database: TypeOrmModuleOptions = {
       : undefined,
   database: process.env.DB_DATABASE,
   synchronize: process.env.DB_SYNCHRONIZE === 'true',
+  migrations: [path.join(__dirname, 'migrations', '*.js')],
+  migrationsRun: process.env.DB_MIGRATIONS_RUN === 'true',
   cache: true,
   logging: process.env.DB_LOGGING === 'true',
 };
