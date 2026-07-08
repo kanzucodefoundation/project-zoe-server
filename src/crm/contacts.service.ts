@@ -94,6 +94,10 @@ export class ContactsService {
     this.logger = this.appLogger.createContextLogger('ContactsService');
   }
 
+  private static escapeLike(value: string): string {
+    return value.replace(/[%_\\]/g, (match) => `\\${match}`);
+  }
+
   async findAll(req: ContactSearchDto, user?: any): Promise<ContactListDto[]> {
     const tracking = this.logger.startTracking('findAllContacts', {
       userId: user?.id,
@@ -149,28 +153,41 @@ export class ContactsService {
       }
 
       if (hasValue(req.query)) {
-        hasFilter = true;
-        const resp = await this.personRepository.find({
-          select: ['contactId'],
-          where: [
-            {
-              firstName: ILike(`%${req.query.trim()}%`),
+        const trimmedQuery = req.query.trim();
+        if (hasValue(trimmedQuery)) {
+          hasFilter = true;
+          const searchTerms = trimmedQuery.split(/\s+/);
+          const tenantId = this.tenantContext.requireTenant();
+          const qb = this.personRepository
+            .createQueryBuilder('person')
+            .innerJoin('person.contact', 'contact')
+            .select(['person.contactId'])
+            .where('contact.tenantId = :tenantId', { tenantId });
+          // Dynamically add an AND condition for every word keyword typed
+          searchTerms.forEach((term, index) => {
+            const condition = `(person.firstName ILIKE :term${index} OR person.lastName ILIKE :term${index} OR person.middleName ILIKE :term${index})`;
+            const params = {
+              [`term${index}`]: `%${ContactsService.escapeLike(term)}%`,
+            };
+            qb.andWhere(condition, params);
+          });
+          const resp = await qb.getMany();
+          this.logger.dataAccess('debug', 'Name search results found', {
+            operation: 'findAllContacts',
+            userId: user?.id,
+            metadata: {
+              nameSearchResultCount: resp.length,
+              queryLength: trimmedQuery.length,
             },
-            {
-              lastName: ILike(`%${req.query.trim()}%`),
-            },
-            {
-              middleName: ILike(`%${req.query.trim()}%`),
-            },
-          ],
-        });
-        if (hasValue(idList)) {
-          idList = intersection(
-            idList,
-            resp.map((it) => it.contactId),
-          );
-        } else {
-          idList.push(...resp.map((it) => it.contactId));
+          });
+          if (hasValue(idList)) {
+            idList = intersection(
+              idList,
+              resp.map((it) => it.contactId),
+            );
+          } else {
+            idList.push(...resp.map((it) => it.contactId));
+          }
         }
       }
 
