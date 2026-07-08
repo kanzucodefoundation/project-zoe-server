@@ -92,6 +92,18 @@ This repo holds the NestJS API server.
 | `npm run test:e2e` | Run end-to-end tests |
 | `npm run lint` | Lint the codebase |
 | `npm run format` | Format with Prettier |
+| `npm run migration:generate -- src/migrations/<Name>` | Generate a migration from entity changes |
+| `npm run migration:run` | Apply pending migrations |
+| `npm run migration:revert` | Roll back the last migration |
+| `npm run migration:show` | List applied and pending migrations |
+
+## Database migrations
+
+Local development uses `DB_SYNCHRONIZE=true`, so TypeORM keeps your local schema in sync automatically when the server restarts. You do not need to run migrations locally during normal development.
+
+Staging and production never use synchronize. All schema changes must be captured in a migration file and committed alongside the entity change. CI runs `npm run migration:run` on every deploy before restarting the app.
+
+See [CONTRIBUTING.md](./CONTRIBUTING.md#database-migrations) for the full workflow.
 
 ## Deployment
 

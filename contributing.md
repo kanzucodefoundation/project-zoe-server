@@ -60,6 +60,61 @@ fix: correct attendance count query
 chore: upgrade NestJS to v10
 ```
 
+## Database migrations
+
+Schema changes must always be captured in a TypeORM migration file. Staging and production never use `DB_SYNCHRONIZE` — the only way schema changes reach those environments is through a committed migration run by CI on deploy.
+
+### When you change an entity
+
+1. Make your entity change as normal and restart the dev server (`DB_SYNCHRONIZE=true` will apply it locally).
+
+2. Generate a migration file from the diff between your entities and the local database:
+
+   ```bash
+   npm run migration:generate -- src/migrations/DescriptiveName
+   ```
+
+   Replace `DescriptiveName` with something that describes the change, e.g. `AddContactStatusColumn` or `WidenUsernameField`.
+
+3. **Review the generated file** before committing it. TypeORM's diff is usually correct but occasionally generates `DROP COLUMN / ADD COLUMN` instead of `ALTER COLUMN TYPE` for simple type changes — if you see that pattern on a column with existing data, rewrite it as `ALTER TABLE ... ALTER COLUMN ... TYPE`.
+
+4. Test the migration against your local database with synchronize turned off:
+
+   ```bash
+   # In .env, temporarily set DB_SYNCHRONIZE=false
+   npm run migration:run
+   # Verify the app still starts and behaves correctly
+   # Restore DB_SYNCHRONIZE=true when done
+   ```
+
+5. Commit the migration file in the same PR as the entity change. CI will run it automatically on deploy.
+
+### If the database already has something your migration creates
+
+If an object (type, column, index) was added manually on staging or production outside of a migration, wrap that specific step in a guard so the migration skips it rather than failing:
+
+```typescript
+// For CREATE TYPE
+await queryRunner.query(`
+  DO $$ BEGIN
+    CREATE TYPE "public"."my_enum" AS ENUM('A', 'B');
+  EXCEPTION WHEN duplicate_object THEN NULL;
+  END $$;
+`);
+
+// For ADD COLUMN
+await queryRunner.query(
+  `ALTER TABLE "my_table" ADD COLUMN IF NOT EXISTS "my_col" text`,
+);
+
+// For CREATE INDEX
+await queryRunner.query(
+  `CREATE INDEX IF NOT EXISTS "IDX_..." ON "my_table" ("col")`,
+);
+```
+
+Only guard the steps that already exist — leave everything else as plain SQL.
+
 ## Architecture
 
 Before making structural changes, review `CLAUDE.md` at the repo root and the `docs/` folder. Key things to know:
