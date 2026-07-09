@@ -30,7 +30,7 @@ jobs:
           npm install   
 
       - name: Run tests
-        run: npm test -- --forceExit --passWithNoTests
+        run: npm test -- --forceExit
 
       - name: Create an .env file
         env:

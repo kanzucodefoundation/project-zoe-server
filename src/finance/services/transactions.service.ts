@@ -98,12 +98,25 @@ export class TransactionsService {
     });
 
     const workbook = new Workbook();
-    await workbook.xlsx.load(file.buffer);
+    try {
+      await workbook.xlsx.load(file.buffer);
+    } catch {
+      throw new BadRequestException(
+        'The uploaded file could not be read. Please upload a valid .xlsx file.',
+      );
+    }
     const worksheet = workbook.worksheets[0];
+    if (!worksheet) {
+      throw new BadRequestException(
+        'The uploaded workbook contains no sheets.',
+      );
+    }
     const headers: string[] = [];
     worksheet
       .getRow(1)
-      .eachCell((cell) => headers.push(String(cell.value ?? '')));
+      .eachCell({ includeEmpty: true }, (cell) =>
+        headers.push(String(cell.value ?? '')),
+      );
     const rows: any[] = [];
     worksheet.eachRow((row, rowNumber) => {
       if (rowNumber === 1) return;

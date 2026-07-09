@@ -173,12 +173,25 @@ export class ContactImportController {
   @Post('groupLeaders')
   @UseInterceptors(FileInterceptor('file'))
   async uploadGroupLeaders(@UploadedFile() file: Express.Multer.File) {
-    const list = parseCsv(file.buffer, {
-      columns: true,
-      skip_empty_lines: true,
-      delimiter: ',',
-      relax_column_count: false,
-    }) as any[];
+    if (!file) {
+      throw new BadRequestException({ message: 'No file was uploaded.' });
+    }
+
+    let list: any[];
+    try {
+      list = parseCsv(file.buffer, {
+        columns: true,
+        skip_empty_lines: true,
+        delimiter: ',',
+        relax_column_count: false,
+      }) as any[];
+    } catch (parseErr) {
+      throw new BadRequestException({
+        message:
+          'The CSV file could not be parsed. Please ensure every row has a value for each column and that the file uses comma-separated format.',
+      });
+    }
+
     const created = [];
     const notCreated = [];
     for (const [index, uploadedContact] of list.entries()) {

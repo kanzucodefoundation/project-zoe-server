@@ -160,6 +160,16 @@ describe('FellowshipAttendanceService', () => {
       const result = await service.getMyMembers(CONTACT_ID);
 
       expect(result).toHaveLength(2);
+      expect(result[0]).toMatchObject({
+        id: 51,
+        firstName: 'Jane',
+        lastName: 'Doe',
+      });
+      expect(result[1]).toMatchObject({
+        id: 52,
+        firstName: 'John',
+        lastName: 'Doe',
+      });
     });
   });
 
@@ -291,7 +301,9 @@ describe('FellowshipAttendanceService', () => {
       const result = await service.createSchedule(dto as any, 1);
 
       expect(mockTenantContext.requireTenant).toHaveBeenCalled();
-      expect(mockScheduleRepo.save).toHaveBeenCalled();
+      expect(mockScheduleRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({ tenant: { id: TENANT_ID } }),
+      );
       expect(result).toEqual(saved);
     });
   });
@@ -354,6 +366,24 @@ describe('FellowshipAttendanceService', () => {
       await expect(service.getTodayFellowship(10)).rejects.toThrow(
         BadRequestException,
       );
+    });
+
+    it('returns the fellowship instance when schedule day matches today', async () => {
+      const today = new Date().getDay();
+      const existingInstance = {
+        id: 77,
+        scheduleId: 5,
+        fellowshipGroupId: 10,
+        meetingDate: new Date().toISOString().split('T')[0],
+        schedule: { id: 5 },
+        fellowshipGroup: { id: 10 },
+      };
+      mockScheduleRepo.findOne.mockResolvedValue({ id: 5, meetingDay: today });
+      mockInstanceRepo.findOne.mockResolvedValue(existingInstance);
+
+      const result = await service.getTodayFellowship(10);
+
+      expect(result).toEqual(existingInstance);
     });
   });
 });

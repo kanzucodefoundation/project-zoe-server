@@ -15,8 +15,11 @@ describe('GroupsMembershipService', () => {
   let mockAppLogger: any;
   let mockContextLogger: any;
   let mockQb: any;
+  let mockFindDescendants: jest.Mock;
 
   beforeEach(async () => {
+    mockFindDescendants = jest.fn().mockResolvedValue([]);
+
     mockQb = {
       select: jest.fn().mockReturnThis(),
       where: jest.fn().mockReturnThis(),
@@ -66,7 +69,7 @@ describe('GroupsMembershipService', () => {
       }),
       getTreeRepository: jest.fn().mockReturnValue({
         ...mockGroupRepository,
-        findDescendants: jest.fn().mockResolvedValue([]),
+        findDescendants: mockFindDescendants,
       }),
       createQueryBuilder: jest.fn().mockReturnValue({
         update: jest.fn().mockReturnThis(),
@@ -192,7 +195,7 @@ describe('GroupsMembershipService', () => {
   it('should list memberships for a group and its descendants', async () => {
     const parentGroup = { id: 9, name: 'Parent Group' };
     mockGroupRepository.findOneOrFail.mockResolvedValue(parentGroup);
-    mockGroupRepository.query.mockResolvedValue([{ id: 10 }]);
+    mockFindDescendants.mockResolvedValue([{ id: 10, name: 'Child Group' }]);
     mockQb.getRawMany.mockResolvedValue([{ contactId: 51 }, { contactId: 52 }]);
     mockMembershipRepository.find.mockResolvedValue([
       {
@@ -234,6 +237,7 @@ describe('GroupsMembershipService', () => {
     expect(mockGroupRepository.findOneOrFail).toHaveBeenCalledWith({
       where: { id: 9 },
     });
+    expect(mockFindDescendants).toHaveBeenCalledWith(parentGroup);
     expect(memberships).toEqual([
       expect.objectContaining({
         id: 101,
