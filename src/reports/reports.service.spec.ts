@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { NotFoundException } from '@nestjs/common';
 import { ReportsService } from './reports.service';
 import { UsersService } from '../users/users.service';
 import { GroupsService } from '../groups/services/groups.service';
@@ -9,6 +10,7 @@ import { TenantContext } from '../shared/tenant/tenant-context';
 import { FellowshipAttendanceService } from '../attendance/services/fellowship-attendance.service';
 import { Connection, Repository, TreeRepository } from 'typeorm';
 import { Report } from './entities/report.entity';
+import { ReportStatus } from './enums/report.enum';
 import { ReportSubmission } from './entities/report.submission.entity';
 import { ReportSubmissionData } from './entities/report.submission.data.entity';
 import { User } from '../users/entities/user.entity';
@@ -123,6 +125,8 @@ describe('ReportsService', () => {
         endTracking: jest.fn(),
         apiLog: jest.fn(),
         business: jest.fn(),
+        dataAccess: jest.fn(),
+        security: jest.fn(),
         error: jest.fn(),
       }),
     };
@@ -188,5 +192,290 @@ describe('ReportsService', () => {
     expect(mockConnection.getRepository).toHaveBeenCalledWith(ReportSubmission);
     expect(mockConnection.getRepository).toHaveBeenCalledWith(User);
     expect(mockConnection.getTreeRepository).toHaveBeenCalledWith(Group);
+  });
+
+  describe('getReport', () => {
+    it('returns the report when it exists and is active', async () => {
+      const mockReport = {
+        id: 1,
+        name: 'Weekly Report',
+        status: ReportStatus.ACTIVE,
+        fields: [],
+      } as unknown as Report;
+      mockRepositories.report.findOne.mockResolvedValue(mockReport);
+
+      const result = await service.getReport(1);
+
+      expect(result).toEqual(mockReport);
+      expect(mockRepositories.report.findOne).toHaveBeenCalledWith({
+        where: { id: 1, status: ReportStatus.ACTIVE },
+        relations: ['fields', 'targetGroupCategory'],
+      });
+    });
+
+    it('throws NotFoundException when report does not exist', async () => {
+      mockRepositories.report.findOne.mockResolvedValue(null);
+
+      await expect(service.getReport(999)).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('getAllReports', () => {
+    it('returns all active reports without filtering when no user is provided', async () => {
+      const mockReports = [
+        { id: 1, name: 'Report A', status: ReportStatus.ACTIVE },
+        { id: 2, name: 'Report B', status: ReportStatus.ACTIVE },
+      ] as unknown as Report[];
+      mockRepositories.report.find.mockResolvedValue(mockReports);
+
+      const result = await service.getAllReports();
+
+      expect(result.reports).toHaveLength(2);
+      expect(mockRepositories.report.find).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { status: ReportStatus.ACTIVE },
+        }),
+      );
+    });
+
+    it('returns empty array when no active reports exist', async () => {
+      mockRepositories.report.find.mockResolvedValue([]);
+
+      const result = await service.getAllReports();
+
+      expect(result.reports).toEqual([]);
+    });
+  });
+
+  describe('updateReport', () => {
+    it('throws NotFoundException when report to update does not exist', async () => {
+      mockRepositories.report.update = jest.fn().mockResolvedValue(undefined);
+      mockRepositories.report.findOne.mockResolvedValue(null);
+
+      // No fields so updateReportFields is skipped and the NotFoundException path is reached
+      await expect(
+        service.updateReport(999, { name: 'New Name' } as any),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('returns the updated report when update succeeds', async () => {
+      const updatedReport = {
+        id: 1,
+        name: 'New Name',
+        fields: [],
+      } as unknown as Report;
+      mockRepositories.report.update = jest.fn().mockResolvedValue(undefined);
+      mockRepositories.reportField.find.mockResolvedValue([]);
+      mockRepositories.report.findOne.mockResolvedValue(updatedReport);
+
+      const result = await service.updateReport(1, {
+        name: 'New Name',
+        fields: [],
+      } as any);
+
+      expect(result).toEqual(updatedReport);
+    });
+  });
+
+  describe('getWeekNumber', () => {
+    it('returns week 1 for the first day of a month', () => {
+      expect(service.getWeekNumber(new Date('2024-01-01'))).toBe(1);
+    });
+
+    it('returns a higher week number for later dates', () => {
+      const week1 = service.getWeekNumber(new Date('2024-01-01'));
+      const week2 = service.getWeekNumber(new Date('2024-01-08'));
+      expect(week2).toBeGreaterThan(week1);
+    });
+  });
+
+  describe('getMySubmissions', () => {
+    const mockUser = { id: 7, contactId: 3 };
+
+    const makeSubmission = (id: number) => ({
+      id,
+      report: { id: 1, name: 'Weekly Report' },
+      group: { id: 10, name: 'MC Nairobi' },
+      user: { id: 7, username: 'shepherd' },
+      submittedAt: new Date('2024-06-10'),
+      submissionData: [
+        { reportField: { name: 'attendance' }, fieldValue: '25' },
+      ],
+    });
+
+    it('returns paginated submissions for the current user', async () => {
+      const subs = [makeSubmission(1), makeSubmission(2)];
+      mockRepositories.reportSubmission.find.mockResolvedValue(subs);
+      mockRepositories.reportSubmission.count = jest.fn().mockResolvedValue(2);
+
+      const result = await service.getMySubmissions(mockUser, {
+        limit: 20,
+        offset: 0,
+      });
+
+      expect(result.submissions).toHaveLength(2);
+      expect(result.pagination).toMatchObject({
+        total: 2,
+        limit: 20,
+        offset: 0,
+        hasMore: false,
+      });
+      expect(mockRepositories.reportSubmission.find).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { user: { id: mockUser.id } } }),
+      );
+    });
+
+    it('filters by reportId when provided', async () => {
+      mockRepositories.reportSubmission.find.mockResolvedValue([]);
+      mockRepositories.reportSubmission.count = jest.fn().mockResolvedValue(0);
+
+      await service.getMySubmissions(mockUser, { reportId: 5 });
+
+      expect(mockRepositories.reportSubmission.find).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { user: { id: mockUser.id }, report: { id: 5 } },
+        }),
+      );
+    });
+
+    it('sets hasMore correctly when more pages exist', async () => {
+      mockRepositories.reportSubmission.find.mockResolvedValue(
+        Array.from({ length: 20 }, (_, i) => makeSubmission(i + 1)),
+      );
+      mockRepositories.reportSubmission.count = jest.fn().mockResolvedValue(50);
+
+      const result = await service.getMySubmissions(mockUser, {
+        limit: 20,
+        offset: 0,
+      });
+
+      expect(result.pagination.hasMore).toBe(true);
+    });
+
+    it('maps submission data fields into a keyed object', async () => {
+      mockRepositories.reportSubmission.find.mockResolvedValue([
+        makeSubmission(1),
+      ]);
+      mockRepositories.reportSubmission.count = jest.fn().mockResolvedValue(1);
+
+      const result = await service.getMySubmissions(mockUser, {});
+
+      expect(result.submissions[0].data).toEqual({ attendance: '25' });
+    });
+  });
+
+  describe('getMyGroupsSubmissions', () => {
+    const mockUser = { id: 7, contactId: 3 };
+
+    const makeSubmission = (id: number, groupId = 10) => ({
+      id,
+      report: { id: 1, name: 'Weekly Report' },
+      group: { id: groupId, name: 'MC Nairobi' },
+      user: { id: 7, username: 'shepherd' },
+      submittedAt: new Date('2024-06-10'),
+      submissionData: [
+        { reportField: { name: 'attendance' }, fieldValue: '30' },
+      ],
+    });
+
+    it('returns empty result when user has no accessible groups', async () => {
+      mockRepositories.groupMembership.find.mockResolvedValue([]);
+      mockGroupTreeService.getGroupAndAllChildren = jest
+        .fn()
+        .mockResolvedValue([]);
+
+      const result = await service.getMyGroupsSubmissions(mockUser, {});
+
+      expect(result.submissions).toEqual([]);
+      expect(result.pagination.total).toBe(0);
+    });
+
+    it('returns submissions for all groups accessible to the user', async () => {
+      mockRepositories.groupMembership.find.mockResolvedValue([
+        { groupId: 10 },
+      ]);
+      mockGroupTreeService.getGroupAndAllChildren = jest
+        .fn()
+        .mockResolvedValue([10, 11]);
+      mockRepositories.reportSubmission.find.mockResolvedValue([
+        makeSubmission(1, 10),
+        makeSubmission(2, 11),
+      ]);
+
+      const result = await service.getMyGroupsSubmissions(mockUser, {});
+
+      expect(result.submissions).toHaveLength(2);
+    });
+
+    it('applies date filtering when startDate/endDate are provided', async () => {
+      mockRepositories.groupMembership.find.mockResolvedValue([
+        { groupId: 10 },
+      ]);
+      mockGroupTreeService.getGroupAndAllChildren = jest
+        .fn()
+        .mockResolvedValue([10]);
+
+      const before = new Date('2024-06-01');
+      const after = new Date('2024-06-20');
+      mockRepositories.reportSubmission.find.mockResolvedValue([
+        { ...makeSubmission(1), submittedAt: before },
+        { ...makeSubmission(2), submittedAt: after },
+      ]);
+
+      const result = await service.getMyGroupsSubmissions(mockUser, {
+        startDate: new Date('2024-06-10'),
+        endDate: new Date('2024-06-15'),
+      });
+
+      expect(result.submissions).toHaveLength(0); // both outside the window
+    });
+
+    it('applies pagination to the filtered result set', async () => {
+      mockRepositories.groupMembership.find.mockResolvedValue([
+        { groupId: 10 },
+      ]);
+      mockGroupTreeService.getGroupAndAllChildren = jest
+        .fn()
+        .mockResolvedValue([10]);
+      mockRepositories.reportSubmission.find.mockResolvedValue(
+        Array.from({ length: 5 }, (_, i) => makeSubmission(i + 1)),
+      );
+
+      const result = await service.getMyGroupsSubmissions(mockUser, {
+        limit: 2,
+        offset: 0,
+      });
+
+      expect(result.submissions).toHaveLength(2);
+      expect(result.pagination).toMatchObject({
+        total: 5,
+        limit: 2,
+        hasMore: true,
+      });
+    });
+
+    it('includes column metadata when reportId is specified', async () => {
+      mockRepositories.groupMembership.find.mockResolvedValue([
+        { groupId: 10 },
+      ]);
+      mockGroupTreeService.getGroupAndAllChildren = jest
+        .fn()
+        .mockResolvedValue([10]);
+      mockRepositories.reportSubmission.find.mockResolvedValue([
+        makeSubmission(1),
+      ]);
+      mockRepositories.report.findOne.mockResolvedValue({
+        id: 1,
+        fields: [{ name: 'attendance', label: 'Attendance Count' }],
+      });
+
+      const result = await service.getMyGroupsSubmissions(mockUser, {
+        reportId: 1,
+      });
+
+      expect(result.columns).toEqual([
+        { name: 'attendance', label: 'Attendance Count' },
+      ]);
+    });
   });
 });

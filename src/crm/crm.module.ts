@@ -3,7 +3,6 @@ import { HttpModule } from '@nestjs/axios';
 import { ContactsService } from './contacts.service';
 import { ContactsController } from './contollers/contacts.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { CsvModule } from 'nest-csv-parser';
 import { PeopleController } from './contollers/people.controller';
 import { CompaniesController } from './contollers/companies.controller';
 import { EmailsController } from './contollers/emails.controller';
@@ -34,12 +33,7 @@ import { ServiceRecordingService } from 'src/service-recording/service-recording
 
 @Global()
 @Module({
-  imports: [
-    CsvModule,
-    HttpModule,
-    TypeOrmModule.forFeature(appEntities),
-    VendorModule,
-  ],
+  imports: [HttpModule, TypeOrmModule.forFeature(appEntities), VendorModule],
   providers: [
     ContactsService,
     GoogleService,
