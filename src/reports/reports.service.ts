@@ -149,7 +149,7 @@ export class ReportsService {
     }
 
     let targetGroup: Group | null = null;
-    let selectedGroupId: number | null = null;
+    let selectedGroupId: number | null = submissionDto.selectedGroupId ?? null;
 
     // The designated group field can either be configured explicitly via
     // report.groupFieldName, or inferred from a field marked as a
@@ -177,8 +177,12 @@ export class ReportsService {
       },
     });
 
-    // Check if report has a designated group field
-    if (groupFieldName && submissionDto.data[groupFieldName]) {
+    // Check if report has a designated group field (skip if caller already supplied selectedGroupId)
+    if (
+      !selectedGroupId &&
+      groupFieldName &&
+      submissionDto.data[groupFieldName]
+    ) {
       selectedGroupId = parseInt(submissionDto.data[groupFieldName], 10);
       if (Number.isNaN(selectedGroupId)) {
         throw new BadRequestException(
@@ -229,8 +233,8 @@ export class ReportsService {
         );
       }
     }
-    // Fallback to current automatic detection
-    else if (report.targetGroupCategory) {
+    // Fallback to automatic detection when no group has been resolved yet
+    else if (!selectedGroupId && report.targetGroupCategory) {
       const userGroups = await this.getUserGroupsInCategory(
         submittingUser.contactId,
         report.targetGroupCategory.id,
