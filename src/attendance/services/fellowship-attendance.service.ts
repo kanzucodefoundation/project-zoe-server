@@ -382,7 +382,7 @@ export class FellowshipAttendanceService {
       .then((rows) => rows.map((r) => r.groupId));
 
     if (fellowshipGroupIds.length === 0) {
-      return { exists: false, weekdays: WEEKDAYS };
+      return { exists: false, isLeader: false, weekdays: WEEKDAYS };
     }
 
     const schedule = await this.scheduleRepo.findOne({
@@ -394,12 +394,18 @@ export class FellowshipAttendanceService {
     });
 
     if (!schedule) {
-      return { exists: false, weekdays: WEEKDAYS };
+      return {
+        exists: false,
+        isLeader: true,
+        fellowshipGroupId: fellowshipGroupIds[0],
+        weekdays: WEEKDAYS,
+      };
     }
 
     const dayName = WEEKDAY_NAMES[schedule.meetingDay];
     return {
       exists: true,
+      isLeader: true,
       id: schedule.id,
       day: schedule.meetingDay,
       label: `${dayName}s`,
