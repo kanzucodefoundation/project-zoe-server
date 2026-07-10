@@ -151,18 +151,31 @@ export class ReportsService {
     let targetGroup: Group | null = null;
     let selectedGroupId: number | null = submissionDto.selectedGroupId ?? null;
 
-    // The designated group field can either be configured explicitly via
-    // report.groupFieldName, or inferred from a field marked as a
-    // 'dynamic_group_selector' (e.g. serviceLocationId on the Sunday Service
-    // Report). Prefer the hidden field, since the selector marker is applied
-    // to both the display field (e.g. serviceLocationName) and the id field.
+    // The designated group field is resolved in priority order:
+    //   1. Explicitly via report.groupFieldName.
+    //   2. A field marked as a 'dynamic_group_selector' (e.g.
+    //      serviceLocationId on the Sunday Service Report). Prefer the
+    //      hidden field, since the selector marker is applied to both the
+    //      display field (e.g. serviceLocationName) and the id field.
+    //   3. A well-known hidden id field name that this file already
+    //      hardcodes as the group key when querying submissions for a given
+    //      report (e.g. smallGroupId on the MC Attendance Report — see
+    //      buildSubmissionQuery / getSmallGroupSummaryAttendance). These
+    //      report definitions never got a 'dynamic_group_selector' marker
+    //      on their id field, so fall back to the same convention here.
+    const KNOWN_GROUP_ID_FIELD_NAMES = ['smallGroupId', 'serviceLocationId'];
+
     const groupSelectorFields = (report.fields ?? []).filter(
       (f) =>
         Array.isArray(f.options) &&
         f.options.some((o: any) => o.type === 'dynamic_group_selector'),
     );
     const groupSelectorField =
-      groupSelectorFields.find((f) => f.hidden) ?? groupSelectorFields[0];
+      groupSelectorFields.find((f) => f.hidden) ??
+      groupSelectorFields[0] ??
+      (report.fields ?? []).find(
+        (f) => f.hidden && KNOWN_GROUP_ID_FIELD_NAMES.includes(f.name),
+      );
     const groupFieldName = report.groupFieldName || groupSelectorField?.name;
 
     this.logger.business('log', 'Resolved report group field', {
@@ -177,7 +190,8 @@ export class ReportsService {
       },
     });
 
-    // Check if report has a designated group field (skip if caller already supplied selectedGroupId)
+    // Resolve selectedGroupId from the designated group field, unless the
+    // caller already supplied one explicitly via submissionDto.selectedGroupId.
     if (
       !selectedGroupId &&
       groupFieldName &&
@@ -201,7 +215,11 @@ export class ReportsService {
           selectedGroupId,
         },
       });
+    }
 
+    // Whether selectedGroupId came from the caller directly or was resolved
+    // from field data above, it must be validated and turned into a group.
+    if (selectedGroupId) {
       // Validate user can submit for this group
       const canSubmitForGroup = await this.validateUserGroupPermission(
         user,
@@ -234,7 +252,7 @@ export class ReportsService {
       }
     }
     // Fallback to automatic detection when no group has been resolved yet
-    else if (!selectedGroupId && report.targetGroupCategory) {
+    else if (report.targetGroupCategory) {
       const userGroups = await this.getUserGroupsInCategory(
         submittingUser.contactId,
         report.targetGroupCategory.id,
