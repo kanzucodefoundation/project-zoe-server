@@ -1,4 +1,5 @@
-import { Injectable, Logger, Inject } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
+import { InjectDataSource } from '@nestjs/typeorm';
 import {
   ILike,
   In,
@@ -6,7 +7,7 @@ import {
   LessThanOrEqual,
   MoreThanOrEqual,
   Repository,
-  Connection,
+  DataSource,
   TreeRepository,
   Not,
 } from 'typeorm';
@@ -52,22 +53,26 @@ export class GroupsService {
   private readonly logger: ContextLogger;
 
   constructor(
-    @Inject('CONNECTION') connection: Connection,
+    @InjectDataSource() dataSource: DataSource,
     private groupsPermissionsService: GroupPermissionsService,
     private googleService: GoogleService,
     private appLogger: AppLogger,
     private tenantContext: TenantContext,
     private africasTalkingService: AfricasTalkingService,
   ) {
-    this.repository = connection.getRepository(Group);
-    this.treeRepository = connection.getTreeRepository(Group);
-    this.membershipRepository = connection.getRepository(GroupMembership);
-    this.eventRepository = connection.getRepository(GroupEvent);
-    this.groupCategoryRepository = connection.getRepository(GroupCategory);
-    this.phoneRepository = connection.getRepository(Phone);
+    this.repository = dataSource.getRepository(Group);
+    this.treeRepository = dataSource.getTreeRepository(Group);
+    this.membershipRepository = dataSource.getRepository(GroupMembership);
+    this.eventRepository = dataSource.getRepository(GroupEvent);
+    this.groupCategoryRepository = dataSource.getRepository(GroupCategory);
+    this.phoneRepository = dataSource.getRepository(Phone);
     this.fellowshipScheduleRepository =
-      connection.getRepository(FellowshipSchedule);
+      dataSource.getRepository(FellowshipSchedule);
     this.logger = this.appLogger.createContextLogger('GroupsService');
+  }
+
+  private getSafeInValues<T>(values?: T[] | null): T[] | undefined {
+    return Array.isArray(values) && values.length > 0 ? values : undefined;
   }
 
   async findAll(req: SearchDto, user?: any): Promise<any[]> {
@@ -87,21 +92,23 @@ export class GroupsService {
       );
     }
 
+    const safeAccessibleGroupIds = this.getSafeInValues(accessibleGroupIds);
+
     // If parentId is provided, filter by parent (for drill-down navigation)
     if (req.parentId !== undefined) {
       if (req.parentId === 'null' || req.parentId === '') {
         // Return root groups (no parent)
         return this.repository.find({
-          where: accessibleGroupIds
+          where: safeAccessibleGroupIds
             ? [
-                { id: In(accessibleGroupIds), parentId: IsNull() },
+                { id: In(safeAccessibleGroupIds), parentId: IsNull() },
                 {
-                  id: In(accessibleGroupIds),
-                  parentId: Not(In(accessibleGroupIds)),
+                  id: In(safeAccessibleGroupIds),
+                  parentId: Not(In(safeAccessibleGroupIds)),
                 },
               ]
             : { parentId: IsNull() },
-          relations: ['category', 'parent'],
+          relations: { category: true, parent: true },
           order: { name: 'ASC' },
         });
       }
@@ -112,9 +119,11 @@ export class GroupsService {
         return this.repository.find({
           where: {
             parentId: parentIdNum,
-            ...(accessibleGroupIds ? { id: In(accessibleGroupIds) } : {}),
+            ...(safeAccessibleGroupIds
+              ? { id: In(safeAccessibleGroupIds) }
+              : {}),
           },
-          relations: ['category', 'parent'],
+          relations: { category: true, parent: true },
           order: { name: 'ASC' },
         });
       }
@@ -130,6 +139,7 @@ export class GroupsService {
     parentId?: string,
     accessibleGroupIds?: number[] | null,
   ): Promise<Group[]> {
+    const safeAccessibleGroupIds = this.getSafeInValues(accessibleGroupIds);
     const query = this.repository
       .createQueryBuilder('group')
       .leftJoinAndSelect('group.category', 'category')
@@ -162,10 +172,9 @@ export class GroupsService {
       }
     }
 
-    if (accessibleGroupIds) {
+    if (safeAccessibleGroupIds) {
       query.andWhere('group.id IN (:...accessibleGroupIds)', {
-        accessibleGroupIds:
-          accessibleGroupIds.length > 0 ? accessibleGroupIds : [-1],
+        accessibleGroupIds: safeAccessibleGroupIds,
       });
     }
 
@@ -175,11 +184,15 @@ export class GroupsService {
   private async buildGroupTree(
     accessibleGroupIds?: number[] | null,
   ): Promise<any[]> {
+    const safeAccessibleGroupIds = this.getSafeInValues(accessibleGroupIds);
+
     // Fetch all groups flat
     const allGroups = await this.repository.find({
-      relations: ['category'],
+      relations: { category: true },
       order: { name: 'ASC' },
-      ...(accessibleGroupIds ? { where: { id: In(accessibleGroupIds) } } : {}),
+      ...(safeAccessibleGroupIds
+        ? { where: { id: In(safeAccessibleGroupIds) } }
+        : {}),
     });
 
     // Build a map for quick lookup
@@ -243,7 +256,7 @@ export class GroupsService {
     // Fetch groups
     const groups = await this.repository.find({
       where,
-      relations: ['category', 'parent'],
+      relations: { category: true, parent: true },
       order: { name: 'ASC' },
     });
 
@@ -274,7 +287,7 @@ export class GroupsService {
     if (parentId !== null) {
       parent = await this.repository.findOne({
         where: { id: parentId },
-        relations: ['category', 'parent'],
+        relations: { category: true, parent: true },
       });
 
       if (parent) {
@@ -307,7 +320,7 @@ export class GroupsService {
 
   private async buildBreadcrumbs(group: Group): Promise<any[]> {
     const breadcrumbs = [];
-    let current = group;
+    let current: Group | null = group;
 
     while (current) {
       breadcrumbs.unshift({
@@ -319,7 +332,7 @@ export class GroupsService {
       if (current.parentId) {
         current = await this.repository.findOne({
           where: { id: current.parentId },
-          relations: ['category'],
+          relations: { category: true },
         });
       } else {
         current = null;
@@ -343,25 +356,25 @@ export class GroupsService {
             id: category.id,
             purpose: category.purpose ?? null,
           }
-        : null,
-      parent: parent ? { name: parent.name, id: parent.id } : null,
-    };
+        : undefined,
+      parent: parent ? { name: parent.name, id: parent.id } : undefined,
+    } as GroupListDto;
   }
 
   toDetailView(group: Group): GroupDetailDto {
     const { parent, category, ...rest } = group;
     return {
       ...rest,
-      category: { name: category.name, id: category.id },
-      parent: parent ? { name: parent.name, id: parent.id } : null,
-    } as any;
+      category: category ? { name: category.name, id: category.id } : undefined,
+      parent: parent ? { name: parent.name, id: parent.id } : undefined,
+    } as GroupDetailDto;
   }
 
   toSimpleView(group: Group) {
     const { category, ...rest } = group;
     return {
       ...rest,
-      category: category ? { name: category.name, id: category.id } : null,
+      category: category ? { name: category.name, id: category.id } : undefined,
     } as any;
   }
 
@@ -380,7 +393,7 @@ export class GroupsService {
     }
 
     if (hasValue(req.categories)) {
-      const categoryIds = [];
+      const categoryIds: number[] = [];
 
       for (const categoryName of Array.isArray(req.categories)
         ? req.categories
@@ -391,6 +404,10 @@ export class GroupsService {
         if (groupCategory) {
           categoryIds.push(groupCategory.id);
         }
+      }
+
+      if (categoryIds.length === 0) {
+        return [];
       }
 
       findOps.category = { id: In(categoryIds) };
@@ -439,7 +456,7 @@ export class GroupsService {
         },
       });
 
-      let place: GooglePlaceDto = null;
+      let place: GooglePlaceDto | null = null;
       if (data.address?.placeId) {
         this.logger.business('debug', 'Fetching address details from Google', {
           operation: 'createGroup',
@@ -458,7 +475,7 @@ export class GroupsService {
         });
         await this.groupsPermissionsService.assertPermissionForGroup(
           user,
-          data.parentId,
+          data.parentId as number,
         );
       }
 
@@ -467,7 +484,7 @@ export class GroupsService {
           name: data.categoryName,
           ...(tenantId ? { tenant: { id: tenantId } } : {}),
         },
-        relations: ['tenant'],
+        relations: { tenant: true },
       });
 
       if (!newGroupCategory) {
@@ -484,12 +501,14 @@ export class GroupsService {
       newGroup.metaData = data.metaData;
       newGroup.tenant =
         newGroupCategory?.tenant || ({ id: tenantId } as Tenant);
-      newGroup.category = newGroupCategory;
-      newGroup.address = place;
+      newGroup.category = newGroupCategory ?? undefined;
+      newGroup.address = place ? (place as any) : undefined;
       newGroup.details = data.details;
       newGroup.parent = data.parentId
-        ? await this.treeRepository.findOne({ where: { id: data.parentId } })
-        : null;
+        ? ((await this.treeRepository.findOne({
+            where: { id: data.parentId },
+          })) as Group | null) ?? (null as any)
+        : (null as any);
 
       const savedGroup = await this.treeRepository.save(newGroup);
 
@@ -526,7 +545,7 @@ export class GroupsService {
       this.logger.endTracking(tracking, true);
       return savedGroup;
     } catch (error) {
-      this.logger.error(error, {
+      this.logger.error(error as Error, {
         operation: 'createGroup',
         userId: user?.id,
         metadata: {
@@ -540,13 +559,16 @@ export class GroupsService {
   }
 
   async findOne(id: number, full = true, user: any = null) {
-    const data = await this.treeRepository.findOne({
+    const data = await this.repository.findOne({
       where: { id },
-      relations: ['category', 'parent'],
+      relations: { category: true, parent: true },
     });
     if (!data) {
       return null;
     }
+
+    await this.groupsPermissionsService.assertPermissionForGroup(user, id);
+
     this.logger.business('log', 'Group found successfully', {
       operation: 'findGroup',
       resourceId: id,
@@ -554,6 +576,7 @@ export class GroupsService {
       userId: user?.id,
       metadata: { loadFullDetails: full },
     });
+
     if (full) {
       this.logger.business('debug', 'Loading full group details', {
         operation: 'findGroup',
@@ -563,30 +586,64 @@ export class GroupsService {
       });
       const groupData = this.toSimpleView(data);
 
-      const ancestors = await this.treeRepository.findAncestors(data);
-      groupData.parents = ancestors.map((it) => it.id);
+      const parentIds: number[] = [];
+      const visitedParentIds = new Set<number>();
+      let currentParentId: number | null = data.parentId ? Number(data.parentId) : null;
+      while (currentParentId !== null && !isNaN(currentParentId)) {
+        if (visitedParentIds.has(currentParentId)) break;
+        visitedParentIds.add(currentParentId);
+        parentIds.push(currentParentId);
+        const parentNode = await this.repository.findOne({
+          where: { id: currentParentId },
+          select: ['id', 'parentId'],
+        });
+        
+        // Coerce the next lookup property into a clean primitive digit or null break flag
+        currentParentId = parentNode?.parentId ? Number(parentNode.parentId) : null;
+      }      groupData.parents = parentIds;
+      const childGroupIds: number[] = [data.id];
+      const pendingParentIds: number[] = [data.id];
 
-      const descendants = await this.treeRepository.findDescendants(data);
-      groupData.children = descendants.map((it) => it.id);
+      while (pendingParentIds.length > 0) {
+        const currentParentId = pendingParentIds.shift();
+        if (currentParentId === undefined) break;
 
-      const filter = {
-        groupId: In(groupData.children),
-        startDate: MoreThanOrEqual(startOfMonth(new Date())),
-        endDate: LessThanOrEqual(endOfMonth(new Date())),
-      };
-      let totalAtt = 0,
-        totalMem = 0;
-      await (
-        await this.eventRepository.find({
-          relations: ['attendance', 'group', 'group.members'],
+        const children = await this.repository.find({
+          where: { parentId: currentParentId },
+          select: ['id'],
+        });
+
+        for (const child of children) {
+          if (!childGroupIds.includes(child.id)) {
+            childGroupIds.push(child.id);
+            pendingParentIds.push(child.id);
+          }
+        }
+      }
+
+      groupData.children = childGroupIds;
+      const safeChildGroupIds = this.getSafeInValues(childGroupIds);
+      let totalAtt = 0;
+      let totalMem = 0;
+
+      if (safeChildGroupIds) {
+        const filter = {
+          groupId: In(childGroupIds),
+          startDate: MoreThanOrEqual(startOfMonth(new Date())),
+          endDate: LessThanOrEqual(endOfMonth(new Date())),
+        };
+        const events = await this.eventRepository.find({
+          relations: { attendance: true, group: { members: true } },
           where: filter,
-        })
-      ).forEach((it) => {
-        totalAtt += it.attendance.length;
-        totalMem += it.group.members.length;
-      });
+        });
+        events.forEach((it) => {
+          totalAtt += it.attendance?.length ?? 0;
+          totalMem += it.group?.members?.length ?? 0;
+        });
+      }
       groupData.totalAttendance = totalAtt;
-      groupData.percentageAttendance = ((100 * totalAtt) / totalMem).toFixed(2);
+      groupData.percentageAttendance =
+        totalMem > 0 ? ((100 * totalAtt) / totalMem).toFixed(2) : '0.00';
 
       const membership = await this.membershipRepository.find({
         where: { role: GroupRole.Leader, groupId: id },
@@ -595,11 +652,13 @@ export class GroupsService {
       groupData.leaders = membership.map((it) => it.contactId);
       groupData.canEditGroup =
         await this.groupsPermissionsService.hasPermissionForGroup(user, id);
-      groupData.reports = await this.eventRepository.find({
-        relations: ['category', 'attendance'],
-        where: { groupId: In(groupData.children) },
-        select: ['id', 'name', 'startDate'],
-      });
+      groupData.reports = childGroupIds
+        ? await this.eventRepository.find({
+            relations: { category: true, attendance: true },
+            where: { groupId: In(childGroupIds) },
+            select: ['id', 'name', 'startDate'],
+          })
+        : [];
 
       return groupData;
     }
@@ -627,7 +686,7 @@ export class GroupsService {
 
     if (!currGroup)
       throw new ClientFriendlyException(`Invalid group ID:${dto.id}`);
-    let place: GooglePlaceDto;
+    let place: GooglePlaceDto | null | undefined;
     if (dto.address && dto.address.placeId !== currGroup.address?.placeId) {
       this.logger.business('debug', 'Fetching new address coordinates', {
         operation: 'updateGroup',
@@ -645,26 +704,26 @@ export class GroupsService {
       });
     }
 
-    let parentGroup = null;
+    let parentGroup: Group | undefined;
     if (hasValue(dto.parentId)) {
-      parentGroup = await this.treeRepository.findOne({
+      parentGroup = (await this.treeRepository.findOne({
         where: { id: dto.parentId },
-      });
+      })) ?? undefined;
     }
     let category = currGroup.category;
     if (hasValue(dto.categoryId)) {
-      category = await this.groupCategoryRepository.findOne({
+      category = (await this.groupCategoryRepository.findOne({
         where: {
           id: dto.categoryId,
         },
-      });
+      })) ?? undefined;
     }
     if (hasValue(dto.categoryName)) {
-      category = await this.groupCategoryRepository.findOne({
+      category = (await this.groupCategoryRepository.findOne({
         where: {
           name: dto.categoryName,
         },
-      });
+      })) ?? undefined;
     }
 
     const result = await this.repository
@@ -726,7 +785,7 @@ export class GroupsService {
 
     const groups = await this.repository.find({
       where: { id: In(groupIds) },
-      relations: ['category', 'parent'],
+      relations: { category: true, parent: true },
     });
 
     // Fetch children for each group
@@ -738,7 +797,7 @@ export class GroupsService {
       // Fetch direct children of this group
       const children = await this.repository.find({
         where: { parentId: group.id },
-        relations: ['category', 'parent'],
+        relations: { category: true, parent: true },
       });
 
       // Add the group itself
@@ -776,39 +835,48 @@ export class GroupsService {
     limit = 50,
     offset = 0,
   ): Promise<any> {
-    // Check if user has permission to view this group
     const hasPermission =
       await this.groupsPermissionsService.hasPermissionForGroup(user, groupId);
     if (!hasPermission) {
       throw new ClientFriendlyException('Access denied to this group');
     }
 
-    const memberships = await this.membershipRepository.find({
-      where: { groupId },
-      relations: ['contact'],
-      skip: offset,
-      take: limit,
+    const numericGroupId = Number(groupId);
+    const numericLimit = Number(limit) || 50;
+    const numericOffset = Number(offset) || 0;
+
+    const memberships = await this.membershipRepository.createQueryBuilder('membership')
+      .leftJoinAndSelect('membership.contact', 'contact')
+      .leftJoinAndSelect('contact.person', 'person')
+      .leftJoinAndSelect('contact.emails', 'emails')
+      .where('membership.groupId = :groupId', { groupId: numericGroupId })
+      .skip(numericOffset) 
+      .take(numericLimit)
+      .getMany();
+
+    const members = memberships.map((membership) => {
+      const firstName = membership.contact?.person?.firstName ?? '';
+      const lastName = membership.contact?.person?.lastName ?? '';
+      const fullName = (firstName || lastName)
+        ? `${firstName} ${lastName}`.trim()
+        : (membership.contact?.emails?.[0]?.value ?? 'Unknown Member');
+
+      return {
+        id: membership.contact?.id,
+        fullName,
+        role: membership.role,
+        joinedAt: membership.joinedAt,
+      };
     });
 
-    const members = memberships.map((membership) => ({
-      id: membership.contact.id,
-      fullName:
-        membership.contact?.person?.firstName +
-        ' ' +
-        (membership.contact?.person?.lastName || ''),
-      role: membership.role,
-      joinedAt: new Date(), // GroupMembership doesn't have createdAt
-    }));
-
-    const total = await this.membershipRepository.count({ where: { groupId } });
+    const total = await this.membershipRepository.count({ where: { groupId: numericGroupId } });
 
     return {
       members,
       total,
-      limit,
-      offset,
-    };
-  }
+      limit: numericLimit,
+      offset: numericOffset,
+    };  }
 
   async getPublicLocations(): Promise<{ fobs: any[] }> {
     this.logger.business('log', 'Fetching public locations for signup', {
@@ -849,7 +917,7 @@ export class GroupsService {
         category: { id: locationCategory.id },
         tenant: { id: tenantId },
       },
-      relations: ['parent'],
+      relations: { parent: true },
       select: ['id', 'name', 'parent'],
       order: { name: 'ASC' },
     });
@@ -865,12 +933,13 @@ export class GroupsService {
 
     locations.forEach((location) => {
       const fobName = location.parent?.name || 'Uncategorized';
+      const bucket = fobMap.get(fobName) ?? [];
 
       if (!fobMap.has(fobName)) {
-        fobMap.set(fobName, []);
+        fobMap.set(fobName, bucket);
       }
 
-      fobMap.get(fobName).push({
+      bucket.push({
         id: location.id,
         name: location.name,
       });
@@ -915,7 +984,7 @@ export class GroupsService {
     // Get all active memberships for the group
     const memberships = await this.membershipRepository.find({
       where: { groupId, isActive: true },
-      relations: ['contact', 'contact.phones'],
+      relations: { contact: { phones: true } },
     });
 
     const totalMembers = memberships.length;
@@ -983,7 +1052,7 @@ export class GroupsService {
     // Get all active members with phone numbers
     const memberships = await this.membershipRepository.find({
       where: { groupId, isActive: true },
-      relations: ['contact', 'contact.phones', 'contact.person'],
+      relations: { contact: { phones: true, person: true } },
     });
 
     if (memberships.length === 0) {
@@ -1048,7 +1117,7 @@ export class GroupsService {
         message,
       );
     } catch (error) {
-      this.logger.error(error, {
+      this.logger.error(error as Error, {
         operation: 'sendGroupSms',
         resource: 'groups',
         resourceId: groupId,

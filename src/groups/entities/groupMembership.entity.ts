@@ -42,7 +42,7 @@ export default class GroupMembership {
   joinedAt: Date;
 
   @Column({ type: 'timestamp', nullable: true })
-  leftAt?: Date;
+  leftAt?: Date | null;
 
   @Column({ default: true })
   isActive: boolean;

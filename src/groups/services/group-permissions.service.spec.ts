@@ -23,10 +23,11 @@ describe('GroupPermissionsService', () => {
     };
     mockGroupRepo = {
       findOne: jest.fn().mockResolvedValue(null),
+      // Fix 1: Add a dummy find mock to support our manual descendant column expansion loops
+      find: jest.fn().mockResolvedValue([]),
     };
     mockTreeRepo = {
-      findAncestors: jest.fn().mockResolvedValue([]),
-      findDescendants: jest.fn().mockResolvedValue([]),
+      // Service no longer uses tree repository methods; kept for constructor injection
     };
 
     const mockConnection = {
@@ -71,13 +72,17 @@ describe('GroupPermissionsService', () => {
     });
 
     it('returns true when user leads an ancestor group', async () => {
-      const targetGroup = { id: 42, name: 'MC' } as Group;
-      const parentGroup = { id: 10, name: 'Zone' } as Group;
+      // Fix 2: Provide a clear parentId chain so the manual while loop resolves ancestors correctly
+      const targetGroup = { id: 42, name: 'MC', parentId: 10 } as Group;
+      const parentGroup = { id: 10, name: 'Zone', parentId: null } as Group;
+      
       mockMembershipRepo.count
         .mockResolvedValueOnce(0) // not a direct leader
         .mockResolvedValueOnce(1); // leads an ancestor
-      mockGroupRepo.findOne.mockResolvedValue(targetGroup);
-      mockTreeRepo.findAncestors.mockResolvedValue([parentGroup]);
+        
+      mockGroupRepo.findOne
+        .mockResolvedValueOnce(targetGroup) // first hit for target group
+        .mockResolvedValueOnce(parentGroup); // second hit for ancestor tracking lookup
 
       const result = await service.hasPermissionForGroup(regularUser, 42);
 
@@ -94,10 +99,13 @@ describe('GroupPermissionsService', () => {
     });
 
     it('returns false when user leads neither the group nor any ancestor', async () => {
-      const targetGroup = { id: 42 } as Group;
+      const targetGroup = { id: 42, parentId: 10 } as Group;
+      const parentGroup = { id: 10, parentId: null } as Group;
       mockMembershipRepo.count.mockResolvedValue(0);
-      mockGroupRepo.findOne.mockResolvedValue(targetGroup);
-      mockTreeRepo.findAncestors.mockResolvedValue([{ id: 10 }]);
+      
+      mockGroupRepo.findOne
+        .mockResolvedValueOnce(targetGroup)
+        .mockResolvedValueOnce(parentGroup);
 
       const result = await service.hasPermissionForGroup(regularUser, 42);
 
@@ -130,7 +138,9 @@ describe('GroupPermissionsService', () => {
         { groupId: 10 },
         { groupId: 20 },
       ]);
-      mockTreeRepo.findDescendants
+      
+      // Fix 3: Simulate our new manual child finder (.find returning explicit nested group ids)
+      mockGroupRepo.find
         .mockResolvedValueOnce([{ id: 11 }, { id: 12 }]) // children of group 10
         .mockResolvedValueOnce([]); // group 20 has no children
 
@@ -145,9 +155,11 @@ describe('GroupPermissionsService', () => {
         { groupId: 10 },
         { groupId: 20 },
       ]);
-      mockTreeRepo.findDescendants
+      
+      // Fix 4: Simulate duplicate children mapping over the manual lookups
+      mockGroupRepo.find
         .mockResolvedValueOnce([{ id: 30 }])
-        .mockResolvedValueOnce([{ id: 30 }]); // same child appears under both groups
+        .mockResolvedValueOnce([{ id: 30 }]);
 
       const ids = await service.getUserGroupIds(regularUser);
 
@@ -166,7 +178,7 @@ describe('GroupPermissionsService', () => {
   describe('getUserIsMemberLeaderGroupIds', () => {
     it('includes groups where user is a member (not just leader)', async () => {
       mockMembershipRepo.find.mockResolvedValue([{ groupId: 5 }]);
-      mockTreeRepo.findDescendants.mockResolvedValue([]);
+      mockGroupRepo.find.mockResolvedValue([]); // manual child finder returns clean empty array
 
       const ids = await service.getUserIsMemberLeaderGroupIds(regularUser);
 

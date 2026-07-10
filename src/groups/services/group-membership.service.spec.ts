@@ -15,11 +15,8 @@ describe('GroupsMembershipService', () => {
   let mockAppLogger: any;
   let mockContextLogger: any;
   let mockQb: any;
-  let mockFindDescendants: jest.Mock;
 
   beforeEach(async () => {
-    mockFindDescendants = jest.fn().mockResolvedValue([]);
-
     mockQb = {
       select: jest.fn().mockReturnThis(),
       where: jest.fn().mockReturnThis(),
@@ -49,6 +46,8 @@ describe('GroupsMembershipService', () => {
 
     mockGroupRepository = {
       findOneOrFail: jest.fn(),
+      findOne: jest.fn().mockResolvedValue({ id: 9, parentId: null }),
+      find: jest.fn().mockResolvedValue([]),
       query: jest.fn().mockResolvedValue([]),
       metadata: {
         tableName: 'group',
@@ -67,9 +66,9 @@ describe('GroupsMembershipService', () => {
         if (entity === Group) return mockGroupRepository;
         return mockMembershipRepository;
       }),
-      getTreeRepository: jest.fn().mockReturnValue({
-        ...mockGroupRepository,
-        findDescendants: mockFindDescendants,
+      getTreeRepository: jest.fn().mockImplementation((entity) => {
+        if (entity === Group) return mockGroupRepository;
+        return mockMembershipRepository;
       }),
       createQueryBuilder: jest.fn().mockReturnValue({
         update: jest.fn().mockReturnThis(),
@@ -110,7 +109,6 @@ describe('GroupsMembershipService', () => {
 
   it('should initialize repositories', () => {
     expect(mockConnection.getRepository).toHaveBeenCalledWith(GroupMembership);
-    expect(mockConnection.getTreeRepository).toHaveBeenCalledWith(Group);
     expect(mockAppLogger.createContextLogger).toHaveBeenCalledWith(
       'GroupsMembershipService',
     );
@@ -119,7 +117,7 @@ describe('GroupsMembershipService', () => {
   it('should insert every member in a bulk membership request', async () => {
     const inserted = await service.create({
       groupId: 9,
-      members: [51, 7],
+      members:[51, 7],
       role: GroupRole.Member,
     });
 
@@ -148,7 +146,7 @@ describe('GroupsMembershipService', () => {
         metadata: expect.objectContaining({
           created: 2,
           reactivated: 0,
-          contactIds: [51, 7],
+          contactIds:[51, 7],
           role: GroupRole.Member,
         }),
       }),
@@ -167,7 +165,7 @@ describe('GroupsMembershipService', () => {
     ]);
 
     await expect(
-      service.create({ groupId: 9, members: [51], role: GroupRole.Member }),
+      service.create({ groupId: 9, members:[51], role: GroupRole.Member }),
     ).rejects.toThrow(BadRequestException);
   });
 
@@ -185,17 +183,21 @@ describe('GroupsMembershipService', () => {
 
     const inserted = await service.create({
       groupId: 9,
-      members: [51],
+      members:[51],
       role: GroupRole.Leader,
     });
 
     expect(inserted).toBe(1);
   });
 
+  // Fix 2: Refactored assertions to follow our non-crashing manual sub-group lookup flow
   it('should list memberships for a group and its descendants', async () => {
     const parentGroup = { id: 9, name: 'Parent Group' };
     mockGroupRepository.findOneOrFail.mockResolvedValue(parentGroup);
-    mockFindDescendants.mockResolvedValue([{ id: 10, name: 'Child Group' }]);
+    
+    // Simulate finding direct children manually via .find()
+    mockGroupRepository.find.mockResolvedValue([{ id: 10 }]);
+    
     mockQb.getRawMany.mockResolvedValue([{ contactId: 51 }, { contactId: 52 }]);
     mockMembershipRepository.find.mockResolvedValue([
       {
@@ -234,10 +236,21 @@ describe('GroupsMembershipService', () => {
 
     const memberships = await service.findAll({ groupId: 9 });
 
-    expect(mockGroupRepository.findOneOrFail).toHaveBeenCalledWith({
-      where: { id: 9 },
+    expect(mockGroupRepository.findOne).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ id: 9 })
+      })
+    );
+    
+    expect(mockGroupRepository.find).toHaveBeenCalledWith({
+      where: { parentId: 9 },
+      select: ['id']
     });
-    expect(mockFindDescendants).toHaveBeenCalledWith(parentGroup);
+
+    expect(mockGroupRepository.find).toHaveBeenCalledWith({
+      where: { parentId: 10 },
+      select: ['id']
+    });
     expect(memberships).toEqual([
       expect.objectContaining({
         id: 101,
