@@ -46,8 +46,7 @@ describe('GroupsMembershipService', () => {
 
     mockGroupRepository = {
       findOneOrFail: jest.fn(),
-      // Fix 1: Added dummy mock functions to support our 0.3.29 manual traversal fixes
-      findOne: jest.fn().mockResolvedValue({ id: 1, parentId: null }),
+      findOne: jest.fn().mockResolvedValue({ id: 9, parentId: null }),
       find: jest.fn().mockResolvedValue([]),
       query: jest.fn().mockResolvedValue([]),
       metadata: {
@@ -244,7 +243,7 @@ describe('GroupsMembershipService', () => {
     );
     
     expect(mockGroupRepository.find).toHaveBeenCalledWith({
-      where: { parentId: 1 },
+      where: { parentId: 9 },
       select: ['id']
     });
 

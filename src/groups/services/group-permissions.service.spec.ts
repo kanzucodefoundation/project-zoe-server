@@ -27,8 +27,7 @@ describe('GroupPermissionsService', () => {
       find: jest.fn().mockResolvedValue([]),
     };
     mockTreeRepo = {
-      findAncestors: jest.fn().mockResolvedValue([]),
-      findDescendants: jest.fn().mockResolvedValue([]),
+      // Service no longer uses tree repository methods; kept for constructor injection
     };
 
     const mockConnection = {
