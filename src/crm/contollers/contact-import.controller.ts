@@ -123,6 +123,7 @@ export class ContactImportController {
           const groupData = await this.groupsService.findOne(
             effectiveGroupId,
             false,
+            req.user,
           );
           if (!groupData) {
             throw new BadRequestException({
