@@ -857,13 +857,15 @@ export class GroupsService {
     const members = memberships.map((membership) => {
       const firstName = membership.contact?.person?.firstName ?? '';
       const lastName = membership.contact?.person?.lastName ?? '';
-      const fullName = (firstName || lastName) 
-        ? `${firstName} ${lastName}`.trim() 
-        : (membership.contact?.emails?.[0] ?? 'Unknown Member');      return {
+      const fullName = (firstName || lastName)
+        ? `${firstName} ${lastName}`.trim()
+        : (membership.contact?.emails?.[0]?.value ?? 'Unknown Member');
+
+      return {
         id: membership.contact?.id,
         fullName,
         role: membership.role,
-        joinedAt: membership.joinedAt, 
+        joinedAt: membership.joinedAt,
       };
     });
 
