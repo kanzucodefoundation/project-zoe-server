@@ -48,10 +48,22 @@ export class GroupPermissionsService {
       return false;
     }
 
-    const ancestors = await this.treeRepository.findAncestors(targetGroup);
-    const ancestorIds = ancestors.map((it) => it.id);
-
-    if (ancestorIds.length > 0) {
+    // Replacing crashing TypeORM 0.3.29 findAncestors tree method
+    const ancestorIds: number[] = [];
+    let currentParentId = targetGroup.parentId ? Number(targetGroup.parentId) : null;
+    const visitedParentIds = new Set<number>();
+    while (currentParentId !== null && !isNaN(currentParentId)) {
+      if (visitedParentIds.has(currentParentId)) {
+        break;
+      }
+      visitedParentIds.add(currentParentId);
+      ancestorIds.push(currentParentId);
+      const parentNode = await this.repository.findOne({
+        where: { id: currentParentId },
+        select: ['id', 'parentId'],
+      });
+      currentParentId = parentNode?.parentId ? Number(parentNode.parentId) : null;
+    }    if (ancestorIds.length > 0) {
       const parentLeadership = await this.membershipRepository.count({
         where: {
           contactId: user.contactId,
@@ -97,17 +109,11 @@ export class GroupPermissionsService {
         role: GroupRole.Leader,
       },
     });
-    const descendants = [];
-    for (const mData of membershipData) {
-      const res = await this.treeRepository.findDescendants({
-        id: mData.groupId,
-      } as Group);
-      descendants.push(...res);
-    }
-    const idList = new Set([
-      ...membershipData.map((it) => it.groupId),
-      ...descendants.map((it) => it.id),
-    ]);
+    const membershipIds = membershipData
+      .map((it) => Number(it.groupId))
+      .filter((id) => !isNaN(id));
+    const descendantIds = await this.getGroupAndAllDescendants(membershipIds);
+    const idList = new Set([...membershipIds, ...descendantIds]);
     return Array.from(idList);
   }
 
@@ -119,17 +125,48 @@ export class GroupPermissionsService {
         role: In([GroupRole.Member, GroupRole.Leader]),
       },
     });
-    const descendants = [];
-    for (const mData of membershipData) {
-      const res = await this.treeRepository.findDescendants({
-        id: mData.groupId,
-      } as Group);
-      descendants.push(...res);
-    }
-    const idList = new Set([
-      ...membershipData.map((it) => it.groupId),
-      ...descendants.map((it) => it.id),
-    ]);
+    const membershipIds = membershipData
+      .map((it) => Number(it.groupId))
+      .filter((id) => !isNaN(id));
+    const descendantIds = await this.getGroupAndAllDescendants(membershipIds);
+    const idList = new Set([...membershipIds, ...descendantIds]);
     return Array.from(idList);
+  }
+
+  private async getGroupAndAllDescendants(
+    rootGroupIds: number[],
+  ): Promise<number[]> {
+    const visited = new Set<number>();
+    const queue: number[] = [];
+    const descendantIds: number[] = [];
+
+    for (const groupId of rootGroupIds) {
+      if (!visited.has(groupId)) {
+        visited.add(groupId);
+        queue.push(groupId);
+      }
+    }
+
+    while (queue.length > 0) {
+      const currentGroupId = queue.shift();
+      if (currentGroupId === undefined) {
+        continue;
+      }
+
+      const children = await this.repository.find({
+        where: { parentId: currentGroupId },
+        select: ['id'],
+      });
+
+      for (const child of children) {
+        if (!visited.has(child.id)) {
+          visited.add(child.id);
+          descendantIds.push(child.id);
+          queue.push(child.id);
+        }
+      }
+    }
+
+    return descendantIds;
   }
 }
