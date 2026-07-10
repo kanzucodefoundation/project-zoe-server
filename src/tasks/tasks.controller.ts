@@ -43,7 +43,8 @@ export class TasksController {
     @Query('status') status?: string | string[],
     @Query('type') type?: string | string[],
     @Query('assignedToId') assignedToId?: string,
-    @Query('locationGroupIds') locationGroupIds?: string | string[],
+    @Query('locationGroupIds')
+    locationGroupIds?: string | string[] | Record<string, string>,
   ) {
     const filters: {
       status?: TaskStatus[];
@@ -65,12 +66,24 @@ export class TasksController {
         assignedToId === 'unassigned' ? 'unassigned' : Number(assignedToId);
     }
     if (locationGroupIds !== undefined) {
-      filters.locationGroupIds = (
-        Array.isArray(locationGroupIds) ? locationGroupIds : [locationGroupIds]
-      ).map(Number);
+      const ids = this.toNumberArray(locationGroupIds);
+      if (ids.length) filters.locationGroupIds = ids;
     }
 
     return this.tasksService.findAll(Number(page), Number(limit), filters);
+  }
+
+  // qs (used by Express/Nest to parse query strings) only decodes repeated
+  // keys (e.g. `?locationGroupIds=1&locationGroupIds=2...`) into an array up
+  // to its default arrayLimit of 20 entries; beyond that it falls back to a
+  // plain object keyed "0", "1", ... instead, so this must handle all shapes.
+  private toNumberArray(value: string | string[] | Record<string, string>) {
+    const values = Array.isArray(value)
+      ? value
+      : typeof value === 'object'
+      ? Object.values(value)
+      : [value];
+    return values.map(Number).filter((id) => Number.isFinite(id));
   }
 
   @Get('contact/:contactId')
