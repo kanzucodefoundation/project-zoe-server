@@ -163,8 +163,6 @@ export class ReportsService {
     //      buildSubmissionQuery / getSmallGroupSummaryAttendance). These
     //      report definitions never got a 'dynamic_group_selector' marker
     //      on their id field, so fall back to the same convention here.
-    // (submissionDto.selectedGroupId, handled above, still takes priority
-    // over all of this when the caller supplies it directly.)
     const KNOWN_GROUP_ID_FIELD_NAMES = ['smallGroupId', 'serviceLocationId'];
 
     const groupSelectorFields = (report.fields ?? []).filter(
@@ -192,7 +190,8 @@ export class ReportsService {
       },
     });
 
-    // Check if report has a designated group field (skip if caller already supplied selectedGroupId)
+    // Resolve selectedGroupId from the designated group field, unless the
+    // caller already supplied one explicitly via submissionDto.selectedGroupId.
     if (
       !selectedGroupId &&
       groupFieldName &&
@@ -216,7 +215,11 @@ export class ReportsService {
           selectedGroupId,
         },
       });
+    }
 
+    // Whether selectedGroupId came from the caller directly or was resolved
+    // from field data above, it must be validated and turned into a group.
+    if (selectedGroupId) {
       // Validate user can submit for this group
       const canSubmitForGroup = await this.validateUserGroupPermission(
         user,
@@ -249,7 +252,7 @@ export class ReportsService {
       }
     }
     // Fallback to automatic detection when no group has been resolved yet
-    else if (!selectedGroupId && report.targetGroupCategory) {
+    else if (report.targetGroupCategory) {
       const userGroups = await this.getUserGroupsInCategory(
         submittingUser.contactId,
         report.targetGroupCategory.id,
