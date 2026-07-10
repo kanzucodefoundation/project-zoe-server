@@ -173,7 +173,10 @@ export class ContactImportController {
 
   @Post('groupLeaders')
   @UseInterceptors(FileInterceptor('file'))
-  async uploadGroupLeaders(@UploadedFile() file: Express.Multer.File) {
+  async uploadGroupLeaders(
+    @UploadedFile() file: Express.Multer.File,
+    @Req() req: any,
+  ) {
     if (!file) {
       throw new BadRequestException({ message: 'No file was uploaded.' });
     }
@@ -212,6 +215,7 @@ export class ContactImportController {
             groupData = await this.groupsService.findOne(
               uploadedContact.groupId,
               false,
+              req.user,
             );
             if (!groupData) {
               throw new BadRequestException({

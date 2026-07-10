@@ -66,7 +66,7 @@ export class TasksController {
         assignedToId === 'unassigned' ? 'unassigned' : Number(assignedToId);
     }
     if (locationGroupIds !== undefined) {
-      const ids = this.toNumberArray(locationGroupIds);
+      const ids = TasksController.toNumberArray(locationGroupIds);
       if (ids.length) filters.locationGroupIds = ids;
     }
 
@@ -77,7 +77,9 @@ export class TasksController {
   // keys (e.g. `?locationGroupIds=1&locationGroupIds=2...`) into an array up
   // to its default arrayLimit of 20 entries; beyond that it falls back to a
   // plain object keyed "0", "1", ... instead, so this must handle all shapes.
-  private toNumberArray(value: string | string[] | Record<string, string>) {
+  private static toNumberArray(
+    value: string | string[] | Record<string, string>,
+  ) {
     const values = Array.isArray(value)
       ? value
       : typeof value === 'object'
