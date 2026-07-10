@@ -740,15 +740,20 @@ export class ContactsService {
         (m) => !newGroupIds.has(m.groupId),
       );
 
-      // Groups to update role (in both, but role might be different)
+      // Groups to update role (in both, but role explicitly differs).
+      // An omitted role means "leave the existing role as is" — it must
+      // NOT be treated as a request to reset the role to Member, otherwise
+      // patching unrelated contact fields (e.g. firstName) would silently
+      // demote existing Leaders to Members whenever the caller sends group
+      // ids without a role for memberships it isn't trying to change.
       const groupsToUpdate = newGroups.filter((g) => {
+        if (g.role === undefined || g.role === null) {
+          return false;
+        }
         const currentMembership = activeMemberships.find(
           (m) => m.groupId === g.id,
         );
-        return (
-          currentMembership &&
-          currentMembership.role !== (g.role || GroupRole.Member)
-        );
+        return currentMembership && currentMembership.role !== g.role;
       });
 
       this.logger.business('log', 'Group membership changes calculated', {
@@ -793,7 +798,7 @@ export class ContactsService {
         const currentMembership = activeMemberships.find(
           (m) => m.groupId === groupUpdate.id,
         );
-        const newRole = groupUpdate.role || GroupRole.Member;
+        const newRole = groupUpdate.role;
 
         this.logger.business('log', 'Updating role in existing group', {
           operation: 'updateContact',
