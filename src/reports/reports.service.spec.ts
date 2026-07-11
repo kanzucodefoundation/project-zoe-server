@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { ReportsService } from './reports.service';
 import { UsersService } from '../users/users.service';
 import { GroupsService } from '../groups/services/groups.service';
@@ -17,6 +17,10 @@ import { User } from '../users/entities/user.entity';
 import { ReportField } from './entities/report.field.entity';
 import GroupMembership from '../groups/entities/groupMembership.entity';
 import Group from '../groups/entities/group.entity';
+
+jest.mock('src/utils/mailer', () => ({
+  sendEmail: jest.fn().mockResolvedValue('mock-message-id'),
+}));
 
 describe('ReportsService', () => {
   let service: ReportsService;
@@ -60,10 +64,12 @@ describe('ReportsService', () => {
       },
       groupMembership: {
         find: jest.fn(),
+        findOne: jest.fn(),
       },
       groupTree: {
         findDescendants: jest.fn(),
         findAncestors: jest.fn(),
+        findOne: jest.fn(),
       },
     };
 
@@ -476,6 +482,128 @@ describe('ReportsService', () => {
       expect(result.columns).toEqual([
         { name: 'attendance', label: 'Attendance Count' },
       ]);
+    });
+  });
+
+  describe('submitReport - weekly duplicate limit', () => {
+    const mockUser = { id: 7, contactId: 3 } as any;
+
+    const baseReport = {
+      id: 1,
+      name: 'Weekly Report',
+      status: ReportStatus.ACTIVE,
+      groupFieldName: 'groupId',
+      targetGroupCategory: undefined,
+      fields: [],
+    } as unknown as Report;
+
+    const savedUser = { id: 7, contactId: 3, username: 'shepherd@example.com' };
+
+    const makeGroup = (id: number, name: string) => ({ id, name }) as Group;
+
+    beforeEach(() => {
+      mockRepositories.report.findOne.mockResolvedValue(baseReport);
+      mockRepositories.user.findOne.mockResolvedValue(savedUser);
+      mockRepositories.reportField.find.mockResolvedValue([]);
+      mockRepositories.reportSubmissionData.save.mockResolvedValue([]);
+      mockRepositories.reportSubmission.save.mockImplementation((sub: any) =>
+        Promise.resolve({
+          id: 99,
+          ...sub,
+        }),
+      );
+      // Membership grants permission to submit for the target group.
+      mockRepositories.groupMembership.findOne.mockResolvedValue({
+        group: { id: 10, category: undefined },
+      });
+      mockGroupPermissionsService.hasPermissionForGroup = jest
+        .fn()
+        .mockResolvedValue(true);
+    });
+
+    it('blocks a second submission of the same report for the same group in the same week', async () => {
+      mockRepositories.groupTree.findOne.mockResolvedValue(
+        makeGroup(10, 'MC Nairobi'),
+      );
+      // Simulate an existing submission already on file for group 10.
+      mockRepositories.reportSubmission.findOne.mockResolvedValue({
+        id: 55,
+        report: { id: 1 },
+        group: { id: 10 },
+      });
+
+      await expect(
+        service.submitReport(1, { data: { groupId: '10' } }, mockUser),
+      ).rejects.toThrow(BadRequestException);
+
+      expect(mockRepositories.reportSubmission.findOne).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            report: { id: 1 },
+            group: { id: 10 },
+          }),
+        }),
+      );
+      expect(mockRepositories.reportSubmission.save).not.toHaveBeenCalled();
+    });
+
+    it('allows submitting the same report again for a different group in the same week', async () => {
+      mockRepositories.groupTree.findOne.mockResolvedValue(
+        makeGroup(11, 'MC Kampala'),
+      );
+      mockRepositories.groupMembership.findOne.mockResolvedValue({
+        group: { id: 11, category: undefined },
+      });
+      // No existing submission for group 11.
+      mockRepositories.reportSubmission.findOne.mockResolvedValue(null);
+      mockRepositories.reportField.find.mockResolvedValue([
+        { name: 'groupId' },
+      ]);
+
+      const result = await service.submitReport(
+        1,
+        { data: { groupId: '11' } },
+        mockUser,
+      );
+
+      expect(result.status).toBe(200);
+      expect(mockRepositories.reportSubmission.findOne).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            report: { id: 1 },
+            group: { id: 11 },
+          }),
+        }),
+      );
+      expect(mockRepositories.reportSubmission.save).toHaveBeenCalled();
+    });
+
+    it('falls back to per-user limiting when the report has no associated group', async () => {
+      const noGroupReport = {
+        ...baseReport,
+        groupFieldName: undefined,
+        targetGroupCategory: undefined,
+        fields: [],
+      } as unknown as Report;
+      mockRepositories.report.findOne.mockResolvedValue(noGroupReport);
+      mockRepositories.reportSubmission.findOne.mockResolvedValue({
+        id: 77,
+        report: { id: 1 },
+        user: { id: 7 },
+      });
+
+      await expect(
+        service.submitReport(1, { data: {} }, mockUser),
+      ).rejects.toThrow(BadRequestException);
+
+      expect(mockRepositories.reportSubmission.findOne).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            report: { id: 1 },
+            user: { id: 7 },
+          }),
+        }),
+      );
     });
   });
 });

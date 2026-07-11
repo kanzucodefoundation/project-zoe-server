@@ -131,23 +131,6 @@ export class ReportsService {
       throw new NotFoundException(`User with ID ${user.id} not found`);
     }
 
-    // A user may only submit a given report once per week (week starts Sunday)
-    const weekStart = this.getStartOfWeek(new Date());
-    const weekEnd = new Date(weekStart);
-    weekEnd.setDate(weekEnd.getDate() + 7);
-    const existingSubmission = await this.reportSubmissionRepository.findOne({
-      where: {
-        report: { id: reportId },
-        user: { id: submittingUser.id },
-        submittedAt: Between(weekStart, weekEnd),
-      },
-    });
-    if (existingSubmission) {
-      throw new BadRequestException(
-        `You have already submitted "${report.name}" for this week`,
-      );
-    }
-
     let targetGroup: Group | null = null;
     let selectedGroupId: number | null = null;
 
@@ -248,6 +231,34 @@ export class ReportsService {
       }
 
       targetGroup = userGroups[0];
+    }
+
+    // A report may only be submitted once per week per group (week starts
+    // Sunday). This allows a user managing multiple groups to submit the same
+    // report once for each group, and to submit other reports freely during
+    // the week. Reports with no associated group fall back to limiting the
+    // submitting user to one submission per week.
+    const weekStart = this.getStartOfWeek(new Date());
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekEnd.getDate() + 7);
+    const duplicateSubmissionWhere: any = {
+      report: { id: reportId },
+      submittedAt: Between(weekStart, weekEnd),
+    };
+    if (targetGroup) {
+      duplicateSubmissionWhere.group = { id: targetGroup.id };
+    } else {
+      duplicateSubmissionWhere.user = { id: submittingUser.id };
+    }
+    const existingSubmission = await this.reportSubmissionRepository.findOne({
+      where: duplicateSubmissionWhere,
+    });
+    if (existingSubmission) {
+      throw new BadRequestException(
+        targetGroup
+          ? `"${report.name}" has already been submitted for ${targetGroup.name} this week`
+          : `You have already submitted "${report.name}" for this week`,
+      );
     }
 
     // Create and save the report submission
