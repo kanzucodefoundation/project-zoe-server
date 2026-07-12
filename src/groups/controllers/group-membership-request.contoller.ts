@@ -29,7 +29,6 @@ export class GroupMembershipReqeustController {
   async findAll(
     @Query() req: GroupMembershipRequestSearchDto,
   ): Promise<GroupMembershipRequestDto[]> {
-    console.log('*****-----', req);
     return await this.service.findAll(req);
   }
 
@@ -37,7 +36,6 @@ export class GroupMembershipReqeustController {
   async create(
     @Body() data: NewRequestDto,
   ): Promise<GroupMembershipRequestDto | any> {
-    console.log('****', data);
     return await this.service.create(data);
   }
 
