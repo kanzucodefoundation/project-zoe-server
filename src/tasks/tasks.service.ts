@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Inject,
   Injectable,
   NotFoundException,
@@ -10,6 +11,7 @@ import { TaskComment } from './entities/task-comment.entity';
 import { TaskAttachment } from './entities/task-attachment.entity';
 import GroupMembership from '../groups/entities/groupMembership.entity';
 import Group from '../groups/entities/group.entity';
+import { GroupPermissionsService } from '../groups/services/group-permissions.service';
 import { TenantContext } from '../shared/tenant/tenant-context';
 import { ContactActivityService } from '../crm/contact-activity.service';
 import { CreateTaskDto } from './dto/create-task.dto';
@@ -74,6 +76,7 @@ export class TasksService {
     @Inject('CONNECTION') connection: Connection,
     private readonly tenantContext: TenantContext,
     private readonly contactActivityService: ContactActivityService,
+    private readonly groupPermissionsService: GroupPermissionsService,
   ) {
     this.connection = connection;
     this.taskRepository = connection.getRepository(Task);
@@ -122,8 +125,27 @@ export class TasksService {
       assignedToId?: number | 'unassigned';
       locationGroupIds?: number[];
     } = {},
+    user?: any,
   ): Promise<TaskListPayload> {
     const tenantId = this.tenantContext.requireTenant();
+
+    const accessibleLocationGroupIds =
+      await this.resolveAccessibleLocationGroupIds(user);
+    if (accessibleLocationGroupIds !== null) {
+      const requestedLocationGroupIds = filters.locationGroupIds?.length
+        ? new Set(filters.locationGroupIds)
+        : null;
+      const effectiveLocationGroupIds = requestedLocationGroupIds
+        ? accessibleLocationGroupIds.filter((id) =>
+            requestedLocationGroupIds.has(id),
+          )
+        : accessibleLocationGroupIds;
+
+      if (effectiveLocationGroupIds.length === 0) {
+        return { data: [], groups: [], total: 0 };
+      }
+      filters = { ...filters, locationGroupIds: effectiveLocationGroupIds };
+    }
 
     const qb = this.taskRepository
       .createQueryBuilder('task')
@@ -226,8 +248,9 @@ export class TasksService {
     };
   }
 
-  async findAllForContact(contactId: number): Promise<Task[]> {
+  async findAllForContact(contactId: number, user?: any): Promise<Task[]> {
     const tenantId = this.tenantContext.requireTenant();
+    await this.assertContactLocationAccess(contactId, user);
     const tasks = await this.taskRepository.find({
       where: {
         tenant: { id: tenantId },
@@ -244,9 +267,11 @@ export class TasksService {
     return tasks;
   }
 
-  async findOne(taskId: number): Promise<Task> {
+  async findOne(taskId: number, user?: any): Promise<Task> {
     const tenantId = this.tenantContext.requireTenant();
-    return this.findTaskWithRelations(taskId, tenantId);
+    const task = await this.findTaskWithRelations(taskId, tenantId);
+    await this.assertContactLocationAccess(task.contact.id, user);
+    return task;
   }
 
   async update(
@@ -486,6 +511,66 @@ export class TasksService {
     if (!contact) return;
     contact.address = contact.addresses?.[0]?.freeForm ?? null;
     delete contact.addresses;
+  }
+
+  // Returns the location-purpose group ids the user may view tasks for, or
+  // null when the user is unrestricted (admin) and should see every location.
+  // A leader's accessible groups already expand to include all descendants
+  // (see GroupPermissionsService.getUserGroupIds), so a leader of a
+  // structure group above location (FOB/region/network/movement) naturally
+  // resolves to every location beneath it, while a location leader resolves
+  // to just their own location.
+  private async resolveAccessibleLocationGroupIds(
+    user: any,
+  ): Promise<number[] | null> {
+    const accessibleGroupIds =
+      await this.groupPermissionsService.getAccessibleGroupIds(user);
+    if (accessibleGroupIds === null) {
+      return null;
+    }
+    if (accessibleGroupIds.length === 0) {
+      return [];
+    }
+
+    const tenantId = this.tenantContext.requireTenant();
+    const locationGroups = await this.groupRepository
+      .createQueryBuilder('group')
+      .innerJoin('group.category', 'category')
+      .where('group.id IN (:...groupIds)', { groupIds: accessibleGroupIds })
+      .andWhere('group.tenantId = :tenantId', { tenantId })
+      .andWhere('category.purpose = :purpose', {
+        purpose: GroupCategoryPurpose.LOCATION,
+      })
+      .select(['group.id'])
+      .getMany();
+
+    return locationGroups.map((group) => group.id);
+  }
+
+  private async assertContactLocationAccess(
+    contactId: number,
+    user: any,
+  ): Promise<void> {
+    const accessibleLocationGroupIds =
+      await this.resolveAccessibleLocationGroupIds(user);
+    if (accessibleLocationGroupIds === null) {
+      return;
+    }
+
+    const hasAccess = accessibleLocationGroupIds.length
+      ? await this.membershipRepository
+          .createQueryBuilder('gm')
+          .where('gm.contactId = :contactId', { contactId })
+          .andWhere('gm.groupId IN (:...groupIds)', {
+            groupIds: accessibleLocationGroupIds,
+          })
+          .andWhere('gm.isActive = true')
+          .getCount()
+      : 0;
+
+    if (!hasAccess) {
+      throw new ForbiddenException('You do not have access to this task');
+    }
   }
 
   private async attachLocationGroups(

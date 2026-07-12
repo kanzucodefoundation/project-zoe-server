@@ -45,6 +45,7 @@ export class TasksController {
     @Query('assignedToId') assignedToId?: string,
     @Query('locationGroupIds')
     locationGroupIds?: string | string[] | Record<string, string>,
+    @Request() req?: any,
   ) {
     const filters: {
       status?: TaskStatus[];
@@ -70,7 +71,12 @@ export class TasksController {
       if (ids.length) filters.locationGroupIds = ids;
     }
 
-    return this.tasksService.findAll(Number(page), Number(limit), filters);
+    return this.tasksService.findAll(
+      Number(page),
+      Number(limit),
+      filters,
+      req.user,
+    );
   }
 
   // qs (used by Express/Nest to parse query strings) only decodes repeated
@@ -89,8 +95,11 @@ export class TasksController {
   }
 
   @Get('contact/:contactId')
-  async findAllForContact(@Param('contactId') contactId: number) {
-    return this.tasksService.findAllForContact(contactId);
+  async findAllForContact(
+    @Param('contactId') contactId: number,
+    @Request() req: any,
+  ) {
+    return this.tasksService.findAllForContact(contactId, req.user);
   }
 
   @Get('retention-report')
@@ -124,8 +133,8 @@ export class TasksController {
   }
 
   @Get(':id')
-  async findOne(@Param('id') id: number) {
-    return this.tasksService.findOne(id);
+  async findOne(@Param('id') id: number, @Request() req: any) {
+    return this.tasksService.findOne(id, req.user);
   }
 
   @Patch(':id')
