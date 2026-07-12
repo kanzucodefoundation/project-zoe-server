@@ -212,6 +212,9 @@ export class AuthService {
     const user = await this.usersService.findOne(userExists.id);
 
     if (!user.email) {
+      Logger.warn(
+        `[forgotPassword] User ${user.id} (${username}) has no email on file`,
+      );
       return {
         token: '',
         mailURL: '',
