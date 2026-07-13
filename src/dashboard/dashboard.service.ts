@@ -433,9 +433,13 @@ export class DashboardService {
           const birthDay = dob.getDate();
 
           // DYNAMICALLY RESOLVE LOCATION: Find the name of their active group (MC)
-          const activeMembership = contact.groupMemberships?.find(m => m.isActive !== false);
-          const resolvedLocation = activeMembership?.group?.name || 'General Locations';
-
+          const resolvedLocation =
+            contact.groupMemberships
+              ?.find(
+                (membership) =>
+                  membership.isActive === true && membership.group?.name,
+              )
+              ?.group?.name ?? 'General Locations';
           for (let i = 0; i <= 6; i++) {
             const checkDate = new Date(today);
             checkDate.setDate(today.getDate() + i);
