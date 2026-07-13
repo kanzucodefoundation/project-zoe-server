@@ -1,4 +1,4 @@
-import { Injectable, Inject, NotFoundException } from '@nestjs/common';
+import { Injectable, Inject, NotFoundException, Logger } from '@nestjs/common';
 import { Between, Connection, In, Repository } from 'typeorm';
 import { ReportSubmission } from '../reports/entities/report.submission.entity';
 import { Report } from '../reports/entities/report.entity';
@@ -23,6 +23,7 @@ interface LocationPgaRanking {
 
 @Injectable()
 export class DashboardService {
+  private readonly logger = new Logger(DashboardService.name);
   private readonly reportSubmissionRepository: Repository<ReportSubmission>;
   private readonly reportRepository: Repository<Report>;
   private readonly groupRepository: Repository<Group>;
@@ -415,6 +416,7 @@ export class DashboardService {
           id: true,
           groupId: true,
           isActive: true,
+          joinedAt: true,
           group: {
             id: true,
             name: true,
@@ -474,6 +476,11 @@ export class DashboardService {
           }
           return null;
         } catch (error) {
+          const errMsg =
+            (error && (error as any).stack) ||
+            (error && (error as any).message) ||
+            String(error);
+          this.logger.debug(errMsg);
           return null;
         }
       })
