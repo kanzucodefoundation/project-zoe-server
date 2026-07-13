@@ -125,7 +125,7 @@ export class TasksService {
       assignedToId?: number | 'unassigned';
       locationGroupIds?: number[];
     } = {},
-    user?: any,
+    user: any,
   ): Promise<TaskListPayload> {
     const tenantId = this.tenantContext.requireTenant();
 
@@ -248,7 +248,7 @@ export class TasksService {
     };
   }
 
-  async findAllForContact(contactId: number, user?: any): Promise<Task[]> {
+  async findAllForContact(contactId: number, user: any): Promise<Task[]> {
     const tenantId = this.tenantContext.requireTenant();
     await this.assertContactLocationAccess(contactId, user);
     const tasks = await this.taskRepository.find({
@@ -267,7 +267,7 @@ export class TasksService {
     return tasks;
   }
 
-  async findOne(taskId: number, user?: any): Promise<Task> {
+  async findOne(taskId: number, user: any): Promise<Task> {
     const tenantId = this.tenantContext.requireTenant();
     const task = await this.findTaskWithRelations(taskId, tenantId);
     await this.assertContactLocationAccess(task.contact.id, user);

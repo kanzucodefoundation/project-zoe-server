@@ -180,6 +180,25 @@ describe('TasksService — location-based visibility scoping', () => {
 
       // 40 is a legitimate overlap, so the query still runs.
       expect(mockTaskRepo.createQueryBuilder).toHaveBeenCalled();
+
+      // Inspect the subquery the callback builds to confirm it only binds
+      // the effective intersection ([40]), never the untrusted 9999.
+      const andWhereCallback = taskQb.andWhere.mock.calls
+        .map(([arg]: [any]) => arg)
+        .find((arg: any) => typeof arg === 'function');
+      expect(andWhereCallback).toBeDefined();
+
+      const subQb = createChainableQb({
+        from: jest.fn().mockReturnThis(),
+        getQuery: jest.fn().mockReturnValue('SELECT 1'),
+      });
+      const subQueryBuilder = { subQuery: jest.fn().mockReturnValue(subQb) };
+      andWhereCallback(subQueryBuilder);
+
+      const locationFilterCall = subQb.andWhere.mock.calls.find(
+        ([, params]: [string, any]) => params?.locationGroupIds,
+      );
+      expect(locationFilterCall[1]).toEqual({ locationGroupIds: [40] });
     });
 
     it('returns an empty page when the requested locationGroupIds do not overlap the accessible set', async () => {
