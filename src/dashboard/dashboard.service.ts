@@ -8,6 +8,7 @@ import Person from '../crm/entities/person.entity';
 import Contact from '../crm/entities/contact.entity';
 import { TenantContext } from '../shared/tenant/tenant-context';
 import { ContactCategory } from '../crm/enums/contactCategory';
+import { TenantAwareRepository } from '../shared/repository/tenant-aware.repository';
 
 interface PgaTrendPoint {
   period: string;
@@ -26,7 +27,7 @@ export class DashboardService {
   private readonly reportRepository: Repository<Report>;
   private readonly groupRepository: Repository<Group>;
   private readonly personRepository: Repository<Person>;
-  private readonly contactRepository: Repository<Contact>;
+  private readonly contactRepository: TenantAwareRepository<Contact>;
 
   constructor(
     @Inject('CONNECTION') connection: Connection,
@@ -38,7 +39,11 @@ export class DashboardService {
     this.reportRepository = connection.getRepository(Report);
     this.groupRepository = connection.getRepository(Group);
     this.personRepository = connection.getRepository(Person);
-    this.contactRepository = connection.getRepository(Contact);
+    this.contactRepository = new TenantAwareRepository(
+      Contact,
+      connection,
+      tenantContext,
+    );
   }
 
   async getSundayServiceSummary(
@@ -394,7 +399,6 @@ export class DashboardService {
     //  Added 'groupMembership' and 'groupMembership.group' relations to load location contexts
     const contacts = await this.contactRepository.find({
       where: {
-        tenant: { id: tenantId },
         category: ContactCategory.Person,
       },
       relations: ['person', 'groupMemberships', 'groupMemberships.group'],
@@ -425,7 +429,10 @@ export class DashboardService {
       .map((contact) => {
         try {
           const person = contact.person;
-          const dob = new Date(person?.dateOfBirth);
+          const dobValue = person?.dateOfBirth;
+          if (!dobValue) return null;
+
+          const dob = new Date(dobValue);
 
           if (isNaN(dob.getTime())) return null;
 
@@ -434,8 +441,12 @@ export class DashboardService {
 
           // DYNAMICALLY RESOLVE LOCATION: Find the name of their active group (MC)
           const resolvedLocation =
-            contact.groupMemberships
-              ?.find(
+            [...(contact.groupMemberships ?? [])]
+              .sort(
+                (a, b) =>
+                  (b.joinedAt?.getTime() ?? 0) - (a.joinedAt?.getTime() ?? 0),
+              )
+              .find(
                 (membership) =>
                   membership.isActive === true && membership.group?.name,
               )
