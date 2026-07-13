@@ -83,7 +83,9 @@ export class TasksController {
       : typeof value === 'object'
       ? Object.values(value)
       : [value];
-    return values.map(Number).filter((id) => Number.isFinite(id));
+    return values
+      .map((v) => Number(v))
+      .filter((id) => Number.isInteger(id) && id > 0);
   }
 
   @Get('contact/:contactId')

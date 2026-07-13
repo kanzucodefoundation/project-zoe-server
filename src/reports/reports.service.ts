@@ -266,11 +266,24 @@ export class ReportsService {
     reportSubmission.report = report;
     reportSubmission.submittedAt = new Date();
     reportSubmission.user = submittingUser;
+    reportSubmission.reportingPeriod = weekStart.toISOString().slice(0, 10);
     if (targetGroup) {
       reportSubmission.group = targetGroup;
     }
-    const savedSubmission =
-      await this.reportSubmissionRepository.save(reportSubmission);
+    let savedSubmission: ReportSubmission;
+    try {
+      savedSubmission =
+        await this.reportSubmissionRepository.save(reportSubmission);
+    } catch (err) {
+      if ((err as any).code === '23505') {
+        throw new BadRequestException(
+          targetGroup
+            ? `"${report.name}" has already been submitted for ${targetGroup.name} this week`
+            : `You have already submitted "${report.name}" for this week`,
+        );
+      }
+      throw err;
+    }
 
     // Retrieve all fields for the report to map field names to their respective entities
     const fields = await this.reportFieldRepository.find({
