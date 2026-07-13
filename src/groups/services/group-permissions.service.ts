@@ -135,6 +135,7 @@ export class GroupPermissionsService {
     const memberships = await this.membershipRepository.find({
       where: { contactId, isActive: true },
       relations: { group: { category: true } },
+      order: { groupId: 'ASC' },
     });
 
     const directLocation = memberships.find(
