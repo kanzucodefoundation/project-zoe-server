@@ -391,13 +391,13 @@ export class DashboardService {
     // Get tenant from context
     const tenantId = this.tenantContext.requireTenant();
 
-    // Get all contacts with people and birthdays for this tenant
+    //  Added 'groupMembership' and 'groupMembership.group' relations to load location contexts
     const contacts = await this.contactRepository.find({
       where: {
         tenant: { id: tenantId },
         category: ContactCategory.Person,
       },
-      relations: ['person'],
+      relations: ['person', 'groupMemberships', 'groupMemberships.group'],
       select: {
         id: true,
         person: {
@@ -406,29 +406,36 @@ export class DashboardService {
           lastName: true,
           dateOfBirth: true,
         },
+        // Select group data parameters safely
+        groupMemberships: {
+          id: true,
+          groupId: true,
+          isActive: true,
+          group: {
+            id: true,
+            name: true,
+          }
+        }
       },
     });
 
     // Filter contacts that have person with dateOfBirth
-    const peopleWithBirthdays = contacts
+    const birthdaysThisWeek = contacts
       .filter((contact) => contact.person?.dateOfBirth)
-      .map((contact) => contact.person);
-
-    // Filter for birthdays in the current week (comparing month and day only)
-    const birthdaysThisWeek = peopleWithBirthdays
-      .map((person) => {
+      .map((contact) => {
         try {
-          const dob = new Date(person.dateOfBirth);
+          const person = contact.person;
+          const dob = new Date(person?.dateOfBirth);
 
-          // Validate date
-          if (isNaN(dob.getTime())) {
-            return null;
-          }
+          if (isNaN(dob.getTime())) return null;
 
           const birthMonth = dob.getMonth();
           const birthDay = dob.getDate();
 
-          // Check each day from today to end of week (today + 6 days = 7 days total)
+          // DYNAMICALLY RESOLVE LOCATION: Find the name of their active group (MC)
+          const activeMembership = contact.groupMemberships?.find(m => m.isActive !== false);
+          const resolvedLocation = activeMembership?.group?.name || 'General Locations';
+
           for (let i = 0; i <= 6; i++) {
             const checkDate = new Date(today);
             checkDate.setDate(today.getDate() + i);
@@ -437,28 +444,27 @@ export class DashboardService {
               checkDate.getMonth() === birthMonth &&
               checkDate.getDate() === birthDay
             ) {
-              // Create upcoming date in current year
               const upcomingDate = new Date(checkDate);
               upcomingDate.setHours(0, 0, 0, 0);
 
               return {
-                id: person.id,
-                name: `${person.firstName} ${person.lastName}`,
-                dateOfBirth: person.dateOfBirth,
-                upcomingDate: upcomingDate.toISOString().split('T')[0], // YYYY-MM-DD format
-                _sortDate: upcomingDate, // For internal sorting
+                id: person?.id,
+                name: `${person?.firstName} ${person?.lastName}`,
+                dateOfBirth: person?.dateOfBirth,
+                location: resolvedLocation,
+                upcomingDate: upcomingDate.toISOString().split('T')[0],
+                _sortDate: upcomingDate,
               };
             }
           }
           return null;
         } catch (error) {
-          // Handle gracefully - invalid date formats are excluded
           return null;
         }
       })
-      .filter((item) => item !== null) // Remove nulls
-      .sort((a, b) => a._sortDate.getTime() - b._sortDate.getTime()) // Sort by upcoming date
-      .map(({ _sortDate, ...birthday }) => birthday); // Remove internal sort field
+      .filter((item) => item !== null)
+      .sort((a, b) => a._sortDate.getTime() - b._sortDate.getTime())
+      .map(({ _sortDate, ...birthday }) => birthday);
 
     return { birthdays: birthdaysThisWeek };
   }
