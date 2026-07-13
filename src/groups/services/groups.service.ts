@@ -76,6 +76,20 @@ export class GroupsService {
   }
 
   async findAll(req: SearchDto, user?: any): Promise<any[]> {
+    // Scoped to the requesting user's own location rather than their
+    // leader/member access - e.g. staff updating another contact's task need
+    // to see all fellowship/serving-team groups at their own location even
+    // though they don't lead any of them. Note: this can't be scoped to the
+    // *target* contact's location instead, since that contact typically has
+    // no group memberships yet - that's exactly what the task is tracking.
+    if (req.purpose && req.sameLocation && user?.contactId) {
+      return this.findGroupsByPurposeForContactLocation(
+        req.purpose as GroupCategoryPurpose,
+        req.parentId,
+        Number(user.contactId),
+      );
+    }
+
     // Groups the user leads (directly or via an ancestor) or, for admins,
     // null meaning unrestricted. Mirrors GroupPermissionsService.hasPermissionForGroup.
     const accessibleGroupIds =
@@ -179,6 +193,26 @@ export class GroupsService {
     }
 
     return query.orderBy('group.name', 'ASC').getMany();
+  }
+
+  private async findGroupsByPurposeForContactLocation(
+    purpose: GroupCategoryPurpose,
+    parentId: string | undefined,
+    contactId: number,
+  ): Promise<Group[]> {
+    const locationGroupId =
+      await this.groupsPermissionsService.getContactLocationGroupId(contactId);
+    if (locationGroupId === null) {
+      return [];
+    }
+
+    const descendantIds =
+      await this.groupsPermissionsService.getDescendantGroupIds([
+        locationGroupId,
+      ]);
+    const scopedGroupIds = [locationGroupId, ...descendantIds];
+
+    return this.findGroupsByPurpose(purpose, parentId, scopedGroupIds);
   }
 
   private async buildGroupTree(
@@ -588,7 +622,9 @@ export class GroupsService {
 
       const parentIds: number[] = [];
       const visitedParentIds = new Set<number>();
-      let currentParentId: number | null = data.parentId ? Number(data.parentId) : null;
+      let currentParentId: number | null = data.parentId
+        ? Number(data.parentId)
+        : null;
       while (currentParentId !== null && !isNaN(currentParentId)) {
         if (visitedParentIds.has(currentParentId)) break;
         visitedParentIds.add(currentParentId);
@@ -597,10 +633,13 @@ export class GroupsService {
           where: { id: currentParentId },
           select: ['id', 'parentId'],
         });
-        
+
         // Coerce the next lookup property into a clean primitive digit or null break flag
-        currentParentId = parentNode?.parentId ? Number(parentNode.parentId) : null;
-      }      groupData.parents = parentIds;
+        currentParentId = parentNode?.parentId
+          ? Number(parentNode.parentId)
+          : null;
+      }
+      groupData.parents = parentIds;
       const childGroupIds: number[] = [data.id];
       const pendingParentIds: number[] = [data.id];
 
@@ -706,24 +745,27 @@ export class GroupsService {
 
     let parentGroup: Group | undefined;
     if (hasValue(dto.parentId)) {
-      parentGroup = (await this.treeRepository.findOne({
-        where: { id: dto.parentId },
-      })) ?? undefined;
+      parentGroup =
+        (await this.treeRepository.findOne({
+          where: { id: dto.parentId },
+        })) ?? undefined;
     }
     let category = currGroup.category;
     if (hasValue(dto.categoryId)) {
-      category = (await this.groupCategoryRepository.findOne({
-        where: {
-          id: dto.categoryId,
-        },
-      })) ?? undefined;
+      category =
+        (await this.groupCategoryRepository.findOne({
+          where: {
+            id: dto.categoryId,
+          },
+        })) ?? undefined;
     }
     if (hasValue(dto.categoryName)) {
-      category = (await this.groupCategoryRepository.findOne({
-        where: {
-          name: dto.categoryName,
-        },
-      })) ?? undefined;
+      category =
+        (await this.groupCategoryRepository.findOne({
+          where: {
+            name: dto.categoryName,
+          },
+        })) ?? undefined;
     }
 
     const result = await this.repository
@@ -845,21 +887,23 @@ export class GroupsService {
     const numericLimit = Number(limit) || 50;
     const numericOffset = Number(offset) || 0;
 
-    const memberships = await this.membershipRepository.createQueryBuilder('membership')
+    const memberships = await this.membershipRepository
+      .createQueryBuilder('membership')
       .leftJoinAndSelect('membership.contact', 'contact')
       .leftJoinAndSelect('contact.person', 'person')
       .leftJoinAndSelect('contact.emails', 'emails')
       .where('membership.groupId = :groupId', { groupId: numericGroupId })
-      .skip(numericOffset) 
+      .skip(numericOffset)
       .take(numericLimit)
       .getMany();
 
     const members = memberships.map((membership) => {
       const firstName = membership.contact?.person?.firstName ?? '';
       const lastName = membership.contact?.person?.lastName ?? '';
-      const fullName = (firstName || lastName)
-        ? `${firstName} ${lastName}`.trim()
-        : (membership.contact?.emails?.[0]?.value ?? 'Unknown Member');
+      const fullName =
+        firstName || lastName
+          ? `${firstName} ${lastName}`.trim()
+          : membership.contact?.emails?.[0]?.value ?? 'Unknown Member';
 
       return {
         id: membership.contact?.id,
@@ -869,14 +913,17 @@ export class GroupsService {
       };
     });
 
-    const total = await this.membershipRepository.count({ where: { groupId: numericGroupId } });
+    const total = await this.membershipRepository.count({
+      where: { groupId: numericGroupId },
+    });
 
     return {
       members,
       total,
       limit: numericLimit,
       offset: numericOffset,
-    };  }
+    };
+  }
 
   async getPublicLocations(): Promise<{ fobs: any[] }> {
     this.logger.business('log', 'Fetching public locations for signup', {
