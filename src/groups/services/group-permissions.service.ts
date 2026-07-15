@@ -1,20 +1,27 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { Connection, In, Repository, TreeRepository } from 'typeorm';
+import { Connection, In,  Repository } from 'typeorm';
 import Group from '../entities/group.entity';
 import GroupMembership from '../entities/groupMembership.entity';
 import { GroupRole } from '../enums/groupRole';
 import ClientFriendlyException from '../../shared/exceptions/client-friendly.exception';
 import { roleAdmin } from '../../auth/constants';
+import { TenantAwareRepository } from '../../shared/repository/tenant-aware.repository';
+import { TenantContext } from '../../shared/tenant/tenant-context';
 
 @Injectable()
 export class GroupPermissionsService {
-  private readonly repository: Repository<Group>;
-  private readonly treeRepository: TreeRepository<Group>;
+  private readonly repository: TenantAwareRepository<Group>;
   private readonly membershipRepository: Repository<GroupMembership>;
 
-  constructor(@Inject('CONNECTION') connection: Connection) {
-    this.repository = connection.getRepository(Group);
-    this.treeRepository = connection.getTreeRepository(Group);
+  constructor(
+    @Inject('CONNECTION') connection: Connection,
+    private readonly tenantContext: TenantContext,
+  ) {
+    this.repository = new TenantAwareRepository(
+      Group,
+      connection.manager,
+      tenantContext,
+    );
     this.membershipRepository = connection.getRepository(GroupMembership);
   }
 
@@ -118,19 +125,7 @@ export class GroupPermissionsService {
   }
 
   async getUserIsMemberLeaderGroupIds(user: any) {
-    const membershipData = await this.membershipRepository.find({
-      select: ['groupId'],
-      where: {
-        contactId: user.contactId,
-        role: In([GroupRole.Member, GroupRole.Leader]),
-      },
-    });
-    const membershipIds = membershipData
-      .map((it) => Number(it.groupId))
-      .filter((id) => !isNaN(id));
-    const descendantIds = await this.getGroupAndAllDescendants(membershipIds);
-    const idList = new Set([...membershipIds, ...descendantIds]);
-    return Array.from(idList);
+    return this.getUserGroupIds(user);
   }
 
   private async getGroupAndAllDescendants(
