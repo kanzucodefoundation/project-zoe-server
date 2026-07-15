@@ -122,14 +122,16 @@ export class GroupPermissionsService {
       select: ['groupId'],
       where: {
         contactId: user.contactId,
-        role: In([GroupRole.Member, GroupRole.Leader]),
+        role: GroupRole.Leader, // only leaders can access/submit reports for a group's subtree
       },
     });
-    const membershipIds = membershipData
+    const leaderGroupIds = membershipData
       .map((it) => Number(it.groupId))
       .filter((id) => !isNaN(id));
-    const descendantIds = await this.getGroupAndAllDescendants(membershipIds);
-    const idList = new Set([...membershipIds, ...descendantIds]);
+
+    const descendantIds = await this.getGroupAndAllDescendants(leaderGroupIds);
+
+    const idList = new Set([...leaderGroupIds, ...descendantIds]);
     return Array.from(idList);
   }
 
