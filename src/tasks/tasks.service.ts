@@ -13,6 +13,7 @@ import GroupMembership from '../groups/entities/groupMembership.entity';
 import Group from '../groups/entities/group.entity';
 import { GroupPermissionsService } from '../groups/services/group-permissions.service';
 import { TenantContext } from '../shared/tenant/tenant-context';
+import { TenantAwareRepository } from '../shared/repository/tenant-aware.repository';
 import { ContactActivityService } from '../crm/contact-activity.service';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskStatusDto } from './dto/update-task-status.dto';
@@ -70,7 +71,7 @@ export class TasksService {
   private readonly commentRepository: Repository<TaskComment>;
   private readonly attachmentRepository: Repository<TaskAttachment>;
   private readonly membershipRepository: Repository<GroupMembership>;
-  private readonly groupRepository: Repository<Group>;
+  private readonly groupRepository: TenantAwareRepository<Group>;
 
   constructor(
     @Inject('CONNECTION') connection: Connection,
@@ -83,7 +84,11 @@ export class TasksService {
     this.commentRepository = connection.getRepository(TaskComment);
     this.attachmentRepository = connection.getRepository(TaskAttachment);
     this.membershipRepository = connection.getRepository(GroupMembership);
-    this.groupRepository = connection.getRepository(Group);
+    this.groupRepository = new TenantAwareRepository(
+      Group,
+      connection.manager,
+      tenantContext,
+    );
   }
 
   async create(createdById: number, dto: CreateTaskDto): Promise<Task> {

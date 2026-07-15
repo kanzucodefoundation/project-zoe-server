@@ -12,6 +12,13 @@ import { ContactActivityService } from '../crm/contact-activity.service';
 import { GroupPermissionsService } from '../groups/services/group-permissions.service';
 import { roleAdmin } from '../auth/constants';
 
+// TenantAwareRepository requires a real TypeORM EntityManager; intercept its
+// constructor so the test can supply mockGroupRepo without a live connection.
+let groupRepoForTest: any;
+jest.mock('../shared/repository/tenant-aware.repository', () => ({
+  TenantAwareRepository: jest.fn().mockImplementation(() => groupRepoForTest),
+}));
+
 const TENANT_ID = 1;
 
 function createChainableQb(terminalMethods: Record<string, jest.Mock>) {
@@ -82,6 +89,9 @@ describe('TasksService — location-based visibility scoping', () => {
     mockGroupRepo = {
       createQueryBuilder: jest.fn().mockReturnValue(groupQb),
     };
+    // Must be set before module.compile() so the TenantAwareRepository mock
+    // returns the current mockGroupRepo when the service is constructed.
+    groupRepoForTest = mockGroupRepo;
 
     const mockConnection: Partial<Connection> = {
       getRepository: jest.fn((entity: any) => {
@@ -89,9 +99,9 @@ describe('TasksService — location-based visibility scoping', () => {
         if (entity === TaskComment) return mockCommentRepo;
         if (entity === TaskAttachment) return {};
         if (entity === GroupMembership) return mockMembershipRepo;
-        if (entity === Group) return mockGroupRepo;
         throw new Error(`Unexpected entity requested: ${entity}`);
       }) as any,
+      manager: {} as any,
       transaction: jest.fn((fn: any) => fn({})) as any,
     };
 
