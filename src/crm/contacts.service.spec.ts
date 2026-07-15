@@ -6,6 +6,7 @@ import { AddressesService } from './addresses.service';
 import { GroupTreeService } from '../groups/services/group-tree.service';
 import { AppLogger } from '../utils/app-logger.service';
 import { GroupsMembershipService } from '../groups/services/group-membership.service';
+import { TenantContext } from '../shared/tenant/tenant-context';
 import { Connection, Repository, TreeRepository } from 'typeorm';
 import Contact from './entities/contact.entity';
 import Person from './entities/person.entity';
@@ -17,6 +18,7 @@ import GroupMembership from '../groups/entities/groupMembership.entity';
 import Group from '../groups/entities/group.entity';
 import GroupMembershipRequest from '../groups/entities/groupMembershipRequest.entity';
 import { Tenant } from '../tenants/entities/tenant.entity';
+import { GroupRole } from '../groups/enums/groupRole';
 
 describe('ContactsService', () => {
   let service: ContactsService;
@@ -43,7 +45,11 @@ describe('ContactsService', () => {
       phone: { save: jest.fn() },
       email: { save: jest.fn() },
       address: { save: jest.fn() },
-      membership: { find: jest.fn(), save: jest.fn() },
+      membership: {
+        find: jest.fn(),
+        save: jest.fn(),
+        createQueryBuilder: jest.fn(),
+      },
       groupTree: { findDescendants: jest.fn() },
       gmRequest: { save: jest.fn() },
       tenant: { findOne: jest.fn() },
@@ -96,15 +102,20 @@ describe('ContactsService', () => {
             createContextLogger: jest.fn().mockReturnValue({
               startTracking: jest.fn().mockReturnValue('tracking-id'),
               endTracking: jest.fn(),
-              businessLog: jest.fn(),
-              dataAccessLog: jest.fn(),
+              business: jest.fn(),
+              dataAccess: jest.fn(),
+              security: jest.fn(),
               error: jest.fn(),
             }),
           },
         },
         {
           provide: GroupsMembershipService,
-          useValue: { addMember: jest.fn() },
+          useValue: { create: jest.fn().mockResolvedValue(1) },
+        },
+        {
+          provide: TenantContext,
+          useValue: { requireTenant: jest.fn().mockReturnValue(1) },
         },
       ],
     }).compile();
@@ -129,5 +140,115 @@ describe('ContactsService', () => {
     );
     expect(mockConnection.getRepository).toHaveBeenCalledWith(Tenant);
     expect(mockConnection.getTreeRepository).toHaveBeenCalledWith(Group);
+  });
+
+  describe('handleGroupMembershipsUpdate', () => {
+    let qbMock: any;
+    let groupsMembershipServiceMock: { create: jest.Mock };
+
+    beforeEach(() => {
+      qbMock = {
+        update: jest.fn().mockReturnThis(),
+        set: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        execute: jest.fn().mockResolvedValue(undefined),
+      };
+      mockRepositories.membership.createQueryBuilder.mockReturnValue(qbMock);
+
+      groupsMembershipServiceMock = { create: jest.fn().mockResolvedValue(1) };
+      (service as any).groupsMembershipService = groupsMembershipServiceMock;
+    });
+
+    const buildContact = (groupMemberships: any[]) =>
+      ({ id: 1, groupMemberships }) as any;
+
+    const invoke = (contact: any, newGroups: any[]) =>
+      (service as any).handleGroupMembershipsUpdate(contact, newGroups);
+
+    it('leaves an existing LEADER membership untouched when the caller omits its role', async () => {
+      const contact = buildContact([
+        { id: 10, groupId: 100, role: GroupRole.Leader, isActive: true },
+        { id: 11, groupId: 200, role: GroupRole.Member, isActive: true },
+      ]);
+
+      // Patching e.g. firstName re-sends the current groups without roles
+      await invoke(contact, [{ id: 100 }, { id: 200 }]);
+
+      expect(qbMock.set).not.toHaveBeenCalledWith(
+        expect.objectContaining({ role: expect.anything() }),
+      );
+      expect(groupsMembershipServiceMock.create).not.toHaveBeenCalled();
+    });
+
+    it('updates the role when the caller explicitly sends a different role', async () => {
+      const contact = buildContact([
+        { id: 10, groupId: 100, role: GroupRole.Leader, isActive: true },
+      ]);
+
+      await invoke(contact, [{ id: 100, role: GroupRole.Member }]);
+
+      expect(qbMock.set).toHaveBeenCalledWith({ role: GroupRole.Member });
+      expect(qbMock.where).toHaveBeenCalledWith('id = :id', { id: 10 });
+    });
+
+    it('does nothing for a membership whose explicit role matches the current role', async () => {
+      const contact = buildContact([
+        { id: 10, groupId: 100, role: GroupRole.Leader, isActive: true },
+      ]);
+
+      await invoke(contact, [{ id: 100, role: GroupRole.Leader }]);
+
+      expect(qbMock.set).not.toHaveBeenCalledWith(
+        expect.objectContaining({ role: expect.anything() }),
+      );
+    });
+
+    it('defaults a brand new membership to Member when no role is given', async () => {
+      const contact = buildContact([]);
+
+      await invoke(contact, [{ id: 300 }]);
+
+      expect(groupsMembershipServiceMock.create).toHaveBeenCalledWith({
+        groupId: 300,
+        members: [1],
+        role: GroupRole.Member,
+      });
+    });
+
+    it('creates a new membership with the explicitly requested role', async () => {
+      const contact = buildContact([]);
+
+      await invoke(contact, [{ id: 300, role: GroupRole.Leader }]);
+
+      expect(groupsMembershipServiceMock.create).toHaveBeenCalledWith({
+        groupId: 300,
+        members: [1],
+        role: GroupRole.Leader,
+      });
+    });
+
+    it('deactivates memberships for groups no longer present in the new list', async () => {
+      const contact = buildContact([
+        { id: 10, groupId: 100, role: GroupRole.Leader, isActive: true },
+        { id: 11, groupId: 200, role: GroupRole.Member, isActive: true },
+      ]);
+
+      await invoke(contact, [{ id: 100, role: GroupRole.Leader }]);
+
+      expect(qbMock.set).toHaveBeenCalledWith(
+        expect.objectContaining({ isActive: false }),
+      );
+      expect(qbMock.where).toHaveBeenCalledWith('id = :id', { id: 11 });
+    });
+
+    it('throws when no groups are provided', async () => {
+      const contact = buildContact([
+        { id: 10, groupId: 100, role: GroupRole.Leader, isActive: true },
+      ]);
+
+      await expect(invoke(contact, [])).rejects.toThrow(
+        'Contact must be assigned to at least one group',
+      );
+    });
   });
 });

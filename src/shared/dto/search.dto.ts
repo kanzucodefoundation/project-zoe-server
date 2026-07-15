@@ -1,5 +1,11 @@
-import { IsNumber, IsOptional, IsString, Min } from 'class-validator';
-import { Type } from 'class-transformer';
+import {
+  IsBoolean,
+  IsNumber,
+  IsOptional,
+  IsString,
+  Min,
+} from 'class-validator';
+import { Transform, Type } from 'class-transformer';
 
 export default class SearchDto {
   @IsString()
@@ -13,6 +19,14 @@ export default class SearchDto {
   @IsString()
   @IsOptional()
   parentId?: string;
+
+  // When true (with purpose), returns all groups of that purpose under the
+  // requesting user's own location, regardless of their leader/member access
+  // to those specific groups.
+  @Transform(({ value }) => value === true || value === 'true')
+  @IsBoolean()
+  @IsOptional()
+  sameLocation?: boolean;
 
   @Type(() => Number)
   @IsNumber()

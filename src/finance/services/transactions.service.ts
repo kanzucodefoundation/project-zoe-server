@@ -12,7 +12,7 @@ import {
   MoreThanOrEqual,
   LessThanOrEqual,
 } from 'typeorm';
-import * as XLSX from 'xlsx';
+import { Workbook } from 'exceljs';
 import Transaction from '../entities/transaction.entity';
 import FinancialAccount from '../entities/financial-account.entity';
 import {
@@ -97,10 +97,35 @@ export class TransactionsService {
       metadata: { accountId, fileName: file.originalname },
     });
 
-    const workbook = XLSX.read(file.buffer, { type: 'buffer' });
-    const sheetName = workbook.SheetNames[0];
-    const worksheet = workbook.Sheets[sheetName];
-    const rows: any[] = XLSX.utils.sheet_to_json(worksheet);
+    const workbook = new Workbook();
+    try {
+      await workbook.xlsx.load(file.buffer);
+    } catch {
+      throw new BadRequestException(
+        'The uploaded file could not be read. Please upload a valid .xlsx file.',
+      );
+    }
+    const worksheet = workbook.worksheets[0];
+    if (!worksheet) {
+      throw new BadRequestException(
+        'The uploaded workbook contains no sheets.',
+      );
+    }
+    const headers: string[] = [];
+    worksheet
+      .getRow(1)
+      .eachCell({ includeEmpty: true }, (cell) =>
+        headers.push(String(cell.value ?? '')),
+      );
+    const rows: any[] = [];
+    worksheet.eachRow((row, rowNumber) => {
+      if (rowNumber === 1) return;
+      const obj: any = {};
+      headers.forEach((header, i) => {
+        obj[header] = row.getCell(i + 1).value;
+      });
+      rows.push(obj);
+    });
 
     const dateColumn = options.dateColumn || 'Date';
     const amountColumn = options.amountColumn || 'Amount';

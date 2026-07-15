@@ -3,6 +3,8 @@ import { UsersService } from './users.service';
 import { User } from './entities/user.entity';
 import { ContactsService } from '../crm/contacts.service';
 import { JwtHelperService } from '../auth/jwt-helpers.service';
+import { GroupsMembershipService } from '../groups/services/group-membership.service';
+import { TenantContext } from '../shared/tenant/tenant-context';
 import { Connection, Repository } from 'typeorm';
 import Email from '../crm/entities/email.entity';
 import Roles from './entities/roles.entity';
@@ -81,6 +83,14 @@ describe('UsersService', () => {
         {
           provide: JwtHelperService,
           useValue: mockJwtHelperService,
+        },
+        {
+          provide: GroupsMembershipService,
+          useValue: { create: jest.fn(), findAll: jest.fn() },
+        },
+        {
+          provide: TenantContext,
+          useValue: { requireTenant: jest.fn().mockReturnValue(1) },
         },
       ],
     }).compile();

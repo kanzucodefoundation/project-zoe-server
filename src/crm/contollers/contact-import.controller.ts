@@ -12,7 +12,7 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
-import { CsvParser } from 'nest-csv-parser';
+import { parse as parseCsv } from 'csv-parse/sync';
 import { ContactsService } from '../contacts.service';
 import { Express } from 'express';
 import { Repository, Connection } from 'typeorm';
@@ -33,15 +33,6 @@ import { generateRandomPassword } from 'src/utils/stringHelpers';
 import { TenantContextInterceptor } from 'src/interceptors/tenant-context.interceptor';
 import { ServiceRecordingService } from 'src/service-recording/service-recording.service';
 
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const Duplex = require('stream').Duplex; // core NodeJS API
-function bufferToStream(buffer) {
-  const stream = new Duplex();
-  stream.push(buffer);
-  stream.push(null);
-  return stream;
-}
-
 class Entity {
   name: string;
   phone: string;
@@ -58,7 +49,6 @@ export class ContactImportController {
   constructor(
     @Inject('CONNECTION') connection: Connection,
     private readonly service: ContactsService,
-    private readonly csvParser: CsvParser,
     private readonly groupMembershipService: GroupsMembershipService,
     private readonly groupsService: GroupsService,
     private readonly usersService: UsersService,
@@ -85,23 +75,20 @@ export class ContactImportController {
         req.tenantId,
       );
 
-    let parsedData: any;
+    let list: any[];
     try {
-      parsedData = await this.csvParser.parse(
-        bufferToStream(file.buffer),
-        Entity,
-        null,
-        null,
-        { strict: true, separator: ',' },
-      );
+      list = parseCsv(file.buffer, {
+        columns: true,
+        skip_empty_lines: true,
+        delimiter: ',',
+        relax_column_count: false,
+      }) as any[];
     } catch (parseErr) {
       throw new BadRequestException({
         message:
           'The CSV file could not be parsed. Please ensure every row has a value for each column and that the file uses comma-separated format.',
       });
     }
-
-    const { list } = parsedData;
     const created = [];
     const notCreated = [];
     const errors: string[] = [];
@@ -136,6 +123,7 @@ export class ContactImportController {
           const groupData = await this.groupsService.findOne(
             effectiveGroupId,
             false,
+            req.user,
           );
           if (!groupData) {
             throw new BadRequestException({
@@ -185,15 +173,29 @@ export class ContactImportController {
 
   @Post('groupLeaders')
   @UseInterceptors(FileInterceptor('file'))
-  async uploadGroupLeaders(@UploadedFile() file: Express.Multer.File) {
-    const parsedData = await this.csvParser.parse(
-      bufferToStream(file.buffer),
-      Entity,
-      null,
-      null,
-      { strict: true, separator: ',' },
-    );
-    const { list } = parsedData;
+  async uploadGroupLeaders(
+    @UploadedFile() file: Express.Multer.File,
+    @Req() req: any,
+  ) {
+    if (!file) {
+      throw new BadRequestException({ message: 'No file was uploaded.' });
+    }
+
+    let list: any[];
+    try {
+      list = parseCsv(file.buffer, {
+        columns: true,
+        skip_empty_lines: true,
+        delimiter: ',',
+        relax_column_count: false,
+      }) as any[];
+    } catch (parseErr) {
+      throw new BadRequestException({
+        message:
+          'The CSV file could not be parsed. Please ensure every row has a value for each column and that the file uses comma-separated format.',
+      });
+    }
+
     const created = [];
     const notCreated = [];
     for (const [index, uploadedContact] of list.entries()) {
@@ -213,6 +215,7 @@ export class ContactImportController {
             groupData = await this.groupsService.findOne(
               uploadedContact.groupId,
               false,
+              req.user,
             );
             if (!groupData) {
               throw new BadRequestException({

@@ -14,6 +14,16 @@ import Group from 'src/groups/entities/group.entity';
 
 @Entity()
 @Index(['submittedAt'])
+@Index(
+  'IDX_report_submission_group_period_unique',
+  ['report', 'group', 'reportingPeriod'],
+  { unique: true, where: '"groupId" IS NOT NULL' },
+)
+@Index(
+  'IDX_report_submission_user_period_unique',
+  ['report', 'user', 'reportingPeriod'],
+  { unique: true, where: '"groupId" IS NULL' },
+)
 export class ReportSubmission {
   @PrimaryGeneratedColumn()
   id: number;

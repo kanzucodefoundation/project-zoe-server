@@ -5,7 +5,7 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
-import { Connection, In, Repository, TreeRepository } from 'typeorm';
+import { Connection, In, Repository } from 'typeorm';
 import GroupMembership from '../entities/groupMembership.entity';
 import GroupMembershipDto from '../dto/membership/group-membership.dto';
 import { getPersonFullName } from '../../crm/crm.helpers';
@@ -21,7 +21,7 @@ import { AppLogger, ContextLogger } from 'src/utils/app-logger.service';
 @Injectable()
 export class GroupsMembershipService {
   private readonly repository: Repository<GroupMembership>;
-  private readonly groupTreeRepository: TreeRepository<Group>;
+  private readonly groupRepository: Repository<Group>;
   private readonly connection: Connection;
   private readonly logger: ContextLogger;
 
@@ -30,7 +30,7 @@ export class GroupsMembershipService {
     private readonly appLogger: AppLogger,
   ) {
     this.repository = connection.getRepository(GroupMembership);
-    this.groupTreeRepository = connection.getTreeRepository(Group);
+    this.groupRepository = connection.getRepository(Group);
     this.connection = connection;
     this.logger = this.appLogger.createContextLogger('GroupsMembershipService');
   }
@@ -42,14 +42,18 @@ export class GroupsMembershipService {
       filter.contactId = req.contactId;
     }
 
-    let groupIds: number[] = [];
+        let groupIds: number[] = [];
     if (hasValue(req.groupId)) {
-      const parentGroup = await this.groupTreeRepository.findOneOrFail({
-        where: { id: req.groupId },
+      const numericGroupId = Number(req.groupId);
+      const parentGroup = await this.groupRepository.findOne({
+        where: { id: numericGroupId },
+        select: ['id'],
       });
-      const childGroups =
-        await this.groupTreeRepository.findDescendants(parentGroup);
-      groupIds = [...new Set([req.groupId, ...childGroups.map((it) => it.id)])];
+      if (!parentGroup) {
+        throw new ClientFriendlyException(`Invalid groupId: ${req.groupId}`);
+      }
+      const descendants = await this.findDescendantGroupIds(parentGroup.id);
+      groupIds = [numericGroupId, ...descendants];
       filter.groupId = In(groupIds);
     }
 
@@ -101,7 +105,7 @@ export class GroupsMembershipService {
           best.set(m.contactId, m);
         }
       }
-      return [...best.values()].map((it) => this.toDto(it, req.groupId));
+      return [...best.values()].map((it) => this.toDto(it, req.groupId ?? 0));
     }
 
     const data = await this.repository.find({
@@ -113,7 +117,31 @@ export class GroupsMembershipService {
     const limit = req.limit ?? 100;
     return data
       .slice(skip, skip + limit)
-      .map((it) => this.toDto(it, req.groupId));
+      .map((it) => this.toDto(it, req.groupId ?? 0));
+  }
+
+  private async findDescendantGroupIds(groupId: number): Promise<number[]> {
+    const descendantIds: number[] = [];
+    const queue = [groupId];
+
+    while (queue.length > 0) {
+      const currentId = queue.shift();
+      if (currentId === undefined) continue;
+
+      const children = await this.groupRepository.find({
+        where: { parentId: currentId },
+        select: ['id'],
+      });
+
+      for (const child of children) {
+        if (!descendantIds.includes(child.id)) {
+          descendantIds.push(child.id);
+          queue.push(child.id);
+        }
+      }
+    }
+
+    return descendantIds;
   }
 
   toDto(membership: GroupMembership, refGroupId: number): GroupMembershipDto {
@@ -121,15 +149,17 @@ export class GroupsMembershipService {
     return {
       ...rest,
       isInferred: hasValue(refGroupId) && membership.groupId !== refGroupId,
-      group: group ? { name: group.name, id: group.id } : null,
-      category: group.category
+      group: group ? { name: group.name, id: group.id } : undefined,
+      category: group?.category
         ? { name: group.category.name, id: group.category.id }
-        : null,
-      contact: { name: getPersonFullName(contact.person), id: contact.id },
-      joinedAt: membership.joinedAt,
+        : undefined,
+      contact: {
+        name: contact?.person ? getPersonFullName(contact.person) : '',
+        id: contact?.id,
+      },      joinedAt: membership.joinedAt,
       leftAt: membership.leftAt,
       isActive: membership.isActive,
-    };
+    } as GroupMembershipDto;
   }
 
   async create(data: BatchGroupMembershipDto): Promise<number> {
@@ -167,7 +197,7 @@ export class GroupsMembershipService {
         if (!found.isActive) {
           found.isActive = true;
           found.leftAt = null;
-          found.role = role;
+          found.role = role ?? GroupRole.Member;
           toReactivate.push(found);
         }
         // already active — skip
