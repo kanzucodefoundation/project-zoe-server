@@ -6,12 +6,17 @@ import GroupMembership from '../entities/groupMembership.entity';
 import { GroupRole } from '../enums/groupRole';
 import ClientFriendlyException from '../../shared/exceptions/client-friendly.exception';
 import { roleAdmin } from '../../auth/constants';
+import { TenantContext } from '../../shared/tenant/tenant-context';
+import { TenantAwareRepository } from '../../shared/repository/tenant-aware.repository';
+
+jest.mock('../../shared/repository/tenant-aware.repository');
 
 describe('GroupPermissionsService', () => {
   let service: GroupPermissionsService;
   let mockMembershipRepo: any;
   let mockGroupRepo: any;
-  let mockTreeRepo: any;
+  let mockConnection: any;
+  let mockTenantContext: any;
 
   const adminUser = { contactId: 1, roles: [roleAdmin.role] };
   const regularUser = { contactId: 2, roles: [] };
@@ -23,30 +28,40 @@ describe('GroupPermissionsService', () => {
     };
     mockGroupRepo = {
       findOne: jest.fn().mockResolvedValue(null),
-      // Fix 1: Add a dummy find mock to support our manual descendant column expansion loops
       find: jest.fn().mockResolvedValue([]),
     };
-    mockTreeRepo = {
-      // Service no longer uses tree repository methods; kept for constructor injection
+
+    (TenantAwareRepository as jest.Mock).mockImplementation(() => mockGroupRepo);
+
+    mockConnection = {
+      getRepository: jest.fn((entity) => {
+        if (entity === GroupMembership) return mockMembershipRepo;
+        return mockGroupRepo;
+      }),
+      manager: {},
     };
 
-    const mockConnection = {
-      getRepository: jest.fn((entity) => {
-        if (entity === Group) return mockGroupRepo;
-        return mockMembershipRepo;
-      }),
-      getTreeRepository: jest.fn().mockReturnValue(mockTreeRepo),
-    };
+    mockTenantContext = {};
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         GroupPermissionsService,
         { provide: 'CONNECTION', useValue: mockConnection },
+        { provide: TenantContext, useValue: mockTenantContext },
       ],
     }).compile();
 
     service = module.get<GroupPermissionsService>(GroupPermissionsService);
   });
+
+  it('constructs the Group repository as tenant-aware with correct args', () => {
+    expect(TenantAwareRepository).toHaveBeenCalledWith(
+      Group,
+      mockConnection.manager,
+      mockTenantContext,
+    );
+  });
+  // ...rest of the describe blocks unchanged
 
   describe('hasPermissionForGroup', () => {
     it('returns true for admin users without hitting the database', async () => {
@@ -176,20 +191,24 @@ describe('GroupPermissionsService', () => {
   });
 
   describe('getUserIsMemberLeaderGroupIds', () => {
-    it('includes groups where user is a member (not just leader)', async () => {
-      mockMembershipRepo.find.mockResolvedValue([{ groupId: 5 }]);
-      mockGroupRepo.find.mockResolvedValue([]); // manual child finder returns clean empty array
+  it('delegates to getUserGroupIds: excludes Member rows, expands Leader descendants', async () => {
+    // Only Leader rows should reach this query, per getUserGroupIds' where clause;
+    // simulate the DB already filtering to Leader role, plus one Leader group with a child
+    mockMembershipRepo.find.mockResolvedValue([{ groupId: 5 }]); // leader of group 5
+    mockGroupRepo.find.mockResolvedValueOnce([{ id: 50 }]); // group 5 has child 50
 
-      const ids = await service.getUserIsMemberLeaderGroupIds(regularUser);
+    const ids = await service.getUserIsMemberLeaderGroupIds(regularUser);
 
-      expect(ids).toContain(5);
-      expect(mockMembershipRepo.find).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: expect.objectContaining({
-            contactId: regularUser.contactId,
-          }),
+    expect(ids).toEqual(expect.arrayContaining([5, 50]));
+    expect(ids).toHaveLength(2);
+    expect(mockMembershipRepo.find).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          contactId: regularUser.contactId,
+          role: GroupRole.Leader,
         }),
-      );
-    });
+      }),
+    );
   });
+});
 });
