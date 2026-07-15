@@ -69,7 +69,6 @@ export class GroupMembershipRequestService {
   }
 
   async create(data: NewRequestDto): Promise<GroupMembershipRequestDto | any> {
-    console.log('%%%', data);
     const user = await this.contactRepository.findOne({
       where: { id: data.contactId },
       relations: ['person'],
