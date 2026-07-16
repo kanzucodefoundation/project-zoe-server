@@ -66,9 +66,12 @@ describe('GroupTreeService', () => {
     });
 
     it('calculates and caches descendants on cache miss', async () => {
-      const parentGroup = { id: 10 } as Group;
-      mockGroupRepo.findOne.mockResolvedValue(parentGroup);
-      mockTreeRepo.findDescendants.mockResolvedValue([{ id: 11 }, { id: 12 }]);
+      mockGroupRepo.find.mockImplementation(({ where }: any) => {
+        if (where.parentId === 10) {
+          return Promise.resolve([{ id: 11 }, { id: 12 }]);
+        }
+        return Promise.resolve([]);
+      });
 
       const result = await service.getGroupAndAllChildren([10]);
 
@@ -77,11 +80,21 @@ describe('GroupTreeService', () => {
     });
 
     it('gracefully skips groups that do not exist', async () => {
-      mockGroupRepo.findOne.mockResolvedValue(null);
+      mockGroupRepo.find.mockResolvedValue([]); // no children found for this id
 
       const result = await service.getGroupAndAllChildren([999]);
 
       expect(result).toEqual([999]);
+    });
+    it('does not rely on treeRepository for descendant lookup', async () => {
+      mockGroupRepo.find.mockImplementation(({ where }: any) => {
+        if (where.parentId === 10) return Promise.resolve([{ id: 11 }]);
+        return Promise.resolve([]);
+      });
+
+      await service.getGroupAndAllChildren([10]);
+
+      expect(mockTreeRepo.findDescendants).not.toHaveBeenCalled();
     });
   });
 
@@ -153,15 +166,12 @@ describe('GroupTreeService', () => {
   describe('getReportAccessibleGroups', () => {
     it('returns separate canSubmitTo and canViewFrom sets', async () => {
       mockCache.get.mockResolvedValue(null);
-      const manageableGroup = { id: 10 } as Group;
-      const viewableGroup = { id: 20 } as Group;
 
-      mockGroupRepo.findOne
-        .mockResolvedValueOnce(manageableGroup)
-        .mockResolvedValueOnce(viewableGroup);
-      mockTreeRepo.findDescendants
-        .mockResolvedValueOnce([{ id: 11 }])
-        .mockResolvedValueOnce([{ id: 21 }]);
+      mockGroupRepo.find.mockImplementation(({ where }: any) => {
+        if (where.parentId === 10) return Promise.resolve([{ id: 11 }]);
+        if (where.parentId === 20) return Promise.resolve([{ id: 21 }]);
+        return Promise.resolve([]);
+      });
 
       const result = await service.getReportAccessibleGroups([10], [20]);
 
