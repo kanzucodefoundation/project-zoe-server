@@ -89,7 +89,8 @@ describe('GroupTreeService', () => {
     });
     it('does not rely on treeRepository for descendant lookup', async () => {
       mockGroupRepo.find.mockImplementation(({ where }: any) => {
-        if (where.parentId === 10) return Promise.resolve([{ id: 11 }]);
+        const ids = extractIds(where.parentId);
+        if (ids.includes(10)) return Promise.resolve([{ id: 11 }]);
         return Promise.resolve([]);
       });
 
@@ -179,6 +180,36 @@ describe('GroupTreeService', () => {
 
       expect(result.canSubmitTo).toEqual(expect.arrayContaining([10, 11]));
       expect(result.canViewFrom).toEqual(expect.arrayContaining([20, 21]));
+    });
+  });
+  describe('invalidateGroupCache', () => {
+    it('does nothing if the group does not exist', async () => {
+      mockGroupRepo.findOne.mockResolvedValue(null);
+
+      await service.invalidateGroupCache(999);
+
+      expect(mockCache.del).not.toHaveBeenCalled();
+    });
+
+    it('clears cache for the group, its ancestors, and its descendants without using the closure table', async () => {
+      // group 10 -> parent 5 -> parent null; group 10 -> child 11
+      mockGroupRepo.findOne.mockImplementation(({ where }: any) => {
+        if (where.id === 10) return Promise.resolve({ id: 10, parentId: 5 });
+        if (where.id === 5) return Promise.resolve({ id: 5, parentId: null });
+        return Promise.resolve(null);
+      });
+      mockGroupRepo.find.mockImplementation(({ where }: any) => {
+        const ids = where.parentId?._value || where.parentId?.value || [where.parentId];
+        if (ids.includes(10)) return Promise.resolve([{ id: 11 }]);
+        return Promise.resolve([]);
+      });
+
+      await service.invalidateGroupCache(10);
+
+      expect(mockTreeRepo.findAncestors).not.toHaveBeenCalled();
+      expect(mockTreeRepo.findDescendants).not.toHaveBeenCalled();
+      expect(mockCache.del).toHaveBeenCalledWith('group-tree:10,11,5');
+      expect(mockCache.del).toHaveBeenCalledWith('group-categories:10,11,5');
     });
   });
 });
