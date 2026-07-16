@@ -67,7 +67,8 @@ describe('GroupTreeService', () => {
 
     it('calculates and caches descendants on cache miss', async () => {
       mockGroupRepo.find.mockImplementation(({ where }: any) => {
-        if (where.parentId === 10) {
+        const ids = extractIds(where.parentId);
+        if (ids.includes(10)) {
           return Promise.resolve([{ id: 11 }, { id: 12 }]);
         }
         return Promise.resolve([]);
@@ -80,7 +81,7 @@ describe('GroupTreeService', () => {
     });
 
     it('gracefully skips groups that do not exist', async () => {
-      mockGroupRepo.find.mockResolvedValue([]); // no children found for this id
+      mockGroupRepo.find.mockResolvedValue([]);
 
       const result = await service.getGroupAndAllChildren([999]);
 
@@ -168,8 +169,9 @@ describe('GroupTreeService', () => {
       mockCache.get.mockResolvedValue(null);
 
       mockGroupRepo.find.mockImplementation(({ where }: any) => {
-        if (where.parentId === 10) return Promise.resolve([{ id: 11 }]);
-        if (where.parentId === 20) return Promise.resolve([{ id: 21 }]);
+        const ids = extractIds(where.parentId);
+        if (ids.includes(10)) return Promise.resolve([{ id: 11 }]);
+        if (ids.includes(20)) return Promise.resolve([{ id: 21 }]);
         return Promise.resolve([]);
       });
 
@@ -180,3 +182,10 @@ describe('GroupTreeService', () => {
     });
   });
 });
+// Extracts the array of IDs from a TypeORM In() FindOperator, or wraps a
+// scalar value in an array for backward compatibility.
+function extractIds(whereParentId: any): number[] {
+  if (whereParentId?._value) return whereParentId._value;
+  if (whereParentId?.value) return whereParentId.value;
+  return [whereParentId];
+}

@@ -29,31 +29,38 @@ export class GroupTreeService {
     if (groupIds.length === 0) return [];
 
     const cacheKey = `group-tree:${groupIds.sort().join(',')}`;
+
     const cached = await this.cacheManager.get<number[]>(cacheKey);
-    if (cached) return cached;
+    if (cached) {
+      this.logger.debug(`Cache hit for group tree: ${cacheKey}`);
+      return cached;
+    }
+
+    this.logger.debug(`Cache miss for group tree: ${cacheKey}`);
 
     const visited = new Set<number>(groupIds);
-    const queue: number[] = [...groupIds];
+    let currentLevelIds = [...groupIds];
 
-    while (queue.length > 0) {
-      const currentGroupId = queue.shift();
-      if (currentGroupId === undefined) continue;
-
+    while (currentLevelIds.length > 0) {
       const children = await this.repository.find({
-        where: { parentId: currentGroupId },
+        where: { parentId: In(currentLevelIds) },
         select: ['id'],
       });
 
+      const nextLevelIds: number[] = [];
       for (const child of children) {
         if (!visited.has(child.id)) {
           visited.add(child.id);
-          queue.push(child.id);
+          nextLevelIds.push(child.id);
         }
       }
+      currentLevelIds = nextLevelIds;
     }
 
     const result = Array.from(visited);
+
     await this.cacheManager.set(cacheKey, result, 30 * 60 * 1000);
+
     return result;
   }
 
