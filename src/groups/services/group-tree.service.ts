@@ -29,39 +29,31 @@ export class GroupTreeService {
     if (groupIds.length === 0) return [];
 
     const cacheKey = `group-tree:${groupIds.sort().join(',')}`;
-
-    // Try to get from cache first
     const cached = await this.cacheManager.get<number[]>(cacheKey);
-    if (cached) {
-      this.logger.debug(`Cache hit for group tree: ${cacheKey}`);
-      return cached;
-    }
+    if (cached) return cached;
 
-    this.logger.debug(`Cache miss for group tree: ${cacheKey}`);
+    const visited = new Set<number>(groupIds);
+    const queue: number[] = [...groupIds];
 
-    // Calculate descendants
-    const allGroupIds = new Set(groupIds);
+    while (queue.length > 0) {
+      const currentGroupId = queue.shift();
+      if (currentGroupId === undefined) continue;
 
-    for (const groupId of groupIds) {
-      try {
-        const group = await this.repository.findOne({ where: { id: groupId } });
-        if (!group) continue;
+      const children = await this.repository.find({
+        where: { parentId: currentGroupId },
+        select: ['id'],
+      });
 
-        const descendants = await this.treeRepository.findDescendants(group);
-        descendants.forEach((descendant) => allGroupIds.add(descendant.id));
-      } catch (error) {
-        this.logger.error(
-          `Error finding descendants for group ${groupId}:`,
-          error,
-        );
+      for (const child of children) {
+        if (!visited.has(child.id)) {
+          visited.add(child.id);
+          queue.push(child.id);
+        }
       }
     }
 
-    const result = Array.from(allGroupIds);
-
-    // Cache for 30 minutes
+    const result = Array.from(visited);
     await this.cacheManager.set(cacheKey, result, 30 * 60 * 1000);
-
     return result;
   }
 
