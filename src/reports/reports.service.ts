@@ -474,6 +474,18 @@ export class ReportsService {
           user,
         );
 
+        // filteredReports = reports;
+
+        console.log({
+          totalReports: reports.length,
+          reports: reports.map((r) => ({
+            id: r.id,
+            name: r.name,
+            category: r.targetGroupCategory?.name,
+          })),
+          userId: user.id,
+        });
+
         this.logger.security('log', 'Permission filtering completed', {
           operation: 'getAllReports',
           userId: user?.id,
@@ -1258,6 +1270,26 @@ export class ReportsService {
     };
   }
 
+  private calculateAttendanceTotal(submissions: ReportSubmission[]): number {
+    let totalAttendance = 0;
+
+    for (const submission of submissions) {
+      const attendanceField = submission.submissionData.find(
+        (sd) => sd.reportField.name === 'smallGroupAttendanceCount',
+      );
+
+      if (attendanceField) {
+        const attendanceValue = parseInt(attendanceField.fieldValue, 10);
+
+        if (!isNaN(attendanceValue)) {
+          totalAttendance += attendanceValue;
+        }
+      }
+    }
+
+    return totalAttendance;
+  }
+
   async getMyGroupsSubmissions(
     user: any,
     options: {
@@ -1272,6 +1304,7 @@ export class ReportsService {
 
     // Get user's accessible groups using the new permission system
     const userGroupIds = await this.getUserAccessibleGroups(user);
+    console.log('USER GROUP IDS:', userGroupIds);
 
     const where: any = {};
     if (reportId) {
@@ -1311,6 +1344,24 @@ export class ReportsService {
     }
 
     const total = filteredSubmissions.length;
+
+    const weeklyAttendanceTotal =
+      this.calculateAttendanceTotal(filteredSubmissions);
+
+    // if (weeklyAttendanceTotal > 0) {
+    //   this.logger.business('log', 'Weekly attendance total calculated', {
+    //     operation: 'getMyGroupsSubmissions',
+    //     userId: user?.id,
+    //     contactId: user?.contactId,
+    //     metadata: { weeklyAttendanceTotal },
+    //   });
+    // } else {
+    //   this.logger.business('log', 'No attendance data found for the week', {
+    //     operation: 'getMyGroupsSubmissions',
+    //     userId: user?.id,
+    //     contactId: user?.contactId,
+    //   });
+    // }
 
     // Apply pagination
     const paginatedSubmissions = filteredSubmissions.slice(
@@ -1363,6 +1414,9 @@ export class ReportsService {
         limit,
         offset,
         hasMore: total > offset + limit,
+      },
+      summary: {
+        weeklyAttendanceTotal,
       },
     };
   }
