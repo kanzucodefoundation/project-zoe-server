@@ -21,6 +21,63 @@ export class GroupTreeService {
     this.categoryRepository = connection.getRepository(GroupCategory);
   }
 
+  // Add these two private helpers, reused by both getGroupAndAllChildren and invalidateGroupCache
+
+  /**
+   * BFS walk down parentId, batched by tree level via In(). Does not depend
+   * on the closure table, which can silently drift from parentId.
+   */
+  private async findDescendantIds(rootIds: number[]): Promise<Set<number>> {
+    const visited = new Set<number>(rootIds);
+    let currentLevelIds = [...rootIds];
+
+    while (currentLevelIds.length > 0) {
+      const children = await this.repository.find({
+        where: { parentId: In(currentLevelIds) },
+        select: ['id'],
+      });
+
+      const nextLevelIds: number[] = [];
+      for (const child of children) {
+        if (!visited.has(child.id)) {
+          visited.add(child.id);
+          nextLevelIds.push(child.id);
+        }
+      }
+      currentLevelIds = nextLevelIds;
+    }
+
+    return visited;
+  }
+
+  /**
+   * Walks up parentId from a single group to the root. Manual walk (not
+   * closure-table-based) for the same drift-safety reason as findDescendantIds.
+   */
+  private async findAncestorIds(groupId: number): Promise<number[]> {
+    const ancestorIds: number[] = [];
+    const visited = new Set<number>();
+
+    const startGroup = await this.repository.findOne({
+      where: { id: groupId },
+      select: ['id', 'parentId'],
+    });
+    let currentParentId = startGroup?.parentId ? Number(startGroup.parentId) : null;
+
+    while (currentParentId !== null && !isNaN(currentParentId)) {
+      if (visited.has(currentParentId)) break;
+      visited.add(currentParentId);
+      ancestorIds.push(currentParentId);
+
+      const parentNode = await this.repository.findOne({
+        where: { id: currentParentId },
+        select: ['id', 'parentId'],
+      });
+      currentParentId = parentNode?.parentId ? Number(parentNode.parentId) : null;
+    }
+
+    return ancestorIds;
+  }
   /**
    * Get a group and all its descendant groups (children, grandchildren, etc.)
    * Results are cached for performance
@@ -29,8 +86,6 @@ export class GroupTreeService {
     if (groupIds.length === 0) return [];
 
     const cacheKey = `group-tree:${groupIds.sort().join(',')}`;
-
-    // Try to get from cache first
     const cached = await this.cacheManager.get<number[]>(cacheKey);
     if (cached) {
       this.logger.debug(`Cache hit for group tree: ${cacheKey}`);
@@ -39,32 +94,11 @@ export class GroupTreeService {
 
     this.logger.debug(`Cache miss for group tree: ${cacheKey}`);
 
-    // Calculate descendants
-    const allGroupIds = new Set(groupIds);
+    const result = Array.from(await this.findDescendantIds(groupIds));
 
-    for (const groupId of groupIds) {
-      try {
-        const group = await this.repository.findOne({ where: { id: groupId } });
-        if (!group) continue;
-
-        const descendants = await this.treeRepository.findDescendants(group);
-        descendants.forEach((descendant) => allGroupIds.add(descendant.id));
-      } catch (error) {
-        this.logger.error(
-          `Error finding descendants for group ${groupId}:`,
-          error,
-        );
-      }
-    }
-
-    const result = Array.from(allGroupIds);
-
-    // Cache for 30 minutes
     await this.cacheManager.set(cacheKey, result, 30 * 60 * 1000);
-
     return result;
   }
-
   /**
    * Get categories for the given groups, including parent categories
    * For example, if groups are fellowships under zones, return ['fellowship', 'zone', 'location']
@@ -276,23 +310,20 @@ export class GroupTreeService {
    * This should be called when groups are created, updated, or deleted
    */
   async invalidateGroupCache(groupId: number): Promise<void> {
-    // Find all groups that might be affected by this change
     const group = await this.repository.findOne({ where: { id: groupId } });
     if (!group) return;
 
-    // Get ancestors and descendants that might be cached
-    const [ancestors, descendants] = await Promise.all([
-      this.treeRepository.findAncestors(group),
-      this.treeRepository.findDescendants(group),
+    const [ancestorIds, descendantIds] = await Promise.all([
+      this.findAncestorIds(groupId),
+      this.findDescendantIds([groupId]),
     ]);
 
     const affectedGroups = [
       groupId,
-      ...ancestors.map((g) => g.id),
-      ...descendants.map((g) => g.id),
+      ...ancestorIds,
+      ...Array.from(descendantIds).filter((id) => id !== groupId),
     ];
 
-    // Clear relevant cache entries
     await this.clearGroupTreeCache(affectedGroups);
 
     this.logger.debug(

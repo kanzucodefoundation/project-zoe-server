@@ -66,9 +66,13 @@ describe('GroupTreeService', () => {
     });
 
     it('calculates and caches descendants on cache miss', async () => {
-      const parentGroup = { id: 10 } as Group;
-      mockGroupRepo.findOne.mockResolvedValue(parentGroup);
-      mockTreeRepo.findDescendants.mockResolvedValue([{ id: 11 }, { id: 12 }]);
+      mockGroupRepo.find.mockImplementation(({ where }: any) => {
+        const ids = extractIds(where.parentId);
+        if (ids.includes(10)) {
+          return Promise.resolve([{ id: 11 }, { id: 12 }]);
+        }
+        return Promise.resolve([]);
+      });
 
       const result = await service.getGroupAndAllChildren([10]);
 
@@ -77,11 +81,22 @@ describe('GroupTreeService', () => {
     });
 
     it('gracefully skips groups that do not exist', async () => {
-      mockGroupRepo.findOne.mockResolvedValue(null);
+      mockGroupRepo.find.mockResolvedValue([]);
 
       const result = await service.getGroupAndAllChildren([999]);
 
       expect(result).toEqual([999]);
+    });
+    it('does not rely on treeRepository for descendant lookup', async () => {
+      mockGroupRepo.find.mockImplementation(({ where }: any) => {
+        const ids = extractIds(where.parentId);
+        if (ids.includes(10)) return Promise.resolve([{ id: 11 }]);
+        return Promise.resolve([]);
+      });
+
+      await service.getGroupAndAllChildren([10]);
+
+      expect(mockTreeRepo.findDescendants).not.toHaveBeenCalled();
     });
   });
 
@@ -153,15 +168,13 @@ describe('GroupTreeService', () => {
   describe('getReportAccessibleGroups', () => {
     it('returns separate canSubmitTo and canViewFrom sets', async () => {
       mockCache.get.mockResolvedValue(null);
-      const manageableGroup = { id: 10 } as Group;
-      const viewableGroup = { id: 20 } as Group;
 
-      mockGroupRepo.findOne
-        .mockResolvedValueOnce(manageableGroup)
-        .mockResolvedValueOnce(viewableGroup);
-      mockTreeRepo.findDescendants
-        .mockResolvedValueOnce([{ id: 11 }])
-        .mockResolvedValueOnce([{ id: 21 }]);
+      mockGroupRepo.find.mockImplementation(({ where }: any) => {
+        const ids = extractIds(where.parentId);
+        if (ids.includes(10)) return Promise.resolve([{ id: 11 }]);
+        if (ids.includes(20)) return Promise.resolve([{ id: 21 }]);
+        return Promise.resolve([]);
+      });
 
       const result = await service.getReportAccessibleGroups([10], [20]);
 
@@ -169,4 +182,41 @@ describe('GroupTreeService', () => {
       expect(result.canViewFrom).toEqual(expect.arrayContaining([20, 21]));
     });
   });
+  describe('invalidateGroupCache', () => {
+    it('does nothing if the group does not exist', async () => {
+      mockGroupRepo.findOne.mockResolvedValue(null);
+
+      await service.invalidateGroupCache(999);
+
+      expect(mockCache.del).not.toHaveBeenCalled();
+    });
+
+    it('clears cache for the group, its ancestors, and its descendants without using the closure table', async () => {
+      // group 10 -> parent 5 -> parent null; group 10 -> child 11
+      mockGroupRepo.findOne.mockImplementation(({ where }: any) => {
+        if (where.id === 10) return Promise.resolve({ id: 10, parentId: 5 });
+        if (where.id === 5) return Promise.resolve({ id: 5, parentId: null });
+        return Promise.resolve(null);
+      });
+      mockGroupRepo.find.mockImplementation(({ where }: any) => {
+        const ids = where.parentId?._value || where.parentId?.value || [where.parentId];
+        if (ids.includes(10)) return Promise.resolve([{ id: 11 }]);
+        return Promise.resolve([]);
+      });
+
+      await service.invalidateGroupCache(10);
+
+      expect(mockTreeRepo.findAncestors).not.toHaveBeenCalled();
+      expect(mockTreeRepo.findDescendants).not.toHaveBeenCalled();
+      expect(mockCache.del).toHaveBeenCalledWith('group-tree:10,11,5');
+      expect(mockCache.del).toHaveBeenCalledWith('group-categories:10,11,5');
+    });
+  });
 });
+// Extracts the array of IDs from a TypeORM In() FindOperator, or wraps a
+// scalar value in an array for backward compatibility.
+function extractIds(whereParentId: any): number[] {
+  if (whereParentId?._value) return whereParentId._value;
+  if (whereParentId?.value) return whereParentId.value;
+  return [whereParentId];
+}
