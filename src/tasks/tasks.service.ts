@@ -253,7 +253,7 @@ export class TasksService {
     };
   }
 
-  async findAllForContact(contactId: number, user: any): Promise<Task[]> {
+  async findAllForContact(contactId: number, user: any): Promise<TaskWithLocationGroup[]> {
     const tenantId = this.tenantContext.requireTenant();
     await this.assertContactLocationAccess(contactId, user);
     const tasks = await this.taskRepository.find({
@@ -264,12 +264,12 @@ export class TasksService {
       relations: [...TASK_DETAIL_RELATIONS],
       order: { createdAt: 'DESC' },
     });
-
-    tasks.forEach((task) => {
+    const tasksWithLocationGroups = await this.attachLocationGroups(tasks, tenantId);
+    tasksWithLocationGroups.forEach((task) => {
       this.sanitizeTaskUsers(task);
       this.attachContactAddress(task);
     });
-    return tasks;
+    return tasksWithLocationGroups;
   }
 
   async findOne(taskId: number, user: any): Promise<Task> {
