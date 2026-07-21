@@ -483,6 +483,111 @@ describe('ReportsService', () => {
         { name: 'attendance', label: 'Attendance Count' },
       ]);
     });
+
+    it('calculates weekly attendance total from attendance submissions', async () => {
+      mockRepositories.groupMembership.find.mockResolvedValue([
+        { groupId: 10 },
+      ]);
+
+      mockGroupTreeService.getGroupAndAllChildren = jest
+        .fn()
+        .mockResolvedValue([10]);
+
+      mockRepositories.reportSubmission.find.mockResolvedValue([
+        {
+          ...makeSubmission(1),
+          submissionData: [
+            {
+              reportField: { name: 'smallGroupAttendanceCount' },
+              fieldValue: '10',
+            },
+          ],
+        },
+        {
+          ...makeSubmission(2),
+          submissionData: [
+            {
+              reportField: { name: 'smallGroupAttendanceCount' },
+              fieldValue: '15',
+            },
+          ],
+        },
+      ]);
+
+      const result = await service.getMyGroupsSubmissions(mockUser, {});
+
+      expect(result.summary.weeklyAttendanceTotal).toBe(25);
+    });
+
+    it('ignores submissions without attendance field', async () => {
+      mockRepositories.groupMembership.find.mockResolvedValue([
+        { groupId: 10 },
+      ]);
+
+      mockGroupTreeService.getGroupAndAllChildren = jest
+        .fn()
+        .mockResolvedValue([10]);
+
+      mockRepositories.reportSubmission.find.mockResolvedValue([
+        {
+          ...makeSubmission(1),
+          submissionData: [
+            {
+              reportField: { name: 'otherField' },
+              fieldValue: '10',
+            },
+          ],
+        },
+        {
+          ...makeSubmission(2),
+          submissionData: [
+            {
+              reportField: { name: 'smallGroupAttendanceCount' },
+              fieldValue: '15',
+            },
+          ],
+        },
+      ]);
+
+      const result = await service.getMyGroupsSubmissions(mockUser, {});
+
+      expect(result.summary.weeklyAttendanceTotal).toBe(15);
+    });
+
+    it('ignores invalid attendance values', async () => {
+      mockRepositories.groupMembership.find.mockResolvedValue([
+        { groupId: 10 },
+      ]);
+
+      mockGroupTreeService.getGroupAndAllChildren = jest
+        .fn()
+        .mockResolvedValue([10]);
+
+      mockRepositories.reportSubmission.find.mockResolvedValue([
+        {
+          ...makeSubmission(1),
+          submissionData: [
+            {
+              reportField: { name: 'smallGroupAttendanceCount' },
+              fieldValue: 'abc', // invalid number
+            },
+          ],
+        },
+        {
+          ...makeSubmission(2),
+          submissionData: [
+            {
+              reportField: { name: 'smallGroupAttendanceCount' },
+              fieldValue: '15',
+            },
+          ],
+        },
+      ]);
+
+      const result = await service.getMyGroupsSubmissions(mockUser, {});
+
+      expect(result.summary.weeklyAttendanceTotal).toBe(15);
+    });
   });
 
   describe('submitReport - weekly duplicate limit', () => {
