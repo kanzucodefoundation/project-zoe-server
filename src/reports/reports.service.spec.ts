@@ -17,6 +17,7 @@ import { User } from '../users/entities/user.entity';
 import { ReportField } from './entities/report.field.entity';
 import GroupMembership from '../groups/entities/groupMembership.entity';
 import Group from '../groups/entities/group.entity';
+import { GroupCategoryNames } from '../groups/enums/groups';
 
 jest.mock('src/utils/mailer', () => ({
   sendEmail: jest.fn().mockResolvedValue('mock-message-id'),
@@ -70,6 +71,7 @@ describe('ReportsService', () => {
         findDescendants: jest.fn(),
         findAncestors: jest.fn(),
         findOne: jest.fn(),
+        find: jest.fn(),
       },
     };
 
@@ -371,6 +373,10 @@ describe('ReportsService', () => {
   });
 
   describe('getMyGroupsSubmissions', () => {
+    beforeEach(() => {
+      mockRepositories.groupTree.find.mockResolvedValue([]);
+    });
+
     const mockUser = { id: 7, contactId: 3 };
 
     const makeSubmission = (id: number, groupId = 10) => ({
@@ -482,6 +488,170 @@ describe('ReportsService', () => {
       expect(result.columns).toEqual([
         { name: 'attendance', label: 'Attendance Count' },
       ]);
+    });
+
+    describe('weekly attendance total calculation', () => {
+      beforeEach(() => {
+        mockRepositories.groupMembership.find.mockResolvedValue([
+          { groupId: 10 },
+        ]);
+
+        mockGroupTreeService.getGroupAndAllChildren = jest
+          .fn()
+          .mockResolvedValue([10]);
+
+        mockRepositories.report.findOne.mockResolvedValue({
+          id: 99,
+          name: 'MC Attendance Report',
+        });
+
+        mockRepositories.groupTree.find.mockResolvedValue([
+          {
+            id: 10,
+            category: {
+              name: GroupCategoryNames.MC,
+            },
+          },
+        ]);
+      });
+
+      it('calculates weekly attendance total from attendance submissions', async () => {
+        mockRepositories.reportSubmission.find
+          .mockResolvedValueOnce([
+            // normal getMyGroupsSubmissions query
+            makeSubmission(1),
+            makeSubmission(2),
+          ])
+          .mockResolvedValueOnce([
+            // weekly attendance query
+            {
+              ...makeSubmission(1),
+              report: {
+                id: 99,
+                name: 'MC Attendance Report',
+              },
+              reportingPeriod: new Date('2024-06-10'),
+              submissionData: [
+                {
+                  reportField: { name: 'smallGroupAttendanceCount' },
+                  fieldValue: '10',
+                },
+              ],
+            },
+            {
+              ...makeSubmission(2),
+              report: {
+                id: 99,
+                name: 'MC Attendance Report',
+              },
+              reportingPeriod: new Date('2024-06-10'),
+              submissionData: [
+                {
+                  reportField: { name: 'smallGroupAttendanceCount' },
+                  fieldValue: '15',
+                },
+              ],
+            },
+          ]);
+
+        const result = await service.getMyGroupsSubmissions(mockUser, {});
+
+        expect(result.summary.weeklyAttendanceTotal).toBe(25);
+      });
+
+      it('ignores invalid attendance values', async () => {
+        mockRepositories.reportSubmission.find
+          .mockResolvedValueOnce([makeSubmission(1)])
+          .mockResolvedValueOnce([
+            {
+              ...makeSubmission(1),
+              report: {
+                id: 99,
+                name: 'MC Attendance Report',
+              },
+              reportingPeriod: new Date('2024-06-10'),
+              submissionData: [
+                {
+                  reportField: { name: 'smallGroupAttendanceCount' },
+                  fieldValue: 'abc',
+                },
+              ],
+            },
+            {
+              ...makeSubmission(2),
+              report: {
+                id: 99,
+                name: 'MC Attendance Report',
+              },
+              reportingPeriod: new Date('2024-06-10'),
+              submissionData: [
+                {
+                  reportField: { name: 'smallGroupAttendanceCount' },
+                  fieldValue: '15',
+                },
+              ],
+            },
+          ]);
+
+        const result = await service.getMyGroupsSubmissions(mockUser, {});
+
+        expect(result.summary.weeklyAttendanceTotal).toBe(15);
+      });
+
+      it('looks up the MC Attendance Report by name instead of using a hardcoded ID', async () => {
+        mockRepositories.reportSubmission.find.mockResolvedValue([]);
+
+        await service.getMyGroupsSubmissions(mockUser, {});
+
+        expect(mockRepositories.report.findOne).toHaveBeenCalledWith({
+          where: {
+            name: 'MC Attendance Report',
+          },
+        });
+
+        expect(mockRepositories.reportSubmission.find).toHaveBeenCalledWith(
+          expect.objectContaining({
+            where: expect.objectContaining({
+              report: {
+                id: 99,
+              },
+            }),
+          }),
+        );
+      });
+
+      it('returns zero attendance when the MC Attendance Report does not exist', async () => {
+        mockRepositories.report.findOne.mockResolvedValue(null);
+
+        mockRepositories.reportSubmission.find.mockResolvedValue([]);
+
+        const result = await service.getMyGroupsSubmissions(mockUser, {});
+
+        expect(result.summary.weeklyAttendanceTotal).toBe(0);
+
+        expect(mockRepositories.reportSubmission.find).toHaveBeenCalledTimes(1);
+      });
+
+      it('returns zero when accessible groups are not MC groups', async () => {
+        mockRepositories.groupTree.find.mockResolvedValue([
+          {
+            id: 10,
+            category: {
+              name: 'Zone',
+            },
+          },
+        ]);
+
+        mockRepositories.reportSubmission.find.mockResolvedValue([
+          makeSubmission(1),
+        ]);
+
+        const result = await service.getMyGroupsSubmissions(mockUser, {});
+
+        expect(result.summary.weeklyAttendanceTotal).toBe(0);
+
+        expect(mockRepositories.report.findOne).not.toHaveBeenCalled();
+      });
     });
   });
 

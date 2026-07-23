@@ -1258,6 +1258,104 @@ export class ReportsService {
     };
   }
 
+  private async getWeeklyMcAttendanceTotal(
+    user: any,
+    startDate?: Date,
+    endDate?: Date,
+  ): Promise<number> {
+    // Get groups the user can access based on current permission rules
+    const accessibleGroups = await this.getUserAccessibleGroups(user);
+
+    if (!accessibleGroups.length) {
+      return 0;
+    }
+
+    // Get groups with their categories
+    const groups = await this.treeRepository.find({
+      where: {
+        id: In(accessibleGroups),
+      },
+      relations: ['category'],
+    });
+
+    // Keep only Missional Communities
+    const mcGroups = groups.filter(
+      (group) => group.category?.name === GroupCategoryNames.MC,
+    );
+
+    if (!mcGroups.length) {
+      return 0;
+    }
+
+    const mcIds = mcGroups.map((group) => group.id);
+    const MC_ATTENDANCE_REPORT_NAME = 'MC Attendance Report';
+
+    // Find MC Attendance Report dynamically instead of relying on a fixed ID
+    const mcAttendanceReport = await this.reportRepository.findOne({
+      where: {
+        name: MC_ATTENDANCE_REPORT_NAME,
+      },
+    });
+
+    if (!mcAttendanceReport) {
+      return 0;
+    }
+
+    // Fetch MC Attendance Report submissions
+    const submissions = await this.reportSubmissionRepository.find({
+      where: {
+        report: {
+          id: mcAttendanceReport.id,
+        },
+        group: {
+          id: In(mcIds),
+        },
+      },
+      relations: ['submissionData', 'submissionData.reportField'],
+    });
+
+    // Apply reporting period filtering
+    const filteredSubmissions = submissions.filter((submission) => {
+      if (!submission.reportingPeriod) {
+        return false;
+      }
+
+      const reportingDate = new Date(submission.reportingPeriod);
+
+      if (startDate && reportingDate < startDate) {
+        return false;
+      }
+
+      if (endDate && reportingDate > endDate) {
+        return false;
+      }
+
+      return true;
+    });
+
+    return this.calculateAttendanceTotal(filteredSubmissions);
+  }
+
+  private calculateAttendanceTotal(submissions: ReportSubmission[]): number {
+    let totalAttendance = 0;
+
+    for (const submission of submissions) {
+      const attendanceField = submission.submissionData.find(
+        (sd) => sd.reportField.name === 'smallGroupAttendanceCount',
+      );
+
+      if (attendanceField) {
+        const attendanceValue = parseInt(attendanceField.fieldValue, 10);
+
+        if (!isNaN(attendanceValue)) {
+          totalAttendance += attendanceValue;
+        }
+      }
+    }
+
+    return totalAttendance;
+  }
+
   async getMyGroupsSubmissions(
     user: any,
     options: {
@@ -1302,15 +1400,27 @@ export class ReportsService {
 
     // Apply date filtering
     let filteredSubmissions = submissions;
+
     if (startDate || endDate) {
       filteredSubmissions = submissions.filter((sub) => {
-        if (startDate && sub.submittedAt < startDate) return false;
-        if (endDate && sub.submittedAt > endDate) return false;
+        if (!sub.reportingPeriod) return false;
+
+        const reportingDate = new Date(sub.reportingPeriod);
+
+        if (startDate && reportingDate < startDate) return false;
+        if (endDate && reportingDate > endDate) return false;
+
         return true;
       });
     }
 
     const total = filteredSubmissions.length;
+
+    const weeklyAttendanceTotal = await this.getWeeklyMcAttendanceTotal(
+      user,
+      startDate,
+      endDate,
+    );
 
     // Apply pagination
     const paginatedSubmissions = filteredSubmissions.slice(
@@ -1363,6 +1473,9 @@ export class ReportsService {
         limit,
         offset,
         hasMore: total > offset + limit,
+      },
+      summary: {
+        weeklyAttendanceTotal,
       },
     };
   }
