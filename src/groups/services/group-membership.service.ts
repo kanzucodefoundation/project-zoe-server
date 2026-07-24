@@ -35,14 +35,16 @@ export class GroupsMembershipService {
     this.logger = this.appLogger.createContextLogger('GroupsMembershipService');
   }
 
-  async findAll(req: GroupMembershipSearchDto): Promise<GroupMembershipDto[]> {
+  async findAll(
+    req: GroupMembershipSearchDto,
+  ): Promise<{ data: GroupMembershipDto[]; total: number }> {
     const filter: Record<string, any> = {};
 
     if (hasValue(req.contactId)) {
       filter.contactId = req.contactId;
     }
 
-        let groupIds: number[] = [];
+    let groupIds: number[] = [];
     if (hasValue(req.groupId)) {
       const numericGroupId = Number(req.groupId);
       const parentGroup = await this.groupRepository.findOne({
@@ -71,25 +73,34 @@ export class GroupsMembershipService {
       // Two-step: paginate distinct contactIds first so that limit/skip count
       // unique contacts rather than raw membership rows (a contact in multiple
       // sub-groups would otherwise consume multiple row slots per page).
-      const qb = this.repository
-        .createQueryBuilder('m')
+      const buildQb = () => {
+        const qb = this.repository
+          .createQueryBuilder('m')
+          .where('m.groupId IN (:...groupIds)', { groupIds });
+        if (activeOnly) {
+          qb.andWhere('m.isActive = :isActive', { isActive: true });
+        }
+        if (hasValue(req.contactId)) {
+          qb.andWhere('m.contactId = :contactId', {
+            contactId: req.contactId,
+          });
+        }
+        return qb;
+      };
+
+      const totalResult = await buildQb()
+        .select('COUNT(DISTINCT m.contactId)', 'count')
+        .getRawOne<{ count: string }>();
+      const total = Number(totalResult?.count ?? 0);
+
+      const rows: { contactId: number }[] = await buildQb()
         .select('m.contactId', 'contactId')
-        .where('m.groupId IN (:...groupIds)', { groupIds })
-        .groupBy('m.contactId');
-
-      if (activeOnly) {
-        qb.andWhere('m.isActive = :isActive', { isActive: true });
-      }
-      if (hasValue(req.contactId)) {
-        qb.andWhere('m.contactId = :contactId', { contactId: req.contactId });
-      }
-
-      const rows: { contactId: number }[] = await qb
+        .groupBy('m.contactId')
         .offset(req.skip ?? 0)
         .limit(req.limit ?? 100)
         .getRawMany();
 
-      if (rows.length === 0) return [];
+      if (rows.length === 0) return { data: [], total };
 
       const contactIds = rows.map((r) => r.contactId);
       const data = await this.repository.find({
@@ -105,19 +116,23 @@ export class GroupsMembershipService {
           best.set(m.contactId, m);
         }
       }
-      return [...best.values()].map((it) => this.toDto(it, req.groupId ?? 0));
+      return {
+        data: [...best.values()].map((it) => this.toDto(it, req.groupId ?? 0)),
+        total,
+      };
     }
 
-    const data = await this.repository.find({
+    const [data, total] = await this.repository.findAndCount({
       relations: ['contact', 'contact.person', 'group', 'group.category'],
       where: filter,
+      skip: req.skip ?? 0,
+      take: req.limit ?? 100,
     });
 
-    const skip = req.skip ?? 0;
-    const limit = req.limit ?? 100;
-    return data
-      .slice(skip, skip + limit)
-      .map((it) => this.toDto(it, req.groupId ?? 0));
+    return {
+      data: data.map((it) => this.toDto(it, req.groupId ?? 0)),
+      total,
+    };
   }
 
   private async findDescendantGroupIds(groupId: number): Promise<number[]> {
@@ -156,7 +171,8 @@ export class GroupsMembershipService {
       contact: {
         name: contact?.person ? getPersonFullName(contact.person) : '',
         id: contact?.id,
-      },      joinedAt: membership.joinedAt,
+      },
+      joinedAt: membership.joinedAt,
       leftAt: membership.leftAt,
       isActive: membership.isActive,
     } as GroupMembershipDto;

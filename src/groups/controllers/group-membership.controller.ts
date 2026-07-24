@@ -30,7 +30,7 @@ export class GroupMembershipController {
   @Get()
   async findAll(
     @Query() req: GroupMembershipSearchDto,
-  ): Promise<GroupMembershipDto[]> {
+  ): Promise<{ data: GroupMembershipDto[]; total: number }> {
     return this.service.findAll(req);
   }
 

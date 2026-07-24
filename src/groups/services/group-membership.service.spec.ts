@@ -25,6 +25,7 @@ describe('GroupsMembershipService', () => {
       offset: jest.fn().mockReturnThis(),
       limit: jest.fn().mockReturnThis(),
       getRawMany: jest.fn().mockResolvedValue([]),
+      getRawOne: jest.fn().mockResolvedValue({ count: '0' }),
     };
 
     mockMembershipRepository = {
@@ -117,7 +118,7 @@ describe('GroupsMembershipService', () => {
   it('should insert every member in a bulk membership request', async () => {
     const inserted = await service.create({
       groupId: 9,
-      members:[51, 7],
+      members: [51, 7],
       role: GroupRole.Member,
     });
 
@@ -146,7 +147,7 @@ describe('GroupsMembershipService', () => {
         metadata: expect.objectContaining({
           created: 2,
           reactivated: 0,
-          contactIds:[51, 7],
+          contactIds: [51, 7],
           role: GroupRole.Member,
         }),
       }),
@@ -165,7 +166,7 @@ describe('GroupsMembershipService', () => {
     ]);
 
     await expect(
-      service.create({ groupId: 9, members:[51], role: GroupRole.Member }),
+      service.create({ groupId: 9, members: [51], role: GroupRole.Member }),
     ).rejects.toThrow(BadRequestException);
   });
 
@@ -183,7 +184,7 @@ describe('GroupsMembershipService', () => {
 
     const inserted = await service.create({
       groupId: 9,
-      members:[51],
+      members: [51],
       role: GroupRole.Leader,
     });
 
@@ -194,11 +195,12 @@ describe('GroupsMembershipService', () => {
   it('should list memberships for a group and its descendants', async () => {
     const parentGroup = { id: 9, name: 'Parent Group' };
     mockGroupRepository.findOneOrFail.mockResolvedValue(parentGroup);
-    
+
     // Simulate finding direct children manually via .find()
     mockGroupRepository.find.mockResolvedValue([{ id: 10 }]);
-    
+
     mockQb.getRawMany.mockResolvedValue([{ contactId: 51 }, { contactId: 52 }]);
+    mockQb.getRawOne.mockResolvedValue({ count: '2' });
     mockMembershipRepository.find.mockResolvedValue([
       {
         id: 101,
@@ -238,20 +240,21 @@ describe('GroupsMembershipService', () => {
 
     expect(mockGroupRepository.findOne).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: expect.objectContaining({ id: 9 })
-      })
+        where: expect.objectContaining({ id: 9 }),
+      }),
     );
-    
+
     expect(mockGroupRepository.find).toHaveBeenCalledWith({
       where: { parentId: 9 },
-      select: ['id']
+      select: ['id'],
     });
 
     expect(mockGroupRepository.find).toHaveBeenCalledWith({
       where: { parentId: 10 },
-      select: ['id']
+      select: ['id'],
     });
-    expect(memberships).toEqual([
+    expect(memberships.total).toBe(2);
+    expect(memberships.data).toEqual([
       expect.objectContaining({
         id: 101,
         groupId: 9,
