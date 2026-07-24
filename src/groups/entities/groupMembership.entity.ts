@@ -1,6 +1,7 @@
 import {
   Column,
   Entity,
+  Index,
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
@@ -14,6 +15,7 @@ import Contact from '../../crm/entities/contact.entity';
 
 @Entity()
 @Unique(['contactId', 'groupId'])
+@Index(['groupId', 'isActive', 'contactId'])
 export default class GroupMembership {
   @PrimaryGeneratedColumn()
   id: number;
