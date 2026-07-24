@@ -88,17 +88,19 @@ export class GroupsMembershipService {
         return qb;
       };
 
-      const totalResult = await buildQb()
-        .select('COUNT(DISTINCT m.contactId)', 'count')
-        .getRawOne<{ count: string }>();
+      const [totalResult, rows] = await Promise.all([
+        buildQb()
+          .select('COUNT(DISTINCT m.contactId)', 'count')
+          .getRawOne<{ count: string }>(),
+        buildQb()
+          .select('m.contactId', 'contactId')
+          .groupBy('m.contactId')
+          .orderBy('m.contactId', 'ASC')
+          .offset(req.skip ?? 0)
+          .limit(req.limit ?? 100)
+          .getRawMany<{ contactId: number }>(),
+      ]);
       const total = Number(totalResult?.count ?? 0);
-
-      const rows: { contactId: number }[] = await buildQb()
-        .select('m.contactId', 'contactId')
-        .groupBy('m.contactId')
-        .offset(req.skip ?? 0)
-        .limit(req.limit ?? 100)
-        .getRawMany();
 
       if (rows.length === 0) return { data: [], total };
 
