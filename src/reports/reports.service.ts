@@ -1294,6 +1294,9 @@ export class ReportsService {
     const mcAttendanceReport = await this.reportRepository.findOne({
       where: {
         name: MC_ATTENDANCE_REPORT_NAME,
+        tenant: {
+          id: this.tenantContext.requireTenant(),
+        },
       },
     });
 
@@ -1345,10 +1348,10 @@ export class ReportsService {
       );
 
       if (attendanceField) {
-        const attendanceValue = parseInt(attendanceField.fieldValue, 10);
+        const value = attendanceField.fieldValue;
 
-        if (!isNaN(attendanceValue)) {
-          totalAttendance += attendanceValue;
+        if (/^\d+$/.test(value)) {
+          totalAttendance += Number(value);
         }
       }
     }
@@ -1383,6 +1386,9 @@ export class ReportsService {
         submissions: [],
         columns: [],
         pagination: { total: 0, limit, offset, hasMore: false },
+        summary: {
+          weeklyAttendanceTotal: 0,
+        },
       };
     }
 

@@ -598,7 +598,7 @@ describe('ReportsService', () => {
         expect(result.summary.weeklyAttendanceTotal).toBe(15);
       });
 
-      it('looks up the MC Attendance Report by name instead of using a hardcoded ID', async () => {
+      it('looks up the MC Attendance Report by name within the current tenant', async () => {
         mockRepositories.reportSubmission.find.mockResolvedValue([]);
 
         await service.getMyGroupsSubmissions(mockUser, {});
@@ -606,6 +606,9 @@ describe('ReportsService', () => {
         expect(mockRepositories.report.findOne).toHaveBeenCalledWith({
           where: {
             name: 'MC Attendance Report',
+            tenant: {
+              id: 1,
+            },
           },
         });
 
@@ -618,6 +621,83 @@ describe('ReportsService', () => {
             }),
           }),
         );
+      });
+
+      it('returns zero weekly attendance summary when user has no accessible groups', async () => {
+        jest
+          .spyOn(service as any, 'getUserAccessibleGroups')
+          .mockResolvedValue([]);
+
+        const result = await service.getMyGroupsSubmissions(mockUser, {});
+
+        expect(result.summary.weeklyAttendanceTotal).toBe(0);
+      });
+
+      it('ignores malformed, decimal and negative attendance values', async () => {
+        mockRepositories.reportSubmission.find
+          .mockResolvedValueOnce([makeSubmission(1)])
+          .mockResolvedValueOnce([
+            {
+              ...makeSubmission(1),
+              report: {
+                id: 99,
+                name: 'MC Attendance Report',
+              },
+              reportingPeriod: new Date('2024-06-10'),
+              submissionData: [
+                {
+                  reportField: { name: 'smallGroupAttendanceCount' },
+                  fieldValue: '10',
+                },
+              ],
+            },
+            {
+              ...makeSubmission(2),
+              report: {
+                id: 99,
+                name: 'MC Attendance Report',
+              },
+              reportingPeriod: new Date('2024-06-10'),
+              submissionData: [
+                {
+                  reportField: { name: 'smallGroupAttendanceCount' },
+                  fieldValue: '15people',
+                },
+              ],
+            },
+            {
+              ...makeSubmission(3),
+              report: {
+                id: 99,
+                name: 'MC Attendance Report',
+              },
+              reportingPeriod: new Date('2024-06-10'),
+              submissionData: [
+                {
+                  reportField: { name: 'smallGroupAttendanceCount' },
+                  fieldValue: '15.5',
+                },
+              ],
+            },
+            {
+              ...makeSubmission(4),
+              report: {
+                id: 99,
+                name: 'MC Attendance Report',
+              },
+              reportingPeriod: new Date('2024-06-10'),
+              submissionData: [
+                {
+                  reportField: { name: 'smallGroupAttendanceCount' },
+                  fieldValue: '-5',
+                },
+              ],
+            },
+          ]);
+
+        const result = await service.getMyGroupsSubmissions(mockUser, {});
+
+        expect(result.summary.weeklyAttendanceTotal).toBe(10);
       });
 
       it('returns zero attendance when the MC Attendance Report does not exist', async () => {
