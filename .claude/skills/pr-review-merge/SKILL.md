@@ -25,7 +25,12 @@ Run `git remote get-url origin` in the current directory.
 - Anything else → stop and tell the user this skill only works inside the
   project-zoe-server or project-zoe-client repos.
 
-If no PR number/URL was given as an argument, ask which PR to review.
+**Normalize the PR reference to a bare number before using it in any
+command.** If given a URL, it must point at the detected repo under
+`kanzucodefoundation` — extract the number; if it points anywhere else, stop
+and say so. If the argument is neither a number nor such a URL, or no argument
+was given, ask which PR to review. Only the validated number is ever
+substituted into commands.
 
 ## Step 2 — Gather everything before judging anything
 
@@ -38,7 +43,8 @@ gh pr checks <N>
 ```
 
 And the review-thread state (the REST API does not expose thread resolution —
-this must be GraphQL). Use the owner/repo from the remote:
+this must be GraphQL). Substitute `<REPO>` with the repo name from Step 1; the
+owner is always `kanzucodefoundation` (see note below):
 
 ```bash
 gh api graphql -f query='query {
@@ -83,13 +89,13 @@ develop→master diff is clean, it routes to Maintainers like any routine PR
 anything sensitive, it routes to Senior Engineering.
 
 A release PR is specifically head `develop` into base `master`. Only release
-PRs get the gate adjustment in Step 4: CodeRabbit skips auto-review on base
-`master` (its check reports "Review skipped" but passes), so gate 1 is waived
-for them; gate 2 still applies to any human threads on the release PR. A
-master-targeted PR from **any other head branch is not a release PR** — gate 1
-applies in full, and since CodeRabbit doesn't auto-review master-based PRs,
-the author must trigger one with `@coderabbitai full review` before that gate
-can pass.
+PRs get the gate adjustment in Step 4: gate 1 is waived for them, whether or
+not CodeRabbit reviewed the release PR itself (its check may report "Review
+skipped" or post a real review — either way the check passes, and gate 2 still
+applies to any threads on the release PR). A master-targeted PR from **any
+other head branch is not a release PR** — gate 1 applies in full; if CodeRabbit
+hasn't reviewed it, the author must trigger one with `@coderabbitai full
+review` before that gate can pass.
 
 ### Server (`project-zoe-server`)
 

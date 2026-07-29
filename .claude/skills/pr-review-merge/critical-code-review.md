@@ -44,6 +44,6 @@ Then enumerate findings as a numbered list. Each finding must have:
 - **Why it matters** — production impact, not abstract principle
 - **What to do instead** — a concrete fix, not "consider improving this"
 
-End with a priority ranking: which three findings would you block the PR on, and why those three.
+End with a priority ranking: up to three findings you would block the PR on, and why. If nothing rises to blocking, say "no blockers" plainly — do not invent findings to fill the ranking.
 
 Do not soften findings. Do not praise what works. If the implementation is genuinely solid, say so in one sentence and move on — but earn that verdict by actually looking for problems first.

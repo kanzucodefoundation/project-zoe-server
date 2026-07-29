@@ -5,8 +5,10 @@ reviews:
   request_changes_workflow: false
   auto_review:
     enabled: true
-    # develop only: release PRs (develop -> master) contain already-reviewed
-    # commits and are excluded by not listing master here.
+    # CodeRabbit always auto-reviews PRs targeting the default branch (master);
+    # base_branches only ADDS branches — it cannot exclude master. So release
+    # PRs (develop -> master) may get a redundant auto-review; the
+    # pr-review-merge skill does not require it (gate waived for release PRs).
     base_branches:
       - develop
   path_instructions:
