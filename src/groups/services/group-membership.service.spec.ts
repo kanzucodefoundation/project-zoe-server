@@ -219,6 +219,7 @@ describe('GroupsMembershipService', () => {
     expect(mockMembershipRepository.findAndCount).toHaveBeenCalledWith({
       relations: ['contact', 'contact.person', 'group', 'group.category'],
       where: { contactId: 51, isActive: true },
+      order: { id: 'ASC' },
       skip: 0,
       take: 100,
     });
