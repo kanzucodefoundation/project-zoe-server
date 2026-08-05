@@ -127,6 +127,7 @@ export class GroupsMembershipService {
     const [data, total] = await this.repository.findAndCount({
       relations: ['contact', 'contact.person', 'group', 'group.category'],
       where: filter,
+      order: { id: 'ASC' },
       skip: req.skip ?? 0,
       take: req.limit ?? 100,
     });
