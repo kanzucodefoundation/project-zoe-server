@@ -1818,7 +1818,10 @@ export class ReportsService {
     const rangeEnd = to ?? new Date();
     const rangeStart =
       from ??
-      this.subtractWeeks(rangeEnd, ReportsService.COMPLIANCE_MAX_WEEKS_LOOKBACK);
+      this.subtractWeeks(
+        rangeEnd,
+        ReportsService.COMPLIANCE_MAX_WEEKS_LOOKBACK - 1,
+      );
 
     const weekStarts = this.getReportingWeekStarts(rangeStart, rangeEnd);
     if (weekStarts.length === 0) {
