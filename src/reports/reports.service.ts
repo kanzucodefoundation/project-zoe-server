@@ -547,7 +547,7 @@ export class ReportsService {
           metadata: {
             reportId,
             submissionId: savedSubmission.id,
-            error: err.message,
+            error: err?.message,
           },
         },
       );
@@ -601,7 +601,7 @@ export class ReportsService {
             metadata: {
               reportId,
               submissionId: savedSubmission.id,
-              reason: err.message,
+              reason: err?.message,
             },
           },
         );
@@ -633,7 +633,7 @@ export class ReportsService {
           metadata: {
             reportId,
             submissionId: savedSubmission.id,
-            reason: err?.message,
+            reason: err.message,
           },
         },
       );
