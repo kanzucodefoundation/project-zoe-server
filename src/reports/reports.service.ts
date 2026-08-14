@@ -71,6 +71,7 @@ export class ReportsService {
   private readonly groupMembershipRepo: Repository<GroupMembership>;
   private readonly treeRepository: TreeRepository<Group>;
   private readonly contactRepository: Repository<Contact>;
+  private readonly connection: Connection;
   private readonly logger: ContextLogger;
   private static readonly MCA_REPORT_NAME = 'MC Attendance Report';
   private static readonly MCA_FIELD_LABEL = 'How many attended MC?';
@@ -112,6 +113,7 @@ export class ReportsService {
     this.treeRepository = connection.getTreeRepository(Group);
     this.userRepository = connection.getRepository(User);
     this.contactRepository = connection.getRepository(Contact);
+    this.connection = connection;
     this.logger = this.appLogger.createContextLogger('ReportsService');
   }
   private async resolveReportSubmissionRecipients(
@@ -423,19 +425,78 @@ export class ReportsService {
       }
     }
 
-    // Create and save the report submission
-    const reportSubmission = new ReportSubmission();
-    reportSubmission.report = report;
-    reportSubmission.submittedAt = now;
-    reportSubmission.user = submittingUser;
-    reportSubmission.reportingPeriod = targetPeriod;
-    if (targetGroup) {
-      reportSubmission.group = targetGroup;
+    // Retrieve all fields for the report to map field names to their respective
+    // entities, and validate every submitted field name up front -- before any
+    // row is persisted -- so an unknown field can never leave a parent
+    // ReportSubmission stranded in the database with no data underneath it.
+    const fields = await this.reportFieldRepository.find({
+      where: { report: { id: report.id } },
+    });
+    const fieldNameToFieldMap = new Map(
+      fields.map((field) => [field.name, field]),
+    );
+    for (const fieldName of Object.keys(data)) {
+      if (!fieldNameToFieldMap.has(fieldName)) {
+        throw new BadRequestException(
+          `Field with name '${fieldName}' not found in report`,
+        );
+      }
     }
+
+    // Create the report submission, its field data, and any computed fields
+    // (e.g. PGA) in a single transaction, so a failure partway through never
+    // leaves a parent submission occupying the period with no data behind it.
     let savedSubmission: ReportSubmission;
     try {
-      savedSubmission =
-        await this.reportSubmissionRepository.save(reportSubmission);
+      savedSubmission = await this.connection.transaction(async (manager) => {
+        const reportSubmission = new ReportSubmission();
+        reportSubmission.report = report;
+        reportSubmission.submittedAt = now;
+        reportSubmission.user = submittingUser;
+        reportSubmission.reportingPeriod = targetPeriod;
+        if (targetGroup) {
+          reportSubmission.group = targetGroup;
+        }
+        const saved = await manager.save(ReportSubmission, reportSubmission);
+
+        const submissionDataEntities = Object.entries(data).map(
+          ([fieldName, fieldValue]) => {
+            const submissionData = new ReportSubmissionData();
+            submissionData.reportSubmission = saved;
+            submissionData.reportField = fieldNameToFieldMap.get(fieldName);
+            submissionData.fieldValue = fieldValue;
+            return submissionData;
+          },
+        );
+        await manager.save(ReportSubmissionData, submissionDataEntities);
+
+        // WHM Sunday Service Report: compute and persist PGA = 1Sv + 2Sv + YXP + kids
+        if (report.functionName === 'whmSundayService') {
+          const slot = (name: string) => {
+            const v = data[name];
+            return typeof v === 'number' ? v : parseFloat(String(v ?? 0)) || 0;
+          };
+          const pga =
+            slot('1Sv') +
+            slot('2Sv') +
+            slot('YXP') +
+            slot('kids') +
+            slot('local') +
+            slot('hc1') +
+            slot('hc2') +
+            slot('hc3');
+          const pgaField = fieldNameToFieldMap.get('pga');
+          if (pgaField) {
+            const pgaRow = new ReportSubmissionData();
+            pgaRow.reportSubmission = saved;
+            pgaRow.reportField = pgaField;
+            pgaRow.fieldValue = String(pga);
+            await manager.save(ReportSubmissionData, pgaRow);
+          }
+        }
+
+        return saved;
+      });
     } catch (err) {
       if ((err as any).code === '23505') {
         throw new BadRequestException(
@@ -445,56 +506,6 @@ export class ReportsService {
         );
       }
       throw err;
-    }
-
-    // Retrieve all fields for the report to map field names to their respective entities
-    const fields = await this.reportFieldRepository.find({
-      where: { report: { id: report.id } },
-    });
-    const fieldNameToFieldMap = new Map(
-      fields.map((field) => [field.name, field]),
-    );
-    // Prepare SubmissionData entities
-    const submissionDataEntities = Object.entries(data).map(
-      ([fieldName, fieldValue]) => {
-        const field = fieldNameToFieldMap.get(fieldName);
-        if (!field) {
-          throw new Error(`Field with name '${fieldName}' not found in report`);
-        }
-        const submissionData = new ReportSubmissionData();
-        submissionData.reportSubmission = savedSubmission;
-        submissionData.reportField = field; // Directly use the field entity
-        submissionData.fieldValue = fieldValue;
-        return submissionData;
-      },
-    );
-
-    // Save all SubmissionData entities
-    await this.reportSubmissionDataRepository.save(submissionDataEntities);
-
-    // WHM Sunday Service Report: compute and persist PGA = 1Sv + 2Sv + YXP + kids
-    if (report.functionName === 'whmSundayService') {
-      const slot = (name: string) => {
-        const v = data[name];
-        return typeof v === 'number' ? v : parseFloat(String(v ?? 0)) || 0;
-      };
-      const pga =
-        slot('1Sv') +
-        slot('2Sv') +
-        slot('YXP') +
-        slot('kids') +
-        slot('local') +
-        slot('hc1') +
-        slot('hc2') +
-        slot('hc3');
-      const pgaField = fieldNameToFieldMap.get('pga');
-      if (pgaField) {
-        const pgaRow = new ReportSubmissionData();
-        pgaRow.reportSubmission = savedSubmission;
-        pgaRow.reportField = pgaField;
-        pgaRow.fieldValue = String(pga);
-        await this.reportSubmissionDataRepository.save(pgaRow);
-      }
     }
 
     // Record fellowship attendance if the report contains the relevant dynamic fields
@@ -607,11 +618,26 @@ export class ReportsService {
       status: HttpStatus.OK,
       message: 'Report submitted successfully.',
     };
-    await this.sendMail(
-      savedSubmission.user.username,
-      'Project Zoe - Report Submitted',
-      { submissionDate: formattedDate, fullName },
-    );
+    try {
+      await this.sendMail(
+        savedSubmission.user.username,
+        'Project Zoe - Report Submitted',
+        { submissionDate: formattedDate, fullName },
+      );
+    } catch (err) {
+      this.logger.business(
+        'warn',
+        'Report submitted but confirmation email failed',
+        {
+          operation: 'submitReport',
+          metadata: {
+            reportId,
+            submissionId: savedSubmission.id,
+            reason: err?.message,
+          },
+        },
+      );
+    }
 
     return response;
   }

@@ -99,6 +99,22 @@ describe('ReportsService', () => {
         return mockRepositories.report;
       }),
       getTreeRepository: jest.fn().mockReturnValue(mockRepositories.groupTree),
+      transaction: jest.fn(async (work: any) => {
+        const manager = {
+          save: jest.fn((entity: any, entityOrEntities: any) => {
+            if (entity === ReportSubmission) {
+              return mockRepositories.reportSubmission.save(entityOrEntities);
+            }
+            if (entity === ReportSubmissionData) {
+              return mockRepositories.reportSubmissionData.save(
+                entityOrEntities,
+              );
+            }
+            throw new Error(`Unexpected entity passed to manager.save`);
+          }),
+        };
+        return work(manager);
+      }),
     };
 
     // Create mock services
@@ -891,6 +907,161 @@ describe('ReportsService', () => {
       );
       expect(mockRepositories.reportSubmission.save).toHaveBeenCalledWith(
         expect.objectContaining({ reportingPeriod: currentMonthPeriod }),
+      );
+    });
+  });
+  describe('submitReport - transactional integrity', () => {
+    const mockUser = { id: 7, contactId: 3 } as any;
+    const savedUser = { id: 7, contactId: 3, username: 'shepherd@example.com' };
+    const makeGroup = (id: number, name: string) => ({ id, name }) as Group;
+
+    const baseReport = {
+      id: 1,
+      name: 'Weekly Report',
+      status: ReportStatus.ACTIVE,
+      submissionFrequency: 'weekly',
+      groupFieldName: 'groupId',
+      targetGroupCategory: undefined,
+      fields: [],
+    } as unknown as Report;
+
+    beforeEach(() => {
+      mockRepositories.report.findOne.mockResolvedValue(baseReport);
+      mockRepositories.user.findOne.mockResolvedValue(savedUser);
+      mockRepositories.groupTree.findOne.mockResolvedValue(
+        makeGroup(10, 'MC Nairobi'),
+      );
+      mockRepositories.groupMembership.findOne.mockResolvedValue({
+        group: { id: 10, category: undefined },
+      });
+      mockGroupPermissionsService.hasPermissionForGroup = jest
+        .fn()
+        .mockResolvedValue(true);
+      mockRepositories.reportSubmission.findOne.mockResolvedValue(null);
+      mockRepositories.reportSubmission.save.mockImplementation((sub: any) =>
+        Promise.resolve({ id: 99, ...sub }),
+      );
+      mockRepositories.reportSubmissionData.save.mockResolvedValue([]);
+    });
+
+    it('rejects an unknown field name before any row is saved, so no submission is left occupying the period', async () => {
+      mockRepositories.reportField.find.mockResolvedValue([
+        { name: 'groupId' },
+      ]);
+
+      await expect(
+        service.submitReport(
+          1,
+          { data: { groupId: '10', bogusField: 'x' } },
+          mockUser,
+        ),
+      ).rejects.toThrow(BadRequestException);
+
+      expect(mockConnection.transaction).not.toHaveBeenCalled();
+      expect(mockRepositories.reportSubmission.save).not.toHaveBeenCalled();
+      expect(mockRepositories.reportSubmissionData.save).not.toHaveBeenCalled();
+    });
+
+    it('saves the submission row and its field data inside a single transaction', async () => {
+      mockRepositories.reportField.find.mockResolvedValue([
+        { name: 'groupId' },
+        { name: 'notes' },
+      ]);
+
+      const result = await service.submitReport(
+        1,
+        { data: { groupId: '10', notes: 'all good' } },
+        mockUser,
+      );
+
+      expect(result.status).toBe(200);
+      expect(mockConnection.transaction).toHaveBeenCalledTimes(1);
+      expect(mockRepositories.reportSubmission.save).toHaveBeenCalledTimes(1);
+      expect(mockRepositories.reportSubmissionData.save).toHaveBeenCalledWith(
+        expect.arrayContaining([
+          expect.objectContaining({
+            reportSubmission: expect.objectContaining({ id: 99 }),
+            reportField: { name: 'notes' },
+            fieldValue: 'all good',
+          }),
+        ]),
+      );
+    });
+
+    it('propagates a failure saving field data without swallowing it, so the transaction rolls back the submission row too', async () => {
+      mockRepositories.reportField.find.mockResolvedValue([
+        { name: 'groupId' },
+      ]);
+      mockRepositories.reportSubmissionData.save.mockRejectedValueOnce(
+        new Error('data save failed'),
+      );
+
+      await expect(
+        service.submitReport(1, { data: { groupId: '10' } }, mockUser),
+      ).rejects.toThrow('data save failed');
+
+      // The submission row was written to the (mocked) transactional
+      // manager, but since the transaction as a whole rejects, TypeORM
+      // rolls it back -- it must never be treated as a successful,
+      // independently-committed row.
+      expect(mockConnection.transaction).toHaveBeenCalledTimes(1);
+    });
+
+    it('maps a unique-constraint violation raised inside the transaction to a friendly duplicate-submission error', async () => {
+      mockRepositories.reportField.find.mockResolvedValue([
+        { name: 'groupId' },
+      ]);
+      mockRepositories.reportSubmission.save.mockRejectedValueOnce({
+        code: '23505',
+      });
+
+      await expect(
+        service.submitReport(1, { data: { groupId: '10' } }, mockUser),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('computes and persists PGA in the same transaction for whmSundayService reports', async () => {
+      const sundayServiceReport = {
+        ...baseReport,
+        functionName: 'whmSundayService',
+      } as unknown as Report;
+      mockRepositories.report.findOne.mockResolvedValue(sundayServiceReport);
+      mockRepositories.reportField.find.mockResolvedValue([
+        { name: 'groupId' },
+        { name: '1Sv' },
+        { name: '2Sv' },
+        { name: 'YXP' },
+        { name: 'kids' },
+        { name: 'local' },
+        { name: 'hc1' },
+        { name: 'hc2' },
+        { name: 'hc3' },
+        { name: 'pga' },
+      ]);
+
+      await service.submitReport(
+        1,
+        {
+          data: {
+            groupId: '10',
+            '1Sv': 100,
+            '2Sv': 50,
+            YXP: 10,
+            kids: 5,
+            local: 2,
+            hc1: 1,
+            hc2: 1,
+            hc3: 1,
+          },
+        },
+        mockUser,
+      );
+
+      expect(mockRepositories.reportSubmissionData.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          reportField: { name: 'pga' },
+          fieldValue: '170',
+        }),
       );
     });
   });
