@@ -11,13 +11,16 @@ import { JwtService } from '@nestjs/jwt';
 @Injectable()
 @WebSocketGateway({
   namespace: '/notifications',
-  path: '/server/socket.io',
+  path: process.env.SOCKET_IO_PATH || '/socket.io',
   cors: {
-    origin: process.env.FRONTEND_ORIGIN?.split(',').map((o) => o.trim()) ?? false,
+    origin:
+      process.env.FRONTEND_ORIGIN?.split(',').map((o) => o.trim()) ?? false,
     credentials: true,
   },
 })
-export class NotificationsGateway implements OnGatewayConnection, OnGatewayDisconnect {
+export class NotificationsGateway
+  implements OnGatewayConnection, OnGatewayDisconnect
+{
   @WebSocketServer()
   server!: Server;
   private readonly logger = new Logger(NotificationsGateway.name);
@@ -46,7 +49,11 @@ export class NotificationsGateway implements OnGatewayConnection, OnGatewayDisco
       }
       this.userSockets.get(userId)!.add(client.id);
     } catch (err) {
-      this.logger.warn(`Rejecting socket connection: ${err instanceof Error ? err.message : err}`);
+      this.logger.warn(
+        `Rejecting socket connection: ${
+          err instanceof Error ? err.message : err
+        }`,
+      );
       client.disconnect(true);
     }
   }
@@ -61,6 +68,8 @@ export class NotificationsGateway implements OnGatewayConnection, OnGatewayDisco
 
   // Called by NotificationsService right after a notification is persisted
   emitToUser(tenantId: number, userId: number, payload: unknown) {
-    this.server.to(`tenant:${tenantId}:user:${userId}`).emit('notification:new', payload);
+    this.server
+      .to(`tenant:${tenantId}:user:${userId}`)
+      .emit('notification:new', payload);
   }
 }
