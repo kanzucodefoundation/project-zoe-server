@@ -3,6 +3,10 @@ import {
   parseDateOfBirth,
   parseName,
 } from '../utils/importUtils';
+import {
+  mapContactHeaders,
+  DuplicateContactHeaderError,
+} from './contact-import.controller';
 
 describe('ContactImportController', () => {
   it('parseContacts create a person', async () => {
@@ -72,5 +76,69 @@ describe('ContactImportController', () => {
     expect(parseDateOfBirth('20/12')).toEqual('1900-12-20');
     expect(parseDateOfBirth('31/March')).toEqual('1900-03-31');
     expect(parseDateOfBirth('3/9/1996')).toEqual('1996-09-03');
+  });
+});
+describe('mapContactHeaders', () => {
+  it('maps human-readable headers to canonical camelCase keys', () => {
+    expect(
+      mapContactHeaders([
+        'First Name',
+        'Last Name',
+        'Email',
+        'Phone',
+        'Date of Birth',
+        'Gender',
+        'District',
+        'Country',
+        'Group ID',
+      ]),
+    ).toEqual([
+      'firstName',
+      'lastName',
+      'email',
+      'phone',
+      'dateOfBirth',
+      'gender',
+      'district',
+      'country',
+      'groupId',
+    ]);
+  });
+
+  it('is tolerant of separator and casing variants', () => {
+    expect(
+      mapContactHeaders(['first_name', 'LAST-NAME', 'DateOfBirth']),
+    ).toEqual(['firstName', 'lastName', 'dateOfBirth']);
+  });
+
+  it('strips a leading BOM from the first header', () => {
+    expect(mapContactHeaders(['\uFEFFFirst Name', 'Last Name'])).toEqual([
+      'firstName',
+      'lastName',
+    ]);
+  });
+
+  it('passes unknown headers through unchanged', () => {
+    expect(
+      mapContactHeaders(['First Name', 'Favorite Color', 'groupName']),
+    ).toEqual(['firstName', 'Favorite Color', 'groupName']);
+  });
+
+  it('throws when two headers resolve to the same canonical field', () => {
+    expect(() =>
+      mapContactHeaders(['Email', 'email', 'First Name']),
+    ).toThrow(DuplicateContactHeaderError);
+  });
+
+  it('throws for duplicate aliases with different original spellings', () => {
+    expect(() =>
+      mapContactHeaders(['Group ID', 'groupid', 'First Name']),
+    ).toThrow(/Duplicate column for "groupId"/);
+  });
+
+  it('does not treat repeated unknown headers as duplicates', () => {
+    expect(() =>
+      mapContactHeaders(['Notes', 'Notes', 'First Name']),
+    ).not.toThrow();
   });
 });

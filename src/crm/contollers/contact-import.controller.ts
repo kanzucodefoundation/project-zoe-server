@@ -39,6 +39,59 @@ class Entity {
   email: string;
 }
 
+// parseContact()/getValueByKeys() already resolves firstName/lastName/email/phone/
+// dateOfBirth/gender headers case- and whitespace-insensitively. country, district,
+// and groupId are read directly off the raw row (see uploadFile/uploadGroupLeaders
+// below) and bypass that resolution, so we normalize headers here to keep those
+// direct reads working with human-readable CSV columns (e.g. "Country", "District").
+const CONTACT_HEADER_ALIASES: Record<string, string> = {
+  firstname: 'firstName',
+  lastname: 'lastName',
+  email: 'email',
+  phone: 'phone',
+  dateofbirth: 'dateOfBirth',
+  gender: 'gender',
+  district: 'district',
+  country: 'country',
+  address: 'address',
+  groupid: 'groupId',
+};
+
+const CANONICAL_CONTACT_KEYS = new Set(Object.values(CONTACT_HEADER_ALIASES));
+
+export class DuplicateContactHeaderError extends Error {
+  constructor(public readonly field: string) {
+    super(`Duplicate column for "${field}" found in CSV headers.`);
+  }
+}
+
+// Wraps normalizeContactHeader with per-parse duplicate detection: if two
+// input headers resolve to the same canonical field (e.g. "Email" and
+// "email", or "Group ID" and "groupId"), csv-parse would otherwise silently
+// keep only the last column's values. Reject the file instead. Unrecognized
+// headers are passed through unchanged and are never treated as duplicates.
+export function mapContactHeaders(headers: string[]): string[] {
+  const seenCanonical = new Set<string>();
+  return headers.map((header) => {
+    const mapped = normalizeContactHeader(header);
+    if (CANONICAL_CONTACT_KEYS.has(mapped)) {
+      if (seenCanonical.has(mapped)) {
+        throw new DuplicateContactHeaderError(mapped);
+      }
+      seenCanonical.add(mapped);
+    }
+    return mapped;
+  });
+}
+
+function normalizeContactHeader(header: string): string {
+  const key = header
+    .replace(/^\uFEFF/, '')
+    .replace(/[\s_-]/g, '')
+    .toLowerCase();
+  return CONTACT_HEADER_ALIASES[key] ?? header;
+}
+
 @UseInterceptors(SentryInterceptor, TenantContextInterceptor)
 @UseGuards(JwtAuthGuard)
 @ApiTags('Crm Contacts')
@@ -78,12 +131,15 @@ export class ContactImportController {
     let list: any[];
     try {
       list = parseCsv(file.buffer, {
-        columns: true,
+        columns: mapContactHeaders,
         skip_empty_lines: true,
         delimiter: ',',
         relax_column_count: false,
       }) as any[];
     } catch (parseErr) {
+      if (parseErr instanceof DuplicateContactHeaderError) {
+        throw new BadRequestException({ message: parseErr.message });
+      }
       throw new BadRequestException({
         message:
           'The CSV file could not be parsed. Please ensure every row has a value for each column and that the file uses comma-separated format.',
@@ -184,12 +240,15 @@ export class ContactImportController {
     let list: any[];
     try {
       list = parseCsv(file.buffer, {
-        columns: true,
+        columns: mapContactHeaders,
         skip_empty_lines: true,
         delimiter: ',',
         relax_column_count: false,
       }) as any[];
     } catch (parseErr) {
+      if (parseErr instanceof DuplicateContactHeaderError) {
+        throw new BadRequestException({ message: parseErr.message });
+      }
       throw new BadRequestException({
         message:
           'The CSV file could not be parsed. Please ensure every row has a value for each column and that the file uses comma-separated format.',
