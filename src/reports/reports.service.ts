@@ -5,16 +5,7 @@ import {
   HttpStatus,
   BadRequestException,
 } from '@nestjs/common';
-import {
-  Connection,
-  Repository,
-  In,
-  Not,
-  Between,
-  And,
-  MoreThanOrEqual,
-  LessThan,
-} from 'typeorm';
+import { Connection, Repository, In, Not } from 'typeorm';
 import { UserDto } from 'src/auth/dto/user.dto';
 import { Report } from './entities/report.entity';
 import { ReportSubmission } from './entities/report.submission.entity';
@@ -61,12 +52,12 @@ export interface McComplianceGroupStatus {
   leaderName: string;
   weeksInRange: number;
   weeksMissed: number;
-  missedWeeks: string[]; 
+  missedWeeks: string[];
   missingCurrentWeek: boolean;
 }
 
 export interface McComplianceResponse {
-  weekStarts: string[]; 
+  weekStarts: string[];
   groups: McComplianceGroupStatus[];
 }
 
@@ -84,6 +75,21 @@ export class ReportsService {
   private static readonly MCA_REPORT_NAME = 'MC Attendance Report';
   private static readonly MCA_FIELD_LABEL = 'How many attended MC?';
   private static readonly COMPLIANCE_MAX_WEEKS_LOOKBACK = 12;
+  // Weekly reports whose expected submission day is known (0=Sun..6=Sat).
+  // Only reports listed here get "catch up on the day that already passed"
+  // treatment in submitReport's period selection -- other weekly reports
+  // (Sunday Service, Weekly Oikos, etc.) have no configured due day, so
+  // they fall back to plain "current week only" duplicate checking rather
+  // than guessing which day they're supposed to land on.
+  //
+  // Keyed by report name, not id, which is fragile: renaming "MC
+  // Attendance Report" silently drops it back to no-due-day behavior with
+  // no error. Acceptable short-term, but the due day should move to a
+  // real column on Report (alongside submissionFrequency) so it survives
+  // renames and can be configured per-report instead of hardcoded here.
+  private static readonly REPORT_DUE_DAY_OF_WEEK: Record<string, number> = {
+    [ReportsService.MCA_REPORT_NAME.toLowerCase()]: 3, // Wednesday
+  };
 
   constructor(
     @Inject('CONNECTION') connection: Connection,
@@ -94,7 +100,7 @@ export class ReportsService {
     private readonly appLogger: AppLogger,
     private readonly tenantContext: TenantContext,
     private readonly fellowshipAttendanceService: FellowshipAttendanceService,
-    private readonly notificationsService: NotificationsService, 
+    private readonly notificationsService: NotificationsService,
   ) {
     this.reportRepository = connection.getRepository(Report);
     this.reportFieldRepository = connection.getRepository(ReportField);
@@ -108,11 +114,11 @@ export class ReportsService {
     this.contactRepository = connection.getRepository(Contact);
     this.logger = this.appLogger.createContextLogger('ReportsService');
   }
-    private async resolveReportSubmissionRecipients(
+  private async resolveReportSubmissionRecipients(
     targetGroup: Group,
   ): Promise<number[]> {
     const tenantId = this.tenantContext.requireTenant();
-    
+
     // Manual parentId walk, mirroring GroupTreeService.findAncestorIds.
     // treeRepository.findAncestors() relies on the closure table, which can
     // drift from parentId — same reason GroupTreeService avoids it.
@@ -132,7 +138,9 @@ export class ReportsService {
         where: { id: currentParentId, tenant: { id: tenantId } as any },
         select: ['id', 'parentId'],
       });
-      currentParentId = parentGroup?.parentId ? Number(parentGroup.parentId) : null;
+      currentParentId = parentGroup?.parentId
+        ? Number(parentGroup.parentId)
+        : null;
     }
 
     // groupIds above were only ever discovered via tenant-scoped
@@ -351,40 +359,76 @@ export class ReportsService {
       targetGroup = userGroups[0];
     }
 
-    // A report may only be submitted once per week per group (week starts
-    // Sunday). This allows a user managing multiple groups to submit the same
-    // report once for each group, and to submit other reports freely during
-    // the week. Reports with no associated group fall back to limiting the
-    // submitting user to one submission per week.
-    const weekStart = this.getStartOfWeek(new Date());
-    const weekEnd = new Date(weekStart);
-    weekEnd.setDate(weekEnd.getDate() + 7);
-    const duplicateSubmissionWhere: any = {
-      report: { id: reportId },
-      submittedAt: Between(weekStart, weekEnd),
-    };
-    if (targetGroup) {
-      duplicateSubmissionWhere.group = { id: targetGroup.id };
-    } else {
-      duplicateSubmissionWhere.user = { id: submittingUser.id };
-    }
-    const existingSubmission = await this.reportSubmissionRepository.findOne({
-      where: duplicateSubmissionWhere,
-    });
-    if (existingSubmission) {
-      throw new BadRequestException(
-        targetGroup
-          ? `"${report.name}" has already been submitted for ${targetGroup.name} this week`
-          : `You have already submitted "${report.name}" for this week`,
+    // A report may only be submitted once per reporting period per group,
+    // where the period length is driven by report.submissionFrequency.
+    // Reports with no associated group fall back to limiting the
+    // submitting user to one submission per period. 'custom' has no fixed
+    // cadence defined anywhere in the schema, so it's exempt from this
+    // check entirely and its reportingPeriod is left undefined (NULLs
+    // never collide with the unique index on
+    // report+group/user+reportingPeriod).
+    //
+    // For weekly reports with a known due day (see
+    // REPORT_DUE_DAY_OF_WEEK -- currently only MC Attendance Report,
+    // due Wednesdays), the target period is chosen by where "today" sits
+    // relative to that due day: days before it in the current Sun-Sat
+    // week are a catch-up window for last week's due day, so they target
+    // the *previous* period; days on/after it target the current period.
+    // This is deliberately day-aware, not "whichever period happens to be
+    // empty" -- an on-time Wednesday submission always targets the
+    // current week even if last week was never submitted, and a late
+    // catch-up never eats the slot for the upcoming on-time submission.
+    // Reports with no configured due day (Sunday Service, Weekly Oikos,
+    // daily/monthly reports, etc.) don't get this treatment since their
+    // expected day isn't known -- they simply target the current period.
+    // Whichever single period is selected, a submission that already
+    // exists for it is rejected outright; it is never silently
+    // reassigned to a different period.
+    const now = new Date();
+    let targetPeriod: string | undefined = undefined;
+    if (report.submissionFrequency !== 'custom') {
+      const currentPeriodStart = this.getPeriodStart(
+        now,
+        report.submissionFrequency,
       );
+      const dueDayOfWeek =
+        report.submissionFrequency === 'weekly'
+          ? ReportsService.REPORT_DUE_DAY_OF_WEEK[report.name?.toLowerCase()]
+          : undefined;
+
+      const periodStart =
+        dueDayOfWeek !== undefined && now.getDay() < dueDayOfWeek
+          ? this.getPreviousPeriodStart(currentPeriodStart, 'weekly')
+          : currentPeriodStart;
+      targetPeriod = this.formatDateKey(periodStart);
+
+      const periodScopeWhere: any = {
+        report: { id: reportId },
+        reportingPeriod: targetPeriod,
+      };
+      if (targetGroup) {
+        periodScopeWhere.group = { id: targetGroup.id };
+      } else {
+        periodScopeWhere.user = { id: submittingUser.id };
+      }
+      const existingSubmission = await this.reportSubmissionRepository.findOne({
+        where: periodScopeWhere,
+      });
+      if (existingSubmission) {
+        throw new BadRequestException(
+          targetGroup
+            ? `"${report.name}" has already been submitted for ${targetGroup.name} for the period starting ${targetPeriod}`
+            : `You have already submitted "${report.name}" for the period starting ${targetPeriod}`,
+        );
+      }
     }
 
     // Create and save the report submission
     const reportSubmission = new ReportSubmission();
     reportSubmission.report = report;
-    reportSubmission.submittedAt = new Date();
+    reportSubmission.submittedAt = now;
     reportSubmission.user = submittingUser;
-    reportSubmission.reportingPeriod = this.formatDateKey(weekStart);
+    reportSubmission.reportingPeriod = targetPeriod;
     if (targetGroup) {
       reportSubmission.group = targetGroup;
     }
@@ -396,8 +440,8 @@ export class ReportsService {
       if ((err as any).code === '23505') {
         throw new BadRequestException(
           targetGroup
-            ? `"${report.name}" has already been submitted for ${targetGroup.name} this week`
-            : `You have already submitted "${report.name}" for this week`,
+            ? `"${report.name}" has already been submitted for ${targetGroup.name} for the period starting ${targetPeriod}`
+            : `You have already submitted "${report.name}" for the period starting ${targetPeriod}`,
         );
       }
       throw err;
@@ -497,7 +541,7 @@ export class ReportsService {
         },
       );
     }
-    
+
     const formattedDate = getHumanReadableDate(savedSubmission.submittedAt);
     const fullName = getUserDisplayName(savedSubmission.user);
 
@@ -512,7 +556,7 @@ export class ReportsService {
               type: NotificationType.REPORT_SUBMITTED,
               title: `${report.name} submitted`,
               body: `${fullName} submitted for ${targetGroup.name}`,
-              link: `/reports`,
+              link: '/reports',
             }),
           ),
         );
@@ -693,6 +737,39 @@ export class ReportsService {
     startOfWeek.setHours(0, 0, 0, 0);
     startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay()); // Sunday = 0
     return startOfWeek;
+  }
+
+  // Start of the period containing `date`, keyed by submissionFrequency.
+  // Never called for 'custom' -- callers skip period logic for that case.
+  private getPeriodStart(date: Date, frequency: string): Date {
+    switch (frequency) {
+      case 'daily': {
+        const startOfDay = new Date(date);
+        startOfDay.setHours(0, 0, 0, 0);
+        return startOfDay;
+      }
+      case 'monthly':
+        return new Date(date.getFullYear(), date.getMonth(), 1);
+      case 'weekly':
+      default:
+        return this.getStartOfWeek(date);
+    }
+  }
+
+  private getPreviousPeriodStart(periodStart: Date, frequency: string): Date {
+    const previous = new Date(periodStart);
+    switch (frequency) {
+      case 'daily':
+        previous.setDate(previous.getDate() - 1);
+        return previous;
+      case 'monthly':
+        previous.setMonth(previous.getMonth() - 1);
+        return previous;
+      case 'weekly':
+      default:
+        previous.setDate(previous.getDate() - 7);
+        return previous;
+    }
   }
 
   async getReport(reportId: number): Promise<Report> {
@@ -1711,23 +1788,18 @@ export class ReportsService {
       return [];
     }
   }
-  
+
   async getWeeklyMcaSummary(user: UserDto): Promise<{
-  total: number;
-  breakdown: { groupId: number; groupName: string; total: number }[];
-  weekStart: string;
-  weekEnd: string;
-  reportFound: boolean;
+    total: number;
+    breakdown: { groupId: number; groupName: string; total: number }[];
+    weekStart: string;
+    weekEnd: string;
+    reportFound: boolean;
   }> {
     const tenantId = this.tenantContext.requireTenant();
     const weekStart = this.getStartOfWeek(new Date());
     const weekEnd = new Date(weekStart);
     weekEnd.setDate(weekEnd.getDate() + 6);
-    // Exclusive upper bound for the submittedAt query — start of the *next*
-    // week, matching the same Between() pattern submitReport already uses
-    // for its duplicate-submission check.
-    const weekEndExclusive = new Date(weekStart);
-    weekEndExclusive.setDate(weekEndExclusive.getDate() + 7);
 
     const emptyResult = {
       total: 0,
@@ -1773,6 +1845,13 @@ export class ReportsService {
     const fieldId = attendanceField.id;
     const reportId = attendanceField.report.id;
 
+    // Filter by reportingPeriod, not submittedAt: reportingPeriod is the
+    // period submitReport deliberately assigned this submission to
+    // (including MC's Wednesday due-day catch-up window -- see
+    // REPORT_DUE_DAY_OF_WEEK), while submittedAt is just when it was
+    // physically typed in. A Sunday catch-up submission is stored against
+    // *last* week's reportingPeriod on purpose; bucketing by submittedAt
+    // here would wrongly fold it into this week's total.
     const submissions = await this.reportSubmissionRepository
       .createQueryBuilder('submission')
       .innerJoinAndSelect('submission.group', 'group')
@@ -1784,12 +1863,16 @@ export class ReportsService {
       )
       .where('submission.report = :reportId', { reportId })
       .andWhere('group.id IN (:...groupIds)', { groupIds })
-      .andWhere('submission.submittedAt >= :weekStart', { weekStart })
-      .andWhere('submission.submittedAt < :weekEndExclusive', { weekEndExclusive })
+      .andWhere('submission.reportingPeriod = :period', {
+        period: this.formatDateKey(weekStart),
+      })
       .getMany();
 
     let total = 0;
-    const breakdownMap = new Map<number, { groupId: number; groupName: string; total: number }>();
+    const breakdownMap = new Map<
+      number,
+      { groupId: number; groupName: string; total: number }
+    >();
 
     for (const submission of submissions) {
       for (const sd of submission.submissionData) {
@@ -1814,13 +1897,15 @@ export class ReportsService {
     }
     return {
       total,
-      breakdown: Array.from(breakdownMap.values()).sort((a, b) => b.total - a.total),
+      breakdown: Array.from(breakdownMap.values()).sort(
+        (a, b) => b.total - a.total,
+      ),
       weekStart: emptyResult.weekStart,
       weekEnd: emptyResult.weekEnd,
       reportFound: true,
     };
   }
- 
+
   async getMcSubmissionCompliance(
     user: UserDto,
     from?: Date,
@@ -1832,14 +1917,13 @@ export class ReportsService {
       rangeEnd,
       ReportsService.COMPLIANCE_MAX_WEEKS_LOOKBACK,
     );
-    const rangeStart =
-      from && from > earliestAllowed ? from : earliestAllowed;
+    const rangeStart = from && from > earliestAllowed ? from : earliestAllowed;
     const weekStarts = this.getReportingWeekStarts(rangeStart, rangeEnd);
     if (weekStarts.length === 0) {
       return { weekStarts: [], groups: [] };
     }
     const weekStartIsoList = weekStarts.map((d) => this.formatDateKey(d));
-    const currentWeekIso = weekStartIsoList[weekStartIsoList.length - 1];;
+    const currentWeekIso = weekStartIsoList[weekStartIsoList.length - 1];
 
     const groupIds = await this.getUserManageableGroups(user);
     if (groupIds.length === 0) {
@@ -1859,7 +1943,7 @@ export class ReportsService {
     }
     const mcGroupIds = mcGroups.map((g) => g.id);
 
-     const attendanceReport = await this.reportRepository
+    const attendanceReport = await this.reportRepository
       .createQueryBuilder('report')
       .where('LOWER(report.name) = LOWER(:reportName)', {
         reportName: ReportsService.MCA_REPORT_NAME,
@@ -1871,26 +1955,18 @@ export class ReportsService {
       return { weekStarts: weekStartIsoList, groups: [] };
     }
 
-    // Query the raw submittedAt window covering the full range, then bucket
-    // each submission into a week live in JS using the same getStartOfWeek /
-    // formatDateKey as weekStartIsoList above. This deliberately avoids
-    // matching against the stored `reportingPeriod` string — that value was
-    // written under whatever week-boundary formula was live at submit time,
-    // and historical rows can carry a stale value from an earlier formula.
-    // Deriving the bucket from submittedAt at read time keeps this endpoint
-    // permanently in sync with itself, regardless of past formula changes.
-    const queryRangeStart = weekStarts[0];
-    const queryRangeEndExclusive = new Date(weekStarts[weekStarts.length - 1]);
-    queryRangeEndExclusive.setDate(queryRangeEndExclusive.getDate() + 7);
-
+    // Bucket by the stored reportingPeriod, not submittedAt: reportingPeriod
+    // is the period submitReport deliberately assigned each submission to
+    // (including MC's Wednesday due-day catch-up window -- see
+    // REPORT_DUE_DAY_OF_WEEK), so it's the authoritative answer to "which
+    // week did this cover." Deriving the bucket from submittedAt instead
+    // would mark a legitimately-covered week as missed whenever a late
+    // catch-up submission's timestamp falls in the following week.
     const submissions = await this.reportSubmissionRepository.find({
       where: {
         report: { id: attendanceReport.id },
         group: { id: In(mcGroupIds) },
-        submittedAt: And(
-          MoreThanOrEqual(queryRangeStart),
-          LessThan(queryRangeEndExclusive),
-        ),
+        reportingPeriod: In(weekStartIsoList),
       },
       relations: ['group'],
     });
@@ -1898,19 +1974,23 @@ export class ReportsService {
     const submittedWeeksByGroup = new Map<number, Set<string>>();
     for (const submission of submissions) {
       const groupId = submission.group.id;
-      const weekKey = this.formatDateKey(this.getStartOfWeek(submission.submittedAt));
+      const weekKey = submission.reportingPeriod;
       if (!submittedWeeksByGroup.has(groupId)) {
         submittedWeeksByGroup.set(groupId, new Set());
       }
       submittedWeeksByGroup.get(groupId).add(weekKey);
     }
 
-    const leaderNameByGroupId = await this.getMcLeaderNamesByGroupId(mcGroupIds);
+    const leaderNameByGroupId =
+      await this.getMcLeaderNamesByGroupId(mcGroupIds);
 
     const groups: McComplianceGroupStatus[] = mcGroups
       .map((group) => {
-        const submittedWeeks = submittedWeeksByGroup.get(group.id) ?? new Set<string>();
-        const missedWeeks = weekStartIsoList.filter((week) => !submittedWeeks.has(week));
+        const submittedWeeks =
+          submittedWeeksByGroup.get(group.id) ?? new Set<string>();
+        const missedWeeks = weekStartIsoList.filter(
+          (week) => !submittedWeeks.has(week),
+        );
 
         return {
           groupId: group.id,
