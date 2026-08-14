@@ -599,7 +599,7 @@ describe('ReportsService', () => {
       expect(mockRepositories.reportSubmission.findOne).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({
-            report: { id: 1 },
+            report: { id: 1, tenant: { id: 1 } },
             group: { id: 10 },
             reportingPeriod: currentPeriod,
           }),
@@ -655,7 +655,7 @@ describe('ReportsService', () => {
       expect(mockRepositories.reportSubmission.findOne).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({
-            report: { id: 1 },
+            report: { id: 1, tenant: { id: 1 } },
             group: { id: 11 },
             reportingPeriod: currentPeriod,
           }),
@@ -686,7 +686,7 @@ describe('ReportsService', () => {
       expect(mockRepositories.reportSubmission.findOne).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({
-            report: { id: 1 },
+            report: { id: 1, tenant: { id: 1 } },
             user: { id: 7 },
             reportingPeriod: currentPeriod,
           }),
