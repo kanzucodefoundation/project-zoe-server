@@ -220,9 +220,14 @@ export class ReportsService {
   ): Promise<ApiResponse<ReportSubmissionDataDto>> {
     const { data } = submissionDto;
 
-    // Retrieve the report by its ID
+    // Retrieve the report by its ID, scoped to the active tenant
+    const tenantId = this.tenantContext.requireTenant();
     const report = await this.reportRepository.findOne({
-      where: { id: reportId, status: ReportStatus.ACTIVE },
+      where: {
+        id: reportId,
+        status: ReportStatus.ACTIVE,
+        tenant: { id: tenantId },
+      },
       relations: ['targetGroupCategory', 'fields'],
     });
     if (!report) {
@@ -405,7 +410,7 @@ export class ReportsService {
       targetPeriod = this.formatDateKey(periodStart);
 
       const periodScopeWhere: any = {
-        report: { id: reportId },
+        report: { id: reportId, tenant: { id: tenantId } },
         reportingPeriod: targetPeriod,
       };
       if (targetGroup) {
