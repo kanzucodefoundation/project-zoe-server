@@ -638,7 +638,7 @@ export class ReportsService {
           metadata: {
             reportId,
             submissionId: savedSubmission.id,
-            reason: err.message,
+            reason: err?.message,
           },
         },
       );
