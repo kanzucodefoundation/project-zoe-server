@@ -5,7 +5,7 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
-import { Connection, In, Repository } from 'typeorm';
+import { Connection, EntityManager, In, Repository } from 'typeorm';
 import GroupMembership from '../entities/groupMembership.entity';
 import GroupMembershipDto from '../dto/membership/group-membership.dto';
 import { getPersonFullName } from '../../crm/crm.helpers';
@@ -181,7 +181,26 @@ export class GroupsMembershipService {
     } as GroupMembershipDto;
   }
 
-  async create(data: BatchGroupMembershipDto): Promise<number> {
+  /**
+   * Creates/reactivates group memberships. Accepts an optional `manager` so
+   * callers that run their own transaction (e.g. ContactsService.create()
+   * from within createMany()'s per-row transaction) can have this write
+   * participate in that same transaction. Without this, the membership
+   * insert would run against the default connection and either fail to see
+   * the just-saved, not-yet-committed contact row (foreign key violation),
+   * or commit independently of the contact save — breaking the per-row
+   * all-or-nothing rollback guarantee. When no manager is supplied, the
+   * service's default repository is used, preserving existing behavior for
+   * every other call site.
+   */
+  async create(
+    data: BatchGroupMembershipDto,
+    manager?: EntityManager,
+  ): Promise<number> {
+    const repository = manager
+      ? manager.getRepository(GroupMembership)
+      : this.repository;
+
     const { groupId, members, role } = data;
     const uniqueMemberIds = [...new Set(members)];
 
@@ -189,7 +208,7 @@ export class GroupsMembershipService {
       throw new BadRequestException('At least one member is required');
     }
 
-    const existing = await this.repository.find({
+    const existing = await repository.find({
       where: uniqueMemberIds.map((contactId) => ({ contactId, groupId })),
     });
     const existingByContactId = new Map(existing.map((m) => [m.contactId, m]));
@@ -222,12 +241,12 @@ export class GroupsMembershipService {
         // already active — skip
       } else {
         toCreate.push(
-          this.repository.create({ groupId, contactId, role, isActive: true }),
+          repository.create({ groupId, contactId, role, isActive: true }),
         );
       }
     }
 
-    const saved = await this.repository.save([...toReactivate, ...toCreate]);
+    const saved = await repository.save([...toReactivate, ...toCreate]);
 
     this.logger.business('log', 'Group memberships upserted', {
       resource: 'group_membership',

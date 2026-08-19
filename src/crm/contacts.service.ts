@@ -742,16 +742,22 @@ export class ContactsService {
       contactId: request?.user?.contactId,
     });
 
-    const tenantId = this.tenantContext.requireTenant();
-    const allEmails = dataList.flatMap((d) =>
-      (d.emails || []).map((e) => e.value),
-    );
+  let tenantId: number;
+  try {
+     tenantId = this.tenantContext.requireTenant();
+     const allEmails = dataList.flatMap((d) =>
+       (d.emails || []).map((e) => e.value),
+     );
 
-    // Fail fast on duplicates within the batch before touching the DB.
-    // This is a whole-batch validation error on the submitted payload
-    // itself (not a per-row runtime failure), so it still throws for
-    // the caller to handle up front.
-    await this.assertEmailsAreUnique(allEmails, tenantId);
+     // Fail fast on duplicates within the batch before touching the DB.
+     // This is a whole-batch validation error on the submitted payload
+     // itself (not a per-row runtime failure), so it still throws for
+     // the caller to handle up front.
+     await this.assertEmailsAreUnique(allEmails, tenantId);
+   } catch (error) {
+     this.logger.endTracking(tracking, false);
+     throw error;
+   }
 
     const succeeded: Contact[] = [];
     const failed: BulkContactFailure[] = [];
@@ -1725,7 +1731,6 @@ export class ContactsService {
     const model = getContactModel(createPersonDto);
     model.tenant = { id: tenantId } as Tenant;
 
-    await this.getGroupRequest(createPersonDto);
 
     let newPerson: Contact;
     try {
@@ -1744,6 +1749,7 @@ export class ContactsService {
       }
       throw saveError;
     }
+    await this.getGroupRequest(createPersonDto);
 
     if (hasValue(createPersonDto.residence)) {
       createPersonDto.residence.contactId = newPerson.id;
