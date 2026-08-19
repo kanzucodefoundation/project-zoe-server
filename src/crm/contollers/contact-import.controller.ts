@@ -17,6 +17,7 @@ import { ContactsService } from '../contacts.service';
 import { Express } from 'express';
 import { Repository, Connection } from 'typeorm';
 import Company from '../entities/company.entity';
+import Contact from '../entities/contact.entity';
 import CompanyListDto from '../dto/company-list.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
@@ -32,12 +33,6 @@ import { UsersService } from 'src/users/users.service';
 import { generateRandomPassword } from 'src/utils/stringHelpers';
 import { TenantContextInterceptor } from 'src/interceptors/tenant-context.interceptor';
 import { ServiceRecordingService } from 'src/service-recording/service-recording.service';
-
-class Entity {
-  name: string;
-  phone: string;
-  email: string;
-}
 
 // parseContact()/getValueByKeys() already resolves firstName/lastName/email/phone/
 // dateOfBirth/gender headers case- and whitespace-insensitively. country, district,
@@ -145,9 +140,11 @@ export class ContactImportController {
           'The CSV file could not be parsed. Please ensure every row has a value for each column and that the file uses comma-separated format.',
       });
     }
-    const created = [];
-    const notCreated = [];
+
+    const created: Contact[] = [];
+    const notCreated: Record<string, any>[] = [];
     const errors: string[] = [];
+
     for (const [index, uploadedContact] of list.entries()) {
       try {
         const contactModel = parseContact(uploadedContact);
@@ -187,20 +184,34 @@ export class ContactImportController {
             });
           }
 
-          // Email-less contacts (e.g. children) fall back to (firstName, lastName, groupId)
-          // dedup — weaker than email since name collisions within a group are possible.
-          // Once child-to-parent linking lands, the parent becomes the authoritative anchor.
+          // Stringent duplicate-email enforcement: a row whose email is
+          // already registered for this tenant must be REJECTED, not
+          // silently merged into the existing contact. We therefore go
+          // straight to createPerson() for emailed contacts and let its
+          // tenant-scoped, case-insensitive uniqueness check reject
+          // duplicates (caught below and reported per-row, same as any
+          // other row-level failure).
+          //
+          // Email-less contacts (e.g. children) have no unique email to
+          // enforce, so they keep the weaker (firstName, lastName, groupId)
+          // dedup heuristic — reused if a match exists, created otherwise.
+          // Once child-to-parent linking lands, the parent becomes the
+          // authoritative anchor for this case.
           // See: https://github.com/kanzucodefoundation/project-zoe-server/issues/208
-          let person = contactModel.email
-            ? await this.service.findByEmail(contactModel.email)
-            : await this.service.findByNameAndGroup(
-                contactModel.firstName,
-                contactModel.lastName,
-                effectiveGroupId,
-              );
-          if (!person) {
+          let person: Contact;
+          if (contactModel.email) {
             person = await this.service.createPerson(contactModel);
+          } else {
+            person = await this.service.findByNameAndGroup(
+              contactModel.firstName,
+              contactModel.lastName,
+              effectiveGroupId,
+            );
+            if (!person) {
+              person = await this.service.createPerson(contactModel);
+            }
           }
+
           await this.groupMembershipService.create({
             groupId: effectiveGroupId,
             members: [person.id],
@@ -255,8 +266,8 @@ export class ContactImportController {
       });
     }
 
-    const created = [];
-    const notCreated = [];
+    const created: Contact[] = [];
+    const notCreated: Record<string, any>[] = [];
     for (const [index, uploadedContact] of list.entries()) {
       try {
         const contactModel = parseContact(uploadedContact);
@@ -298,6 +309,10 @@ export class ContactImportController {
             });
           }
 
+          // createPerson() already enforces the tenant-scoped, stringent
+          // duplicate-email check — a row whose email already exists for
+          // this tenant throws here and is handled below like any other
+          // row error.
           const newPerson = await this.service.createPerson(contactModel);
           const newPersonsGroup = {
             groupId: groupData.id,
@@ -314,7 +329,7 @@ export class ContactImportController {
             isActive: true,
           };
 
-          const newUser = await this.usersService.createUser(newUserObj);
+          await this.usersService.createUser(newUserObj);
         }
       } catch (err) {
         notCreated.push(uploadedContact);

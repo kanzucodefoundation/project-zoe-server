@@ -57,6 +57,8 @@ import { groupCategories } from 'src/groups/groups.constants';
 import { AppLogger, ContextLogger } from 'src/utils/app-logger.service';
 import { GroupsMembershipService } from 'src/groups/services/group-membership.service';
 
+const CONTACT_EMAIL_EXISTS_MESSAGE = 'CONTACT ALREADY EXISTS WITH THAT EMAIL';
+
 @Injectable()
 export class ContactsService {
   private readonly repository: Repository<Contact>;
@@ -96,6 +98,106 @@ export class ContactsService {
 
   private static escapeLike(value: string): string {
     return value.replace(/[%_\\]/g, (match) => `\\${match}`);
+  }
+
+  private static normalizeEmail(email: string): string {
+    return email.trim().toLowerCase();
+  }
+
+  /**
+   * Returns which of the given (already-normalized) emails already exist
+   * for this tenant, optionally excluding a specific contact (used when
+   * editing a contact so it isn't blocked by its own current email).
+   */
+  private async findExistingEmails(
+    normalizedEmails: string[],
+    tenantId: number,
+    excludeContactId?: number,
+  ): Promise<string[]> {
+    if (normalizedEmails.length === 0) {
+      return [];
+    }
+    const qb = this.emailRepository
+      .createQueryBuilder('email')
+      .innerJoin('email.contact', 'contact')
+      .where('contact.tenantId = :tenantId', { tenantId })
+      .andWhere('LOWER(TRIM(email.value)) IN (:...normalizedEmails)', {
+        normalizedEmails,
+      });
+    if (excludeContactId) {
+      qb.andWhere('email.contactId != :excludeContactId', {
+        excludeContactId,
+      });
+    }
+    const rows = await qb.getMany();
+    return rows.map((r) => ContactsService.normalizeEmail(r.value));
+  }
+
+  private static maskEmail(email: string): string {
+    const [local, domain] = email.split('@');
+    return `${local.slice(0, 1)}***@${domain ?? ''}`;
+  }
+
+  /**
+   * Stringent duplicate-email guard used by every contact create/update
+   * path (single signup, bulk upload, and edits). Rejects:
+   *  - emails duplicated within the same submitted payload, and
+   *  - emails already registered for this tenant (unless they belong to
+   *    excludeContactId, e.g. the contact currently being edited).
+   */
+  private async assertEmailsAreUnique(
+    rawEmails: (string | undefined | null)[],
+    tenantId: number,
+    excludeContactId?: number,
+  ): Promise<void> {
+    const normalized = rawEmails
+      .filter((e): e is string => hasValue(e))
+      .map((e) => ContactsService.normalizeEmail(e));
+
+    if (normalized.length === 0) {
+      return;
+    }
+
+    const seen = new Set<string>();
+    const intraBatchDuplicates = new Set<string>();
+    for (const email of normalized) {
+      if (seen.has(email)) {
+        intraBatchDuplicates.add(email);
+      }
+      seen.add(email);
+    }
+    if (intraBatchDuplicates.size > 0) {
+      this.logger.business(
+        'warn',
+        'Duplicate email(s) found within submitted data',
+        {
+          operation: 'assertEmailsAreUnique',
+          metadata: { duplicateCount: intraBatchDuplicates.size },
+        },
+      );
+      throw new BadRequestException(CONTACT_EMAIL_EXISTS_MESSAGE);
+    }
+
+    const existing = await this.findExistingEmails(
+      [...seen],
+      tenantId,
+      excludeContactId,
+    );
+    if (existing.length > 0) {
+      this.logger.business(
+        'warn',
+        'Attempt to create/update contact with an email that already exists',
+        {
+          operation: 'assertEmailsAreUnique',
+          metadata: {
+            conflictingEmails: existing.map(ContactsService.maskEmail),
+            tenantId,
+            excludeContactId,
+          },
+        },
+      );
+      throw new BadRequestException(CONTACT_EMAIL_EXISTS_MESSAGE);
+    }
   }
 
   async findAll(req: ContactSearchDto, user?: any): Promise<ContactListDto[]> {
@@ -447,6 +549,13 @@ export class ContactsService {
         data.tenant = request.tenant;
       }
 
+      const tenantId = this.tenantContext.requireTenant();
+      data.tenant = { id: tenantId } as any;
+
+      // Stringent duplicate-email guard — applies to single creates and
+      // to each row processed via createMany() for bulk upload.
+      const incomingEmails = (data.emails || []).map((e) => e.value);
+      await this.assertEmailsAreUnique(incomingEmails, tenantId);
       const savedContact = await this.repository.save(data);
 
       this.logger.business('log', 'Contact created successfully', {
@@ -538,6 +647,61 @@ export class ContactsService {
     }
   }
 
+  /**
+   * Bulk creation entry point (e.g. bulk upload). Validates all emails in
+   * the batch up front — this catches duplicates *within* the submitted
+   * batch itself — then creates rows sequentially so each row's DB
+   * uniqueness check (inside create()) sees rows already committed
+   * earlier in the same batch.
+   *
+   * IMPORTANT: this loop must stay sequential (do not Promise.all it).
+   * Parallelizing would let two rows in the same batch race past the
+   * per-row DB check before either commits, reintroducing duplicates.
+   */
+  async createMany(dataList: Contact[], request?: any): Promise<Contact[]> {
+    const tracking = this.logger.startTracking('createManyContacts', {
+      userId: request?.user?.id,
+      contactId: request?.user?.contactId,
+    });
+
+    try {
+      const tenantId = this.tenantContext.requireTenant();
+      const allEmails = dataList.flatMap((d) =>
+        (d.emails || []).map((e) => e.value),
+      );
+
+      // Fail fast on duplicates within the batch before touching the DB.
+      await this.assertEmailsAreUnique(allEmails, tenantId);
+
+      const created: Contact[] = [];
+      for (const data of dataList) {
+        created.push(await this.create(data, request));
+      }
+
+      this.logger.business('log', 'Bulk contact creation completed', {
+        operation: 'createManyContacts',
+        userId: request?.user?.id,
+        contactId: request?.user?.contactId,
+        metadata: { requested: dataList.length, created: created.length },
+      });
+
+      this.logger.endTracking(tracking, true);
+      return created;
+    } catch (error) {
+      this.logger.error(
+        error instanceof Error ? error : new Error(String(error)),
+        {
+          operation: 'createManyContacts',
+          userId: request?.user?.id,
+          contactId: request?.user?.contactId,
+          resource: 'contacts',
+        },
+      );
+      this.logger.endTracking(tracking, false);
+      throw error;
+    }
+  }
+
   async update(data: Contact): Promise<Contact> {
     return await this.repository.save(data);
   }
@@ -588,6 +752,21 @@ export class ContactsService {
           resourceId: id,
         });
         throw new BadRequestException('Contact not found');
+      }
+
+      // Stringent duplicate-email guard — excludes this contact's own
+      // current email addresses so editing other fields (or re-saving
+      // the same email) doesn't falsely trip the check.
+      if (data.emails) {
+        const tenantId = this.tenantContext.requireTenant();
+        const incomingEmails = data.emails
+          .map((e) => e.value)
+          .filter((v): v is string => hasValue(v));
+        await this.assertEmailsAreUnique(
+          incomingEmails,
+          tenantId,
+          existingContact.id,
+        );
       }
 
       // Handle nested person update
@@ -1273,6 +1452,21 @@ export class ContactsService {
         throw new BadRequestException('Contact not found');
       }
 
+      // Stringent duplicate-email guard — excludes this contact's own
+      // current email addresses so editing other fields (or re-saving
+      // the same email) doesn't falsely trip the check.
+      if (data.emails) {
+        const tenantId = this.tenantContext.requireTenant();
+        const incomingEmails = (data.emails as Partial<Email>[])
+          .map((e) => e.value)
+          .filter((v): v is string => hasValue(v));
+        await this.assertEmailsAreUnique(
+          incomingEmails,
+          tenantId,
+          existingContact.id,
+        );
+      }
+
       // Handle nested person update
       if (data.person) {
         const personData = Array.isArray(data.person)
@@ -1374,23 +1568,12 @@ export class ContactsService {
   }
 
   async createPerson(createPersonDto: CreatePersonDto): Promise<Contact> {
-    //First check if email address exists
-    const emailData = await this.emailRepository.find({
-      where: [{ value: createPersonDto.email }],
-    });
-    if (emailData.length > 0) {
-      throw new BadRequestException({
-        message:
-          'Email already exists. This email has already been registered.',
-      });
-    }
+    const tenantId = this.tenantContext.requireTenant();
+
+    // Stringent, tenant-scoped, case-insensitive duplicate check
+    await this.assertEmailsAreUnique([createPersonDto.email], tenantId);
 
     const model = getContactModel(createPersonDto);
-
-    // Set tenant from context
-    const tenantId = this.tenantContext.requireTenant();
-    Logger.log('tenantId');
-    Logger.log(tenantId);
     model.tenant = { id: tenantId } as Tenant;
 
     await this.getGroupRequest(createPersonDto);
@@ -1571,11 +1754,21 @@ export class ContactsService {
     await this.repository.delete(id);
   }
 
+  /**
+   * Tenant-scoped, case-insensitive email lookup. Used for dedup checks
+   * outside the creation path. Kept consistent with assertEmailsAreUnique
+   * so a contact can never be "missed" here due to case/whitespace and
+   * accidentally resolve to a contact belonging to a different tenant.
+   */
   async findByEmail(email: string): Promise<Contact | undefined> {
-    const emailRecord = await this.emailRepository.findOne({
-      where: { value: email },
-      relations: ['contact'],
-    });
+    const tenantId = this.tenantContext.requireTenant();
+    const normalized = ContactsService.normalizeEmail(email);
+    const emailRecord = await this.emailRepository
+      .createQueryBuilder('email')
+      .innerJoinAndSelect('email.contact', 'contact')
+      .where('contact.tenantId = :tenantId', { tenantId })
+      .andWhere('LOWER(TRIM(email.value)) = :normalized', { normalized })
+      .getOne();
     return emailRecord?.contact;
   }
 
