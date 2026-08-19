@@ -16,6 +16,7 @@ import {
   Connection,
   TreeRepository,
   DeepPartial,
+  EntityManager,
 } from 'typeorm';
 import Contact from './entities/contact.entity';
 import { CreatePersonDto } from './dto/create-person.dto';
@@ -59,8 +60,30 @@ import { GroupsMembershipService } from 'src/groups/services/group-membership.se
 
 const CONTACT_EMAIL_EXISTS_MESSAGE = 'CONTACT ALREADY EXISTS WITH THAT EMAIL';
 
+/**
+ * Postgres unique_violation SQLSTATE. Used as a defense-in-depth check
+ * against the assertEmailsAreUnique()/save() race: two concurrent
+ * requests can both pass the pre-check and then both attempt to save
+ * the same normalized email before either commits. This requires a
+ * DB-level unique index on (tenantId, LOWER(TRIM(email.value))) to
+ * actually prevent the race — without that index in place this catch
+ * is a no-op safety net only.
+ */
+const UNIQUE_VIOLATION_CODE = '23505';
+
+export interface BulkContactFailure {
+  index: number;
+  error: string;
+}
+
+export interface BulkContactResult {
+  succeeded: Contact[];
+  failed: BulkContactFailure[];
+}
+
 @Injectable()
 export class ContactsService {
+  private readonly connection: Connection;
   private readonly repository: Repository<Contact>;
   private readonly personRepository: Repository<Person>;
   private readonly companyRepository: Repository<Company>;
@@ -83,6 +106,7 @@ export class ContactsService {
     private groupsMembershipService: GroupsMembershipService,
     private tenantContext: TenantContext,
   ) {
+    this.connection = connection;
     this.repository = connection.getRepository(Contact);
     this.personRepository = connection.getRepository(Person);
     this.companyRepository = connection.getRepository(Company);
@@ -102,6 +126,13 @@ export class ContactsService {
 
   private static normalizeEmail(email: string): string {
     return email.trim().toLowerCase();
+  }
+
+  private static isUniqueEmailViolation(error: any): boolean {
+    return (
+      error?.code === UNIQUE_VIOLATION_CODE ||
+      error?.driverError?.code === UNIQUE_VIOLATION_CODE
+    );
   }
 
   /**
@@ -521,7 +552,20 @@ export class ContactsService {
     };
   }
 
-  async create(data: Contact, request?: any): Promise<Contact> {
+  /**
+   * Creates a single contact. Accepts an optional `manager` so callers
+   * (e.g. createMany()) can run this inside their own transaction —
+   * when omitted, the service's default repositories are used.
+   */
+  async create(
+    data: Contact,
+    request?: any,
+    manager?: EntityManager,
+  ): Promise<Contact> {
+    const repository = manager
+      ? manager.getRepository(Contact)
+      : this.repository;
+
     const tracking = this.logger.startTracking('createContact', {
       userId: request?.user?.id,
       contactId: request?.user?.contactId,
@@ -556,7 +600,31 @@ export class ContactsService {
       // to each row processed via createMany() for bulk upload.
       const incomingEmails = (data.emails || []).map((e) => e.value);
       await this.assertEmailsAreUnique(incomingEmails, tenantId);
-      const savedContact = await this.repository.save(data);
+
+      let savedContact: Contact;
+      try {
+        savedContact = await repository.save(data);
+      } catch (saveError) {
+        if (ContactsService.isUniqueEmailViolation(saveError)) {
+          // Defense-in-depth: closes the race window between the
+          // assertEmailsAreUnique() check above and this save, in case
+          // two concurrent requests both passed the pre-check. Requires
+          // a DB-level unique index on (tenantId, normalized email) to
+          // actually trigger here.
+          this.logger.business(
+            'warn',
+            'Duplicate email detected at database level on save',
+            {
+              operation: 'createContact',
+              userId: request?.user?.id,
+              contactId: request?.user?.contactId,
+              metadata: { tenantId },
+            },
+          );
+          throw new BadRequestException(CONTACT_EMAIL_EXISTS_MESSAGE);
+        }
+        throw saveError;
+      }
 
       this.logger.business('log', 'Contact created successfully', {
         operation: 'createContact',
@@ -657,49 +725,78 @@ export class ContactsService {
    * IMPORTANT: this loop must stay sequential (do not Promise.all it).
    * Parallelizing would let two rows in the same batch race past the
    * per-row DB check before either commits, reintroducing duplicates.
+   *
+   * Each row is created inside its own transaction: a failure on row N
+   * (contact save OR group assignment) rolls back only that row's
+   * writes and does not affect any other row — no half-created contact
+   * is left behind, and no earlier/later successful row is undone. The
+   * method never throws for a per-row failure; it always finishes and
+   * returns exactly which rows succeeded and which failed.
    */
-  async createMany(dataList: Contact[], request?: any): Promise<Contact[]> {
+  async createMany(
+    dataList: Contact[],
+    request?: any,
+  ): Promise<BulkContactResult> {
     const tracking = this.logger.startTracking('createManyContacts', {
       userId: request?.user?.id,
       contactId: request?.user?.contactId,
     });
 
-    try {
-      const tenantId = this.tenantContext.requireTenant();
-      const allEmails = dataList.flatMap((d) =>
-        (d.emails || []).map((e) => e.value),
-      );
+    const tenantId = this.tenantContext.requireTenant();
+    const allEmails = dataList.flatMap((d) =>
+      (d.emails || []).map((e) => e.value),
+    );
 
-      // Fail fast on duplicates within the batch before touching the DB.
-      await this.assertEmailsAreUnique(allEmails, tenantId);
+    // Fail fast on duplicates within the batch before touching the DB.
+    // This is a whole-batch validation error on the submitted payload
+    // itself (not a per-row runtime failure), so it still throws for
+    // the caller to handle up front.
+    await this.assertEmailsAreUnique(allEmails, tenantId);
 
-      const created: Contact[] = [];
-      for (const data of dataList) {
-        created.push(await this.create(data, request));
+    const succeeded: Contact[] = [];
+    const failed: BulkContactFailure[] = [];
+
+    for (let index = 0; index < dataList.length; index++) {
+      const data = dataList[index];
+      try {
+        // Isolated transaction per row: if the contact save or the
+        // group assignment inside create() throws, this row's writes
+        // roll back completely, leaving no orphaned/half-broken contact,
+        // while previously committed rows are unaffected.
+        const created = await this.connection.transaction((manager) =>
+          this.create(data, request, manager),
+        );
+        succeeded.push(created);
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : String(error);
+        failed.push({ index, error: message });
+        this.logger.error(
+          error instanceof Error ? error : new Error(message),
+          {
+            operation: 'createManyContacts',
+            userId: request?.user?.id,
+            contactId: request?.user?.contactId,
+            resource: 'contacts',
+            metadata: { rowIndex: index },
+          },
+        );
       }
-
-      this.logger.business('log', 'Bulk contact creation completed', {
-        operation: 'createManyContacts',
-        userId: request?.user?.id,
-        contactId: request?.user?.contactId,
-        metadata: { requested: dataList.length, created: created.length },
-      });
-
-      this.logger.endTracking(tracking, true);
-      return created;
-    } catch (error) {
-      this.logger.error(
-        error instanceof Error ? error : new Error(String(error)),
-        {
-          operation: 'createManyContacts',
-          userId: request?.user?.id,
-          contactId: request?.user?.contactId,
-          resource: 'contacts',
-        },
-      );
-      this.logger.endTracking(tracking, false);
-      throw error;
     }
+
+    this.logger.business('log', 'Bulk contact creation completed', {
+      operation: 'createManyContacts',
+      userId: request?.user?.id,
+      contactId: request?.user?.contactId,
+      metadata: {
+        requested: dataList.length,
+        succeeded: succeeded.length,
+        failed: failed.length,
+      },
+    });
+
+    this.logger.endTracking(tracking, failed.length === 0);
+    return { succeeded, failed };
   }
 
   async update(data: Contact): Promise<Contact> {
@@ -733,8 +830,13 @@ export class ContactsService {
       // Input validation
       this.validateUpdateData(data);
 
+      // Tenant-scoped lookup — prevents a request from loading and
+      // mutating a contact that belongs to a different tenant simply by
+      // supplying its id. Consistent with findAll/findByEmail/
+      // findByNameAndGroup elsewhere in this service.
+      const tenantId = this.tenantContext.requireTenant();
       const existingContact = await this.repository.findOne({
-        where: { id },
+        where: { id, tenant: { id: tenantId } },
         relations: [
           'person',
           'emails',
@@ -758,7 +860,6 @@ export class ContactsService {
       // current email addresses so editing other fields (or re-saving
       // the same email) doesn't falsely trip the check.
       if (data.emails) {
-        const tenantId = this.tenantContext.requireTenant();
         const incomingEmails = data.emails
           .map((e) => e.value)
           .filter((v): v is string => hasValue(v));
@@ -811,7 +912,26 @@ export class ContactsService {
 
       try {
         // Save the contact first (without group memberships to avoid constraint issues)
-        const savedContact = await this.repository.save(existingContact);
+        let savedContact: Contact;
+        try {
+          savedContact = await this.repository.save(existingContact);
+        } catch (saveError) {
+          if (ContactsService.isUniqueEmailViolation(saveError)) {
+            this.logger.business(
+              'warn',
+              'Duplicate email detected at database level on save',
+              {
+                operation: 'updateContact',
+                userId: request?.user?.id,
+                contactId: request?.user?.contactId,
+                resourceId: id,
+                metadata: { tenantId },
+              },
+            );
+            throw new BadRequestException(CONTACT_EMAIL_EXISTS_MESSAGE);
+          }
+          throw saveError;
+        }
 
         // Handle group membership updates after contact is saved
         const groups = (data as any).groups;
@@ -848,6 +968,9 @@ export class ContactsService {
           resourceId: id,
         });
         this.logger.endTracking(tracking, false);
+        if (error instanceof BadRequestException) {
+          throw error;
+        }
         throw new BadRequestException(
           `Failed to update contact: ${error.message}`,
         );
@@ -1431,8 +1554,13 @@ export class ContactsService {
       // Input validation
       this.validateUpdateData(data);
 
+      // Tenant-scoped lookup — prevents a request from loading and
+      // mutating a contact that belongs to a different tenant simply by
+      // supplying its id. Consistent with findAll/findByEmail/
+      // findByNameAndGroup elsewhere in this service.
+      const tenantId = this.tenantContext.requireTenant();
       const existingContact = await this.repository.findOne({
-        where: { id },
+        where: { id, tenant: { id: tenantId } },
         relations: [
           'person',
           'emails',
@@ -1456,7 +1584,6 @@ export class ContactsService {
       // current email addresses so editing other fields (or re-saving
       // the same email) doesn't falsely trip the check.
       if (data.emails) {
-        const tenantId = this.tenantContext.requireTenant();
         const incomingEmails = (data.emails as Partial<Email>[])
           .map((e) => e.value)
           .filter((v): v is string => hasValue(v));
@@ -1512,7 +1639,26 @@ export class ContactsService {
 
       try {
         // Save the contact first (without group memberships to avoid constraint issues)
-        const savedContact = await this.repository.save(existingContact);
+        let savedContact: Contact;
+        try {
+          savedContact = await this.repository.save(existingContact);
+        } catch (saveError) {
+          if (ContactsService.isUniqueEmailViolation(saveError)) {
+            this.logger.business(
+              'warn',
+              'Duplicate email detected at database level on save',
+              {
+                operation: 'updateContactWithGroups',
+                userId: request?.user?.id,
+                contactId: request?.user?.contactId,
+                resourceId: id,
+                metadata: { tenantId },
+              },
+            );
+            throw new BadRequestException(CONTACT_EMAIL_EXISTS_MESSAGE);
+          }
+          throw saveError;
+        }
 
         // Handle group membership updates after contact is saved
         if (data.groups !== undefined) {
@@ -1551,6 +1697,9 @@ export class ContactsService {
           resourceId: id,
         });
         this.logger.endTracking(tracking, false);
+        if (error instanceof BadRequestException) {
+          throw error;
+        }
         throw new BadRequestException(
           `Failed to update contact with groups: ${error.message}`,
         );
@@ -1577,7 +1726,25 @@ export class ContactsService {
     model.tenant = { id: tenantId } as Tenant;
 
     await this.getGroupRequest(createPersonDto);
-    const newPerson = await this.repository.save(model, { reload: true });
+
+    let newPerson: Contact;
+    try {
+      newPerson = await this.repository.save(model, { reload: true });
+    } catch (saveError) {
+      if (ContactsService.isUniqueEmailViolation(saveError)) {
+        this.logger.business(
+          'warn',
+          'Duplicate email detected at database level on save',
+          {
+            operation: 'createPerson',
+            metadata: { tenantId },
+          },
+        );
+        throw new BadRequestException(CONTACT_EMAIL_EXISTS_MESSAGE);
+      }
+      throw saveError;
+    }
+
     if (hasValue(createPersonDto.residence)) {
       createPersonDto.residence.contactId = newPerson.id;
       await this.addressesService.create(createPersonDto.residence);
