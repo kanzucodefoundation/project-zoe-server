@@ -73,6 +73,7 @@ export class TenantsService {
     const groupMembershipService = new GroupsMembershipService(
       this.connection,
       appLogger,
+      mockTenantContext,
     );
     const groupTreeService = new GroupTreeService(this.connection, null); // Pass null for cache manager in this context
 

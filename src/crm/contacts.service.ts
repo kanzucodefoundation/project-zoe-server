@@ -180,6 +180,7 @@ export class ContactsService {
     rawEmails: (string | undefined | null)[],
     tenantId: number,
     excludeContactId?: number,
+    checkPersisted: boolean = true,
   ): Promise<void> {
     const normalized = rawEmails
       .filter((e): e is string => hasValue(e))
@@ -208,7 +209,9 @@ export class ContactsService {
       );
       throw new BadRequestException(CONTACT_EMAIL_EXISTS_MESSAGE);
     }
-
+    if (!checkPersisted) {
+      return;
+    }
     const existing = await this.findExistingEmails(
       [...seen],
       tenantId,
@@ -749,11 +752,15 @@ export class ContactsService {
        (d.emails || []).map((e) => e.value),
      );
 
-     // Fail fast on duplicates within the batch before touching the DB.
-     // This is a whole-batch validation error on the submitted payload
-     // itself (not a per-row runtime failure), so it still throws for
-     // the caller to handle up front.
-     await this.assertEmailsAreUnique(allEmails, tenantId);
+     // Fail fast ONLY on duplicates within the submitted batch itself —
+     // that's a malformed-payload error, not tied to any one row, so it
+     // still throws for the caller to handle up front. We deliberately
+     // do NOT check here whether an email already exists in the DB
+     // (checkPersisted: false): that check runs per-row inside create()
+     // below, so one contact whose email already exists fails only that
+     // row and does not prevent the other rows in the batch from being
+     // created.
+     await this.assertEmailsAreUnique(allEmails, tenantId, undefined, false);
    } catch (error) {
      this.logger.endTracking(tracking, false);
      throw error;

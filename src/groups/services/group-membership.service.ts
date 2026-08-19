@@ -17,6 +17,7 @@ import { hasNoValue, hasValue } from '../../utils/validation';
 import Group from '../entities/group.entity';
 import { GroupRole } from '../enums/groupRole';
 import { AppLogger, ContextLogger } from 'src/utils/app-logger.service';
+import { TenantContext } from '../../shared/tenant/tenant-context';
 
 @Injectable()
 export class GroupsMembershipService {
@@ -28,6 +29,7 @@ export class GroupsMembershipService {
   constructor(
     @Inject('CONNECTION') connection: Connection,
     private readonly appLogger: AppLogger,
+    private readonly tenantContext: TenantContext,
   ) {
     this.repository = connection.getRepository(GroupMembership);
     this.groupRepository = connection.getRepository(Group);
@@ -192,6 +194,11 @@ export class GroupsMembershipService {
    * all-or-nothing rollback guarantee. When no manager is supplied, the
    * service's default repository is used, preserving existing behavior for
    * every other call site.
+   * 
+   * Tenant-scoped: the target group must belong to the caller's current
+   * tenant. Without this check, a request could supply a groupId
+   * belonging to a different tenant and attach a contact to it, crossing
+   * tenant boundaries.
    */
   async create(
     data: BatchGroupMembershipDto,
@@ -200,14 +207,24 @@ export class GroupsMembershipService {
     const repository = manager
       ? manager.getRepository(GroupMembership)
       : this.repository;
-
+     const groupRepository = manager
+      ? manager.getRepository(Group)
+      : this.groupRepository;
     const { groupId, members, role } = data;
     const uniqueMemberIds = [...new Set(members)];
 
     if (uniqueMemberIds.length === 0) {
       throw new BadRequestException('At least one member is required');
     }
-
+    const tenantId = this.tenantContext.requireTenant();
+    const group = await groupRepository.findOne({
+      where: { id: groupId, tenant: { id: tenantId } } as any,
+    });
+    if (!group) {
+      throw new BadRequestException(
+        `Group ${groupId} does not exist for this tenant`,
+      );
+    }
     const existing = await repository.find({
       where: uniqueMemberIds.map((contactId) => ({ contactId, groupId })),
     });

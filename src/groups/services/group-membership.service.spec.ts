@@ -6,6 +6,7 @@ import Group from '../entities/group.entity';
 import { AppLogger } from '../../utils/app-logger.service';
 import { GroupRole } from '../enums/groupRole';
 import { BadRequestException } from '@nestjs/common';
+import { TenantContext } from 'src/shared/tenant/tenant-context';
 
 describe('GroupsMembershipService', () => {
   let service: GroupsMembershipService;
@@ -15,7 +16,8 @@ describe('GroupsMembershipService', () => {
   let mockAppLogger: any;
   let mockContextLogger: any;
   let mockQb: any;
-
+  let mockTenantContext: any;
+  const TENANT_ID = 1;
   beforeEach(async () => {
     mockQb = {
       select: jest.fn().mockReturnThis(),
@@ -89,6 +91,10 @@ describe('GroupsMembershipService', () => {
       createContextLogger: jest.fn().mockReturnValue(mockContextLogger),
     };
 
+    mockTenantContext = {
+      requireTenant: jest.fn().mockReturnValue(TENANT_ID),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         GroupsMembershipService,
@@ -100,6 +106,10 @@ describe('GroupsMembershipService', () => {
           provide: AppLogger,
           useValue: mockAppLogger,
         },
+        {
+          provide: TenantContext,
+          useValue: mockTenantContext,
+        }
       ],
     }).compile();
 
