@@ -311,8 +311,9 @@ export class ContactImportController {
 
           // createPerson() already enforces the tenant-scoped, stringent
           // duplicate-email check — a row whose email already exists for
-          // this tenant throws here and is handled below like any other
-          // row error.
+          // this tenant throws here. Unlike uploadFile(), the catch below
+          // rethrows, so one duplicate aborts the remaining rows of this
+          // upload.
           const newPerson = await this.service.createPerson(contactModel);
           const newPersonsGroup = {
             groupId: groupData.id,
