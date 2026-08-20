@@ -1389,7 +1389,7 @@ describe('ReportsService', () => {
       expect(result.breakdown).toEqual([]);
     });
 
-    it("filters submissions by the current week's reportingPeriod, matching the displayed weekStart", async () => {
+    it("filters submissions by the current week's reportingPeriod, three days before the displayed Wednesday weekStart", async () => {
       const field = {
         id: 1,
         label: 'How many attended MC?',
@@ -1421,7 +1421,54 @@ describe('ReportsService', () => {
       const periodCall = submissionQb.andWhere.mock.calls.find(([sql]) =>
         sql.includes('submission.reportingPeriod ='),
       );
-      expect(periodCall[1].period).toBe(result.weekStart);
+      // periodCall's period is the Sunday-anchored reportingPeriod key
+      // stored on submissions; the displayed weekStart is that same date
+      // shifted forward to the Wednesday it represents (see
+      // getDueDayAwarePeriodStart).
+      const queriedPeriod = new Date(periodCall[1].period + 'T00:00:00');
+      const displayedWeekStart = new Date(result.weekStart + 'T00:00:00');
+      const diffDays =
+        (displayedWeekStart.getTime() - queriedPeriod.getTime()) /
+        (1000 * 60 * 60 * 24);
+      expect(diffDays).toBe(3);
+      expect(displayedWeekStart.getDay()).toBe(3); // Wednesday
+    });
+
+    it("queries the previous reportingPeriod (last Sunday) when today is in the Sun-Tue catch-up window, while still displaying that period's Wednesday", async () => {
+      jest.useFakeTimers().setSystemTime(new Date('2026-08-17T09:00:00')); // Monday
+      const field = {
+        id: 1,
+        label: 'How many attended MC?',
+        report: { id: 100 },
+      };
+      mockRepositories.reportField.createQueryBuilder.mockReturnValue(
+        makeQueryBuilder(field, 'getOne'),
+      );
+      mockRepositories.groupMembership.find.mockResolvedValue([
+        { groupId: 10 },
+      ]);
+      mockGroupTreeService.getGroupAndAllChildren = jest
+        .fn()
+        .mockResolvedValue([10]);
+
+      const submissionQb = makeQueryBuilder([]);
+      mockRepositories.reportSubmission.createQueryBuilder.mockReturnValue(
+        submissionQb,
+      );
+
+      const result = await service.getWeeklyMcaSummary(mockUser);
+
+      const periodCall = submissionQb.andWhere.mock.calls.find(([sql]) =>
+        sql.includes('submission.reportingPeriod ='),
+      );
+      // Monday 2026-08-17 falls before this calendar week's Wednesday, so
+      // it's a catch-up submission for the period due last Wednesday
+      // (2026-08-12) -- stored under last Sunday, 2026-08-09.
+      expect(periodCall[1].period).toBe('2026-08-09');
+      expect(result.weekStart).toBe('2026-08-12');
+      expect(result.weekEnd).toBe('2026-08-18');
+
+      jest.useRealTimers();
     });
   });
   describe('getMcSubmissionCompliance', () => {

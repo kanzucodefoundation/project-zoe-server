@@ -394,19 +394,11 @@ export class ReportsService {
     const now = new Date();
     let targetPeriod: string | undefined = undefined;
     if (report.submissionFrequency !== 'custom') {
-      const currentPeriodStart = this.getPeriodStart(
+      const periodStart = this.getDueDayAwarePeriodStart(
         now,
+        report.name,
         report.submissionFrequency,
       );
-      const dueDayOfWeek =
-        report.submissionFrequency === 'weekly'
-          ? ReportsService.REPORT_DUE_DAY_OF_WEEK[report.name?.toLowerCase()]
-          : undefined;
-
-      const periodStart =
-        dueDayOfWeek !== undefined && now.getDay() < dueDayOfWeek
-          ? this.getPreviousPeriodStart(currentPeriodStart, 'weekly')
-          : currentPeriodStart;
       targetPeriod = this.formatDateKey(periodStart);
 
       const periodScopeWhere: any = {
@@ -801,6 +793,29 @@ export class ReportsService {
         previous.setDate(previous.getDate() - 7);
         return previous;
     }
+  }
+
+  // The reportingPeriod a submission made "now" would be assigned to, for
+  // reports with a configured due day (see REPORT_DUE_DAY_OF_WEEK). Shared
+  // by submitReport (to pick the target period for a new submission) and
+  // getWeeklyMcaSummary (to query the period that's currently "live" for
+  // display) so the two can never disagree about which period "now" falls
+  // in. Always Sunday-anchored, even for reports whose due day isn't
+  // Sunday -- see getStartOfWeek.
+  private getDueDayAwarePeriodStart(
+    now: Date,
+    reportName: string,
+    frequency: string,
+  ): Date {
+    const currentPeriodStart = this.getPeriodStart(now, frequency);
+    const dueDayOfWeek =
+      frequency === 'weekly'
+        ? ReportsService.REPORT_DUE_DAY_OF_WEEK[reportName?.toLowerCase()]
+        : undefined;
+
+    return dueDayOfWeek !== undefined && now.getDay() < dueDayOfWeek
+      ? this.getPreviousPeriodStart(currentPeriodStart, 'weekly')
+      : currentPeriodStart;
   }
 
   async getReport(reportId: number): Promise<Report> {
@@ -1828,7 +1843,21 @@ export class ReportsService {
     reportFound: boolean;
   }> {
     const tenantId = this.tenantContext.requireTenant();
-    const weekStart = this.getStartOfWeek(new Date());
+
+    // The MC Attendance Report's actual reporting week runs Wednesday to
+    // the following Tuesday (due Wednesdays, with a Sun-Tue catch-up
+    // window for the Wednesday that just passed -- see
+    // REPORT_DUE_DAY_OF_WEEK). reportingPeriod is always stored
+    // Sunday-anchored regardless, so periodStart is what we query by,
+    // while weekStart/weekEnd (its Wednesday..Tuesday equivalent) is what
+    // gets displayed to the user.
+    const periodStart = this.getDueDayAwarePeriodStart(
+      new Date(),
+      ReportsService.MCA_REPORT_NAME,
+      'weekly',
+    );
+    const weekStart = new Date(periodStart);
+    weekStart.setDate(weekStart.getDate() + 3);
     const weekEnd = new Date(weekStart);
     weekEnd.setDate(weekEnd.getDate() + 6);
 
@@ -1895,7 +1924,7 @@ export class ReportsService {
       .where('submission.report = :reportId', { reportId })
       .andWhere('group.id IN (:...groupIds)', { groupIds })
       .andWhere('submission.reportingPeriod = :period', {
-        period: this.formatDateKey(weekStart),
+        period: this.formatDateKey(periodStart),
       })
       .getMany();
 
