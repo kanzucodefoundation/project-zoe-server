@@ -1927,6 +1927,7 @@ export class ReportsService {
     const submissions = await this.reportSubmissionRepository
       .createQueryBuilder('submission')
       .innerJoinAndSelect('submission.group', 'group')
+      .innerJoin('submission.report', 'submissionReport')
       .innerJoinAndSelect(
         'submission.submissionData',
         'submissionData',
@@ -1938,6 +1939,8 @@ export class ReportsService {
       .andWhere('submission.reportingPeriod = :period', {
         period: this.formatDateKey(periodStart),
       })
+      .andWhere('submissionReport.tenant = :tenantId', { tenantId })
+      .andWhere('group.tenant = :tenantId', { tenantId })
       .getMany();
 
     let total = 0;
