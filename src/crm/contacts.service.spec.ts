@@ -19,6 +19,7 @@ import Group from '../groups/entities/group.entity';
 import GroupMembershipRequest from '../groups/entities/groupMembershipRequest.entity';
 import { Tenant } from '../tenants/entities/tenant.entity';
 import { GroupRole } from '../groups/enums/groupRole';
+import { User } from '../users/entities/user.entity';
 
 describe('ContactsService', () => {
   let service: ContactsService;
@@ -53,6 +54,7 @@ describe('ContactsService', () => {
       groupTree: { findDescendants: jest.fn() },
       gmRequest: { save: jest.fn() },
       tenant: { findOne: jest.fn() },
+      user: { findOne: jest.fn(), update: jest.fn() },
     };
 
     // Create mock connection
@@ -68,6 +70,7 @@ describe('ContactsService', () => {
         if (entity === GroupMembershipRequest)
           return mockRepositories.gmRequest;
         if (entity === Tenant) return mockRepositories.tenant;
+        if (entity === User) return mockRepositories.user;
         return mockRepositories.contact;
       }),
       getTreeRepository: jest.fn().mockReturnValue(mockRepositories.groupTree),
@@ -249,6 +252,110 @@ describe('ContactsService', () => {
       await expect(invoke(contact, [])).rejects.toThrow(
         'Contact must be assigned to at least one group',
       );
+    });
+  });
+
+  describe('syncUserEmailFromContact', () => {
+    const invoke = (contact: any) =>
+      (service as any).syncUserEmailFromContact(contact);
+
+    it('updates the user email/username when the contact has a new primary email', async () => {
+      mockRepositories.user.findOne
+        .mockResolvedValueOnce({ id: 1, username: 'old@example.com' }) // user for this contact
+        .mockResolvedValueOnce(undefined); // no collision
+
+      await invoke({
+        id: 10,
+        emails: [{ value: 'new@example.com', isPrimary: true }],
+      });
+
+      expect(mockRepositories.user.update).toHaveBeenCalledWith(
+        { id: 1 },
+        { email: 'new@example.com', username: 'new@example.com' },
+      );
+    });
+
+    it('sets username to the new email for a previously email-less user (username was a phone number)', async () => {
+      mockRepositories.user.findOne
+        .mockResolvedValueOnce({ id: 1, username: '0700123456' })
+        .mockResolvedValueOnce(undefined); // no collision
+
+      await invoke({
+        id: 10,
+        emails: [{ value: 'newlyadded@example.com', isPrimary: true }],
+      });
+
+      expect(mockRepositories.user.update).toHaveBeenCalledWith(
+        { id: 1 },
+        { email: 'newlyadded@example.com', username: 'newlyadded@example.com' },
+      );
+    });
+
+    it('falls back to the first email when none is marked primary', async () => {
+      mockRepositories.user.findOne
+        .mockResolvedValueOnce({ id: 1, username: 'old@example.com' })
+        .mockResolvedValueOnce(undefined);
+
+      await invoke({
+        id: 10,
+        emails: [{ value: 'first@example.com', isPrimary: false }],
+      });
+
+      expect(mockRepositories.user.update).toHaveBeenCalledWith(
+        { id: 1 },
+        { email: 'first@example.com', username: 'first@example.com' },
+      );
+    });
+
+    it('does nothing when the contact has no linked user', async () => {
+      mockRepositories.user.findOne.mockResolvedValueOnce(undefined);
+
+      await invoke({
+        id: 10,
+        emails: [{ value: 'new@example.com', isPrimary: true }],
+      });
+
+      expect(mockRepositories.user.update).not.toHaveBeenCalled();
+    });
+
+    it('does nothing when all emails were removed from the contact', async () => {
+      mockRepositories.user.findOne.mockResolvedValueOnce({
+        id: 1,
+        username: 'old@example.com',
+      });
+
+      await invoke({ id: 10, emails: [] });
+
+      expect(mockRepositories.user.update).not.toHaveBeenCalled();
+    });
+
+    it('is a no-op when the new email matches the current username (case-insensitive)', async () => {
+      mockRepositories.user.findOne.mockResolvedValueOnce({
+        id: 1,
+        username: 'same@example.com',
+      });
+
+      await invoke({
+        id: 10,
+        emails: [{ value: 'Same@Example.com', isPrimary: true }],
+      });
+
+      expect(mockRepositories.user.update).not.toHaveBeenCalled();
+    });
+
+    it('throws when another user already owns the new email', async () => {
+      mockRepositories.user.findOne
+        .mockResolvedValueOnce({ id: 1, username: 'old@example.com' })
+        .mockResolvedValueOnce({ id: 2, username: 'new@example.com' });
+
+      await expect(
+        invoke({
+          id: 10,
+          emails: [{ value: 'new@example.com', isPrimary: true }],
+        }),
+      ).rejects.toThrow('Email already in use by another user');
+
+      expect(mockRepositories.user.update).not.toHaveBeenCalled();
     });
   });
 });

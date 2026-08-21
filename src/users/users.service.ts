@@ -334,32 +334,6 @@ export class UsersService {
       update.isActive = data.isActive;
     }
 
-    // Email doubles as username (see createUser): updating one updates both.
-    if (hasValue(data.email)) {
-      const normalizedEmail = (data.email as string).trim().toLowerCase();
-      if (normalizedEmail !== _user.email?.toLowerCase()) {
-        const existing = await this.repository.findOne({
-          where: { username: ILike(normalizedEmail) },
-        });
-        if (existing && existing.id !== data.id) {
-          throw new HttpException('Username/email already in use', 409);
-        }
-
-        update.email = normalizedEmail;
-        update.username = normalizedEmail;
-
-        const emailRecord = await this.emailRepository.findOne({
-          where: { contactId: _user.contactId },
-        });
-        if (emailRecord) {
-          await this.emailRepository.update(
-            { id: emailRecord.id },
-            { value: normalizedEmail },
-          );
-        }
-      }
-    }
-
     if (hasValue(data.password)) {
       const user = new User();
       user.password = data.password;

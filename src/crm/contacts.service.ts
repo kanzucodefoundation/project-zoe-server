@@ -34,6 +34,7 @@ import Company from './entities/company.entity';
 import { CreateCompanyDto } from './dto/create-company.dto';
 import { hasNoValue, hasValue } from 'src/utils/validation';
 import Address from './entities/address.entity';
+import { User } from '../users/entities/user.entity';
 import GroupMembership from '../groups/entities/groupMembership.entity';
 import { GroupRole } from '../groups/enums/groupRole';
 import { roleAdmin } from '../auth/constants';
@@ -69,6 +70,11 @@ export class ContactsService {
   private readonly groupRepository: TreeRepository<Group>;
   private readonly gmRequestRepository: Repository<GroupMembershipRequest>;
   private readonly tenantRepository: Repository<Tenant>;
+  // Email doubles as login username for User (see UsersService.update) — this
+  // repository lets ContactsService keep that in sync going the other
+  // direction, without depending on UsersModule (which already depends on
+  // CrmModule, so importing UsersService here would be circular).
+  private readonly userRepository: Repository<User>;
   private readonly logger: ContextLogger;
 
   constructor(
@@ -91,6 +97,7 @@ export class ContactsService {
     this.groupRepository = connection.getTreeRepository(Group);
     this.gmRequestRepository = connection.getRepository(GroupMembershipRequest);
     this.tenantRepository = connection.getRepository(Tenant);
+    this.userRepository = connection.getRepository(User);
     this.logger = this.appLogger.createContextLogger('ContactsService');
   }
 
@@ -1290,6 +1297,7 @@ export class ContactsService {
       // Handle nested email updates
       if (data.emails) {
         await this.updateEmailsEfficiently(existingContact, data.emails);
+        await this.syncUserEmailFromContact(existingContact);
       }
 
       // Handle nested phone updates
@@ -1722,6 +1730,40 @@ export class ContactsService {
     }
 
     existingContact.emails = emailsToKeep;
+  }
+
+  /**
+   * Keeps User.email/username in sync when a contact's email is patched via
+   * this endpoint — the reverse direction of UsersService.update(), which
+   * syncs the contact's Email row when the user's login email changes.
+   * No-op for contacts that have no login User (e.g. visitors).
+   */
+  private async syncUserEmailFromContact(contact: Contact): Promise<void> {
+    const user = await this.userRepository.findOne({
+      where: { contactId: contact.id },
+    });
+    if (!user) return;
+
+    const primaryEmail =
+      contact.emails?.find((e) => e.isPrimary)?.value ??
+      contact.emails?.[0]?.value;
+    // Don't blank out an existing login if the last email was removed.
+    if (!hasValue(primaryEmail)) return;
+
+    const normalizedEmail = primaryEmail.trim().toLowerCase();
+    if (normalizedEmail === user.username?.toLowerCase()) return;
+
+    const existing = await this.userRepository.findOne({
+      where: { username: ILike(normalizedEmail) },
+    });
+    if (existing && existing.id !== user.id) {
+      throw new BadRequestException('Email already in use by another user');
+    }
+
+    await this.userRepository.update(
+      { id: user.id },
+      { email: normalizedEmail, username: normalizedEmail },
+    );
   }
 
   private async updatePhonesEfficiently(

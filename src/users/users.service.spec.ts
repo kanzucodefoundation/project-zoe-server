@@ -382,66 +382,10 @@ describe('UsersService', () => {
       ...overrides,
     });
 
-    it('updates the username and email together when a new email is provided', async () => {
-      mockRepositories.user.findOne
-        .mockResolvedValueOnce(buildUser()) // initial findOne(data.id)
-        .mockResolvedValueOnce(undefined) // no existing user with the new email
-        .mockResolvedValueOnce(
-          buildUser({ email: 'new@example.com', username: 'new@example.com' }),
-        ); // re-fetch after update
-      mockRepositories.email.findOne.mockResolvedValueOnce({
-        id: 99,
-        contactId: 10,
-        value: 'old@example.com',
-      });
-
-      const result = await service.update({ id: 1, email: 'New@Example.com' });
-
-      expect(mockUpdateQb.set).toHaveBeenCalledWith(
-        expect.objectContaining({
-          email: 'new@example.com',
-          username: 'new@example.com',
-        }),
-      );
-      expect(mockRepositories.email.update).toHaveBeenCalledWith(
-        { id: 99 },
-        { value: 'new@example.com' },
-      );
-      expect(result.email).toBe('new@example.com');
-      expect(result.username).toBe('new@example.com');
-    });
-
-    it('rejects when the new email is already used by another user', async () => {
+    it('updates isActive without touching email/username', async () => {
       mockRepositories.user.findOne
         .mockResolvedValueOnce(buildUser())
-        .mockResolvedValueOnce(buildUser({ id: 2 })); // another user owns this email
-
-      await expect(
-        service.update({ id: 1, email: 'new@example.com' }),
-      ).rejects.toThrow('Username/email already in use');
-
-      expect(mockUpdateQb.set).not.toHaveBeenCalled();
-      expect(mockRepositories.email.update).not.toHaveBeenCalled();
-    });
-
-    it('is a no-op when the submitted email matches the current one (case-insensitive)', async () => {
-      mockRepositories.user.findOne
-        .mockResolvedValueOnce(buildUser())
-        .mockResolvedValueOnce(buildUser());
-
-      await service.update({ id: 1, email: 'OLD@example.com' });
-
-      expect(mockRepositories.user.findOne).toHaveBeenCalledTimes(2); // no collision lookup
-      expect(mockUpdateQb.set).toHaveBeenCalledWith(
-        expect.not.objectContaining({ email: expect.anything() }),
-      );
-      expect(mockRepositories.email.update).not.toHaveBeenCalled();
-    });
-
-    it('leaves email/username untouched when no email is submitted', async () => {
-      mockRepositories.user.findOne
-        .mockResolvedValueOnce(buildUser())
-        .mockResolvedValueOnce(buildUser());
+        .mockResolvedValueOnce(buildUser({ isActive: false }));
 
       await service.update({ id: 1, isActive: false });
 
@@ -450,22 +394,19 @@ describe('UsersService', () => {
       expect(mockRepositories.email.update).not.toHaveBeenCalled();
     });
 
-    it('updates the User row even when the contact has no linked Email record', async () => {
+    // Email/username changes are now owned exclusively by
+    // ContactsService.syncUserEmailFromContact (see contacts.service.ts),
+    // so this endpoint must never write them, even if a stale caller still
+    // sends an `email` field.
+    it('ignores an email field if one is still sent by a caller', async () => {
       mockRepositories.user.findOne
         .mockResolvedValueOnce(buildUser())
-        .mockResolvedValueOnce(undefined)
-        .mockResolvedValueOnce(
-          buildUser({ email: 'new@example.com', username: 'new@example.com' }),
-        );
-      mockRepositories.email.findOne.mockResolvedValueOnce(undefined);
+        .mockResolvedValueOnce(buildUser());
 
-      await service.update({ id: 1, email: 'new@example.com' });
+      await service.update({ id: 1, email: 'new@example.com' } as any);
 
-      expect(mockUpdateQb.set).toHaveBeenCalledWith(
-        expect.objectContaining({
-          email: 'new@example.com',
-          username: 'new@example.com',
-        }),
+      expect(mockUpdateQb.set).not.toHaveBeenCalledWith(
+        expect.objectContaining({ email: expect.anything() }),
       );
       expect(mockRepositories.email.update).not.toHaveBeenCalled();
     });
