@@ -14,6 +14,7 @@ import {
   Like,
   Repository,
   Connection,
+  EntityManager,
   TreeRepository,
   DeepPartial,
 } from 'typeorm';
@@ -75,6 +76,7 @@ export class ContactsService {
   // direction, without depending on UsersModule (which already depends on
   // CrmModule, so importing UsersService here would be circular).
   private readonly userRepository: Repository<User>;
+  private readonly connection: Connection;
   private readonly logger: ContextLogger;
 
   constructor(
@@ -98,6 +100,7 @@ export class ContactsService {
     this.gmRequestRepository = connection.getRepository(GroupMembershipRequest);
     this.tenantRepository = connection.getRepository(Tenant);
     this.userRepository = connection.getRepository(User);
+    this.connection = connection;
     this.logger = this.appLogger.createContextLogger('ContactsService');
   }
 
@@ -1294,12 +1297,6 @@ export class ContactsService {
         }
       }
 
-      // Handle nested email updates
-      if (data.emails) {
-        await this.updateEmailsEfficiently(existingContact, data.emails);
-        await this.syncUserEmailFromContact(existingContact);
-      }
-
       // Handle nested phone updates
       if (data.phones) {
         await this.updatePhonesEfficiently(existingContact, data.phones);
@@ -1325,8 +1322,20 @@ export class ContactsService {
       }
 
       try {
-        // Save the contact first (without group memberships to avoid constraint issues)
-        const savedContact = await this.repository.save(existingContact);
+        // Save the contact first (without group memberships to avoid constraint issues).
+        // Email mutation, username-collision validation, and the linked User update
+        // must roll back together with the contact save on any collision error.
+        const savedContact = data.emails
+          ? await this.connection.transaction(async (manager) => {
+              await this.updateEmailsEfficiently(
+                existingContact,
+                data.emails,
+                manager,
+              );
+              await this.syncUserEmailFromContact(existingContact, manager);
+              return manager.getRepository(Contact).save(existingContact);
+            })
+          : await this.repository.save(existingContact);
 
         // Handle group membership updates after contact is saved
         if (data.groups !== undefined) {
@@ -1680,7 +1689,11 @@ export class ContactsService {
   private async updateEmailsEfficiently(
     existingContact: Contact,
     newEmails: Partial<Email>[],
+    manager?: EntityManager,
   ): Promise<void> {
+    const emailRepository = manager
+      ? manager.getRepository(Email)
+      : this.emailRepository;
     const existingEmails = existingContact.emails || [];
     const emailsToKeep: Email[] = [];
     const emailsToUpdate: Email[] = [];
@@ -1711,20 +1724,18 @@ export class ContactsService {
     );
 
     if (emailsToRemove.length > 0) {
-      await this.emailRepository.remove(emailsToRemove);
+      await emailRepository.remove(emailsToRemove);
     }
 
     // Update existing emails
     if (emailsToUpdate.length > 0) {
-      await this.emailRepository.save(emailsToUpdate);
+      await emailRepository.save(emailsToUpdate);
     }
 
     // Create new emails
     if (emailsToCreate.length > 0) {
-      const createdEmails = await this.emailRepository.save(
-        emailsToCreate.map((emailData) =>
-          this.emailRepository.create(emailData),
-        ),
+      const createdEmails = await emailRepository.save(
+        emailsToCreate.map((emailData) => emailRepository.create(emailData)),
       );
       emailsToKeep.push(...createdEmails);
     }
@@ -1738,9 +1749,18 @@ export class ContactsService {
    * syncs the contact's Email row when the user's login email changes.
    * No-op for contacts that have no login User (e.g. visitors).
    */
-  private async syncUserEmailFromContact(contact: Contact): Promise<void> {
-    const user = await this.userRepository.findOne({
-      where: { contactId: contact.id },
+  private async syncUserEmailFromContact(
+    contact: Contact,
+    manager?: EntityManager,
+  ): Promise<void> {
+    const userRepository = manager
+      ? manager.getRepository(User)
+      : this.userRepository;
+    const tenantId = this.tenantContext.tenantId;
+    const tenantWhere = tenantId ? { tenant: { id: tenantId } } : {};
+
+    const user = await userRepository.findOne({
+      where: { contactId: contact.id, ...tenantWhere },
     });
     if (!user) return;
 
@@ -1753,15 +1773,15 @@ export class ContactsService {
     const normalizedEmail = primaryEmail.trim().toLowerCase();
     if (normalizedEmail === user.username?.toLowerCase()) return;
 
-    const existing = await this.userRepository.findOne({
-      where: { username: ILike(normalizedEmail) },
+    const existing = await userRepository.findOne({
+      where: { username: ILike(normalizedEmail), ...tenantWhere },
     });
     if (existing && existing.id !== user.id) {
       throw new BadRequestException('Email already in use by another user');
     }
 
-    await this.userRepository.update(
-      { id: user.id },
+    await userRepository.update(
+      { id: user.id, ...tenantWhere },
       { email: normalizedEmail, username: normalizedEmail },
     );
   }
