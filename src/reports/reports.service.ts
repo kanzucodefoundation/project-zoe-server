@@ -377,14 +377,18 @@ export class ReportsService {
     //
     // For weekly reports with a known due day (see
     // REPORT_DUE_DAY_OF_WEEK -- currently only MC Attendance Report,
-    // due Wednesdays), the target period is chosen by where "today" sits
-    // relative to that due day: days before it in the current Sun-Sat
-    // week are a catch-up window for last week's due day, so they target
-    // the *previous* period; days on/after it target the current period.
-    // This is deliberately day-aware, not "whichever period happens to be
-    // empty" -- an on-time Wednesday submission always targets the
-    // current week even if last week was never submitted, and a late
-    // catch-up never eats the slot for the upcoming on-time submission.
+    // due Wednesdays), a reporting "cycle" runs due-day..due-day+6 (e.g.
+    // Wed..Tue) and is keyed by the Sunday that falls *inside* that cycle
+    // -- always due-day-of-week + 4 days later, never the Sunday that
+    // precedes the due day. Concretely, for Wednesday: a submission on
+    // Wed/Thu/Fri/Sat targets the Sunday ahead (the one that closes out
+    // this cycle); a submission on Sun/Mon/Tue is the catch-up tail of the
+    // *previous* cycle, so it targets the current Sunday-anchored week
+    // unchanged. This is deliberately day-aware, not "whichever period
+    // happens to be empty" -- an on-time Wednesday submission always
+    // targets its own upcoming cycle even if the previous one was never
+    // submitted, and a late catch-up never eats the slot for the next
+    // on-time submission.
     // Reports with no configured due day (Sunday Service, Weekly Oikos,
     // daily/monthly reports, etc.) don't get this treatment since their
     // expected day isn't known -- they simply target the current period.
@@ -779,19 +783,19 @@ export class ReportsService {
     }
   }
 
-  private getPreviousPeriodStart(periodStart: Date, frequency: string): Date {
-    const previous = new Date(periodStart);
+  private getNextPeriodStart(periodStart: Date, frequency: string): Date {
+    const next = new Date(periodStart);
     switch (frequency) {
       case 'daily':
-        previous.setDate(previous.getDate() - 1);
-        return previous;
+        next.setDate(next.getDate() + 1);
+        return next;
       case 'monthly':
-        previous.setMonth(previous.getMonth() - 1);
-        return previous;
+        next.setMonth(next.getMonth() + 1);
+        return next;
       case 'weekly':
       default:
-        previous.setDate(previous.getDate() - 7);
-        return previous;
+        next.setDate(next.getDate() + 7);
+        return next;
     }
   }
 
@@ -802,6 +806,13 @@ export class ReportsService {
   // display) so the two can never disagree about which period "now" falls
   // in. Always Sunday-anchored, even for reports whose due day isn't
   // Sunday -- see getStartOfWeek.
+  //
+  // The period key is the Sunday *inside* the due-day..due-day+6 cycle
+  // (due-day-of-week + 4 days), not the Sunday that precedes the due day.
+  // So on/after the due day (e.g. Wed/Thu/Fri/Sat) rolls forward to next
+  // week's Sunday -- that cycle's own key -- while before the due day
+  // (Sun/Mon/Tue, the catch-up tail of the *previous* cycle) stays on the
+  // current Sunday-anchored week, which is that previous cycle's key.
   private getDueDayAwarePeriodStart(
     now: Date,
     reportName: string,
@@ -813,8 +824,8 @@ export class ReportsService {
         ? ReportsService.REPORT_DUE_DAY_OF_WEEK[reportName?.toLowerCase()]
         : undefined;
 
-    return dueDayOfWeek !== undefined && now.getDay() < dueDayOfWeek
-      ? this.getPreviousPeriodStart(currentPeriodStart, 'weekly')
+    return dueDayOfWeek !== undefined && now.getDay() >= dueDayOfWeek
+      ? this.getNextPeriodStart(currentPeriodStart, 'weekly')
       : currentPeriodStart;
   }
 
@@ -1847,17 +1858,18 @@ export class ReportsService {
     // The MC Attendance Report's actual reporting week runs Wednesday to
     // the following Tuesday (due Wednesdays, with a Sun-Tue catch-up
     // window for the Wednesday that just passed -- see
-    // REPORT_DUE_DAY_OF_WEEK). reportingPeriod is always stored
-    // Sunday-anchored regardless, so periodStart is what we query by,
-    // while weekStart/weekEnd (its Wednesday..Tuesday equivalent) is what
-    // gets displayed to the user.
+    // REPORT_DUE_DAY_OF_WEEK). reportingPeriod is stored as the Sunday
+    // that falls *inside* that cycle -- 4 days after its Wednesday, not
+    // the Sunday before it -- so periodStart is what we query by, while
+    // weekStart/weekEnd (its Wednesday..Tuesday equivalent, periodStart
+    // minus 4 days) is what gets displayed to the user.
     const periodStart = this.getDueDayAwarePeriodStart(
       new Date(),
       ReportsService.MCA_REPORT_NAME,
       'weekly',
     );
     const weekStart = new Date(periodStart);
-    weekStart.setDate(weekStart.getDate() + 3);
+    weekStart.setDate(weekStart.getDate() - 4);
     const weekEnd = new Date(weekStart);
     weekEnd.setDate(weekEnd.getDate() + 6);
 

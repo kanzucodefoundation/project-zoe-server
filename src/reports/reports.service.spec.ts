@@ -575,10 +575,10 @@ describe('ReportsService', () => {
     currentPeriodStart.setDate(
       currentPeriodStart.getDate() - currentPeriodStart.getDay(),
     );
-    const previousPeriodStart = new Date(currentPeriodStart);
-    previousPeriodStart.setDate(previousPeriodStart.getDate() - 7);
+    const nextPeriodStart = new Date(currentPeriodStart);
+    nextPeriodStart.setDate(nextPeriodStart.getDate() + 7);
     const currentPeriod = formatDateKey(currentPeriodStart);
-    const previousPeriod = formatDateKey(previousPeriodStart);
+    const nextPeriod = formatDateKey(nextPeriodStart);
 
     it('blocks a second submission of the same report for the same group in the same week', async () => {
       mockRepositories.groupTree.findOne.mockResolvedValue(
@@ -709,7 +709,7 @@ describe('ReportsService', () => {
         ['Monday', 1],
         ['Tuesday', 2],
       ])(
-        'targets the previous week when submitting on %s (catch-up window)',
+        'targets the current Sunday-anchored week when submitting on %s (catch-up window for last Wednesday)',
         async (_label, dayOffset) => {
           const day = new Date(currentPeriodStart);
           day.setDate(day.getDate() + dayOffset);
@@ -735,17 +735,17 @@ describe('ReportsService', () => {
           ).toHaveBeenCalledWith(
             expect.objectContaining({
               where: expect.objectContaining({
-                reportingPeriod: previousPeriod,
+                reportingPeriod: currentPeriod,
               }),
             }),
           );
           expect(mockRepositories.reportSubmission.save).toHaveBeenCalledWith(
-            expect.objectContaining({ reportingPeriod: previousPeriod }),
+            expect.objectContaining({ reportingPeriod: currentPeriod }),
           );
         },
       );
 
-      it('targets the current week when submitting on the Wednesday due day, even if last week was missed', async () => {
+      it('targets the upcoming Sunday-anchored cycle when submitting on the Wednesday due day, even if that cycle was never opened before', async () => {
         const thisWeekWednesday = new Date(currentPeriodStart);
         thisWeekWednesday.setDate(thisWeekWednesday.getDate() + 3);
         jest.useFakeTimers().setSystemTime(thisWeekWednesday);
@@ -753,9 +753,10 @@ describe('ReportsService', () => {
         mockRepositories.groupTree.findOne.mockResolvedValue(
           makeGroup(10, 'MC Nairobi'),
         );
-        // Current week is open; whether last week has a submission must
-        // not matter -- an on-time Wednesday submission always targets
-        // this week, never gets silently redirected to last week.
+        // The Wednesday due day starts a *new* cycle (keyed by the
+        // following Sunday), so whether the current Sunday-anchored week
+        // has a submission must not matter -- an on-time Wednesday
+        // submission always targets its own upcoming cycle.
         mockRepositories.reportSubmission.findOne.mockResolvedValue(null);
         mockRepositories.reportField.find.mockResolvedValue([
           { name: 'groupId' },
@@ -770,11 +771,11 @@ describe('ReportsService', () => {
         expect(result.status).toBe(200);
         expect(mockRepositories.reportSubmission.findOne).toHaveBeenCalledWith(
           expect.objectContaining({
-            where: expect.objectContaining({ reportingPeriod: currentPeriod }),
+            where: expect.objectContaining({ reportingPeriod: nextPeriod }),
           }),
         );
         expect(mockRepositories.reportSubmission.save).toHaveBeenCalledWith(
-          expect.objectContaining({ reportingPeriod: currentPeriod }),
+          expect.objectContaining({ reportingPeriod: nextPeriod }),
         );
       });
 
@@ -784,12 +785,12 @@ describe('ReportsService', () => {
         mockRepositories.groupTree.findOne.mockResolvedValue(
           makeGroup(10, 'MC Nairobi'),
         );
-        // Last week's (the catch-up target's) slot is already filled.
+        // The catch-up target (this Sunday-anchored week) is already filled.
         mockRepositories.reportSubmission.findOne.mockResolvedValue({
           id: 54,
           report: { id: 1 },
           group: { id: 10 },
-          reportingPeriod: previousPeriod,
+          reportingPeriod: currentPeriod,
         });
 
         await expect(
@@ -799,7 +800,7 @@ describe('ReportsService', () => {
         expect(mockRepositories.reportSubmission.save).not.toHaveBeenCalled();
       });
 
-      it('a Sunday catch-up followed by an on-time Wednesday submission covers two distinct weeks, not one', async () => {
+      it('a Sunday catch-up followed by an on-time Wednesday submission covers two distinct cycles, not one', async () => {
         // End-to-end sequence for the exact frustration this feature fixes:
         // forgetting last Wednesday, catching up on Sunday, then still
         // being able to submit on time this Wednesday.
@@ -811,8 +812,8 @@ describe('ReportsService', () => {
           { name: 'groupId' },
         ]);
 
-        // Step 1: catch-up submission on this week's Sunday. Nothing on
-        // file yet for either period.
+        // Step 1: catch-up submission on this week's Sunday, closing out
+        // last Wednesday's cycle. Nothing on file yet for either period.
         jest.useFakeTimers().setSystemTime(currentPeriodStart);
         mockRepositories.reportSubmission.findOne.mockResolvedValueOnce(null);
         const firstResult = await service.submitReport(
@@ -823,12 +824,12 @@ describe('ReportsService', () => {
         expect(firstResult.status).toBe(200);
         expect(mockRepositories.reportSubmission.save).toHaveBeenNthCalledWith(
           1,
-          expect.objectContaining({ reportingPeriod: previousPeriod }),
+          expect.objectContaining({ reportingPeriod: currentPeriod }),
         );
 
-        // Step 2: on-time submission on this week's Wednesday. The
-        // catch-up above only filled previousPeriod, so currentPeriod is
-        // still open.
+        // Step 2: on-time submission on this week's Wednesday opens the
+        // *next* cycle. The catch-up above only filled currentPeriod, so
+        // nextPeriod is still open.
         const thisWeekWednesday = new Date(currentPeriodStart);
         thisWeekWednesday.setDate(thisWeekWednesday.getDate() + 3);
         jest.useFakeTimers().setSystemTime(thisWeekWednesday);
@@ -841,7 +842,7 @@ describe('ReportsService', () => {
         expect(secondResult.status).toBe(200);
         expect(mockRepositories.reportSubmission.save).toHaveBeenNthCalledWith(
           2,
-          expect.objectContaining({ reportingPeriod: currentPeriod }),
+          expect.objectContaining({ reportingPeriod: nextPeriod }),
         );
       });
     });
@@ -1389,7 +1390,7 @@ describe('ReportsService', () => {
       expect(result.breakdown).toEqual([]);
     });
 
-    it("filters submissions by the current week's reportingPeriod, three days before the displayed Wednesday weekStart", async () => {
+    it("filters submissions by the current week's reportingPeriod, four days after the displayed Wednesday weekStart", async () => {
       const field = {
         id: 1,
         label: 'How many attended MC?',
@@ -1422,19 +1423,20 @@ describe('ReportsService', () => {
         sql.includes('submission.reportingPeriod ='),
       );
       // periodCall's period is the Sunday-anchored reportingPeriod key
-      // stored on submissions; the displayed weekStart is that same date
-      // shifted forward to the Wednesday it represents (see
-      // getDueDayAwarePeriodStart).
+      // stored on submissions -- the Sunday that falls *inside* the
+      // Wed..Tue cycle, 4 days after the Wednesday it represents (see
+      // getDueDayAwarePeriodStart) -- so the displayed weekStart is that
+      // same date shifted *back* to the Wednesday.
       const queriedPeriod = new Date(periodCall[1].period + 'T00:00:00');
       const displayedWeekStart = new Date(result.weekStart + 'T00:00:00');
       const diffDays =
         (displayedWeekStart.getTime() - queriedPeriod.getTime()) /
         (1000 * 60 * 60 * 24);
-      expect(diffDays).toBe(3);
+      expect(diffDays).toBe(-4);
       expect(displayedWeekStart.getDay()).toBe(3); // Wednesday
     });
 
-    it("queries the previous reportingPeriod (last Sunday) when today is in the Sun-Tue catch-up window, while still displaying that period's Wednesday", async () => {
+    it("queries the current reportingPeriod (this Sunday-anchored week) when today is in the Sun-Tue catch-up window, while still displaying last Wednesday's window", async () => {
       jest.useFakeTimers().setSystemTime(new Date('2026-08-17T09:00:00')); // Monday
       const field = {
         id: 1,
@@ -1461,10 +1463,11 @@ describe('ReportsService', () => {
       const periodCall = submissionQb.andWhere.mock.calls.find(([sql]) =>
         sql.includes('submission.reportingPeriod ='),
       );
-      // Monday 2026-08-17 falls before this calendar week's Wednesday, so
-      // it's a catch-up submission for the period due last Wednesday
-      // (2026-08-12) -- stored under last Sunday, 2026-08-09.
-      expect(periodCall[1].period).toBe('2026-08-09');
+      // Monday 2026-08-17 is a catch-up submission for the cycle due last
+      // Wednesday (2026-08-12), which is keyed by the Sunday inside that
+      // cycle (2026-08-12 + 4 = 2026-08-16) -- this calendar week's own
+      // Sunday-anchored start, unchanged by the catch-up.
+      expect(periodCall[1].period).toBe('2026-08-16');
       expect(result.weekStart).toBe('2026-08-12');
       expect(result.weekEnd).toBe('2026-08-18');
 
