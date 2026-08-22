@@ -378,5 +378,24 @@ describe('ContactsService', () => {
 
       expect(mockRepositories.user.update).not.toHaveBeenCalled();
     });
+
+    it('throws when another user already owns the new email as their email (but not their username)', async () => {
+      mockRepositories.user.findOne
+        .mockResolvedValueOnce({ id: 1, username: 'old@example.com' })
+        .mockResolvedValueOnce({
+          id: 2,
+          username: 'someone-else',
+          email: 'new@example.com',
+        });
+
+      await expect(
+        invoke({
+          id: 10,
+          emails: [{ value: 'new@example.com', isPrimary: true }],
+        }),
+      ).rejects.toThrow('Email already in use by another user');
+
+      expect(mockRepositories.user.update).not.toHaveBeenCalled();
+    });
   });
 });
