@@ -378,12 +378,14 @@ export class UsersService {
       }
     }
 
-    const resp = await this.repository
-      .createQueryBuilder()
-      .update()
-      .set(update)
-      .where('id = :id', { id: data.id })
-      .execute();
+    if (Object.keys(update).length > 0) {
+      await this.repository
+        .createQueryBuilder()
+        .update()
+        .set(update)
+        .where('id = :id', { id: data.id })
+        .execute();
+    }
 
     return await this.findOne(data.id);
   }

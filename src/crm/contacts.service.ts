@@ -611,11 +611,6 @@ export class ContactsService {
         }
       }
 
-      // Handle emails update with efficient upsert
-      if (data.emails) {
-        await this.updateEmailsEfficiently(existingContact, data.emails);
-      }
-
       // Handle phones update with efficient upsert
       if (data.phones) {
         await this.updatePhonesEfficiently(existingContact, data.phones);
@@ -641,8 +636,21 @@ export class ContactsService {
       }
 
       try {
-        // Save the contact first (without group memberships to avoid constraint issues)
-        const savedContact = await this.repository.save(existingContact);
+        // Save the contact first (without group memberships to avoid constraint issues).
+        // Email mutation and the linked User sync must roll back together with
+        // the contact save on any collision error.
+        const newEmails = data.emails;
+        const savedContact = newEmails
+          ? await this.connection.transaction(async (manager) => {
+              await this.updateEmailsEfficiently(
+                existingContact,
+                newEmails,
+                manager,
+              );
+              await this.syncUserEmailFromContact(existingContact, manager);
+              return manager.getRepository(Contact).save(existingContact);
+            })
+          : await this.repository.save(existingContact);
 
         // Handle group membership updates after contact is saved
         const groups = (data as any).groups;
@@ -1756,8 +1764,8 @@ export class ContactsService {
     const userRepository = manager
       ? manager.getRepository(User)
       : this.userRepository;
-    const tenantId = this.tenantContext.tenantId;
-    const tenantWhere = tenantId ? { tenant: { id: tenantId } } : {};
+    const tenantId = this.tenantContext.requireTenant();
+    const tenantWhere = { tenant: { id: tenantId } };
 
     const user = await userRepository.findOne({
       where: { contactId: contact.id, ...tenantWhere },
@@ -1771,7 +1779,11 @@ export class ContactsService {
     if (!hasValue(primaryEmail)) return;
 
     const normalizedEmail = primaryEmail.trim().toLowerCase();
-    if (normalizedEmail === user.username?.toLowerCase()) return;
+    if (
+      normalizedEmail === user.username?.toLowerCase() &&
+      normalizedEmail === user.email?.toLowerCase()
+    )
+      return;
 
     const existing = await userRepository.findOne({
       where: { username: ILike(normalizedEmail), ...tenantWhere },

@@ -405,6 +405,7 @@ describe('UsersService', () => {
 
       await service.update({ id: 1, email: 'new@example.com' } as any);
 
+      expect(mockRepositories.user.createQueryBuilder).not.toHaveBeenCalled();
       expect(mockUpdateQb.set).not.toHaveBeenCalledWith(
         expect.objectContaining({ email: expect.anything() }),
       );

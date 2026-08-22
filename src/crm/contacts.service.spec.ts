@@ -270,7 +270,7 @@ describe('ContactsService', () => {
       });
 
       expect(mockRepositories.user.update).toHaveBeenCalledWith(
-        { id: 1 },
+        { id: 1, tenant: { id: 1 } },
         { email: 'new@example.com', username: 'new@example.com' },
       );
     });
@@ -286,7 +286,7 @@ describe('ContactsService', () => {
       });
 
       expect(mockRepositories.user.update).toHaveBeenCalledWith(
-        { id: 1 },
+        { id: 1, tenant: { id: 1 } },
         { email: 'newlyadded@example.com', username: 'newlyadded@example.com' },
       );
     });
@@ -302,7 +302,7 @@ describe('ContactsService', () => {
       });
 
       expect(mockRepositories.user.update).toHaveBeenCalledWith(
-        { id: 1 },
+        { id: 1, tenant: { id: 1 } },
         { email: 'first@example.com', username: 'first@example.com' },
       );
     });
@@ -329,10 +329,11 @@ describe('ContactsService', () => {
       expect(mockRepositories.user.update).not.toHaveBeenCalled();
     });
 
-    it('is a no-op when the new email matches the current username (case-insensitive)', async () => {
+    it('is a no-op when the new email matches both the current username and email (case-insensitive)', async () => {
       mockRepositories.user.findOne.mockResolvedValueOnce({
         id: 1,
         username: 'same@example.com',
+        email: 'same@example.com',
       });
 
       await invoke({
@@ -341,6 +342,26 @@ describe('ContactsService', () => {
       });
 
       expect(mockRepositories.user.update).not.toHaveBeenCalled();
+    });
+
+    it('repairs a stale email when it matches the username but not the email', async () => {
+      mockRepositories.user.findOne
+        .mockResolvedValueOnce({
+          id: 1,
+          username: 'same@example.com',
+          email: 'stale@example.com',
+        })
+        .mockResolvedValueOnce(undefined); // no collision
+
+      await invoke({
+        id: 10,
+        emails: [{ value: 'Same@Example.com', isPrimary: true }],
+      });
+
+      expect(mockRepositories.user.update).toHaveBeenCalledWith(
+        { id: 1, tenant: { id: 1 } },
+        { email: 'same@example.com', username: 'same@example.com' },
+      );
     });
 
     it('throws when another user already owns the new email', async () => {
