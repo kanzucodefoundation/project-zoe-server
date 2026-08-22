@@ -630,7 +630,7 @@ export class ContactsService {
         // Phone/address upserts, email mutation, and the linked User sync must
         // all roll back together with the contact save on any collision error.
         const savedContact = await this.connection.transaction(
-          async (manager) => {
+          async(manager) => {
             if (data.phones) {
               await this.updatePhonesEfficiently(
                 existingContact,
@@ -1330,7 +1330,7 @@ export class ContactsService {
         // and the linked User update must all roll back together with the
         // contact save on any collision error.
         const savedContact = await this.connection.transaction(
-          async (manager) => {
+          async(manager) => {
             if (data.phones) {
               await this.updatePhonesEfficiently(
                 existingContact,
