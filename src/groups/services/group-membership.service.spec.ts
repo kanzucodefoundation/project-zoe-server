@@ -258,8 +258,8 @@ describe('GroupsMembershipService', () => {
         where: expect.objectContaining({
           // Check for FindOperator with 'in' type and correct value
           id: expect.objectContaining({
-            _type: 'in',
-            _value: [51],
+            type: 'in',
+            value: [51],
           }),
           tenant: { id: TENANT_ID },
         }),
