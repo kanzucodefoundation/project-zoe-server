@@ -73,7 +73,17 @@ describe('GroupsMembershipService', () => {
       // to know about this repository. `In(ids)` produces a FindOperator
       // whose `.value` is the original id array.
       find: jest.fn().mockImplementation((options: any) => {
-        const ids: number[] = options?.where?.id?.value ?? [];
+        // Handle both direct arrays and FindOperator objects
+        let ids: number[] = [];
+        if (options?.where?.id) {
+          if (Array.isArray(options.where.id)) {
+            ids = options.where.id;
+          } else if (options.where.id && typeof options.where.id === 'object' && 'value' in options.where.id) {
+            ids = options.where.id.value;
+          }
+        } else if (options?.where?.id?.value) {
+          ids = options.where.id.value;
+        }
         return Promise.resolve(ids.map((id) => ({ id })));
       }),
     };
@@ -222,6 +232,16 @@ describe('GroupsMembershipService', () => {
     await expect(
       service.create({ groupId: 9, members: [51], role: GroupRole.Member }),
     ).rejects.toThrow(BadRequestException);
+
+    // Verify tenant-scoped query was made
+    expect(mockGroupRepository.findOne).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          id: 9,
+          tenant: { id: TENANT_ID },
+        }),
+      }),
+    );
   });
 
   it('should reject adding a contact that does not belong to the current tenant', async () => {
@@ -231,6 +251,20 @@ describe('GroupsMembershipService', () => {
     await expect(
       service.create({ groupId: 9, members: [51], role: GroupRole.Member }),
     ).rejects.toThrow(BadRequestException);
+
+    // Verify tenant-scoped query was made
+    expect(mockContactRepository.find).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          // Check for FindOperator with 'in' type and correct value
+          id: expect.objectContaining({
+            _type: 'in',
+            _value: [51],
+          }),
+          tenant: { id: TENANT_ID },
+        }),
+      }),
+    );
   });
 
   it('should list memberships by contactId', async () => {

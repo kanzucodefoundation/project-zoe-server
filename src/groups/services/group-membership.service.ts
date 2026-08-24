@@ -224,7 +224,7 @@ export class GroupsMembershipService {
     }
     const tenantId = this.tenantContext.requireTenant();
     const group = await groupRepository.findOne({
-      where: { id: groupId, tenant: { id: tenantId } } as any,
+      where: { id: groupId, tenant: { id: tenantId } },
     });
     if (!group) {
       throw new BadRequestException(
@@ -238,7 +238,7 @@ export class GroupsMembershipService {
     // contact just saved earlier in the same transaction is visible
     // here even though it isn't committed yet.
     const tenantContacts = await contactRepository.find({
-      where: { id: In(uniqueMemberIds), tenant: { id: tenantId } } as any,
+      where: { id: In(uniqueMemberIds), tenant: { id: tenantId } },
       select: ['id'],
     });
     const tenantContactIds = new Set(tenantContacts.map((c) => c.id));
