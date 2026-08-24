@@ -3,6 +3,7 @@ import { GroupsMembershipService } from './group-membership.service';
 import { Connection } from 'typeorm';
 import GroupMembership from '../entities/groupMembership.entity';
 import Group from '../entities/group.entity';
+import Contact from '../../crm/entities/contact.entity';
 import { AppLogger } from '../../utils/app-logger.service';
 import { GroupRole } from '../enums/groupRole';
 import { BadRequestException } from '@nestjs/common';
@@ -13,6 +14,7 @@ describe('GroupsMembershipService', () => {
   let mockConnection: Partial<Connection>;
   let mockMembershipRepository: any;
   let mockGroupRepository: any;
+  let mockContactRepository: any;
   let mockAppLogger: any;
   let mockContextLogger: any;
   let mockQb: any;
@@ -65,10 +67,21 @@ describe('GroupsMembershipService', () => {
         },
       },
     };
+    mockContactRepository = {
+      // Default: pretend every requested contact id belongs to the
+      // current tenant, so tests unrelated to tenant-scoping don't have
+      // to know about this repository. `In(ids)` produces a FindOperator
+      // whose `.value` is the original id array.
+      find: jest.fn().mockImplementation((options: any) => {
+        const ids: number[] = options?.where?.id?.value ?? [];
+        return Promise.resolve(ids.map((id) => ({ id })));
+      }),
+    };
 
     mockConnection = {
       getRepository: jest.fn().mockImplementation((entity) => {
         if (entity === Group) return mockGroupRepository;
+        if (entity === Contact) return mockContactRepository;
         return mockMembershipRepository;
       }),
       getTreeRepository: jest.fn().mockImplementation((entity) => {
@@ -201,6 +214,23 @@ describe('GroupsMembershipService', () => {
     });
 
     expect(inserted).toBe(1);
+  });
+  
+  it('should reject creating memberships for a group belonging to a different tenant', async () => {
+    mockGroupRepository.findOne.mockResolvedValue(null);
+
+    await expect(
+      service.create({ groupId: 9, members: [51], role: GroupRole.Member }),
+    ).rejects.toThrow(BadRequestException);
+  });
+
+  it('should reject adding a contact that does not belong to the current tenant', async () => {
+    // No contacts come back for this tenant, even though the group is valid.
+    mockContactRepository.find.mockResolvedValue([]);
+
+    await expect(
+      service.create({ groupId: 9, members: [51], role: GroupRole.Member }),
+    ).rejects.toThrow(BadRequestException);
   });
 
   it('should list memberships by contactId', async () => {

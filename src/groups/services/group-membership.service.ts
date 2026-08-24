@@ -15,6 +15,7 @@ import UpdateGroupMembershipDto from '../dto/membership/update-group-membership.
 import BatchGroupMembershipDto from '../dto/membership/batch-group-membership.dto';
 import { hasNoValue, hasValue } from '../../utils/validation';
 import Group from '../entities/group.entity';
+import Contact from '../../crm/entities/contact.entity';
 import { GroupRole } from '../enums/groupRole';
 import { AppLogger, ContextLogger } from 'src/utils/app-logger.service';
 import { TenantContext } from '../../shared/tenant/tenant-context';
@@ -23,6 +24,7 @@ import { TenantContext } from '../../shared/tenant/tenant-context';
 export class GroupsMembershipService {
   private readonly repository: Repository<GroupMembership>;
   private readonly groupRepository: Repository<Group>;
+  private readonly contactRepository: Repository<Contact>;
   private readonly connection: Connection;
   private readonly logger: ContextLogger;
 
@@ -33,6 +35,7 @@ export class GroupsMembershipService {
   ) {
     this.repository = connection.getRepository(GroupMembership);
     this.groupRepository = connection.getRepository(Group);
+    this.contactRepository = connection.getRepository(Contact);
     this.connection = connection;
     this.logger = this.appLogger.createContextLogger('GroupsMembershipService');
   }
@@ -210,6 +213,9 @@ export class GroupsMembershipService {
      const groupRepository = manager
       ? manager.getRepository(Group)
       : this.groupRepository;
+     const contactRepository = manager
+      ? manager.getRepository(Contact)
+      : this.contactRepository;
     const { groupId, members, role } = data;
     const uniqueMemberIds = [...new Set(members)];
 
@@ -223,6 +229,27 @@ export class GroupsMembershipService {
     if (!group) {
       throw new BadRequestException(
         `Group ${groupId} does not exist for this tenant`,
+      );
+    }
+    // Tenant-scoped contact validation — without this, a caller could
+    // supply a contactId belonging to a different tenant and attach it
+    // to a group in the current tenant, crossing tenant boundaries.
+    // Uses the transaction-scoped repository (when supplied) so a
+    // contact just saved earlier in the same transaction is visible
+    // here even though it isn't committed yet.
+    const tenantContacts = await contactRepository.find({
+      where: { id: In(uniqueMemberIds), tenant: { id: tenantId } } as any,
+      select: ['id'],
+    });
+    const tenantContactIds = new Set(tenantContacts.map((c) => c.id));
+    const foreignOrMissingIds = uniqueMemberIds.filter(
+      (id) => !tenantContactIds.has(id),
+    );
+    if (foreignOrMissingIds.length > 0) {
+      throw new BadRequestException(
+        `Contact(s) ${foreignOrMissingIds.join(
+          ', ',
+        )} do not exist for this tenant`,
       );
     }
     const existing = await repository.find({

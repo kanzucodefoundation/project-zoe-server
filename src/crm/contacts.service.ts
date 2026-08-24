@@ -662,11 +662,14 @@ export class ContactsService {
 
       for (const assignment of groupAssignments) {
         try {
-          await this.groupsMembershipService.create({
-            groupId: assignment.id,
-            members: [savedContact.id],
-            role: assignment.role || GroupRole.Member,
-          });
+          await this.groupsMembershipService.create(
+            {
+              groupId: assignment.id,
+              members: [savedContact.id],
+              role: assignment.role || GroupRole.Member,
+            },
+            manager,
+          );
 
           this.logger.business(
             'log',
