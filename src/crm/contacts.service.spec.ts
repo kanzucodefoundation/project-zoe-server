@@ -43,7 +43,11 @@ describe('ContactsService', () => {
       },
       company: { save: jest.fn() },
       phone: { save: jest.fn() },
-      email: { save: jest.fn() },
+      email: {
+        save: jest.fn(),
+        create: jest.fn((data) => data),
+        remove: jest.fn(),
+      },
       address: { save: jest.fn() },
       membership: {
         find: jest.fn(),
@@ -71,6 +75,14 @@ describe('ContactsService', () => {
         return mockRepositories.contact;
       }),
       getTreeRepository: jest.fn().mockReturnValue(mockRepositories.groupTree),
+      transaction: jest.fn((callback: any) =>
+        callback({
+          getRepository: jest.fn((entity: any) => {
+            if (entity === Email) return mockRepositories.email;
+            return mockRepositories.contact;
+          }),
+        }),
+      ),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -140,6 +152,39 @@ describe('ContactsService', () => {
     );
     expect(mockConnection.getRepository).toHaveBeenCalledWith(Tenant);
     expect(mockConnection.getTreeRepository).toHaveBeenCalledWith(Group);
+  });
+
+  it('keeps existing emails unchanged when creating a replacement email fails', async () => {
+    const existingEmail = {
+      id: 10,
+      value: 'old@example.com',
+      contactId: 1,
+      tenantId: 1,
+    } as Email;
+    const existingContact = {
+      id: 1,
+      emails: [existingEmail],
+    } as Contact;
+    mockRepositories.email.save.mockRejectedValueOnce(
+      new Error('email save failed'),
+    );
+
+    await expect(
+      (mockConnection.transaction as jest.Mock)((manager: any) =>
+        (service as any).updateEmailsEfficiently(
+          existingContact,
+          [{ value: 'new@example.com' }],
+          manager,
+        ),
+      ),
+    ).rejects.toThrow('email save failed');
+
+    expect(mockConnection.transaction).toHaveBeenCalled();
+    expect(mockRepositories.email.remove).toHaveBeenCalledWith([
+      existingEmail,
+    ]);
+    expect(existingContact.emails).toEqual([existingEmail]);
+    expect(existingEmail.value).toBe('old@example.com');
   });
 
   describe('handleGroupMembershipsUpdate', () => {

@@ -599,6 +599,12 @@ export class ContactsService {
       const tenantId = this.tenantContext.requireTenant();
       data.tenant = { id: tenantId } as any;
 
+      // Stamp tenantId onto every email row so the DB-level tenant-scoped
+      // unique index (IDX_email_tenant_normalized_value) can enforce
+      // uniqueness — email has no other path to tenantId at insert time.
+      (data.emails || []).forEach((e) => {
+        (e as any).tenantId = tenantId;
+      });
       // Stringent duplicate-email guard — applies to single creates and
       // to each row processed via createMany() for bulk upload.
       const incomingEmails = (data.emails || []).map((e) => e.value);
@@ -748,26 +754,25 @@ export class ContactsService {
       contactId: request?.user?.contactId,
     });
 
-  let tenantId: number;
-  try {
-     tenantId = this.tenantContext.requireTenant();
-     const allEmails = dataList.flatMap((d) =>
-       (d.emails || []).map((e) => e.value),
-     );
+    try {
+      const tenantId = this.tenantContext.requireTenant();
+      const allEmails = dataList.flatMap((d) =>
+        (d.emails || []).map((e) => e.value),
+      );
 
-     // Fail fast ONLY on duplicates within the submitted batch itself —
-     // that's a malformed-payload error, not tied to any one row, so it
-     // still throws for the caller to handle up front. We deliberately
-     // do NOT check here whether an email already exists in the DB
-     // (checkPersisted: false): that check runs per-row inside create()
-     // below, so one contact whose email already exists fails only that
-     // row and does not prevent the other rows in the batch from being
-     // created.
-     await this.assertEmailsAreUnique(allEmails, tenantId, undefined, false);
-   } catch (error) {
-     this.logger.endTracking(tracking, false);
-     throw error;
-   }
+      // Fail fast ONLY on duplicates within the submitted batch itself —
+      // that's a malformed-payload error, not tied to any one row, so it
+      // still throws for the caller to handle up front. We deliberately
+      // do NOT check here whether an email already exists in the DB
+      // (checkPersisted: false): that check runs per-row inside create()
+      // below, so one contact whose email already exists fails only that
+      // row and does not prevent the other rows in the batch from being
+      // created.
+      await this.assertEmailsAreUnique(allEmails, tenantId, undefined, false);
+    } catch (error) {
+      this.logger.endTracking(tracking, false);
+      throw error;
+    }
 
     const succeeded: Contact[] = [];
     const failed: BulkContactFailure[] = [];
@@ -898,20 +903,6 @@ export class ContactsService {
       }
 
       // Handle emails update with efficient upsert
-      if (data.emails) {
-        await this.updateEmailsEfficiently(existingContact, data.emails);
-      }
-
-      // Handle phones update with efficient upsert
-      if (data.phones) {
-        await this.updatePhonesEfficiently(existingContact, data.phones);
-      }
-
-      // Handle addresses update with efficient upsert
-      if (data.addresses) {
-        await this.updateAddressesEfficiently(existingContact, data.addresses);
-      }
-
       // Handle other contact fields (excluding nested entities and group assignment)
       const {
         person,
@@ -927,44 +918,60 @@ export class ContactsService {
       }
 
       try {
-        // Save the contact first (without group memberships to avoid constraint issues)
-        let savedContact: Contact;
-        try {
-          savedContact = await this.repository.save(existingContact);
-        } catch (saveError) {
-          if (ContactsService.isUniqueEmailViolation(saveError)) {
-            this.logger.business(
-              'warn',
-              'Duplicate email detected at database level on save',
-              {
-                operation: 'updateContact',
-                userId: request?.user?.id,
-                contactId: request?.user?.contactId,
-                resourceId: id,
-                metadata: { tenantId },
-              },
-            );
-            throw new BadRequestException(CONTACT_EMAIL_EXISTS_MESSAGE);
+        const savedContact = await this.connection.transaction(async (manager) => {
+          const contactRepository = manager.getRepository(Contact);
+
+          if (data.emails) {
+            await this.updateEmailsEfficiently(existingContact, data.emails, manager);
           }
-          throw saveError;
-        }
+          if (data.phones) {
+            await this.updatePhonesEfficiently(existingContact, data.phones, manager);
+          }
+          if (data.addresses) {
+            await this.updateAddressesEfficiently(existingContact, data.addresses, manager);
+          }
 
-        // Handle group membership updates after contact is saved
-        const groups = (data as any).groups;
+          // Save the contact first (without group memberships to avoid constraint issues)
+          let savedContact: Contact;
+          try {
+            savedContact = await contactRepository.save(existingContact);
+          } catch (saveError) {
+            if (ContactsService.isUniqueEmailViolation(saveError)) {
+              this.logger.business(
+                'warn',
+                'Duplicate email detected at database level on save',
+                {
+                  operation: 'updateContact',
+                  userId: request?.user?.id,
+                  contactId: request?.user?.contactId,
+                  resourceId: id,
+                  metadata: { tenantId },
+                },
+              );
+              throw new BadRequestException(CONTACT_EMAIL_EXISTS_MESSAGE);
+            }
+            throw saveError;
+          }
 
-        if (groups !== undefined) {
-          // Reload contact to get fresh group memberships
-          const contactWithMemberships = await this.repository.findOne({
-            where: { id: savedContact.id },
-            relations: ['groupMemberships'],
-          });
+          // Handle group membership updates after contact is saved
+          const groups = (data as any).groups;
 
-          await this.handleGroupMembershipsUpdate(
-            contactWithMemberships,
-            groups,
-            request,
-          );
-        }
+          if (groups !== undefined) {
+            const contactWithMemberships = await contactRepository.findOne({
+              where: { id: savedContact.id },
+              relations: ['groupMemberships'],
+            });
+
+            await this.handleGroupMembershipsUpdate(
+              contactWithMemberships,
+              groups,
+              request,
+              manager,
+            );
+          }
+
+          return savedContact;
+        });
 
         this.logger.business('log', 'Contact updated successfully', {
           operation: 'updateContact',
@@ -1010,6 +1017,7 @@ export class ContactsService {
     contact: Contact,
     newGroups: Array<{ id: number; role?: GroupRole }>,
     request?: any,
+    manager?: EntityManager,
   ): Promise<void> {
     try {
       const contactId = contact.id;
@@ -1087,6 +1095,9 @@ export class ContactsService {
       });
 
       // Deactivate memberships that should be removed
+      const membershipRepository = manager
+        ? manager.getRepository(GroupMembership)
+        : this.membershipRepository;
       for (const membership of membershipsToDeactivate) {
         this.logger.business('log', 'Deactivating group membership', {
           operation: 'updateContact',
@@ -1100,7 +1111,7 @@ export class ContactsService {
           },
         });
 
-        await this.membershipRepository
+        await membershipRepository
           .createQueryBuilder()
           .update(GroupMembership)
           .set({
@@ -1131,7 +1142,7 @@ export class ContactsService {
           },
         });
 
-        await this.membershipRepository
+        await membershipRepository
           .createQueryBuilder()
           .update(GroupMembership)
           .set({ role: newRole })
@@ -1184,11 +1195,16 @@ export class ContactsService {
             },
           });
 
-          await this.groupsMembershipService.create({
+          const membershipData = {
             groupId: groupToAdd.id,
             members: [contactId],
             role: targetRole,
-          });
+          };
+          if (manager) {
+            await this.groupsMembershipService.create(membershipData, manager);
+          } else {
+            await this.groupsMembershipService.create(membershipData);
+          }
         }
       }
 
@@ -1625,20 +1641,6 @@ export class ContactsService {
       }
 
       // Handle nested email updates
-      if (data.emails) {
-        await this.updateEmailsEfficiently(existingContact, data.emails);
-      }
-
-      // Handle nested phone updates
-      if (data.phones) {
-        await this.updatePhonesEfficiently(existingContact, data.phones);
-      }
-
-      // Handle nested address updates
-      if (data.addresses) {
-        await this.updateAddressesEfficiently(existingContact, data.addresses);
-      }
-
       // Remove groups field from contact data since it's handled separately
       const {
         person: __person,
@@ -1654,42 +1656,58 @@ export class ContactsService {
       }
 
       try {
-        // Save the contact first (without group memberships to avoid constraint issues)
-        let savedContact: Contact;
-        try {
-          savedContact = await this.repository.save(existingContact);
-        } catch (saveError) {
-          if (ContactsService.isUniqueEmailViolation(saveError)) {
-            this.logger.business(
-              'warn',
-              'Duplicate email detected at database level on save',
-              {
-                operation: 'updateContactWithGroups',
-                userId: request?.user?.id,
-                contactId: request?.user?.contactId,
-                resourceId: id,
-                metadata: { tenantId },
-              },
-            );
-            throw new BadRequestException(CONTACT_EMAIL_EXISTS_MESSAGE);
+        const savedContact = await this.connection.transaction(async (manager) => {
+          const contactRepository = manager.getRepository(Contact);
+
+          if (data.emails) {
+            await this.updateEmailsEfficiently(existingContact, data.emails, manager);
           }
-          throw saveError;
-        }
+          if (data.phones) {
+            await this.updatePhonesEfficiently(existingContact, data.phones, manager);
+          }
+          if (data.addresses) {
+            await this.updateAddressesEfficiently(existingContact, data.addresses, manager);
+          }
 
-        // Handle group membership updates after contact is saved
-        if (data.groups !== undefined) {
-          // Reload contact to get fresh group memberships
-          const contactWithMemberships = await this.repository.findOne({
-            where: { id: savedContact.id },
-            relations: ['groupMemberships'],
-          });
+          // Save the contact first (without group memberships to avoid constraint issues)
+          let savedContact: Contact;
+          try {
+            savedContact = await contactRepository.save(existingContact);
+          } catch (saveError) {
+            if (ContactsService.isUniqueEmailViolation(saveError)) {
+              this.logger.business(
+                'warn',
+                'Duplicate email detected at database level on save',
+                {
+                  operation: 'updateContactWithGroups',
+                  userId: request?.user?.id,
+                  contactId: request?.user?.contactId,
+                  resourceId: id,
+                  metadata: { tenantId },
+                },
+              );
+              throw new BadRequestException(CONTACT_EMAIL_EXISTS_MESSAGE);
+            }
+            throw saveError;
+          }
 
-          await this.handleGroupMembershipsUpdate(
-            contactWithMemberships,
-            data.groups,
-            request,
-          );
-        }
+          // Handle group membership updates after contact is saved
+          if (data.groups !== undefined) {
+            const contactWithMemberships = await contactRepository.findOne({
+              where: { id: savedContact.id },
+              relations: ['groupMemberships'],
+            });
+
+            await this.handleGroupMembershipsUpdate(
+              contactWithMemberships,
+              data.groups,
+              request,
+              manager,
+            );
+          }
+
+          return savedContact;
+        });
 
         this.logger.business(
           'log',
@@ -1741,6 +1759,12 @@ export class ContactsService {
     const model = getContactModel(createPersonDto);
     model.tenant = { id: tenantId } as Tenant;
 
+    // Stamp tenantId onto every email row so the DB-level tenant-scoped
+    // unique index (IDX_email_tenant_normalized_value) can enforce
+    // uniqueness — email has no other path to tenantId at insert time.
+    (model.emails || []).forEach((e) => {
+      (e as any).tenantId = tenantId;
+    });
 
     let newPerson: Contact;
     try {
@@ -2048,50 +2072,58 @@ export class ContactsService {
   private async updateEmailsEfficiently(
     existingContact: Contact,
     newEmails: Partial<Email>[],
+    manager: EntityManager,
   ): Promise<void> {
+    const tenantId = this.tenantContext.requireTenant();
+    const emailRepository = manager.getRepository(Email);
     const existingEmails = existingContact.emails || [];
     const emailsToKeep: Email[] = [];
     const emailsToUpdate: Email[] = [];
     const emailsToCreate: Partial<Email>[] = [];
 
     // Process new emails
-    newEmails.forEach((newEmail, index) => {
-      if (newEmail.id && index < existingEmails.length) {
-        // Update existing email
-        const existingEmail = existingEmails.find((e) => e.id === newEmail.id);
-        if (existingEmail) {
-          Object.assign(existingEmail, newEmail);
-          emailsToUpdate.push(existingEmail);
-          emailsToKeep.push(existingEmail);
-        }
-      } else {
-        // Create new email
-        emailsToCreate.push({
-          ...newEmail,
-          contactId: existingContact.id,
-        });
+    newEmails.forEach((newEmail) => {
+      // Only an id that this contact already owns may drive an update.
+      const existingEmail = newEmail.id
+        ? existingEmails.find((e) => e.id === newEmail.id)
+        : undefined;
+      if (existingEmail) {
+        const { value, category, isPrimary } = newEmail;
+        Object.assign(existingEmail, { value, category, isPrimary });
+        existingEmail.contact = existingContact;
+        existingEmail.contactId = existingContact.id;
+        existingEmail.tenantId = tenantId;
+        emailsToUpdate.push(existingEmail);
+        emailsToKeep.push(existingEmail);
+        return;
       }
+      // Drop any caller-supplied id so save() cannot hijack another row.
+      const { id: _ignoredId, ...emailData } = newEmail;
+      emailsToCreate.push({
+        ...emailData,
+        contactId: existingContact.id,
+        tenantId,
+      });
     });
-
     // Remove emails that are no longer needed
     const emailsToRemove = existingEmails.filter(
       (email) => !emailsToKeep.some((kept) => kept.id === email.id),
     );
 
     if (emailsToRemove.length > 0) {
-      await this.emailRepository.remove(emailsToRemove);
+      await emailRepository.remove(emailsToRemove);
     }
 
     // Update existing emails
     if (emailsToUpdate.length > 0) {
-      await this.emailRepository.save(emailsToUpdate);
+      await emailRepository.save(emailsToUpdate);
     }
 
     // Create new emails
     if (emailsToCreate.length > 0) {
-      const createdEmails = await this.emailRepository.save(
+      const createdEmails = await emailRepository.save(
         emailsToCreate.map((emailData) =>
-          this.emailRepository.create(emailData),
+          emailRepository.create(emailData),
         ),
       );
       emailsToKeep.push(...createdEmails);
@@ -2103,7 +2135,9 @@ export class ContactsService {
   private async updatePhonesEfficiently(
     existingContact: Contact,
     newPhones: Partial<Phone>[],
+    manager: EntityManager,
   ): Promise<void> {
+    const phoneRepository = manager.getRepository(Phone);
     const existingPhones = existingContact.phones || [];
     const phonesToKeep: Phone[] = [];
     const phonesToUpdate: Phone[] = [];
@@ -2134,19 +2168,19 @@ export class ContactsService {
     );
 
     if (phonesToRemove.length > 0) {
-      await this.phoneRepository.remove(phonesToRemove);
+      await phoneRepository.remove(phonesToRemove);
     }
 
     // Update existing phones
     if (phonesToUpdate.length > 0) {
-      await this.phoneRepository.save(phonesToUpdate);
+      await phoneRepository.save(phonesToUpdate);
     }
 
     // Create new phones
     if (phonesToCreate.length > 0) {
-      const createdPhones = await this.phoneRepository.save(
+      const createdPhones = await phoneRepository.save(
         phonesToCreate.map((phoneData) =>
-          this.phoneRepository.create(phoneData),
+          phoneRepository.create(phoneData),
         ),
       );
       phonesToKeep.push(...createdPhones);
@@ -2158,7 +2192,9 @@ export class ContactsService {
   private async updateAddressesEfficiently(
     existingContact: Contact,
     newAddresses: Partial<Address>[],
+    manager: EntityManager,
   ): Promise<void> {
+    const addressRepository = manager.getRepository(Address);
     const existingAddresses = existingContact.addresses || [];
     const addressesToKeep: Address[] = [];
     const addressesToUpdate: Address[] = [];
@@ -2191,19 +2227,19 @@ export class ContactsService {
     );
 
     if (addressesToRemove.length > 0) {
-      await this.addressRepository.remove(addressesToRemove);
+      await addressRepository.remove(addressesToRemove);
     }
 
     // Update existing addresses
     if (addressesToUpdate.length > 0) {
-      await this.addressRepository.save(addressesToUpdate);
+      await addressRepository.save(addressesToUpdate);
     }
 
     // Create new addresses
     if (addressesToCreate.length > 0) {
-      const createdAddresses = await this.addressRepository.save(
+      const createdAddresses = await addressRepository.save(
         addressesToCreate.map((addressData) =>
-          this.addressRepository.create(addressData),
+          addressRepository.create(addressData),
         ),
       );
       addressesToKeep.push(...createdAddresses);

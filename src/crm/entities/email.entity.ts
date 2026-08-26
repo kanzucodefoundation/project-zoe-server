@@ -6,6 +6,7 @@ import {
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import Contact from './contact.entity';
+import { Tenant } from '../../tenants/entities/tenant.entity';
 import { EmailCategory } from '../enums/emailCategory';
 
 @Entity()
@@ -38,4 +39,14 @@ export default class Email {
 
   @Column()
   contactId: number;
+
+  @JoinColumn()
+  @ManyToOne((type) => Tenant, {
+    nullable: false,
+    onDelete: 'CASCADE',
+  })
+  tenant?: Tenant;
+
+  @Column()
+  tenantId: number;
 }
