@@ -32,8 +32,11 @@ jobs:
 
       - name: Create .env file
         env:
+          PORT: ${{ secrets.STAGING_PORT }}
           DB_USERNAME: ${{ secrets.STAGING_DB_USERNAME }}
           DB_PASSWORD: ${{ secrets.STAGING_DB_PASSWORD }}
+          DB_HOST: ${{ secrets.STAGING_DB_HOST }}
+          DB_PORT: ${{ secrets.STAGING_DB_PORT }}
           DB_DATABASE: ${{ secrets.STAGING_DB_DATABASE }}
           MAPS_URL: ${{ secrets.STAGING_MAPS_URL }}
           MAPS_KEY: ${{ secrets.STAGING_MAPS_KEY }}
@@ -43,11 +46,11 @@ jobs:
           EMAIL_SENDER: ${{ secrets.STAGING_EMAIL_SENDER }}
         run: |
           cat > .env << EOF
-          PORT=9080
+          PORT=$PORT
           DB_USERNAME=$DB_USERNAME
           DB_PASSWORD=$DB_PASSWORD
-          DB_HOST=localhost
-          DB_PORT=5432
+          DB_HOST=$DB_HOST
+          DB_PORT=$DB_PORT
           DB_DATABASE=$DB_DATABASE
           DB_SYNCHRONIZE=false
           MAPS_URL=$MAPS_URL
@@ -56,6 +59,7 @@ jobs:
           POSTMARK_SERVER_TOKEN=$POSTMARK_SERVER_TOKEN
           POSTMARK_MESSAGE_STREAM=$POSTMARK_MESSAGE_STREAM
           EMAIL_SENDER=$EMAIL_SENDER
+          DATABASE_URL=postgresql://$DB_USERNAME:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_DATABASE?schema=public
           EOF
 
       - name: Build
