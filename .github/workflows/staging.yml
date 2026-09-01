@@ -79,7 +79,7 @@ jobs:
           SERVER_USERNAME: ${{ secrets.SERVER_USERNAME }}
         run: |
           mkdir -p ~/.ssh/
-          echo "$SERVER_SSH_KEY" > ~/.ssh/projectzoe.key
+          echo "$SERVER_SSH_KEY" | base64 --decode > ~/.ssh/projectzoe.key
           chmod 600 ~/.ssh/projectzoe.key
           cat >> ~/.ssh/config << EOF
           Host projectzoe-prod
