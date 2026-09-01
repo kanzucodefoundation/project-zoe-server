@@ -104,7 +104,7 @@ jobs:
           rsync -rtvO ./.env projectzoe-prod:/opt/projectzoe/production/server/dist/
 
       - name: Run database migrations
-        run: ssh projectzoe-prod 'cd /opt/projectzoe/production/server/raw/ && npm run migration:run'
+        run: ssh projectzoe-prod 'bash -l -c "cd /opt/projectzoe/production/server/raw/ && npm run migration:run"'
 
       - name: Restart app
-        run: ssh projectzoe-prod 'cd /opt/projectzoe/production/server/dist/ && pm2 delete zoeServer 2>/dev/null || true && production=true pm2 start src/main.js --name zoeServer'
+        run: ssh projectzoe-prod 'bash -l -c "cd /opt/projectzoe/production/server/dist/ && pm2 delete zoeServer 2>/dev/null || true && production=true pm2 start src/main.js --name zoeServer"'
