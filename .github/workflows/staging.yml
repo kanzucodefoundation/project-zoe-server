@@ -72,6 +72,64 @@ jobs:
           name: npm-logs
           path: ~/.npm/_logs
 
+      - name: Open firewall for GitHub runner
+        id: firewall-open
+        env:
+          SERVER_CLIENT_ID: ${{ secrets.SERVER_CLIENT_ID }}
+          SERVER_CLIENT_SECRET: ${{ secrets.SERVER_CLIENT_SECRET }}
+          SERVER_API_USER: ${{ secrets.SERVER_API_USER }}
+          SERVER_API_PASSWORD: ${{ secrets.SERVER_API_PASSWORD }}
+          FIREWALL_ID: ${{ secrets.FIREWALL_ID }}
+        run: |
+          set -e
+
+          RUNNER_IP=$(curl -s https://api.ipify.org)
+          echo "runner_ip=${RUNNER_IP}" >> "$GITHUB_OUTPUT"
+
+          TOKEN=$(curl -s \
+            -d "client_id=${SERVER_CLIENT_ID}" \
+            -d "client_secret=${SERVER_CLIENT_SECRET}" \
+            --data-urlencode "username=${SERVER_API_USER}" \
+            --data-urlencode "password=${SERVER_API_PASSWORD}" \
+            -d "grant_type=password" \
+            'https://auth.contabo.com/auth/realms/contabo/protocol/openid-connect/token' \
+            | jq -r '.access_token')
+
+          if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
+            echo "Failed to obtain Contabo access token"
+            exit 1
+          fi
+
+          FIREWALL=$(curl -s \
+            -H "Authorization: Bearer ${TOKEN}" \
+            -H "x-request-id: $(cat /proc/sys/kernel/random/uuid)" \
+            "https://api.contabo.com/v1/firewalls/${FIREWALL_ID}")
+
+          CURRENT_INBOUND=$(echo "${FIREWALL}" | jq '.data[0].rules.inbound // []')
+
+          UPDATED_INBOUND=$(echo "${CURRENT_INBOUND}" | jq \
+            --arg ip "${RUNNER_IP}/32" \
+            'map(if .displayName == "GithubActionsCICD"
+              then . + {"srcCidr": {"ipv4": [$ip], "ipv6": []}, "status": "active"}
+              else .
+              end)')
+
+          PUT_BODY=$(jq -n --argjson inbound "$UPDATED_INBOUND" '{"rules": {"inbound": $inbound}}')
+
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X PUT \
+            -H "Authorization: Bearer ${TOKEN}" \
+            -H "x-request-id: $(cat /proc/sys/kernel/random/uuid)" \
+            -H "Content-Type: application/json" \
+            -d "${PUT_BODY}" \
+            "https://api.contabo.com/v1/firewalls/${FIREWALL_ID}")
+
+          if [ "${HTTP_CODE}" != "200" ]; then
+            echo "Failed to update firewall (HTTP ${HTTP_CODE})"
+            exit 1
+          fi
+
+          echo "Firewall rule activated for ${RUNNER_IP}"
+
       - name: Configure SSH
         env:
           SERVER_SSH_KEY: ${{ secrets.SERVER_SSH_KEY }}
@@ -108,3 +166,55 @@ jobs:
 
       - name: Restart app
         run: ssh projectzoe-prod 'bash -l -c "cd /opt/projectzoe/staging/server/dist/ && pm2 delete zoeServerStaging 2>/dev/null || true && production=true pm2 start src/main.js --name zoeServerStaging"'
+
+      - name: Close firewall
+        if: always() && steps.firewall-open.conclusion == 'success'
+        env:
+          SERVER_CLIENT_ID: ${{ secrets.SERVER_CLIENT_ID }}
+          SERVER_CLIENT_SECRET: ${{ secrets.SERVER_CLIENT_SECRET }}
+          SERVER_API_USER: ${{ secrets.SERVER_API_USER }}
+          SERVER_API_PASSWORD: ${{ secrets.SERVER_API_PASSWORD }}
+          FIREWALL_ID: ${{ secrets.FIREWALL_ID }}
+        run: |
+          TOKEN=$(curl -s \
+            -d "client_id=${SERVER_CLIENT_ID}" \
+            -d "client_secret=${SERVER_CLIENT_SECRET}" \
+            --data-urlencode "username=${SERVER_API_USER}" \
+            --data-urlencode "password=${SERVER_API_PASSWORD}" \
+            -d "grant_type=password" \
+            'https://auth.contabo.com/auth/realms/contabo/protocol/openid-connect/token' \
+            | jq -r '.access_token')
+
+          if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
+            echo "Failed to obtain Contabo access token for cleanup"
+            exit 1
+          fi
+
+          FIREWALL=$(curl -s \
+            -H "Authorization: Bearer ${TOKEN}" \
+            -H "x-request-id: $(cat /proc/sys/kernel/random/uuid)" \
+            "https://api.contabo.com/v1/firewalls/${FIREWALL_ID}")
+
+          CURRENT_INBOUND=$(echo "${FIREWALL}" | jq '.data[0].rules.inbound // []')
+
+          UPDATED_INBOUND=$(echo "${CURRENT_INBOUND}" | jq \
+            'map(if .displayName == "GithubActionsCICD"
+              then . + {"status": "inactive"}
+              else .
+              end)')
+
+          PUT_BODY=$(jq -n --argjson inbound "$UPDATED_INBOUND" '{"rules": {"inbound": $inbound}}')
+
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X PUT \
+            -H "Authorization: Bearer ${TOKEN}" \
+            -H "x-request-id: $(cat /proc/sys/kernel/random/uuid)" \
+            -H "Content-Type: application/json" \
+            -d "${PUT_BODY}" \
+            "https://api.contabo.com/v1/firewalls/${FIREWALL_ID}")
+
+          if [ "${HTTP_CODE}" != "200" ]; then
+            echo "Failed to close firewall (HTTP ${HTTP_CODE})"
+            exit 1
+          fi
+
+          echo "Firewall rule deactivated for ${{ steps.firewall-open.outputs.runner_ip }}"
