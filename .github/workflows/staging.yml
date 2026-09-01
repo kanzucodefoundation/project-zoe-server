@@ -6,11 +6,11 @@ on:
 
 jobs:
   build-and-deploy:
-    runs-on: ubuntu-22.04  # Updated from ubuntu-latest
+    runs-on: ubuntu-22.04
 
     steps:
       - name: Checkout the repository
-        uses: actions/checkout@v4  # Updated from v2
+        uses: actions/checkout@v4
 
       - name: Setup Node.js
         uses: volta-cli/action@v1
@@ -19,69 +19,88 @@ jobs:
           npm-version: '8.x'
 
       - name: Cache dependencies
-        uses: actions/cache@v4  # Updated from v2
+        uses: actions/cache@v4
         with:
-          path: |
-            **/node_modules
+          path: '**/node_modules'
           key: ${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
 
       - name: Install dependencies
-        run: |
-          npm install   
+        run: npm install
 
       - name: Run tests
         run: npm test -- --forceExit
 
-      - name: Create an .env file
+      - name: Create .env file
         env:
-          STAGING_ENV_FILE: ${{ secrets.STAGING_ENV_FILE }}
+          DB_USERNAME: ${{ secrets.STAGING_DB_USERNAME }}
+          DB_PASSWORD: ${{ secrets.STAGING_DB_PASSWORD }}
+          DB_DATABASE: ${{ secrets.STAGING_DB_DATABASE }}
+          MAPS_URL: ${{ secrets.STAGING_MAPS_URL }}
+          MAPS_KEY: ${{ secrets.STAGING_MAPS_KEY }}
+          APP_URL: ${{ secrets.STAGING_APP_URL }}
+          POSTMARK_SERVER_TOKEN: ${{ secrets.STAGING_POSTMARK_SERVER_TOKEN }}
+          POSTMARK_MESSAGE_STREAM: ${{ secrets.STAGING_POSTMARK_MESSAGE_STREAM }}
+          EMAIL_SENDER: ${{ secrets.STAGING_EMAIL_SENDER }}
         run: |
-          echo $STAGING_ENV_FILE | base64 --decode > ./.env
+          cat > .env << EOF
+          PORT=9080
+          DB_USERNAME=$DB_USERNAME
+          DB_PASSWORD=$DB_PASSWORD
+          DB_HOST=localhost
+          DB_PORT=5432
+          DB_DATABASE=$DB_DATABASE
+          DB_SYNCHRONIZE=false
+          MAPS_URL=$MAPS_URL
+          MAPS_KEY=$MAPS_KEY
+          APP_URL=$APP_URL
+          POSTMARK_SERVER_TOKEN=$POSTMARK_SERVER_TOKEN
+          POSTMARK_MESSAGE_STREAM=$POSTMARK_MESSAGE_STREAM
+          EMAIL_SENDER=$EMAIL_SENDER
+          EOF
 
       - name: Build
-        run: |
-          DISABLE_ESLINT_PLUGIN=true npm run build
+        run: DISABLE_ESLINT_PLUGIN=true npm run build
 
       - name: Archive npm failure logs
-        uses: actions/upload-artifact@v4  # Updated from v3
+        uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: npm-logs
           path: ~/.npm/_logs
 
       - name: Configure SSH
+        env:
+          SERVER_SSH_KEY: ${{ secrets.SERVER_SSH_KEY }}
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+          SERVER_USERNAME: ${{ secrets.SERVER_USERNAME }}
         run: |
           mkdir -p ~/.ssh/
-          echo "$DO_PRIVATE_KEY" > ~/.ssh/project-zoe-prod-1.key
-          chmod 600 ~/.ssh/project-zoe-prod-1.key
-          cat >>~/.ssh/config <<END
-          Host project-zoe-prod-1
-            HostName $DO_HOST
-            User $DO_USERNAME
-            IdentityFile ~/.ssh/project-zoe-prod-1.key
+          echo "$SERVER_SSH_KEY" > ~/.ssh/projectzoe.key
+          chmod 600 ~/.ssh/projectzoe.key
+          cat >> ~/.ssh/config << EOF
+          Host projectzoe-prod
+            HostName $SERVER_HOST
+            User $SERVER_USERNAME
+            IdentityFile ~/.ssh/projectzoe.key
             StrictHostKeyChecking no
-          END
-        env:
-          DO_USERNAME: ${{ secrets.DO_USERNAME }}
-          DO_PRIVATE_KEY: ${{ secrets.DO_PRIVATE_KEY }}
-          DO_HOST: ${{ secrets.DO_HOST }}
-          
-      - name: Deploy the built app folder
-        run: rsync -rtvO --delete ./dist/ project-zoe-prod-1:/opt/staging/project-zoe-server/dist/
-        
-      - name: Deploy the entire app folder
-        run: rsync -rtvO --delete ./ project-zoe-prod-1:/opt/staging/project-zoe-server/raw/
-      
-      - name: Deploy the node modules folder
-        run: rsync -rtvO --delete ./node_modules/ project-zoe-prod-1:/opt/staging/project-zoe-server/node_modules/
-      
-      - name: Deploy the .env file
+          EOF
+
+      - name: Deploy dist
+        run: rsync -rtvO --delete ./dist/ projectzoe-prod:/opt/projectzoe/staging/server/dist/
+
+      - name: Deploy source
+        run: rsync -rtvO --delete ./ projectzoe-prod:/opt/projectzoe/staging/server/raw/
+
+      - name: Deploy node_modules
+        run: rsync -rtvO --delete ./node_modules/ projectzoe-prod:/opt/projectzoe/staging/server/node_modules/
+
+      - name: Deploy .env
         run: |
-          rsync -rtvO ./.env project-zoe-prod-1:/opt/staging/project-zoe-server/
-          rsync -rtvO ./.env project-zoe-prod-1:/opt/staging/project-zoe-server/dist
+          rsync -rtvO ./.env projectzoe-prod:/opt/projectzoe/staging/server/
+          rsync -rtvO ./.env projectzoe-prod:/opt/projectzoe/staging/server/dist/
 
       - name: Run database migrations
-        run: ssh project-zoe-prod-1 'cd /opt/staging/project-zoe-server/raw/ && npm run migration:run'
+        run: ssh projectzoe-prod 'cd /opt/projectzoe/staging/server/raw/ && npm run migration:run'
 
-      - name: Run the app
-        run: ssh project-zoe-prod-1 'cd /opt/staging/project-zoe-server/dist/ && pm2 delete zoeServerStaging  2> /dev/null || true && production=true pm2 start src/main.js --name zoeServerStaging'
+      - name: Restart app
+        run: ssh projectzoe-prod 'cd /opt/projectzoe/staging/server/dist/ && pm2 delete zoeServerStaging 2>/dev/null || true && production=true pm2 start src/main.js --name zoeServerStaging'
