@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Injectable,
   Logger,
+  NotFoundException,
   Inject,
 } from '@nestjs/common';
 import { TenantContext } from '../shared/tenant/tenant-context';
@@ -1673,8 +1674,43 @@ export class ContactsService {
     return contact;
   }
 
+  /**
+   * Soft-deletes a contact: the row stays in the database with `deletedAt`
+   * stamped, so historical attendance, giving and report rows keep their
+   * foreign keys intact while the contact disappears from every read path.
+   *
+   * Group memberships have no delete column of their own, so they are
+   * deactivated in the same transaction — otherwise a deleted contact would
+   * still be counted on group rosters, which query `group_membership`
+   * directly without joining `contact`.
+   */
   async remove(id: number): Promise<void> {
-    await this.repository.delete(id);
+    const tenantId = this.tenantContext.requireTenant();
+    const contact = await this.repository.findOne({
+      where: { id, tenant: { id: tenantId } },
+    });
+
+    if (!contact) {
+      throw new NotFoundException(`Contact with id ${id} not found`);
+    }
+
+    await this.connection.transaction(async(manager) => {
+      await manager
+        .createQueryBuilder()
+        .update(GroupMembership)
+        .set({ isActive: false, leftAt: () => 'CURRENT_TIMESTAMP' })
+        .where('"contactId" = :id', { id })
+        .andWhere('"isActive" = true')
+        .execute();
+
+      await manager.getRepository(Contact).softDelete(id);
+    });
+
+    this.logger.business('log', 'Contact soft-deleted', {
+      operation: 'removeContact',
+      resource: 'contacts',
+      resourceId: id,
+    });
   }
 
   async findByEmail(email: string): Promise<Contact | undefined> {

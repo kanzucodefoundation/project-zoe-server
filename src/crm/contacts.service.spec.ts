@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { NotFoundException } from '@nestjs/common';
 import { ContactsService } from './contacts.service';
 import { GoogleService } from '../vendor/google.service';
 import { GroupFinderService } from './group-finder/group-finder.service';
@@ -396,6 +397,59 @@ describe('ContactsService', () => {
       ).rejects.toThrow('Email already in use by another user');
 
       expect(mockRepositories.user.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('remove', () => {
+    let qbMock: any;
+    let contactRepoInTransaction: { softDelete: jest.Mock };
+
+    beforeEach(() => {
+      qbMock = {
+        update: jest.fn().mockReturnThis(),
+        set: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        execute: jest.fn().mockResolvedValue(undefined),
+      };
+      contactRepoInTransaction = { softDelete: jest.fn() };
+
+      const manager = {
+        createQueryBuilder: jest.fn().mockReturnValue(qbMock),
+        getRepository: jest.fn().mockReturnValue(contactRepoInTransaction),
+      };
+      (service as any).connection.transaction = jest.fn((cb: any) =>
+        cb(manager),
+      );
+    });
+
+    it('soft-deletes the contact and deactivates its memberships', async () => {
+      mockRepositories.contact.findOne.mockResolvedValue({ id: 7 });
+
+      await service.remove(7);
+
+      expect(mockRepositories.contact.findOne).toHaveBeenCalledWith({
+        where: { id: 7, tenant: { id: 1 } },
+      });
+      expect(qbMock.update).toHaveBeenCalledWith(GroupMembership);
+      expect(qbMock.set).toHaveBeenCalledWith(
+        expect.objectContaining({ isActive: false }),
+      );
+      expect(qbMock.where).toHaveBeenCalledWith('"contactId" = :id', {
+        id: 7,
+      });
+      // The row must survive: soft delete only, never a hard delete
+      expect(contactRepoInTransaction.softDelete).toHaveBeenCalledWith(7);
+      expect(mockRepositories.contact.delete).not.toHaveBeenCalled();
+    });
+
+    it('throws NotFound and touches nothing when the contact is not in this tenant', async () => {
+      mockRepositories.contact.findOne.mockResolvedValue(null);
+
+      await expect(service.remove(7)).rejects.toThrow(NotFoundException);
+
+      expect((service as any).connection.transaction).not.toHaveBeenCalled();
+      expect(contactRepoInTransaction.softDelete).not.toHaveBeenCalled();
     });
   });
 });

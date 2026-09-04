@@ -1,6 +1,7 @@
 import { MemberEventActivities } from '../../events/entities/member-event-activities.entity';
 import {
   Column,
+  DeleteDateColumn,
   Entity,
   Index,
   JoinColumn,
@@ -50,6 +51,14 @@ export default class Contact {
     default: ContactStatus.Active,
   })
   status: ContactStatus | null;
+
+  /**
+   * Set when the contact is soft-deleted. TypeORM adds `deletedAt IS NULL`
+   * to every repository/query-builder read automatically, so deleted contacts
+   * drop out of listings, joins and reports without any per-query changes.
+   */
+  @DeleteDateColumn({ type: 'timestamp', nullable: true })
+  deletedAt: Date | null;
 
   @OneToOne((type) => Person, (it) => it.contact, {
     cascade: true,
