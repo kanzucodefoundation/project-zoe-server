@@ -153,6 +153,39 @@ export class ReconciliationService {
     return this.repository.save(match);
   }
 
+  /**
+   * Approve or reject the match on a transaction.
+   *
+   * The reconciliation screen works in transactions — it lists them and never
+   * sees match ids — while updateMatch works in matches. This resolves one to
+   * the other, taking the most recent match when a transaction has been
+   * matched more than once, then reuses updateMatch so the APPROVED side
+   * effects (approvedBy/approvedAt, transaction -> RECONCILED) stay in one place.
+   */
+  async setStatusForTransaction(
+    transactionId: number,
+    status: MatchStatus,
+    user: any,
+  ): Promise<ReconciliationMatch> {
+    const tenantId = this.tenantContext.requireTenant();
+
+    const match = await this.repository.findOne({
+      where: {
+        transaction: { id: transactionId },
+        tenant: { id: tenantId },
+      },
+      order: { id: 'DESC' },
+    });
+
+    if (!match) {
+      throw new NotFoundException(
+        `No reconciliation match found for transaction ${transactionId}`,
+      );
+    }
+
+    return this.updateMatch({ id: match.id, status }, user);
+  }
+
   async bulkApprove(
     dto: BulkApproveMatchesDto,
     user: any,

@@ -7,11 +7,14 @@ import {
   IsBoolean,
   IsArray,
   ValidateNested,
+  Validate,
   Min,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { TransactionCategory } from '../enums/transaction-category.enum';
+import { IsRuleConditions, RuleConditions } from './category-rule-conditions';
 
+/** @deprecated Superseded by the conditions object; kept for legacy payloads. */
 export class RuleConditionDto {
   @IsNotEmpty()
   @IsString()
@@ -36,10 +39,8 @@ export class CreateCategoryRuleDto {
   category: TransactionCategory;
 
   @IsNotEmpty()
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => RuleConditionDto)
-  conditions: RuleConditionDto[];
+  @Validate(IsRuleConditions)
+  conditions: RuleConditions;
 
   @IsOptional()
   @Type(() => Number)
@@ -71,10 +72,8 @@ export class UpdateCategoryRuleDto {
   category?: TransactionCategory;
 
   @IsOptional()
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => RuleConditionDto)
-  conditions?: RuleConditionDto[];
+  @Validate(IsRuleConditions)
+  conditions?: RuleConditions;
 
   @IsOptional()
   @Type(() => Number)

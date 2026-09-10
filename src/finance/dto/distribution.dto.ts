@@ -1,6 +1,7 @@
 import {
   IsNotEmpty,
   IsOptional,
+  IsBoolean,
   IsString,
   IsEnum,
   IsNumber,
@@ -93,12 +94,42 @@ export class SearchBatchDto {
   skip?: number = 0;
 }
 
+/**
+ * Two ways to ask for distributions:
+ *
+ *  - `matchIds` — calculate for an explicit set of approved matches.
+ *  - `name` + `periodStart` + `periodEnd` — what the Distributions screen
+ *    collects: create a batch for the period and calculate over every approved
+ *    match that falls inside it.
+ *
+ * Exactly one form is required; the service rejects a request carrying neither.
+ */
 export class CalculateDistributionsDto {
-  @IsNotEmpty()
+  @IsOptional()
   @IsArray()
   @Type(() => Number)
   @IsNumber({}, { each: true })
-  matchIds: number[];
+  matchIds?: number[];
+
+  @IsOptional()
+  @IsString()
+  name?: string;
+
+  @IsOptional()
+  @IsDateString()
+  periodStart?: string;
+
+  @IsOptional()
+  @IsDateString()
+  periodEnd?: string;
+
+  /**
+   * Only approved matches are ever distributed, so this is accepted for
+   * request compatibility but does not widen the selection.
+   */
+  @IsOptional()
+  @IsBoolean()
+  includeApprovedOnly?: boolean;
 
   @IsOptional()
   @IsString()

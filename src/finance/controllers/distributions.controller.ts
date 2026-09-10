@@ -55,6 +55,15 @@ export class DistributionsController {
     return this.service.updateBatch(data, req.user);
   }
 
+  /** Move a draft batch into the approval queue. */
+  @Post('batches/:id/submit')
+  async submitBatch(
+    @Param('id') id: number,
+    @Request() req: any,
+  ): Promise<DistributionBatch> {
+    return this.service.submitBatch(id, req.user);
+  }
+
   @Post('batches/:id/approve')
   async approveBatch(
     @Param('id') id: number,

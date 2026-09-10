@@ -143,3 +143,18 @@ export class RunMatchingDto {
 }
 
 export default CreateMatchDto;
+
+/**
+ * A suggested contact for an unreconciled transaction, as rendered in the
+ * manual match dialog. Response-only — nothing is validated inbound.
+ */
+export class MatchSuggestionDto {
+  contact: {
+    id: number;
+    name: string;
+    phone?: string;
+    location?: string;
+  };
+  confidenceScore: number;
+  matchReasons: string[];
+}

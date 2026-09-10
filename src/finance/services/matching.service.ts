@@ -1,4 +1,4 @@
-import { Injectable, Inject } from '@nestjs/common';
+import { Injectable, Inject, NotFoundException } from '@nestjs/common';
 import { Repository, Connection } from 'typeorm';
 import Transaction from '../entities/transaction.entity';
 import ContactPaymentMethod from '../entities/contact-payment-method.entity';
@@ -8,6 +8,8 @@ import Phone from '../../crm/entities/phone.entity';
 import { MatchType } from '../enums/match-type.enum';
 import { MatchStatus } from '../enums/match-status.enum';
 import { TenantContext } from '../../shared/tenant/tenant-context';
+import { getPersonFullName } from '../../crm/crm.helpers';
+import { MatchSuggestionDto } from '../dto/reconciliation.dto';
 import { AppLogger, ContextLogger } from '../../utils/app-logger.service';
 import { normalizePhone, calculateNameSimilarity } from '../finance.helpers';
 import { ReconciliationPluginRegistry } from '../plugins/reconciliation-plugin.registry';
@@ -22,6 +24,11 @@ interface MatchCandidate {
   matchCriteria: {
     method: string;
     matchedValue?: string;
+    /**
+     * Name similarity as a whole percentage (0-100), not a 0-1 fraction.
+     * calculateNameSimilarity returns a fraction; producers scale it once
+     * before storing it here, so consumers must use it as-is.
+     */
     similarity?: number;
     historicalBonus?: boolean;
   };
@@ -48,6 +55,95 @@ export class MatchingService {
     this.contactRepository = connection.getRepository(Contact);
     this.phoneRepository = connection.getRepository(Phone);
     this.logger = this.appLogger.createContextLogger('MatchingService');
+  }
+
+  /**
+   * Human-readable labels for the internal match methods, so the reconciliation
+   * screen can explain *why* a contact was suggested rather than showing a
+   * bare identifier like "contact_phone_normalized".
+   */
+  private static readonly MATCH_METHOD_LABELS: Record<string, string> = {
+    payment_method_phone: 'Registered payment method phone',
+    contact_phone: 'Contact phone number',
+    contact_phone_normalized: 'Contact phone number (normalised)',
+    fuzzy_name: 'Similar sender name',
+  };
+
+  /**
+   * Suggestions for the manual match dialog. Returns an array because that is
+   * what the screen renders; the matcher currently produces at most one
+   * candidate, so the array holds zero or one entry.
+   */
+  async getSuggestionsForTransaction(
+    transactionId: number,
+    user: any,
+    pluginId?: string,
+  ): Promise<MatchSuggestionDto[]> {
+    const tenantId = this.tenantContext.requireTenant();
+
+    const transaction = await this.transactionRepository.findOne({
+      where: { id: transactionId, tenant: { id: tenantId } },
+    });
+
+    if (!transaction) {
+      throw new NotFoundException(
+        `Transaction with ID ${transactionId} not found`,
+      );
+    }
+
+    this.logger.business('log', 'Fetching match suggestions', {
+      operation: 'getMatchSuggestions',
+      userId: user?.id,
+      resourceId: transactionId,
+      resource: 'transaction',
+    });
+
+    const candidate = await this.findMatchForTransaction(transaction, pluginId);
+    if (!candidate) {
+      return [];
+    }
+
+    // findMatchForTransaction takes several paths and not all of them load the
+    // person/phones relations, so re-read the contact for a consistent shape.
+    const contact = await this.contactRepository.findOne({
+      where: { id: candidate.contact.id, tenant: { id: tenantId } },
+      relations: ['person', 'phones'],
+    });
+
+    if (!contact) {
+      return [];
+    }
+
+    const criteria = candidate.matchCriteria || ({} as any);
+    const matchReasons: string[] = [];
+
+    const label =
+      MatchingService.MATCH_METHOD_LABELS[criteria.method] || criteria.method;
+    if (label) {
+      matchReasons.push(label);
+    }
+    if (criteria.matchedValue) {
+      matchReasons.push(`Matched on ${criteria.matchedValue}`);
+    }
+    if (typeof criteria.similarity === 'number') {
+      // Already a whole percentage where it is produced, so do not rescale.
+      matchReasons.push(`${Math.round(criteria.similarity)}% name similarity`);
+    }
+    if (criteria.historicalBonus) {
+      matchReasons.push('Previously reconciled to this contact');
+    }
+
+    return [
+      {
+        contact: {
+          id: contact.id,
+          name: getPersonFullName(contact.person) || `Contact ${contact.id}`,
+          phone: contact.phones?.[0]?.value ?? undefined,
+        },
+        confidenceScore: candidate.confidenceScore,
+        matchReasons,
+      },
+    ];
   }
 
   async findMatchForTransaction(

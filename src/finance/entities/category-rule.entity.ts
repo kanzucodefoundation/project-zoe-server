@@ -10,6 +10,7 @@ import {
 import { Tenant } from '../../tenants/entities/tenant.entity';
 import FinancialAccount from './financial-account.entity';
 import { TransactionCategory } from '../enums/transaction-category.enum';
+import { RuleConditions } from '../dto/category-rule-conditions';
 
 @Entity()
 @Index(['tenant', 'id'])
@@ -30,12 +31,14 @@ export default class CategoryRule {
   })
   category: TransactionCategory;
 
+  /**
+   * Either the rule-builder object (accounts / keywords / daysOfWeek /
+   * timeRange / dateRange) or, for rules written before the builder existed,
+   * the original array of field/operator/value conditions. Both live happily
+   * in jsonb, so no migration is needed to read the old ones.
+   */
   @Column({ type: 'jsonb' })
-  conditions: {
-    field: string;
-    operator: 'contains' | 'equals' | 'startsWith' | 'endsWith' | 'regex';
-    value: string;
-  }[];
+  conditions: RuleConditions;
 
   @Column({ type: 'int', default: 0 })
   priority: number;

@@ -20,7 +20,9 @@ import {
   BulkApproveMatchesDto,
   SearchMatchDto,
   RunMatchingDto,
+  MatchSuggestionDto,
 } from '../dto/reconciliation.dto';
+import { MatchStatus } from '../enums/match-status.enum';
 import ReconciliationMatch from '../entities/reconciliation-match.entity';
 
 @UseInterceptors(SentryInterceptor, TenantContextInterceptor)
@@ -47,6 +49,47 @@ export class ReconciliationController {
       data.minConfidenceThreshold,
       data.autoApproveAboveThreshold,
       data.pluginId,
+      req.user,
+    );
+  }
+
+  /**
+   * Suggested contacts for the manual match dialog.
+   * Keyed by transaction, which is what that screen has to hand.
+   */
+  @Get('suggestions/:transactionId')
+  async getSuggestions(
+    @Param('transactionId') transactionId: number,
+    @Request() req: any,
+  ): Promise<MatchSuggestionDto[]> {
+    return this.matchingService.getSuggestionsForTransaction(
+      transactionId,
+      req.user,
+    );
+  }
+
+  /** Approve the match on a transaction, marking the transaction reconciled. */
+  @Put('approve/:transactionId')
+  async approveForTransaction(
+    @Param('transactionId') transactionId: number,
+    @Request() req: any,
+  ): Promise<ReconciliationMatch> {
+    return this.reconciliationService.setStatusForTransaction(
+      transactionId,
+      MatchStatus.APPROVED,
+      req.user,
+    );
+  }
+
+  /** Reject the match on a transaction, leaving the transaction unreconciled. */
+  @Put('reject/:transactionId')
+  async rejectForTransaction(
+    @Param('transactionId') transactionId: number,
+    @Request() req: any,
+  ): Promise<ReconciliationMatch> {
+    return this.reconciliationService.setStatusForTransaction(
+      transactionId,
+      MatchStatus.REJECTED,
       req.user,
     );
   }
