@@ -35,14 +35,20 @@ describe('ReconciliationService — transaction-scoped status', () => {
         if (entity === Group) return mockRepositories.group;
         return {};
       }) as any,
-      // Simulate the transaction callback with a manager that mirrors the repos.
+      // Simulate the transaction callback. count delegates to the match repo
+      // mock (so tests can control it via mockResolvedValue); save routes by
+      // entity — Transaction goes to the transaction repo mock, ReconciliationMatch
+      // is returned as-is (the match object already has the mutations applied).
       transaction: jest.fn(async (cb: (manager: any) => Promise<any>) =>
         cb({
           findOne: jest.fn().mockResolvedValue(null),
           count: jest.fn(async () => mockRepositories.match.count()),
-          save: jest.fn(async (_entity: any, data: any) =>
-            mockRepositories.transaction.save(data),
-          ),
+          save: jest.fn(async (entity: any, data: any) => {
+            if (entity === Transaction) {
+              return mockRepositories.transaction.save(data);
+            }
+            return data;
+          }),
         }),
       ) as any,
     };

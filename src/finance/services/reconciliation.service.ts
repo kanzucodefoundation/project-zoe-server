@@ -157,10 +157,16 @@ export class ReconciliationService {
         match.approvedBy = null;
         match.approvedAt = null;
 
-        // Count + status revert must be atomic. A pessimistic lock on the
-        // transaction row serialises concurrent rejections that would otherwise
-        // both see the other match as still APPROVED and both skip the revert.
-        await this.connection.transaction(async (manager) => {
+        if (dto.notes !== undefined) {
+          match.notes = dto.notes;
+        }
+
+        // The match save must be inside the same transaction as the count so
+        // that two concurrent rejections cannot both read the other as APPROVED
+        // before either commits. With the match saved under the lock, the
+        // second request's count sees the first match already REJECTED and
+        // correctly reverts the transaction to PENDING.
+        return this.connection.transaction(async (manager) => {
           await manager.findOne(Transaction, {
             where: { id: match.transaction.id },
             lock: { mode: 'pessimistic_write' },
@@ -179,6 +185,8 @@ export class ReconciliationService {
             match.transaction.status = TransactionStatus.PENDING;
             await manager.save(Transaction, match.transaction);
           }
+
+          return manager.save(ReconciliationMatch, match);
         });
       }
     }
