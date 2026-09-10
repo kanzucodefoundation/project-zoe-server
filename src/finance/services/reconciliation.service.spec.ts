@@ -35,6 +35,16 @@ describe('ReconciliationService — transaction-scoped status', () => {
         if (entity === Group) return mockRepositories.group;
         return {};
       }) as any,
+      // Simulate the transaction callback with a manager that mirrors the repos.
+      transaction: jest.fn(async (cb: (manager: any) => Promise<any>) =>
+        cb({
+          findOne: jest.fn().mockResolvedValue(null),
+          count: jest.fn(async () => mockRepositories.match.count()),
+          save: jest.fn(async (_entity: any, data: any) =>
+            mockRepositories.transaction.save(data),
+          ),
+        }),
+      ) as any,
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -111,7 +121,12 @@ describe('ReconciliationService — transaction-scoped status', () => {
 
   it('rejecting the only approved match reverts the transaction to PENDING', async () => {
     const transaction = { id: 7, status: TransactionStatus.RECONCILED };
-    mockRepositories.match.findOne.mockResolvedValue({ id: 55, transaction });
+    mockRepositories.match.findOne.mockResolvedValue({
+      id: 55,
+      transaction,
+      approvedBy: { id: 1 },
+      approvedAt: new Date(),
+    });
     // No other approved match exists
     mockRepositories.match.count.mockResolvedValue(0);
 
@@ -122,13 +137,19 @@ describe('ReconciliationService — transaction-scoped status', () => {
     );
 
     expect(result.status).toBe(MatchStatus.REJECTED);
+    expect(result.approvedBy).toBeNull();
+    expect(result.approvedAt).toBeNull();
     expect(transaction.status).toBe(TransactionStatus.PENDING);
-    expect(mockRepositories.transaction.save).toHaveBeenCalledWith(transaction);
   });
 
   it('rejecting when another approved match exists keeps the transaction RECONCILED', async () => {
     const transaction = { id: 7, status: TransactionStatus.RECONCILED };
-    mockRepositories.match.findOne.mockResolvedValue({ id: 55, transaction });
+    mockRepositories.match.findOne.mockResolvedValue({
+      id: 55,
+      transaction,
+      approvedBy: { id: 1 },
+      approvedAt: new Date(),
+    });
     // Another approved match still exists
     mockRepositories.match.count.mockResolvedValue(1);
 
@@ -139,6 +160,9 @@ describe('ReconciliationService — transaction-scoped status', () => {
     );
 
     expect(result.status).toBe(MatchStatus.REJECTED);
+    // Thread 11: approval metadata cleared even when transaction stays RECONCILED
+    expect(result.approvedBy).toBeNull();
+    expect(result.approvedAt).toBeNull();
     expect(transaction.status).toBe(TransactionStatus.RECONCILED);
   });
 

@@ -25,7 +25,7 @@ export class ReconciliationService {
   private readonly logger: ContextLogger;
 
   constructor(
-    @Inject('CONNECTION') connection: Connection,
+    @Inject('CONNECTION') private connection: Connection,
     private tenantContext: TenantContext,
     private appLogger: AppLogger,
   ) {
@@ -152,23 +152,34 @@ export class ReconciliationService {
         dto.status === MatchStatus.REJECTED &&
         match.transaction.status === TransactionStatus.RECONCILED
       ) {
-        // Revert to PENDING only when no other approved match remains, so a
-        // transaction with two matches stays RECONCILED if one is kept.
-        const otherApproved = await this.repository.count({
-          where: {
-            id: Not(match.id),
-            tenant: { id: tenantId },
-            transaction: { id: match.transaction.id },
-            status: MatchStatus.APPROVED,
-          },
-        });
+        // A rejected match must not retain approval metadata regardless of
+        // whether the transaction itself reverts.
+        match.approvedBy = null;
+        match.approvedAt = null;
 
-        if (otherApproved === 0) {
-          match.approvedBy = null;
-          match.approvedAt = null;
-          match.transaction.status = TransactionStatus.PENDING;
-          await this.transactionRepository.save(match.transaction);
-        }
+        // Count + status revert must be atomic. A pessimistic lock on the
+        // transaction row serialises concurrent rejections that would otherwise
+        // both see the other match as still APPROVED and both skip the revert.
+        await this.connection.transaction(async (manager) => {
+          await manager.findOne(Transaction, {
+            where: { id: match.transaction.id },
+            lock: { mode: 'pessimistic_write' },
+          });
+
+          const otherApproved = await manager.count(ReconciliationMatch, {
+            where: {
+              id: Not(match.id),
+              tenant: { id: tenantId },
+              transaction: { id: match.transaction.id },
+              status: MatchStatus.APPROVED,
+            },
+          });
+
+          if (otherApproved === 0) {
+            match.transaction.status = TransactionStatus.PENDING;
+            await manager.save(Transaction, match.transaction);
+          }
+        });
       }
     }
 
