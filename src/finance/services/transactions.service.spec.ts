@@ -23,6 +23,8 @@ describe('TransactionsService — file import', () => {
   let mockCategoryRules: {
     categorizeTransaction: jest.Mock;
     matchTransaction: jest.Mock;
+    loadRulesForAccount: jest.Mock;
+    evaluateWithRules: jest.Mock;
   };
 
   beforeEach(async () => {
@@ -45,6 +47,8 @@ describe('TransactionsService — file import', () => {
     mockCategoryRules = {
       categorizeTransaction: jest.fn(),
       matchTransaction: jest.fn().mockResolvedValue(null),
+      loadRulesForAccount: jest.fn().mockResolvedValue([]),
+      evaluateWithRules: jest.fn().mockReturnValue(null),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -163,13 +167,13 @@ describe('TransactionsService — file import', () => {
         },
       );
 
-      expect(mockCategoryRules.matchTransaction).not.toHaveBeenCalled();
+      expect(mockCategoryRules.loadRulesForAccount).not.toHaveBeenCalled();
       expect(result[0].category).toBe(TransactionCategory.OFFERING);
       expect(result[0].matchedRule).toBe('Default category');
     });
 
     it('prefers a matched rule over the default category', async () => {
-      mockCategoryRules.matchTransaction.mockResolvedValue({
+      mockCategoryRules.evaluateWithRules.mockReturnValue({
         category: TransactionCategory.TITHE,
         rule: 'Sunday Morning Offering',
       });
@@ -188,7 +192,7 @@ describe('TransactionsService — file import', () => {
     });
 
     it('falls back to the default when the rules engine matches nothing', async () => {
-      mockCategoryRules.matchTransaction.mockResolvedValue(null);
+      // evaluateWithRules already returns null by default in beforeEach
 
       const result = await parse(
         asUpload('statement.csv', 'Date,Amount\n2026-09-01,1000'),

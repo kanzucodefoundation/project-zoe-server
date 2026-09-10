@@ -1,4 +1,9 @@
-import { Injectable, Inject, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  Inject,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { Repository, Connection, In, Between } from 'typeorm';
 import Distribution from '../entities/distribution.entity';
 import DistributionBatch from '../entities/distribution-batch.entity';
@@ -74,7 +79,10 @@ export class DistributionsService {
     return this.batchRepository.save(batch);
   }
 
-  async createBatch(dto: CreateBatchDto, user: any): Promise<DistributionBatch> {
+  async createBatch(
+    dto: CreateBatchDto,
+    user: any,
+  ): Promise<DistributionBatch> {
     const tenantId = this.tenantContext.requireTenant();
 
     this.logger.business('log', 'Creating distribution batch', {
@@ -127,7 +135,6 @@ export class DistributionsService {
       throw new BadRequestException('No distribution plugin available');
     }
 
-    
     // The screen sends a name and a period rather than match ids: build the
     // batch here and gather the approved matches that fall inside it, so the
     // caller does not have to resolve them first.
@@ -169,7 +176,7 @@ export class DistributionsService {
             ? `No approved matches between ${dto.periodStart} and ${dto.periodEnd}. ` +
               `${pending} match(es) there are still awaiting approval — approve them on the Reconciliation screen first.`
             : `No matched transactions between ${dto.periodStart} and ${dto.periodEnd}. ` +
-              `Match transactions to contacts on the Reconciliation screen, then approve them.`,
+              'Match transactions to contacts on the Reconciliation screen, then approve them.',
         );
       }
 
@@ -180,8 +187,10 @@ export class DistributionsService {
         created.tenant = { id: tenantId } as any;
         created.name = dto.name || `Distribution ${dto.periodStart}`;
         created.status = BatchStatus.DRAFT;
-        created.periodStart = new Date(dto.periodStart);
-        created.periodEnd = new Date(dto.periodEnd);
+        // Store the same finance-zone boundaries used for match selection so
+        // the stored period and the selection window describe one window.
+        created.periodStart = from;
+        created.periodEnd = to;
         created.totalAmount = 0;
         created.createdBy = { id: user?.id } as any;
 
@@ -218,7 +227,11 @@ export class DistributionsService {
       const amount = Number(match.transaction.amount);
       const category = match.transaction.category;
 
-      const rules = await plugin.calculateDistributions(match, category, amount);
+      const rules = await plugin.calculateDistributions(
+        match,
+        category,
+        amount,
+      );
 
       for (const rule of rules) {
         const distribution = new Distribution();
@@ -280,17 +293,9 @@ export class DistributionsService {
 
     return this.batchRepository.find({
       where,
-      // The batches screen expands each row into its distribution lines, so
-      // they ship with the list — without them the client had an undefined
-      // array to map over.
-      relations: [
-        'createdBy',
-        'approvedBy',
-        'executedBy',
-        'distributions',
-        'distributions.targetAccount',
-        'distributions.targetGroup',
-      ],
+      // Full distribution lines belong in findOneBatch; loading them here for
+      // every batch in the list produces an unbounded payload as batches grow.
+      relations: ['createdBy', 'approvedBy', 'executedBy'],
       skip: dto.skip || 0,
       take: dto.limit || 100,
       order: { createdAt: 'DESC' },
@@ -320,7 +325,10 @@ export class DistributionsService {
     return batch;
   }
 
-  async updateBatch(dto: UpdateBatchDto, user: any): Promise<DistributionBatch> {
+  async updateBatch(
+    dto: UpdateBatchDto,
+    user: any,
+  ): Promise<DistributionBatch> {
     const tenantId = this.tenantContext.requireTenant();
 
     const batch = await this.batchRepository.findOne({
@@ -339,7 +347,8 @@ export class DistributionsService {
     });
 
     if (dto.name !== undefined) batch.name = dto.name;
-    if (dto.periodStart !== undefined) batch.periodStart = new Date(dto.periodStart);
+    if (dto.periodStart !== undefined)
+      batch.periodStart = new Date(dto.periodStart);
     if (dto.periodEnd !== undefined) batch.periodEnd = new Date(dto.periodEnd);
     if (dto.description !== undefined) batch.description = dto.description;
 
@@ -359,10 +368,7 @@ export class DistributionsService {
   }
 
   async approveBatch(id: number, user: any): Promise<DistributionBatch> {
-    return this.updateBatch(
-      { id, status: BatchStatus.APPROVED },
-      user,
-    );
+    return this.updateBatch({ id, status: BatchStatus.APPROVED }, user);
   }
 
   async executeBatch(id: number, user: any): Promise<DistributionBatch> {
@@ -380,10 +386,7 @@ export class DistributionsService {
       metadata: { totalAmount: batch.totalAmount },
     });
 
-    return this.updateBatch(
-      { id, status: BatchStatus.EXECUTED },
-      user,
-    );
+    return this.updateBatch({ id, status: BatchStatus.EXECUTED }, user);
   }
 
   async findDistributions(dto: SearchDistributionDto): Promise<Distribution[]> {

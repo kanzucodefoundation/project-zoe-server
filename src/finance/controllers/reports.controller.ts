@@ -46,8 +46,11 @@ export class ReportsController {
 
     const safe = (value: string) =>
       String(value ?? '').replace(/[^A-Za-z0-9_-]/g, '');
-    const filename = `reconciliation-${safe(startDate)}-to-${safe(endDate)}.csv`;
+    const filename = `reconciliation-${safe(startDate)}-to-${safe(
+      endDate,
+    )}.csv`;
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-store');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.send(csv);
   }

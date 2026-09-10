@@ -1,5 +1,5 @@
 import { Injectable, Inject, NotFoundException } from '@nestjs/common';
-import { Repository, Connection, In } from 'typeorm';
+import { Repository, Connection, In, Not } from 'typeorm';
 import ReconciliationMatch from '../entities/reconciliation-match.entity';
 import Transaction from '../entities/transaction.entity';
 import Contact from '../../crm/entities/contact.entity';
@@ -36,7 +36,10 @@ export class ReconciliationService {
     this.logger = this.appLogger.createContextLogger('ReconciliationService');
   }
 
-  async createMatch(dto: CreateMatchDto, user: any): Promise<ReconciliationMatch> {
+  async createMatch(
+    dto: CreateMatchDto,
+    user: any,
+  ): Promise<ReconciliationMatch> {
     const tenantId = this.tenantContext.requireTenant();
 
     const transaction = await this.transactionRepository.findOne({
@@ -88,7 +91,10 @@ export class ReconciliationService {
     return this.repository.save(match);
   }
 
-  async updateMatch(dto: UpdateMatchDto, user: any): Promise<ReconciliationMatch> {
+  async updateMatch(
+    dto: UpdateMatchDto,
+    user: any,
+  ): Promise<ReconciliationMatch> {
     const tenantId = this.tenantContext.requireTenant();
 
     const match = await this.repository.findOne({
@@ -140,9 +146,29 @@ export class ReconciliationService {
         match.approvedBy = { id: user.id } as any;
         match.approvedAt = new Date();
 
-        // Update transaction status
         match.transaction.status = TransactionStatus.RECONCILED;
         await this.transactionRepository.save(match.transaction);
+      } else if (
+        dto.status === MatchStatus.REJECTED &&
+        match.transaction.status === TransactionStatus.RECONCILED
+      ) {
+        // Revert to PENDING only when no other approved match remains, so a
+        // transaction with two matches stays RECONCILED if one is kept.
+        const otherApproved = await this.repository.count({
+          where: {
+            id: Not(match.id),
+            tenant: { id: tenantId },
+            transaction: { id: match.transaction.id },
+            status: MatchStatus.APPROVED,
+          },
+        });
+
+        if (otherApproved === 0) {
+          match.approvedBy = null;
+          match.approvedAt = null;
+          match.transaction.status = TransactionStatus.PENDING;
+          await this.transactionRepository.save(match.transaction);
+        }
       }
     }
 

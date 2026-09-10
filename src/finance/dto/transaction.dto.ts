@@ -25,10 +25,8 @@ export class CreateTransactionDto {
   @IsNumber()
   amount: number;
 
-  // Preview rows can carry an empty date; importParsed rejects them per row
-  // so the rest of the batch still imports.
-  @IsOptional()
-  @IsString()
+  @IsNotEmpty()
+  @IsDateString()
   transactionDate: string;
 
   @IsOptional()

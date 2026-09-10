@@ -1,3 +1,5 @@
+import { BadRequestException } from '@nestjs/common';
+
 /**
  * Timezone handling for finance imports and category rules.
  *
@@ -147,7 +149,9 @@ export function financeDayRange(
   const endOfDay = parseStatementDate(`${endDate} 23:59:59`, timeZone);
 
   if (!from || !endOfDay) {
-    throw new Error(`Invalid period: ${startDate} to ${endDate}`);
+    throw new BadRequestException(
+      `Invalid period: "${startDate}" to "${endDate}". Dates must be in YYYY-MM-DD format.`,
+    );
   }
 
   // 23:59:59.999 — the last instant before the next day begins.

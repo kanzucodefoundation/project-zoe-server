@@ -120,15 +120,15 @@ export class TransactionsService {
     let imported = 0;
     const errors: string[] = [];
 
-    for (let i = 0; i < rows.length; i++) {
-      const row = rows[i];
+    for (const row of rows) {
+      const rowNum = row.__rowNumber;
 
       try {
         const dateValue = row[dateColumn];
         const amountValue = row[amountColumn];
 
         if (!dateValue || !amountValue) {
-          errors.push(`Row ${i + 2}: Missing required date or amount`);
+          errors.push(`Row ${rowNum}: Missing required date or amount`);
           continue;
         }
 
@@ -136,13 +136,13 @@ export class TransactionsService {
         // the same instant for the same statement row.
         const transactionDate = parseStatementDate(dateValue);
         if (!transactionDate) {
-          errors.push(`Row ${i + 2}: Invalid date format`);
+          errors.push(`Row ${rowNum}: Invalid date format`);
           continue;
         }
 
         const amount = parseFloat(String(amountValue).replace(/[^0-9.-]/g, ''));
         if (isNaN(amount)) {
-          errors.push(`Row ${i + 2}: Invalid amount format`);
+          errors.push(`Row ${rowNum}: Invalid amount format`);
           continue;
         }
 
@@ -172,7 +172,7 @@ export class TransactionsService {
         await this.repository.save(transaction);
         imported++;
       } catch (error) {
-        errors.push(`Row ${i + 2}: ${error.message}`);
+        errors.push(`Row ${rowNum}: ${error.message}`);
       }
     }
 
@@ -258,7 +258,7 @@ export class TransactionsService {
     const rows: any[] = [];
     worksheet.eachRow((row, rowNumber) => {
       if (rowNumber === 1) return;
-      const obj: any = {};
+      const obj: any = { __rowNumber: rowNumber };
       headers.forEach((header, i) => {
         obj[header] = row.getCell(i + 1).value;
       });
@@ -396,9 +396,9 @@ export class TransactionsService {
    */
   private toParsedTransaction(
     row: any,
-    rowIndex: number,
     columns: ReturnType<TransactionsService['resolveColumns']>,
   ): ParsedTransactionDto {
+    const rowIndex: number = row.__rowNumber;
     const errors: string[] = [];
 
     const dateValue = row[columns.dateColumn];
@@ -438,9 +438,7 @@ export class TransactionsService {
     };
 
     return {
-      // Row 1 is the header and the preview uses the file's own numbering,
-      // so the first data row is row 2.
-      rowIndex: rowIndex + 2,
+      rowIndex,
       transactionDate: transactionDate ? transactionDate.toISOString() : '',
       amount: isNaN(amount) ? 0 : amount,
       externalReference: asText(columns.referenceColumn),
@@ -488,38 +486,44 @@ export class TransactionsService {
       },
     });
 
-    const parsed = rows.map((row, index) =>
-      this.toParsedTransaction(row, index, columns),
-    );
+    const parsed = rows.map((row) => this.toParsedTransaction(row, columns));
 
-    // `applyServiceTimeRules` gates the category-rules engine, which is the
-    // only categorisation the finance module has. Rules match on transaction
-    // fields, not service times; when one matches it wins, otherwise the row
-    // falls back to the default category chosen in the wizard.
-    for (const item of parsed) {
-      let matched: { category: TransactionCategory; rule: string } | null =
-        null;
+    // `applyServiceTimeRules` gates the category-rules engine. Load the rules
+    // once for the whole import — calling matchTransaction per row issued one
+    // DB query per row, which is expensive for large statements.
+    if (options.applyServiceTimeRules) {
+      const rules = await this.categoryRulesService.loadRulesForAccount(
+        options.accountId,
+      );
 
-      if (options.applyServiceTimeRules && item.isValid) {
-        const candidate = new Transaction();
-        candidate.amount = item.amount;
-        candidate.transactionDate = new Date(item.transactionDate);
-        candidate.externalReference = item.externalReference;
-        candidate.senderName = item.senderName;
-        candidate.senderPhone = item.senderPhone;
-        candidate.narration = item.narration;
+      for (const item of parsed) {
+        let matched: { category: TransactionCategory; rule: string } | null =
+          null;
 
-        matched = await this.categoryRulesService.matchTransaction(
-          candidate,
-          options.accountId,
-        );
+        if (item.isValid) {
+          const candidate = new Transaction();
+          candidate.amount = item.amount;
+          candidate.transactionDate = new Date(item.transactionDate);
+          candidate.externalReference = item.externalReference;
+          candidate.senderName = item.senderName;
+          candidate.senderPhone = item.senderPhone;
+          candidate.narration = item.narration;
+
+          matched = this.categoryRulesService.evaluateWithRules(
+            candidate,
+            rules,
+            options.accountId,
+          );
+        }
+
+        item.category = matched?.category ?? options.defaultCategory;
+        item.matchedRule = matched ? matched.rule : 'Default category';
       }
-
-      item.category = matched?.category ?? options.defaultCategory;
-      // The preview shows why each row was categorised, as the finance
-      // tutorial describes: a rule name when one fired, otherwise the fact
-      // that it fell back to the wizard's default.
-      item.matchedRule = matched ? matched.rule : 'Default category';
+    } else {
+      for (const item of parsed) {
+        item.category = options.defaultCategory;
+        item.matchedRule = 'Default category';
+      }
     }
 
     return parsed;

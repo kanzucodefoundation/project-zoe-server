@@ -158,6 +158,46 @@ export class CategoryRulesService {
   }
 
   /**
+   * Loads active rules for an account in priority order. Intended for callers
+   * that need to evaluate many transactions — load once, then call
+   * `evaluateWithRules` per row instead of `matchTransaction` per row.
+   */
+  async loadRulesForAccount(accountId?: number): Promise<CategoryRule[]> {
+    const tenantId = this.tenantContext.requireTenant();
+
+    const base = { tenant: { id: tenantId }, isActive: true };
+    const where: any = accountId
+      ? [
+          { ...base, account: { id: accountId } },
+          { ...base, account: IsNull() },
+        ]
+      : base;
+
+    return this.repository.find({
+      where,
+      relations: { account: true },
+      order: { priority: 'DESC' },
+    });
+  }
+
+  /**
+   * Synchronous evaluation against a pre-loaded rule list. Use with
+   * `loadRulesForAccount` to avoid N DB queries for N import rows.
+   */
+  evaluateWithRules(
+    transaction: Transaction,
+    rules: CategoryRule[],
+    accountId?: number,
+  ): { category: TransactionCategory; rule: string } | null {
+    for (const rule of rules) {
+      if (this.matchesRule(transaction, rule, accountId)) {
+        return { category: rule.category, rule: rule.name };
+      }
+    }
+    return null;
+  }
+
+  /**
    * The category for a transaction, or null when no rule matches.
    * Prefer `matchTransaction` when the caller also wants to say *why*.
    */

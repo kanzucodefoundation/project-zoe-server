@@ -51,7 +51,8 @@ export class MatchingService {
   ) {
     this.transactionRepository = connection.getRepository(Transaction);
     this.matchRepository = connection.getRepository(ReconciliationMatch);
-    this.paymentMethodRepository = connection.getRepository(ContactPaymentMethod);
+    this.paymentMethodRepository =
+      connection.getRepository(ContactPaymentMethod);
     this.contactRepository = connection.getRepository(Contact);
     this.phoneRepository = connection.getRepository(Phone);
     this.logger = this.appLogger.createContextLogger('MatchingService');
@@ -152,6 +153,20 @@ export class MatchingService {
   ): Promise<MatchCandidate | null> {
     const tenantId = this.tenantContext.requireTenant();
 
+    // Pre-fetch all contact IDs that have at least one approved match in this
+    // tenant. Used by strategies 1-3 below to award a historical bonus without
+    // issuing one COUNT query per candidate.
+    const approvedMatches = await this.matchRepository.find({
+      where: { tenant: { id: tenantId }, status: MatchStatus.APPROVED },
+      select: ['id'],
+      relations: ['contact'],
+    });
+    const approvedContactIds = new Set(
+      approvedMatches.filter((m) => m.contact?.id).map((m) => m.contact.id),
+    );
+    const hasHistoricalMatch = (contactId: number) =>
+      approvedContactIds.has(contactId);
+
     // Try plugin custom matching first if available
     const plugin = pluginId
       ? this.pluginRegistry.get(pluginId)
@@ -184,18 +199,14 @@ export class MatchingService {
       });
 
       if (paymentMethod?.contact) {
-        const hasHistoricalMatch = await this.hasApprovedHistoricalMatch(
-          paymentMethod.contact.id,
-          tenantId,
-        );
-
+        const historical = hasHistoricalMatch(paymentMethod.contact.id);
         return {
           contact: paymentMethod.contact,
-          confidenceScore: hasHistoricalMatch ? 100 : 95,
+          confidenceScore: historical ? 100 : 95,
           matchCriteria: {
             method: 'payment_method_phone',
             matchedValue: transaction.senderPhoneNormalized,
-            historicalBonus: hasHistoricalMatch,
+            historicalBonus: historical,
           },
         };
       }
@@ -211,18 +222,14 @@ export class MatchingService {
       });
 
       if (phone?.contact && phone.contact.tenant?.id === tenantId) {
-        const hasHistoricalMatch = await this.hasApprovedHistoricalMatch(
-          phone.contact.id,
-          tenantId,
-        );
-
+        const historical = hasHistoricalMatch(phone.contact.id);
         return {
           contact: phone.contact,
-          confidenceScore: hasHistoricalMatch ? 100 : 90,
+          confidenceScore: historical ? 100 : 90,
           matchCriteria: {
             method: 'contact_phone',
             matchedValue: transaction.senderPhoneNormalized,
-            historicalBonus: hasHistoricalMatch,
+            historicalBonus: historical,
           },
         };
       }
@@ -241,18 +248,14 @@ export class MatchingService {
         for (const p of phones) {
           const normalizedContactPhone = normalizePhone(p.value);
           if (normalizedContactPhone === normalizedPhone && p.contact) {
-            const hasHistoricalMatch = await this.hasApprovedHistoricalMatch(
-              p.contact.id,
-              tenantId,
-            );
-
+            const historical = hasHistoricalMatch(p.contact.id);
             return {
               contact: p.contact,
-              confidenceScore: hasHistoricalMatch ? 100 : 90,
+              confidenceScore: historical ? 100 : 90,
               matchCriteria: {
                 method: 'contact_phone_normalized',
                 matchedValue: normalizedPhone,
-                historicalBonus: hasHistoricalMatch,
+                historicalBonus: historical,
               },
             };
           }
@@ -260,11 +263,14 @@ export class MatchingService {
       }
     }
 
-    // Strategy 3: Fuzzy name match (60-85% confidence based on similarity)
+    // Strategy 3: Fuzzy name match (60-85% confidence based on similarity).
+    // Capped at 500 contacts so a dialog open is bounded — the batch runMatching
+    // path is the right place for exhaustive scanning.
     if (transaction.senderName) {
       const contacts = await this.contactRepository.find({
         where: { tenant: { id: tenantId } },
         relations: ['person'],
+        take: 500,
       });
 
       let bestMatch: MatchCandidate | null = null;
@@ -272,20 +278,18 @@ export class MatchingService {
       for (const contact of contacts) {
         if (!contact.person) continue;
 
-        const fullName = `${contact.person.firstName || ''} ${contact.person.middleName || ''} ${contact.person.lastName || ''}`.trim();
+        const fullName = `${contact.person.firstName || ''} ${
+          contact.person.middleName || ''
+        } ${contact.person.lastName || ''}`.trim();
         const similarity = calculateNameSimilarity(
           transaction.senderName,
           fullName,
         );
 
-        // Only consider matches with similarity >= 0.6 (60%)
         if (similarity >= 0.6) {
-          const baseConfidence = Math.round(60 + similarity * 25); // 60-85%
-          const hasHistoricalMatch = await this.hasApprovedHistoricalMatch(
-            contact.id,
-            tenantId,
-          );
-          const confidenceScore = hasHistoricalMatch
+          const baseConfidence = Math.round(60 + similarity * 25);
+          const historical = hasHistoricalMatch(contact.id);
+          const confidenceScore = historical
             ? Math.min(baseConfidence + 10, 100)
             : baseConfidence;
 
@@ -297,7 +301,7 @@ export class MatchingService {
                 method: 'fuzzy_name',
                 matchedValue: fullName,
                 similarity: Math.round(similarity * 100),
-                historicalBonus: hasHistoricalMatch,
+                historicalBonus: historical,
               },
             };
           }
@@ -310,20 +314,6 @@ export class MatchingService {
     }
 
     return null;
-  }
-
-  private async hasApprovedHistoricalMatch(
-    contactId: number,
-    tenantId: number,
-  ): Promise<boolean> {
-    const count = await this.matchRepository.count({
-      where: {
-        tenant: { id: tenantId },
-        contact: { id: contactId },
-        status: MatchStatus.APPROVED,
-      },
-    });
-    return count > 0;
   }
 
   async runMatching(
@@ -386,7 +376,10 @@ export class MatchingService {
           pluginId,
         );
 
-        if (matchResult && matchResult.confidenceScore >= minConfidenceThreshold) {
+        if (
+          matchResult &&
+          matchResult.confidenceScore >= minConfidenceThreshold
+        ) {
           const match = new ReconciliationMatch();
           match.tenant = { id: tenantId } as any;
           match.transaction = transaction;

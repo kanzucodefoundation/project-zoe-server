@@ -17,7 +17,11 @@ describe('ReconciliationService — transaction-scoped status', () => {
 
   beforeEach(async () => {
     mockRepositories = {
-      match: { findOne: jest.fn(), save: jest.fn(async (m) => m) },
+      match: {
+        findOne: jest.fn(),
+        save: jest.fn(async (m) => m),
+        count: jest.fn().mockResolvedValue(0),
+      },
       transaction: { save: jest.fn(async (t) => t) },
       contact: { findOne: jest.fn() },
       group: { findOne: jest.fn() },
@@ -103,6 +107,39 @@ describe('ReconciliationService — transaction-scoped status', () => {
     expect(result.status).toBe(MatchStatus.REJECTED);
     expect(transaction.status).toBe(TransactionStatus.PENDING);
     expect(mockRepositories.transaction.save).not.toHaveBeenCalled();
+  });
+
+  it('rejecting the only approved match reverts the transaction to PENDING', async () => {
+    const transaction = { id: 7, status: TransactionStatus.RECONCILED };
+    mockRepositories.match.findOne.mockResolvedValue({ id: 55, transaction });
+    // No other approved match exists
+    mockRepositories.match.count.mockResolvedValue(0);
+
+    const result = await service.setStatusForTransaction(
+      7,
+      MatchStatus.REJECTED,
+      { id: 1 },
+    );
+
+    expect(result.status).toBe(MatchStatus.REJECTED);
+    expect(transaction.status).toBe(TransactionStatus.PENDING);
+    expect(mockRepositories.transaction.save).toHaveBeenCalledWith(transaction);
+  });
+
+  it('rejecting when another approved match exists keeps the transaction RECONCILED', async () => {
+    const transaction = { id: 7, status: TransactionStatus.RECONCILED };
+    mockRepositories.match.findOne.mockResolvedValue({ id: 55, transaction });
+    // Another approved match still exists
+    mockRepositories.match.count.mockResolvedValue(1);
+
+    const result = await service.setStatusForTransaction(
+      7,
+      MatchStatus.REJECTED,
+      { id: 1 },
+    );
+
+    expect(result.status).toBe(MatchStatus.REJECTED);
+    expect(transaction.status).toBe(TransactionStatus.RECONCILED);
   });
 
   it('404s when the transaction has no match to act on', async () => {

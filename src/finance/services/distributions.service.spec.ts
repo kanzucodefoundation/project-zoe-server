@@ -106,8 +106,10 @@ describe('DistributionsService', () => {
       const created = mockRepositories.batch.save.mock.calls[0][0];
       expect(created.name).toBe('September tithes');
       expect(created.status).toBe(BatchStatus.DRAFT);
-      expect(created.periodStart).toEqual(new Date('2026-09-01'));
-      expect(created.periodEnd).toEqual(new Date('2026-09-30'));
+      // Finance-zone boundaries: 2026-09-01 00:00 EAT = 2026-08-31T21:00:00Z,
+      // 2026-09-30 23:59:59.999 EAT = 2026-09-30T20:59:59.999Z.
+      expect(created.periodStart).toEqual(new Date('2026-08-31T21:00:00.000Z'));
+      expect(created.periodEnd).toEqual(new Date('2026-09-30T20:59:59.999Z'));
     });
 
     it('scopes the period lookup to the tenant and the whole window', async () => {
