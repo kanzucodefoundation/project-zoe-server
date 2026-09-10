@@ -1,5 +1,5 @@
 import { Injectable, Inject, NotFoundException } from '@nestjs/common';
-import { Repository, Connection, ILike } from 'typeorm';
+import { Repository, Connection, ILike, IsNull } from 'typeorm';
 import CategoryRule from '../entities/category-rule.entity';
 import Transaction from '../entities/transaction.entity';
 import FinancialAccount from '../entities/financial-account.entity';
@@ -9,6 +9,11 @@ import {
   SearchCategoryRuleDto,
 } from '../dto/category-rule.dto';
 import { TransactionCategory } from '../enums/transaction-category.enum';
+import { getZonedParts } from '../finance-time';
+import {
+  CategoryRuleConditions,
+  LegacyRuleCondition,
+} from '../dto/category-rule-conditions';
 import { TenantContext } from '../../shared/tenant/tenant-context';
 import { AppLogger, ContextLogger } from '../../utils/app-logger.service';
 
@@ -152,37 +157,247 @@ export class CategoryRulesService {
     await this.repository.remove(rule);
   }
 
+  /**
+   * Loads active rules for an account in priority order. Intended for callers
+   * that need to evaluate many transactions — load once, then call
+   * `evaluateWithRules` per row instead of `matchTransaction` per row.
+   */
+  async loadRulesForAccount(accountId?: number): Promise<CategoryRule[]> {
+    const tenantId = this.tenantContext.requireTenant();
+
+    const base = { tenant: { id: tenantId }, isActive: true };
+    const where: any = accountId
+      ? [
+          { ...base, account: { id: accountId } },
+          { ...base, account: IsNull() },
+        ]
+      : base;
+
+    return this.repository.find({
+      where,
+      relations: { account: true },
+      order: { priority: 'DESC' },
+    });
+  }
+
+  /**
+   * Synchronous evaluation against a pre-loaded rule list. Use with
+   * `loadRulesForAccount` to avoid N DB queries for N import rows.
+   */
+  evaluateWithRules(
+    transaction: Transaction,
+    rules: CategoryRule[],
+    accountId?: number,
+  ): { category: TransactionCategory; rule: string } | null {
+    for (const rule of rules) {
+      if (this.matchesRule(transaction, rule, accountId)) {
+        return { category: rule.category, rule: rule.name };
+      }
+    }
+    return null;
+  }
+
+  /**
+   * The category for a transaction, or null when no rule matches.
+   * Prefer `matchTransaction` when the caller also wants to say *why*.
+   */
   async categorizeTransaction(
     transaction: Transaction,
     accountId?: number,
   ): Promise<TransactionCategory | null> {
+    const match = await this.matchTransaction(transaction, accountId);
+    return match ? match.category : null;
+  }
+
+  /**
+   * The first rule that matches, in priority order, with the rule's name so
+   * the import preview can show the justification for each categorisation
+   * rather than an unexplained category.
+   */
+  async matchTransaction(
+    transaction: Transaction,
+    accountId?: number,
+  ): Promise<{ category: TransactionCategory; rule: string } | null> {
     const tenantId = this.tenantContext.requireTenant();
 
-    const where: any = {
+    const base = {
       tenant: { id: tenantId },
       isActive: true,
     };
 
-    if (accountId) {
-      where.account = { id: accountId };
-    }
+    // A rule can be scoped to an account two ways: the entity's `account`
+    // relation, or `conditions.accounts` from the rule builder — which leaves
+    // the relation null. Filtering on the relation alone therefore hid every
+    // builder-written rule from the import that needed it, so tenant-wide
+    // rules are included here and `conditions.accounts` is enforced during
+    // matching instead.
+    const where: any = accountId
+      ? [
+          { ...base, account: { id: accountId } },
+          { ...base, account: IsNull() },
+        ]
+      : base;
 
     const rules = await this.repository.find({
       where,
+      relations: { account: true },
       order: { priority: 'DESC' },
     });
 
     for (const rule of rules) {
-      if (this.matchesRule(transaction, rule)) {
-        return rule.category;
+      if (this.matchesRule(transaction, rule, accountId)) {
+        return { category: rule.category, rule: rule.name };
       }
     }
 
     return null;
   }
 
-  private matchesRule(transaction: Transaction, rule: CategoryRule): boolean {
-    for (const condition of rule.conditions) {
+  private matchesRule(
+    transaction: Transaction,
+    rule: CategoryRule,
+    accountId?: number,
+  ): boolean {
+    if (!rule.conditions) {
+      return false;
+    }
+
+    return Array.isArray(rule.conditions)
+      ? this.matchesLegacyConditions(transaction, rule.conditions)
+      : this.matchesBuilderConditions(transaction, rule.conditions, accountId);
+  }
+
+  /**
+   * Minutes since midnight for 'HH:mm'.
+   */
+  private static toMinutes(time: string): number | null {
+    const match = /^(\d{1,2}):(\d{2})$/.exec(String(time ?? '').trim());
+    if (!match) {
+      return null;
+    }
+    return Number(match[1]) * 60 + Number(match[2]);
+  }
+
+  /**
+   * Evaluates the rule-builder conditions. Everything the author specified
+   * must hold; anything they left out is simply not checked.
+   *
+   * Day and time are read in the finance timezone (Kampala by default), not
+   * the server's — a UTC host would otherwise see the 09:00 service at 09:00Z
+   * and skip an 08:00-12:00 rule. See finance-time.ts.
+   */
+  private matchesBuilderConditions(
+    transaction: Transaction,
+    conditions: CategoryRuleConditions,
+    accountId?: number,
+  ): boolean {
+    const {
+      accounts,
+      keywords,
+      daysOfWeek,
+      timeRange,
+      dateRange,
+      applyEveryYear,
+    } = conditions;
+
+    // Guard against a rule saved before validation existed: with nothing to
+    // match on it would otherwise swallow every transaction.
+    if (
+      !accounts?.length &&
+      !keywords?.length &&
+      !daysOfWeek?.length &&
+      !timeRange &&
+      !dateRange
+    ) {
+      return false;
+    }
+
+    if (accounts?.length) {
+      const transactionAccountId = transaction.account?.id ?? accountId;
+      if (!transactionAccountId || !accounts.includes(transactionAccountId)) {
+        return false;
+      }
+    }
+
+    if (keywords?.length) {
+      const haystack = [
+        transaction.narration,
+        transaction.senderName,
+        transaction.externalReference,
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+
+      // Any keyword is enough — they read as alternatives, not requirements.
+      const hit = keywords.some((word) =>
+        haystack.includes(word.trim().toLowerCase()),
+      );
+      if (!hit) {
+        return false;
+      }
+    }
+
+    const date = transaction.transactionDate
+      ? new Date(transaction.transactionDate)
+      : null;
+    const hasDate = !!date && !isNaN(date.getTime());
+    const needsDate = !!daysOfWeek?.length || !!timeRange || !!dateRange;
+
+    if (needsDate && !hasDate) {
+      return false;
+    }
+
+    const when = hasDate ? getZonedParts(date) : null;
+
+    if (daysOfWeek?.length && !daysOfWeek.includes(when.dayOfWeek)) {
+      return false;
+    }
+
+    if (timeRange) {
+      const start = CategoryRulesService.toMinutes(timeRange.start);
+      const end = CategoryRulesService.toMinutes(timeRange.end);
+      // A rule with an unreadable window must not match anything.
+      if (start === null || end === null) {
+        return false;
+      }
+      if (when.minutes < start || when.minutes > end) {
+        return false;
+      }
+    }
+
+    if (dateRange) {
+      if (applyEveryYear) {
+        // Recurring window: compare month/day only, and allow a range that
+        // wraps the new year (e.g. 12-20 to 01-05).
+        const start = dateRange.start.slice(5);
+        const end = dateRange.end.slice(5);
+
+        const inRange =
+          start <= end
+            ? when.monthDay >= start && when.monthDay <= end
+            : when.monthDay >= start || when.monthDay <= end;
+
+        if (!inRange) {
+          return false;
+        }
+      } else if (when.date < dateRange.start || when.date > dateRange.end) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  private matchesLegacyConditions(
+    transaction: Transaction,
+    conditions: LegacyRuleCondition[],
+  ): boolean {
+    if (conditions.length === 0) {
+      return false;
+    }
+
+    for (const condition of conditions) {
       const fieldValue = this.getFieldValue(transaction, condition.field);
 
       if (fieldValue === null || fieldValue === undefined) {

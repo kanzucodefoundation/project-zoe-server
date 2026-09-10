@@ -20,6 +20,9 @@ import {
   UpdateTransactionDto,
   SearchTransactionDto,
   ImportTransactionDto,
+  ParseTransactionDto,
+  ParsedTransactionDto,
+  BulkImportTransactionDto,
 } from '../dto/transaction.dto';
 import Transaction from '../entities/transaction.entity';
 
@@ -42,6 +45,33 @@ export class TransactionsController {
     return this.service.create(data, req.user);
   }
 
+  /**
+   * Step 2 of the import wizard: parse an uploaded file into preview rows.
+   * Writes nothing — the reviewed rows come back to POST /import.
+   *
+   * Declared before the ':id' routes below so 'parse' is never swallowed as an id.
+   */
+  @Post('parse')
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(FileInterceptor('file'))
+  async parseFile(
+    @UploadedFile() file: Express.Multer.File,
+    @Body() options: ParseTransactionDto,
+    @Request() req: any,
+  ): Promise<ParsedTransactionDto[]> {
+    return this.service.parseFile(file, options, req.user);
+  }
+
+  /** Step 3 of the import wizard: commit the rows the user kept. */
+  @Post('import')
+  async importParsed(
+    @Body() data: BulkImportTransactionDto,
+    @Request() req: any,
+  ): Promise<{ imported: number; errors: string[] }> {
+    return this.service.importParsed(data, req.user);
+  }
+
+  /** One-shot import: parse and save a file in a single request, no preview. */
   @Post('import/:accountId')
   @ApiConsumes('multipart/form-data')
   @UseInterceptors(FileInterceptor('file'))

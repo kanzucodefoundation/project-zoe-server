@@ -1,5 +1,5 @@
 import { Injectable, Inject, NotFoundException } from '@nestjs/common';
-import { Repository, Connection, In } from 'typeorm';
+import { Repository, Connection, In, Not } from 'typeorm';
 import ReconciliationMatch from '../entities/reconciliation-match.entity';
 import Transaction from '../entities/transaction.entity';
 import Contact from '../../crm/entities/contact.entity';
@@ -25,7 +25,7 @@ export class ReconciliationService {
   private readonly logger: ContextLogger;
 
   constructor(
-    @Inject('CONNECTION') connection: Connection,
+    @Inject('CONNECTION') private connection: Connection,
     private tenantContext: TenantContext,
     private appLogger: AppLogger,
   ) {
@@ -36,7 +36,10 @@ export class ReconciliationService {
     this.logger = this.appLogger.createContextLogger('ReconciliationService');
   }
 
-  async createMatch(dto: CreateMatchDto, user: any): Promise<ReconciliationMatch> {
+  async createMatch(
+    dto: CreateMatchDto,
+    user: any,
+  ): Promise<ReconciliationMatch> {
     const tenantId = this.tenantContext.requireTenant();
 
     const transaction = await this.transactionRepository.findOne({
@@ -88,7 +91,10 @@ export class ReconciliationService {
     return this.repository.save(match);
   }
 
-  async updateMatch(dto: UpdateMatchDto, user: any): Promise<ReconciliationMatch> {
+  async updateMatch(
+    dto: UpdateMatchDto,
+    user: any,
+  ): Promise<ReconciliationMatch> {
     const tenantId = this.tenantContext.requireTenant();
 
     const match = await this.repository.findOne({
@@ -140,9 +146,48 @@ export class ReconciliationService {
         match.approvedBy = { id: user.id } as any;
         match.approvedAt = new Date();
 
-        // Update transaction status
         match.transaction.status = TransactionStatus.RECONCILED;
         await this.transactionRepository.save(match.transaction);
+      } else if (
+        dto.status === MatchStatus.REJECTED &&
+        match.transaction.status === TransactionStatus.RECONCILED
+      ) {
+        // A rejected match must not retain approval metadata regardless of
+        // whether the transaction itself reverts.
+        match.approvedBy = null;
+        match.approvedAt = null;
+
+        if (dto.notes !== undefined) {
+          match.notes = dto.notes;
+        }
+
+        // The match save must be inside the same transaction as the count so
+        // that two concurrent rejections cannot both read the other as APPROVED
+        // before either commits. With the match saved under the lock, the
+        // second request's count sees the first match already REJECTED and
+        // correctly reverts the transaction to PENDING.
+        return this.connection.transaction(async (manager) => {
+          await manager.findOne(Transaction, {
+            where: { id: match.transaction.id },
+            lock: { mode: 'pessimistic_write' },
+          });
+
+          const otherApproved = await manager.count(ReconciliationMatch, {
+            where: {
+              id: Not(match.id),
+              tenant: { id: tenantId },
+              transaction: { id: match.transaction.id },
+              status: MatchStatus.APPROVED,
+            },
+          });
+
+          if (otherApproved === 0) {
+            match.transaction.status = TransactionStatus.PENDING;
+            await manager.save(Transaction, match.transaction);
+          }
+
+          return manager.save(ReconciliationMatch, match);
+        });
       }
     }
 
@@ -151,6 +196,39 @@ export class ReconciliationService {
     }
 
     return this.repository.save(match);
+  }
+
+  /**
+   * Approve or reject the match on a transaction.
+   *
+   * The reconciliation screen works in transactions — it lists them and never
+   * sees match ids — while updateMatch works in matches. This resolves one to
+   * the other, taking the most recent match when a transaction has been
+   * matched more than once, then reuses updateMatch so the APPROVED side
+   * effects (approvedBy/approvedAt, transaction -> RECONCILED) stay in one place.
+   */
+  async setStatusForTransaction(
+    transactionId: number,
+    status: MatchStatus,
+    user: any,
+  ): Promise<ReconciliationMatch> {
+    const tenantId = this.tenantContext.requireTenant();
+
+    const match = await this.repository.findOne({
+      where: {
+        transaction: { id: transactionId },
+        tenant: { id: tenantId },
+      },
+      order: { id: 'DESC' },
+    });
+
+    if (!match) {
+      throw new NotFoundException(
+        `No reconciliation match found for transaction ${transactionId}`,
+      );
+    }
+
+    return this.updateMatch({ id: match.id, status }, user);
   }
 
   async bulkApprove(
