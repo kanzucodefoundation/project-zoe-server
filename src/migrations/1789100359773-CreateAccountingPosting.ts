@@ -7,16 +7,19 @@ export class CreateAccountingPosting1789100359773
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`
-      CREATE TYPE IF NOT EXISTS "public"."accounting_posting_system_enum"
-        AS ENUM('QUICKBOOKS')
+      DO $$ BEGIN
+        CREATE TYPE "public"."accounting_posting_system_enum" AS ENUM('QUICKBOOKS');
+      EXCEPTION WHEN duplicate_object THEN NULL; END $$
     `);
     await queryRunner.query(`
-      CREATE TYPE IF NOT EXISTS "public"."accounting_posting_document_type_enum"
-        AS ENUM('SALES_RECEIPT')
+      DO $$ BEGIN
+        CREATE TYPE "public"."accounting_posting_document_type_enum" AS ENUM('SALES_RECEIPT');
+      EXCEPTION WHEN duplicate_object THEN NULL; END $$
     `);
     await queryRunner.query(`
-      CREATE TYPE IF NOT EXISTS "public"."accounting_posting_status_enum"
-        AS ENUM('PENDING', 'POSTED', 'FAILED')
+      DO $$ BEGIN
+        CREATE TYPE "public"."accounting_posting_status_enum" AS ENUM('PENDING', 'POSTED', 'FAILED');
+      EXCEPTION WHEN duplicate_object THEN NULL; END $$
     `);
 
     await queryRunner.query(`
