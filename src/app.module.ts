@@ -30,6 +30,7 @@ import { redisStore } from 'cache-manager-redis-yet';
 import { AppLogger } from './utils/app-logger.service';
 import { PerformanceMonitoringInterceptor } from './interceptors/performance-monitoring.interceptor';
 import { NotificationsModule } from './notifications/notifications.module';
+import { QuickBooksModule } from './integrations/quickbooks/quickbooks.module';
 
 @Global()
 @Module({
@@ -70,6 +71,7 @@ import { NotificationsModule } from './notifications/notifications.module';
     ServiceRecordingModule,
     AttendanceModule,
     NotificationsModule,
+    QuickBooksModule,
   ],
   exports: [AppService],
   controllers: [AuthController],

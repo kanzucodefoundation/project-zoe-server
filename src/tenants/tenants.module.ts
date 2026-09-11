@@ -15,6 +15,45 @@ import { UsersModule } from 'src/users/users.module';
 import { TenantContext } from 'src/shared/tenant/tenant-context';
 
 /**
+ * OAuth callback paths that must bypass tenant-header validation.
+ *
+ * WHY THIS EXISTS
+ * ---------------
+ * The TENANT_VALIDATOR factory below runs on every request. It has two valid
+ * passes: (1) a Bearer JWT is present → skip; (2) no JWT → require the
+ * x-tenant-name header set by TenantHeaderMiddleware (used by login / register).
+ * OAuth callbacks from third-party providers (Intuit, Stripe, Google, etc.) are
+ * raw browser redirects that carry neither a JWT nor a tenant header. They hit
+ * the factory before NestJS reaches any controller, so they would otherwise
+ * throw a 400 before your handler ever runs.
+ *
+ * WHEN TO ADD AN ENTRY
+ * --------------------
+ * Add the path prefix of any callback endpoint that:
+ *   - is triggered by a third-party redirect (not by the app itself), AND
+ *   - is decorated with @Public() in its controller, AND
+ *   - resolves the tenant itself (e.g. from an OAuth `state` param or a
+ *     signed cookie) rather than from a header.
+ *
+ * WHAT THE COUNTERPART CONTROLLER CHANGE LOOKS LIKE
+ * --------------------------------------------------
+ * The matching endpoint must be @Public() so the JWT guard skips it, and it
+ * must not rely on req.tenantId being set by TenantContextInterceptor.
+ * See QuickBooksController.callback() for the reference implementation.
+ *
+ * ANALOGY TO AppModule.configure()
+ * ---------------------------------
+ * AppModule.configure() / forRoutes() controls which routes
+ * TenantHeaderMiddleware runs on. This list is the equivalent control for the
+ * TENANT_VALIDATOR factory — routes here are opted out of header-based tenant
+ * resolution entirely.
+ */
+const OAUTH_CALLBACK_PATHS = [
+  '/api/integrations/quickbooks/callback',
+  // '/api/integrations/stripe/callback',   ← example for the next provider
+];
+
+/**
  * Tenant validation provider - validates tenant and stores tenantId in request
  * This is REQUEST-scoped to run for each request
  */
@@ -29,6 +68,13 @@ const tenantValidationProvider = {
     // For JWT requests, skip tenant header validation (interceptor will handle it)
     if (hasJWT) {
       return null; // Return null to indicate JWT-based tenant resolution
+    }
+
+    // Third-party OAuth redirects carry no JWT and no tenant header.
+    // See OAUTH_CALLBACK_PATHS above for criteria and how to extend this.
+    const url: string = req.url ?? '';
+    if (OAUTH_CALLBACK_PATHS.some((p) => url.startsWith(p))) {
+      return null;
     }
 
     // For non-JWT requests, require tenant header (public routes like login, register)
