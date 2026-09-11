@@ -1,8 +1,8 @@
-# QuickBooks Giving Reconciliation — Testing Guide
+# QuickBooks Giving Reconciliation — Setup & Testing Guide
 
 ## What this does
 
-Once a giving transaction in Zoe has been matched to a donor, this feature posts a **Sales Receipt** to QuickBooks Online. The Sales Receipt records:
+Once a giving transaction in Zoe has been matched to a donor, this feature posts a **Sales Receipt** to QuickBooks Online directly from the Finance → Reconciliation screen. The Sales Receipt records:
 
 - **Who gave** — the QBO Customer (mapped from the donor contact)
 - **How much** — the transaction amount
@@ -13,143 +13,134 @@ Once a giving transaction in Zoe has been matched to a donor, this feature posts
 
 ---
 
-## Prerequisites for a transaction to be postable
+## Part 1 — Local setup (do this once)
 
-Before a transaction can be posted, **all five** of the following must be true:
+### Step 1 — Add QBO environment variables
 
-1. **Approved match** — the transaction has been reconciled and the match approved in Zoe Finance.
-2. **Customer mapping** — the matched donor contact has a QBO Customer ID linked in Zoe.
-3. **Item mapping** — the transaction's giving category (Tithe, Offering, Donation, Arise & Build) is mapped to a QBO Item.
-4. **Account mapping** — the bank account the transaction came through is mapped to a QBO Account.
-5. **Location and FOB mappings** — the donor's home Location and FOB (Field of Battle) groups are mapped to a QBO Department and Class respectively.
+Add the following to your server `.env` file. Get the values from Peter.
 
-Items 3–5 are set up once during the sandbox seeding and do not need to be done per transaction. Item 2 (Customer mapping) needs to exist for each individual donor.
+```
+QUICKBOOKS_CLIENT_ID=<provided by Peter>
+QUICKBOOKS_CLIENT_SECRET=<provided by Peter>
+QUICKBOOKS_REDIRECT_URI=http://localhost:3000/api/integrations/quickbooks/callback
+QUICKBOOKS_ENVIRONMENT=sandbox
+```
+
+### Step 2 — Run database migrations
+
+```bash
+cd server
+npm run migration:run
+```
+
+This creates the `external_system_mapping` and `accounting_posting` tables needed for QBO integration.
+
+### Step 3 — Add the sandbox redirect URI in the Intuit Developer portal
+
+The sandbox app needs to trust your local callback URL. Ask Peter to add
+`http://localhost:3000/api/integrations/quickbooks/callback` to the app's
+**Redirect URIs** in the Intuit Developer portal if it is not already there.
+
+### Step 4 — Connect your local Zoe to the QBO sandbox
+
+1. Start the server and client locally.
+2. Log in as the WHM tenant admin.
+3. Go to **Settings → Integrations → QuickBooks**.
+4. Click **Connect to QuickBooks**.
+5. You will be redirected to Intuit's login page — sign in with the sandbox QBO account credentials Peter shares with you.
+6. Approve the permissions. You will be redirected back to Zoe.
+7. The settings page should now show the sandbox company name confirming the connection.
+
+This stores OAuth tokens in your local database. You only need to do this once (tokens refresh automatically).
 
 ---
 
-## Step-by-step: posting a transaction
+## Part 2 — Posting a transaction to QuickBooks
 
-### Step 1 — Find the transaction ID
+No Postman needed — everything is in the Finance UI.
 
-In Zoe Finance, open the transaction you want to post and note the transaction ID from the URL or the transaction detail view.
+### Step 1 — Find an approved transaction
 
-### Step 2 — Run the preflight check
+1. Go to **Finance → Reconciliation**.
+2. Find a transaction that has been **matched and approved** (the match status shows "Approved").
+3. Open the transaction detail.
 
-Call the preflight endpoint to confirm the transaction is ready. This is read-only and safe to call at any time.
+### Step 2 — Click "Post to QuickBooks"
 
-```
-GET /api/finance/transactions/{id}/accounting/preflight
-```
+A **Post to QuickBooks** button appears on approved, matched transactions. Clicking it opens a panel that automatically runs a readiness check.
 
-**A passing response looks like:**
-```json
-{
-  "ready": true,
-  "blockers": []
-}
-```
+### Step 3 — Review the readiness check
 
-**A failing response lists what is missing:**
-```json
-{
-  "ready": false,
-  "blockers": [
-    {
-      "code": "CUSTOMER_MAPPING_MISSING",
-      "message": "No QuickBooks Customer mapped for contact 1234"
-    }
-  ]
-}
-```
+The panel will either:
 
-Common blockers and how to fix them:
+**Show blockers** — things that must be fixed before posting is allowed:
 
-| Code | Fix |
-|------|-----|
-| `MATCH_NOT_APPROVED` | Approve the reconciliation match in Zoe Finance first |
-| `CUSTOMER_MAPPING_MISSING` | Add the donor's QBO Customer ID via the mappings endpoint (see below) |
-| `LOCATION_MAPPING_MISSING` | The donor's Location group is not mapped to a QBO Department — contact the dev team |
-| `CLASS_MAPPING_MISSING` | The donor's FOB is not mapped to a QBO Class — contact the dev team |
-| `ACCOUNT_MAPPING_MISSING` | The bank account is not mapped to a QBO Account — contact the dev team |
-| `ALREADY_POSTED` | This transaction was already posted — check QBO for the Sales Receipt |
+| Blocker | What to do |
+|---------|-----------|
+| Transaction must have an approved contact match | Approve the match in Reconciliation first |
+| No QuickBooks Customer mapped for contact | See Part 3 below — add a Customer mapping |
+| No QuickBooks Location mapped for group | Contact Peter — the location seeding may be incomplete |
+| No QuickBooks Class mapped for FOB | Contact Peter — the FOB seeding may be incomplete |
+| No QuickBooks Account mapped for financial account | Contact Peter — the bank account mapping is missing |
+| Already posted to QuickBooks | This transaction was already posted — check QBO for the receipt |
 
-### Step 3 — Preview the Sales Receipt (optional)
+**Show a Sales Receipt preview** — if all checks pass, you will see:
+- Customer name
+- Transaction date and reference number
+- Which bank account it will be deposited to
+- Location and line items with amounts
 
-To see exactly what will be sent to QuickBooks before committing:
+### Step 4 — Confirm and post
 
-```
-GET /api/finance/transactions/{id}/accounting/preview
-```
-
-This returns the full Sales Receipt structure — Customer, amount, Item, Location, Class, and deposit account — without posting anything.
-
-### Step 4 — Post to QuickBooks
-
-```
-POST /api/finance/transactions/{id}/accounting/post
-```
-
-A successful response includes the QBO document number:
-```json
-{
-  "status": "POSTED",
-  "externalDocumentId": "183",
-  "externalDocumentNumber": "1043",
-  "postedAt": "2026-09-11T10:00:00.000Z"
-}
-```
-
-A failed attempt returns `"status": "FAILED"` with an `errorMessage` explaining what QBO rejected.
+Review the preview and click **Confirm & Post**. The panel will show:
+- A success confirmation with the QBO Sales Receipt number, or
+- An error message if QBO rejected the posting
 
 ### Step 5 — Verify in QuickBooks
 
-Log into the QBO sandbox account and go to **Sales → All Sales**. Find the Sales Receipt by document number or donor name and confirm:
-
-- Customer name matches the donor
-- Amount is correct
-- Location (Department) and FOB (Class) are correct
-- The receipt is deposited to the right bank account
+Log into the QBO sandbox at [app.sandbox.qbo.intuit.com](https://app.sandbox.qbo.intuit.com) and go to **Sales → All Sales**. Find the Sales Receipt by receipt number or donor name and confirm the details look correct.
 
 ---
 
-## Adding a Customer mapping for a donor
+## Part 3 — Adding a QuickBooks Customer mapping for a donor
 
-When a donor does not yet have a QBO Customer ID linked in Zoe, create the mapping:
+Each donor needs to be linked to a QBO Customer before their transaction can be posted. This is a one-time setup per donor.
 
-**1. Find or create the Customer in QBO**
-In QBO sandbox, go to **Sales → Customers** and find the donor by name. If they don't exist, create them. Note their Customer ID from the URL (e.g. `customerType=Customer&nameId=67`).
+### Step 1 — Find or create the Customer in QBO sandbox
 
-**2. Create the mapping in Zoe**
+Log into the QBO sandbox → **Sales → Customers**. Search for the donor by name.
+
+- If they exist, note their Customer ID from the URL: `...nameId=**67**`
+- If they don't exist, click **New Customer**, enter their name, and save. Note the ID.
+
+### Step 2 — Find the Contact ID in Zoe
+
+Open the donor's contact record in Zoe and note the Contact ID from the URL.
+
+### Step 3 — Create the mapping
+
+Call this endpoint (use Postman or the browser dev tools' network tab to find your auth token):
 
 ```
 POST /api/integrations/quickbooks/mappings
+Authorization: Bearer <your token>
 Content-Type: application/json
 
 {
   "system": "QUICKBOOKS",
   "internalReferenceType": "CONTACT",
-  "internalReferenceId": "<Zoe contact ID>",
+  "internalReferenceId": "<Zoe Contact ID>",
   "externalReferenceType": "CUSTOMER",
   "externalReferenceId": "<QBO Customer ID>"
 }
 ```
 
-After this, re-run the preflight — the `CUSTOMER_MAPPING_MISSING` blocker should be gone.
+After this, the "Post to QuickBooks" panel should pass the Customer check and show a preview.
 
 ---
 
-## Checking the posting status later
+## Notes
 
-```
-GET /api/finance/transactions/{id}/accounting/posting
-```
-
-Returns the latest posting record for that transaction, including status (`PENDING`, `POSTED`, or `FAILED`) and the QBO document number if posted.
-
----
-
-## Notes for sandbox testing
-
-- The sandbox QBO account mirrors production data for Locations and FOBs but uses test/fictitious donors. Do not use real donor names or amounts during sandbox testing.
-- Posting to the sandbox does not affect the live QBO account.
-- If a posting fails, it is safe to retry — the system creates a new posting attempt each time.
+- **Sandbox only** — the sandbox QBO account is a test environment. Posting here does not affect the live WHM QuickBooks account.
+- **Safe to retry** — if a posting fails, you can click "Post to QuickBooks" again. The system creates a new attempt each time.
+- **Seeded reference data** — Locations (Departments), FOBs (Classes), giving categories (Items), and bank accounts have been pre-loaded into the sandbox by Peter. You do not need to set these up yourself.
