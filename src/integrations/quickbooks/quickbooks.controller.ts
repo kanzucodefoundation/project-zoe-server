@@ -19,6 +19,38 @@ import { QuickBooksService } from './quickbooks.service';
 import { ExchangeTokenDto } from './dto/exchange-token.dto';
 import { CreateChargeDto } from './dto/create-charge.dto';
 
+type CsvFormat = 'json' | 'csv';
+function toCsv(rows: any[], columns: string[]): string {
+  const header = columns.join(',');
+  const lines = rows.map((r) =>
+    columns.map((c) => JSON.stringify(r[c] ?? '')).join(','),
+  );
+  return [header, ...lines].join('\n');
+}
+
+function mapQboCustomerToContactRow(c: any): Record<string, string> {
+  // QBO may have GivenName/FamilyName or only DisplayName — handle both
+  let firstName = c.GivenName ?? '';
+  let lastName = c.FamilyName ?? '';
+  if (!firstName && !lastName && c.DisplayName) {
+    const parts = String(c.DisplayName).trim().split(/\s+/);
+    firstName = parts[0] ?? '';
+    lastName = parts.slice(1).join(' ');
+  }
+  return {
+    'First Name': firstName,
+    'Last Name': lastName,
+    Email: c.PrimaryEmailAddr?.Address ?? '',
+    Phone: c.PrimaryPhone?.FreeFormNumber ?? '',
+    'Date of Birth': '',
+    Gender: '',
+    District: '',
+    Country: c.BillAddr?.Country ?? '',
+    'Tithe Number': '',
+    'QuickBooks Customer ID': c.Id ?? '',
+  };
+}
+
 @UseInterceptors(SentryInterceptor, TenantContextInterceptor)
 @ApiTags('QuickBooks')
 @Controller('api/integrations/quickbooks')
@@ -127,6 +159,122 @@ export class QuickBooksController {
   async disconnect(@Request() req) {
     await this.quickBooksService.revokeConnection(req.tenantId);
     return { message: 'QuickBooks disconnected' };
+  }
+
+  // ─── Reference data endpoints ─────────────────────────────────────────────
+
+  @Get('references/customers')
+  async getCustomers(
+    @Request() req,
+    @Query('format') format: CsvFormat = 'json',
+    @Res() res: Response,
+  ) {
+    const rows = await this.quickBooksService.getQboCustomers(req.tenantId);
+    if (format === 'csv') {
+      const csvRows = rows.map(mapQboCustomerToContactRow);
+      const columns = [
+        'First Name',
+        'Last Name',
+        'Email',
+        'Phone',
+        'Date of Birth',
+        'Gender',
+        'District',
+        'Country',
+        'Tithe Number',
+        'QuickBooks Customer ID',
+      ];
+      const header = columns.map((c) => JSON.stringify(c)).join(',');
+      const lines = csvRows.map((r) =>
+        columns.map((c) => JSON.stringify(r[c] ?? '')).join(','),
+      );
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader(
+        'Content-Disposition',
+        'attachment; filename="qbo-customers-contacts.csv"',
+      );
+      return res.send([header, ...lines].join('\n'));
+    }
+    return res.json(rows);
+  }
+
+  @Get('references/accounts')
+  async getAccounts(
+    @Request() req,
+    @Query('format') format: CsvFormat = 'json',
+    @Res() res: Response,
+  ) {
+    const rows = await this.quickBooksService.getQboAccounts(req.tenantId);
+    return this.sendReference(res, rows, format, [
+      'Id',
+      'Name',
+      'AccountType',
+      'AccountSubType',
+      'CurrencyRef',
+    ]);
+  }
+
+  @Get('references/items')
+  async getItems(
+    @Request() req,
+    @Query('format') format: CsvFormat = 'json',
+    @Res() res: Response,
+  ) {
+    const rows = await this.quickBooksService.getQboItems(req.tenantId);
+    return this.sendReference(res, rows, format, [
+      'Id',
+      'Name',
+      'Description',
+      'Type',
+      'IncomeAccountRef',
+    ]);
+  }
+
+  @Get('references/classes')
+  async getClasses(
+    @Request() req,
+    @Query('format') format: CsvFormat = 'json',
+    @Res() res: Response,
+  ) {
+    const rows = await this.quickBooksService.getQboClasses(req.tenantId);
+    return this.sendReference(res, rows, format, [
+      'Id',
+      'Name',
+      'FullyQualifiedName',
+      'ParentRef',
+    ]);
+  }
+
+  @Get('references/departments')
+  async getDepartments(
+    @Request() req,
+    @Query('format') format: CsvFormat = 'json',
+    @Res() res: Response,
+  ) {
+    const rows = await this.quickBooksService.getQboDepartments(req.tenantId);
+    return this.sendReference(res, rows, format, [
+      'Id',
+      'Name',
+      'FullyQualifiedName',
+      'ParentRef',
+    ]);
+  }
+
+  private sendReference(
+    res: Response,
+    rows: any[],
+    format: CsvFormat,
+    columns: string[],
+  ) {
+    if (format === 'csv') {
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader(
+        'Content-Disposition',
+        'attachment; filename="qbo-reference.csv"',
+      );
+      return res.send(toCsv(rows, columns));
+    }
+    return res.json(rows);
   }
 }
 

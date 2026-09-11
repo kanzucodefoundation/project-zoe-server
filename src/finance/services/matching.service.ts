@@ -64,6 +64,7 @@ export class MatchingService {
    * bare identifier like "contact_phone_normalized".
    */
   private static readonly MATCH_METHOD_LABELS: Record<string, string> = {
+    tithe_number: 'Tithe number',
     payment_method_phone: 'Registered payment method phone',
     contact_phone: 'Contact phone number',
     contact_phone_normalized: 'Contact phone number (normalised)',
@@ -185,6 +186,30 @@ export class MatchingService {
           confidenceScore: pluginResult.confidenceScore,
           matchCriteria: pluginResult.matchCriteria,
         };
+      }
+    }
+
+    // Strategy 0: Exact tithe number match in narration (98% confidence)
+    if (transaction.narration) {
+      const titheMatch = transaction.narration.match(/\b(\d{4,10})\b/);
+      if (titheMatch) {
+        const candidate = titheMatch[1];
+        const contact = await this.contactRepository.findOne({
+          where: { tenant: { id: tenantId }, titheNumber: candidate },
+          relations: ['person'],
+        });
+        if (contact) {
+          const historical = hasHistoricalMatch(contact.id);
+          return {
+            contact,
+            confidenceScore: historical ? 100 : 98,
+            matchCriteria: {
+              method: 'tithe_number',
+              matchedValue: candidate,
+              historicalBonus: historical,
+            },
+          };
+        }
       }
     }
 

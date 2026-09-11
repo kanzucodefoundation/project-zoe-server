@@ -30,6 +30,7 @@ import { TenantContextInterceptor } from '../interceptors/tenant-context.interce
 import { AppLogger } from 'src/utils/app-logger.service';
 import { VendorModule } from 'src/vendor/vendor.module';
 import { ServiceRecordingService } from 'src/service-recording/service-recording.service';
+import { ExternalSystemMappingService } from 'src/integrations/quickbooks/external-system-mapping.service';
 
 @Global()
 @Module({
@@ -48,6 +49,7 @@ import { ServiceRecordingService } from 'src/service-recording/service-recording
     AppLogger,
     ContactActivityService,
     ServiceRecordingService,
+    ExternalSystemMappingService,
   ],
   controllers: [
     ContactsController,

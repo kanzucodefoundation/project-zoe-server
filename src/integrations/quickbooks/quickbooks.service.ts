@@ -194,6 +194,90 @@ export class QuickBooksService {
     await this.connectionRepo.delete({ tenantId, system: 'quickbooks' });
   }
 
+  // ─── QBO reference data ────────────────────────────────────────────────────
+
+  async getQboCustomers(tenantId: number): Promise<any[]> {
+    return this.qboQuery(
+      tenantId,
+      'SELECT * FROM Customer WHERE Active = true MAXRESULTS 1000',
+    );
+  }
+
+  async getQboAccounts(tenantId: number): Promise<any[]> {
+    return this.qboQuery(
+      tenantId,
+      'SELECT * FROM Account WHERE Active = true MAXRESULTS 1000',
+    );
+  }
+
+  async getQboItems(tenantId: number): Promise<any[]> {
+    return this.qboQuery(
+      tenantId,
+      'SELECT * FROM Item WHERE Active = true MAXRESULTS 1000',
+    );
+  }
+
+  async getQboClasses(tenantId: number): Promise<any[]> {
+    return this.qboQuery(
+      tenantId,
+      'SELECT * FROM Class WHERE Active = true MAXRESULTS 1000',
+    );
+  }
+
+  async getQboDepartments(tenantId: number): Promise<any[]> {
+    return this.qboQuery(
+      tenantId,
+      'SELECT * FROM Department WHERE Active = true MAXRESULTS 1000',
+    );
+  }
+
+  private async qboQuery(tenantId: number, query: string): Promise<any[]> {
+    const { accessToken, realmId } = await this.getValidAccessToken(tenantId);
+    const base = this.accountingApiBase();
+    const { data } = await firstValueFrom(
+      this.httpService.get(`${base}/v3/company/${realmId}/query`, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          Accept: 'application/json',
+        },
+        params: { query, minorversion: 65 },
+      }),
+    );
+    const queryResponse = data?.QueryResponse ?? {};
+    // QBO wraps results under the entity name, e.g. { Customer: [...] }
+    const entities = Object.values(queryResponse).find(Array.isArray);
+    return (entities as any[]) ?? [];
+  }
+
+  accountingApiBase(): string {
+    return this.environment === 'sandbox'
+      ? 'https://sandbox-quickbooks.api.intuit.com'
+      : 'https://quickbooks.api.intuit.com';
+  }
+
+  async postSalesReceipt(
+    tenantId: number,
+    payload: Record<string, any>,
+  ): Promise<any> {
+    const { accessToken, realmId } = await this.getValidAccessToken(tenantId);
+    const base = this.accountingApiBase();
+    const { data } = await firstValueFrom(
+      this.httpService.post(
+        `${base}/v3/company/${realmId}/salesreceipt`,
+        payload,
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+          },
+          params: { minorversion: 65 },
+        },
+      ),
+    );
+    return data?.SalesReceipt ?? data;
+  }
+
   // ─── Private helpers ───────────────────────────────────────────────────────
 
   private async getValidAccessToken(

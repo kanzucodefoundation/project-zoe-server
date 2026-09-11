@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { Connection, In,  Repository } from 'typeorm';
+import { Connection, In, Repository } from 'typeorm';
 import Group from '../entities/group.entity';
 import GroupMembership from '../entities/groupMembership.entity';
 import { GroupRole } from '../enums/groupRole';
@@ -194,6 +194,43 @@ export class GroupPermissionsService {
 
   async getUserIsMemberLeaderGroupIds(user: any) {
     return this.getUserGroupIds(user);
+  }
+
+  /**
+   * Resolves a contact's Location and FOB (parent of Location) from their
+   * group memberships. Used by the accounting layer to build QBO mappings.
+   */
+  async resolveForContact(contactId: number): Promise<{
+    location: { id: number; name: string } | null;
+    fob: { id: number; name: string } | null;
+  }> {
+    const locationId = await this.getContactLocationGroupId(contactId);
+    if (!locationId) {
+      return { location: null, fob: null };
+    }
+
+    const locationGroup = await this.repository.findOne({
+      where: { id: locationId },
+      select: ['id', 'name', 'parentId'],
+    });
+    if (!locationGroup) {
+      return { location: null, fob: null };
+    }
+
+    const location = { id: locationGroup.id, name: locationGroup.name };
+
+    let fob: { id: number; name: string } | null = null;
+    if (locationGroup.parentId) {
+      const fobGroup = await this.repository.findOne({
+        where: { id: Number(locationGroup.parentId) },
+        select: ['id', 'name'],
+      });
+      if (fobGroup) {
+        fob = { id: fobGroup.id, name: fobGroup.name };
+      }
+    }
+
+    return { location, fob };
   }
 
   private async getGroupAndAllDescendants(
