@@ -1,4 +1,5 @@
 import {
+  Body,
   Controller,
   Get,
   Param,
@@ -10,7 +11,10 @@ import {
 import { ApiTags } from '@nestjs/swagger';
 import { SentryInterceptor } from '../../utils/sentry.interceptor';
 import { TenantContextInterceptor } from '../../interceptors/tenant-context.interceptor';
-import { AccountingService } from '../services/accounting.service';
+import {
+  AccountingService,
+  ApplySetupDto,
+} from '../services/accounting.service';
 
 @UseInterceptors(SentryInterceptor, TenantContextInterceptor)
 @ApiTags('Finance - Accounting')
@@ -21,6 +25,19 @@ export class AccountingController {
   @Get('preflight')
   preflight(@Param('id', ParseIntPipe) id: number) {
     return this.accountingService.preflight(id);
+  }
+
+  @Get('setup')
+  getSetup(@Param('id', ParseIntPipe) id: number) {
+    return this.accountingService.getSetup(id);
+  }
+
+  @Post('setup')
+  applySetup(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: ApplySetupDto,
+  ) {
+    return this.accountingService.applySetup(id, dto);
   }
 
   @Get('preview')
