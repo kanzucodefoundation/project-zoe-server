@@ -17,13 +17,13 @@ export class EmailUsernameConstraintFixes1783516097579
       'ALTER TABLE "contact" ADD COLUMN IF NOT EXISTS "status" "public"."contact_status_enum" DEFAULT \'Active\'',
     );
     await queryRunner.query(
-      'ALTER TABLE "user" ADD "email" character varying(100)',
+      'ALTER TABLE "user" ADD COLUMN IF NOT EXISTS "email" character varying(100)',
     );
     await queryRunner.query(
       'ALTER TABLE "user" ALTER COLUMN "username" TYPE character varying(254)',
     );
     await queryRunner.query(
-      'DROP INDEX "public"."IDX_8a960aba8277f39a0a47817ca7"',
+      'DROP INDEX IF EXISTS "public"."IDX_8a960aba8277f39a0a47817ca7"',
     );
     await queryRunner.query(
       'ALTER TYPE "public"."contact_activity_type_enum" RENAME TO "contact_activity_type_enum_old"',
@@ -38,16 +38,16 @@ export class EmailUsernameConstraintFixes1783516097579
       'DROP TYPE "public"."contact_activity_type_enum_old"',
     );
     await queryRunner.query(
-      'CREATE UNIQUE INDEX "IDX_fc52434ee9440fcb15b198cf85" ON "user" ("email", "tenantId")',
+      'CREATE UNIQUE INDEX IF NOT EXISTS "IDX_fc52434ee9440fcb15b198cf85" ON "user" ("email", "tenantId")',
     );
     await queryRunner.query(
-      'CREATE INDEX "IDX_8a960aba8277f39a0a47817ca7" ON "contact_activity" ("tenantId", "type")',
+      'CREATE INDEX IF NOT EXISTS "IDX_8a960aba8277f39a0a47817ca7" ON "contact_activity" ("tenantId", "type")',
     );
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(
-      'DROP INDEX "public"."IDX_8a960aba8277f39a0a47817ca7"',
+      'DROP INDEX IF EXISTS "public"."IDX_8a960aba8277f39a0a47817ca7"',
     );
     await queryRunner.query(
       'DROP INDEX "public"."IDX_fc52434ee9440fcb15b198cf85"',

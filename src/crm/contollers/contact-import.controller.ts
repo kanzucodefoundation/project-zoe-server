@@ -32,6 +32,7 @@ import { UsersService } from 'src/users/users.service';
 import { generateRandomPassword } from 'src/utils/stringHelpers';
 import { TenantContextInterceptor } from 'src/interceptors/tenant-context.interceptor';
 import { ServiceRecordingService } from 'src/service-recording/service-recording.service';
+import { ExternalSystemMappingService } from 'src/integrations/quickbooks/external-system-mapping.service';
 
 class Entity {
   name: string;
@@ -55,6 +56,12 @@ const CONTACT_HEADER_ALIASES: Record<string, string> = {
   country: 'country',
   address: 'address',
   groupid: 'groupId',
+  titheNumber: 'titheNumber',
+  tithenumber: 'titheNumber',
+  quickbookscustomerid: 'quickbooksCustomerId',
+  qbocustomerid: 'quickbooksCustomerId',
+  quickbooksid: 'quickbooksCustomerId',
+  qboid: 'quickbooksCustomerId',
 };
 
 const CANONICAL_CONTACT_KEYS = new Set(Object.values(CONTACT_HEADER_ALIASES));
@@ -106,6 +113,7 @@ export class ContactImportController {
     private readonly groupsService: GroupsService,
     private readonly usersService: UsersService,
     private readonly serviceRecordingService: ServiceRecordingService,
+    private readonly mappingService: ExternalSystemMappingService,
   ) {
     this.companyRepository = connection.getRepository(Company);
   }
@@ -196,6 +204,12 @@ export class ContactImportController {
           // already exists throws here, is caught below, and is reported as a
           // per-row error — never silently reused/merged into the existing
           // contact (that was the original bug).
+          if (uploadedContact.titheNumber) {
+            contactModel['titheNumber'] = String(
+              uploadedContact.titheNumber,
+            ).trim();
+          }
+
           let person = contactModel.email
             ? null
             : await this.service.findByNameAndGroup(
@@ -211,6 +225,20 @@ export class ContactImportController {
             members: [person.id],
             role: GroupRole.Member,
           });
+
+          const qboCustomerId = uploadedContact.quickbooksCustomerId
+            ? String(uploadedContact.quickbooksCustomerId).trim()
+            : null;
+          if (qboCustomerId) {
+            await this.mappingService.upsert({
+              system: 'QUICKBOOKS',
+              internalReferenceType: 'CONTACT',
+              internalReferenceId: String(person.id),
+              externalReferenceType: 'CUSTOMER',
+              externalReferenceId: qboCustomerId,
+            });
+          }
+
           created.push(person);
         }
       } catch (err) {
