@@ -26,6 +26,7 @@ describe('AccountingService — posting a batch', () => {
   let repos: any;
   let plugin: { buildSalesReceipt: jest.Mock };
   let qbService: { getConnection: jest.Mock; postSalesReceipt: jest.Mock };
+  let mapping: { lookupByInternal: jest.Mock; upsert: jest.Mock };
 
   /** A minimal sales receipt with every reference the payload guard requires. */
   const receipt = () => ({
@@ -52,6 +53,7 @@ describe('AccountingService — posting a batch', () => {
       getConnection: jest.fn(),
       postSalesReceipt: jest.fn(),
     };
+    mapping = { lookupByInternal: jest.fn(), upsert: jest.fn() };
 
     repos = {
       txn: { findOne: jest.fn() },
@@ -87,10 +89,7 @@ describe('AccountingService — posting a batch', () => {
           provide: TenantContext,
           useValue: { requireTenant: jest.fn().mockReturnValue(1) },
         },
-        {
-          provide: ExternalSystemMappingService,
-          useValue: { lookupByInternal: jest.fn(), upsert: jest.fn() },
-        },
+        { provide: ExternalSystemMappingService, useValue: mapping },
         {
           provide: GroupPermissionsService,
           useValue: {
@@ -284,6 +283,59 @@ describe('AccountingService — posting a batch', () => {
       expect(sql).toContain('ON CONFLICT');
       expect(sql).toContain('DO UPDATE SET');
       expect(sql).toContain('RETURNING *');
+    });
+  });
+
+  /**
+   * A mapping outlives the dialog that created it, and every later lookup finds
+   * it by the contact's numeric id. A row that names a contact which does not
+   * exist, or names a real one in a spelling the lookup will not reproduce, is
+   * a mapping nobody can use and nobody can see is broken.
+   */
+  describe('resolving the contact a mapping is keyed on', () => {
+    const link = (internalReferenceId: string | number) => ({
+      mappings: [
+        {
+          internalReferenceType: 'CONTACT',
+          internalReferenceId,
+          externalReferenceType: 'CUSTOMER',
+          externalReferenceId: '77',
+        },
+      ],
+    });
+
+    beforeEach(() => {
+      jest
+        .spyOn(service, 'getSetup')
+        .mockResolvedValue({ ready: true, missingMappings: [], dataIssues: [] });
+    });
+
+    it('refuses to link a contact that does not exist', async () => {
+      repos.contact.findOne.mockResolvedValue(null);
+
+      await expect(service.applySetup(1, link(4242) as any)).rejects.toThrow(
+        /Contact 4242 was not found/,
+      );
+      // Nothing may be persisted against an id that names nobody.
+      expect(mapping.upsert).not.toHaveBeenCalled();
+    });
+
+    it('refuses a reference that is not a contact id at all', async () => {
+      await expect(service.applySetup(1, link('abc') as any)).rejects.toThrow(
+        /not a valid contact reference/,
+      );
+      expect(repos.contact.findOne).not.toHaveBeenCalled();
+      expect(mapping.upsert).not.toHaveBeenCalled();
+    });
+
+    it('stores the contact id in the spelling later lookups build', async () => {
+      repos.contact.findOne.mockResolvedValue({ id: 1 });
+
+      await service.applySetup(1, link('01') as any);
+
+      expect(mapping.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({ internalReferenceId: '1' }),
+      );
     });
   });
 });

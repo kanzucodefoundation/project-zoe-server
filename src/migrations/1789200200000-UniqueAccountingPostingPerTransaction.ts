@@ -28,18 +28,19 @@ export class UniqueAccountingPostingPerTransaction1789200200000
     // to name the enum types. Their names differ between databases depending on
     // whether TypeORM or a migration created them, and a hardcoded name makes
     // the restore fail on exactly the environment that needs it.
-    await queryRunner.query(
-      'DROP TABLE IF EXISTS "accounting_posting_duplicate_archive"',
-    );
+    //
+    // Created only if absent, never dropped first: this migration can be run
+    // again after a revert, and an audit table that the next run empties would
+    // not be an audit table at all.
     await queryRunner.query(`
-      CREATE TABLE "accounting_posting_duplicate_archive" (
+      CREATE TABLE IF NOT EXISTS "accounting_posting_duplicate_archive" (
         LIKE "accounting_posting"
       )
     `);
     await queryRunner.query(`
       ALTER TABLE "accounting_posting_duplicate_archive"
-        ADD COLUMN "archivedAt" TIMESTAMPTZ NOT NULL DEFAULT now(),
-        ADD COLUMN "archivedBy" character varying(255) NOT NULL
+        ADD COLUMN IF NOT EXISTS "archivedAt" TIMESTAMPTZ NOT NULL DEFAULT now(),
+        ADD COLUMN IF NOT EXISTS "archivedBy" character varying(255) NOT NULL
     `);
 
     // Which row survives per (tenant, transaction, system, documentType): a
@@ -95,10 +96,14 @@ export class UniqueAccountingPostingPerTransaction1789200200000
       return;
     }
 
+    // Scoped to one schema. Without it a same-named table in any other schema
+    // contributes its columns too, and the restore would build an INSERT whose
+    // column list is doubled.
     const columns = await queryRunner.query(`
       SELECT string_agg(quote_ident(column_name), ', ' ORDER BY ordinal_position) AS cols
       FROM information_schema.columns
-      WHERE table_name = 'accounting_posting'
+      WHERE table_schema = 'public'
+        AND table_name = 'accounting_posting'
     `);
     const cols = columns[0].cols;
 

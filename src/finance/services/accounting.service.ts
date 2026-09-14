@@ -1180,13 +1180,29 @@ export class AccountingService {
       let externalReferenceId = m.externalReferenceId;
       let externalReferenceName = m.externalReferenceName;
 
+      // Every CONTACT row ends in a persisted mapping, whether it creates a
+      // customer or links an existing one, so the id is checked before either:
+      // a linked mapping must no more point at a contact that does not exist
+      // than a created one. The resolved id is also what gets stored, so "01"
+      // cannot persist a key that no later lookup — which builds it from the
+      // numeric id — could ever match.
+      const contactId =
+        m.internalReferenceType === 'CONTACT'
+          ? await this.requireContact(tenantId, m.internalReferenceId)
+          : undefined;
+      const internalReferenceId =
+        contactId === undefined
+          ? String(m.internalReferenceId)
+          : String(contactId);
+
       if (m.action === 'create') {
         // Both halves matter. Checking only the external type would let a
         // GROUP -> CUSTOMER row create a standalone customer and map a campus
         // to it, which is not something this dialog should ever do.
         if (
           m.internalReferenceType !== 'CONTACT' ||
-          m.externalReferenceType !== 'CUSTOMER'
+          m.externalReferenceType !== 'CUSTOMER' ||
+          contactId === undefined
         ) {
           throw new BadRequestException(
             `Only a giver can be created from Zoe. ${m.internalReferenceType} to ${m.externalReferenceType} must be added in QuickBooks first, then picked here.`,
@@ -1195,26 +1211,6 @@ export class AccountingService {
         if (!m.create) {
           throw new BadRequestException(
             'Customer details are required when creating a new QuickBooks customer.',
-          );
-        }
-
-        // The id has to name a real contact in this tenant before anything is
-        // written to QuickBooks. Otherwise an unknown number would create a
-        // customer and persist a mapping pointing at nobody, and the campus
-        // fallback would quietly file it under the mother group.
-        const contactId = Number(m.internalReferenceId);
-        if (!Number.isSafeInteger(contactId) || contactId <= 0) {
-          throw new BadRequestException(
-            `"${m.internalReferenceId}" is not a valid contact reference.`,
-          );
-        }
-        const contactExists = await this.contactRepo.findOne({
-          where: { id: contactId, tenantId },
-          select: { id: true },
-        });
-        if (!contactExists) {
-          throw new BadRequestException(
-            `Contact ${contactId} was not found, so no QuickBooks customer was created.`,
           );
         }
 
@@ -1241,7 +1237,7 @@ export class AccountingService {
       await this.mappingService.upsert({
         system: SYSTEM,
         internalReferenceType: m.internalReferenceType,
-        internalReferenceId: String(m.internalReferenceId),
+        internalReferenceId,
         externalReferenceType: m.externalReferenceType,
         externalReferenceId,
         externalReferenceName,
@@ -1249,6 +1245,39 @@ export class AccountingService {
     }
 
     return this.getSetup(transactionId);
+  }
+
+  /**
+   * Resolves a contact reference to the id of a contact in this tenant.
+   *
+   * An unknown id would otherwise create a QuickBooks customer and store a
+   * mapping pointing at nobody, and the campus fallback would quietly file that
+   * giver under the mother group.
+   */
+  private async requireContact(
+    tenantId: number,
+    reference: string | number,
+  ): Promise<number> {
+    // Rejected rather than coerced: "abc" is NaN, and a coerced value would
+    // silently become a mapping key of its own.
+    const contactId = Number(reference);
+    if (!Number.isSafeInteger(contactId) || contactId <= 0) {
+      throw new BadRequestException(
+        `"${reference}" is not a valid contact reference.`,
+      );
+    }
+
+    const contact = await this.contactRepo.findOne({
+      where: { id: contactId, tenantId },
+      select: { id: true },
+    });
+    if (!contact) {
+      throw new BadRequestException(
+        `Contact ${contactId} was not found, so nothing was linked or created in QuickBooks.`,
+      );
+    }
+
+    return contactId;
   }
 
   async getPosting(transactionId: number): Promise<AccountingPosting | null> {
