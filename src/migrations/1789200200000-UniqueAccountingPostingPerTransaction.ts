@@ -11,6 +11,12 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  *
  * With this constraint the insert itself becomes the claim: whoever wins writes
  * the row, and a retry updates that same row rather than adding another.
+ *
+ * Building the index requires the existing duplicates to go. Those rows are
+ * evidence — a duplicate POSTED row names a real second receipt sitting in
+ * QuickBooks that someone has to find and void — so nothing is discarded. Every
+ * removed row is copied first into `accounting_posting_duplicate_archive`,
+ * which this migration creates and deliberately leaves behind on rollback.
  */
 export class UniqueAccountingPostingPerTransaction1789200200000
   implements MigrationInterface
@@ -18,23 +24,53 @@ export class UniqueAccountingPostingPerTransaction1789200200000
   name = 'UniqueAccountingPostingPerTransaction1789200200000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
-    // Existing duplicates have to go first or the index cannot be built.
-    // Keep the most meaningful row per transaction: a successful posting over
-    // anything else, then the most recent attempt.
+    // The archive mirrors the source table's own column types, so nothing has
+    // to name the enum types. Their names differ between databases depending on
+    // whether TypeORM or a migration created them, and a hardcoded name makes
+    // the restore fail on exactly the environment that needs it.
+    await queryRunner.query(
+      'DROP TABLE IF EXISTS "accounting_posting_duplicate_archive"',
+    );
     await queryRunner.query(`
-      DELETE FROM "accounting_posting" a
-      USING "accounting_posting" b
-      WHERE a."tenantId" = b."tenantId"
-        AND a."transactionId" = b."transactionId"
-        AND a."system" = b."system"
-        AND a."documentType" = b."documentType"
-        AND (
-          (b."status" = 'POSTED' AND a."status" <> 'POSTED')
-          OR (
-            (b."status" = 'POSTED') = (a."status" = 'POSTED')
-            AND (b."createdAt", b."id") > (a."createdAt", a."id")
+      CREATE TABLE "accounting_posting_duplicate_archive" (
+        LIKE "accounting_posting"
+      )
+    `);
+    await queryRunner.query(`
+      ALTER TABLE "accounting_posting_duplicate_archive"
+        ADD COLUMN "archivedAt" TIMESTAMPTZ NOT NULL DEFAULT now(),
+        ADD COLUMN "archivedBy" character varying(255) NOT NULL
+    `);
+
+    // Which row survives per (tenant, transaction, system, documentType): a
+    // successful posting over anything else, then the most recent attempt.
+    const losers = `
+      SELECT p.*
+      FROM "accounting_posting" p
+      WHERE EXISTS (
+        SELECT 1 FROM "accounting_posting" b
+        WHERE b."tenantId" = p."tenantId"
+          AND b."transactionId" = p."transactionId"
+          AND b."system" = p."system"
+          AND b."documentType" = p."documentType"
+          AND (
+            (b."status" = 'POSTED' AND p."status" <> 'POSTED')
+            OR (
+              (b."status" = 'POSTED') = (p."status" = 'POSTED')
+              AND (b."createdAt", b."id") > (p."createdAt", p."id")
+            )
           )
-        )
+      )
+    `;
+
+    await queryRunner.query(`
+      INSERT INTO "accounting_posting_duplicate_archive"
+      SELECT l.*, now(), '${this.name}' FROM (${losers}) l
+    `);
+
+    await queryRunner.query(`
+      DELETE FROM "accounting_posting" p
+      WHERE p."id" IN (SELECT l."id" FROM (${losers}) l)
     `);
 
     await queryRunner.query(`
@@ -47,5 +83,38 @@ export class UniqueAccountingPostingPerTransaction1789200200000
     await queryRunner.query(
       'DROP INDEX IF EXISTS "public"."UQ_accounting_posting_tenant_transaction_doc"',
     );
+
+    // Put the archived duplicates back now the constraint no longer forbids
+    // them, so a rollback restores exactly what was there before. The table is
+    // absent if this migration never archived anything, so check before
+    // reading it.
+    const [{ present }] = await queryRunner.query(
+      `SELECT to_regclass('public.accounting_posting_duplicate_archive') IS NOT NULL AS present`,
+    );
+    if (!present) {
+      return;
+    }
+
+    const columns = await queryRunner.query(`
+      SELECT string_agg(quote_ident(column_name), ', ' ORDER BY ordinal_position) AS cols
+      FROM information_schema.columns
+      WHERE table_name = 'accounting_posting'
+    `);
+    const cols = columns[0].cols;
+
+    await queryRunner.query(`
+      INSERT INTO "accounting_posting" (${cols})
+      SELECT ${cols}
+      FROM "accounting_posting_duplicate_archive" a
+      WHERE a."archivedBy" = '${this.name}'
+        AND NOT EXISTS (
+          SELECT 1 FROM "accounting_posting" p WHERE p."id" = a."id"
+        )
+    `);
+
+    await queryRunner.query(`
+      DELETE FROM "accounting_posting_duplicate_archive"
+      WHERE "archivedBy" = '${this.name}'
+    `);
   }
 }

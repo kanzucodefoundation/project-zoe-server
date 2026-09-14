@@ -123,6 +123,17 @@ export interface SetupResult {
 
 const SYSTEM = 'QUICKBOOKS';
 
+/**
+ * How long one posting attempt may hold its claim.
+ *
+ * A claim is released by the attempt finishing, which writes POSTED or FAILED.
+ * If the process dies mid-request the row is left PENDING with nobody working
+ * on it, so after this long another attempt may take it over. Comfortably
+ * longer than a QuickBooks round trip, short enough that a crash does not wedge
+ * a transaction for the rest of the day.
+ */
+const CLAIM_LEASE = '10 minutes';
+
 @Injectable()
 export class AccountingService {
   private readonly logger = new Logger(AccountingService.name);
@@ -405,7 +416,11 @@ export class AccountingService {
         "requestedById" = EXCLUDED."requestedById",
         "requestedAt" = EXCLUDED."requestedAt",
         "errorMessage" = NULL
-      WHERE "accounting_posting"."status" <> 'POSTED'
+      WHERE "accounting_posting"."status" = 'FAILED'
+         OR (
+           "accounting_posting"."status" = 'PENDING'
+           AND "accounting_posting"."requestedAt" < now() - $7::interval
+         )
       RETURNING *
       `,
       [
@@ -415,12 +430,26 @@ export class AccountingService {
         AccountingPostingDocumentType.SALES_RECEIPT,
         AccountingPostingStatus.PENDING,
         requestedById,
+        CLAIM_LEASE,
       ],
     );
 
     if (!rows || rows.length === 0) {
+      // Either it is already posted, or another request holds a live claim.
+      // Which one matters to the reader, so say which.
+      const existing = await this.postingRepo.findOne({
+        where: {
+          tenantId,
+          transactionId,
+          system: AccountingPostingSystem.QUICKBOOKS,
+          documentType: AccountingPostingDocumentType.SALES_RECEIPT,
+        },
+      });
+
       throw new BadRequestException(
-        'This transaction has already been posted to QuickBooks.',
+        existing?.status === AccountingPostingStatus.PENDING
+          ? 'This transaction is already being posted to QuickBooks. Wait for that attempt to finish before trying again.'
+          : 'This transaction has already been posted to QuickBooks.',
       );
     }
 
@@ -632,7 +661,11 @@ export class AccountingService {
         where: { id: contactId, tenantId },
         relations: ['person', 'phones', 'emails'],
       }),
-      this.accountRepo.findOne({ where: { id: accountId } }),
+      this.accountRepo.findOne({
+        // Tenant-scoped: Transaction.account does not itself guarantee the
+        // account belongs to this tenant.
+        where: { id: accountId, tenant: { id: tenantId } },
+      }),
       this.mappingService.lookupByInternal({
         system: SYSTEM,
         internalReferenceType: 'CONTACT',
@@ -1165,16 +1198,30 @@ export class AccountingService {
           );
         }
 
+        // The id has to name a real contact in this tenant before anything is
+        // written to QuickBooks. Otherwise an unknown number would create a
+        // customer and persist a mapping pointing at nobody, and the campus
+        // fallback would quietly file it under the mother group.
+        const contactId = Number(m.internalReferenceId);
+        if (!Number.isSafeInteger(contactId) || contactId <= 0) {
+          throw new BadRequestException(
+            `"${m.internalReferenceId}" is not a valid contact reference.`,
+          );
+        }
+        const contactExists = await this.contactRepo.findOne({
+          where: { id: contactId, tenantId },
+          select: { id: true },
+        });
+        if (!contactExists) {
+          throw new BadRequestException(
+            `Contact ${contactId} was not found, so no QuickBooks customer was created.`,
+          );
+        }
+
         // Attach the giver to their campus in the same step. Doing this here
         // rather than asking for it separately is what keeps the dialog to one
         // decision per missing record.
-        const parent =
-          m.internalReferenceType === 'CONTACT'
-            ? await this.ensureLocationCustomer(
-                tenantId,
-                Number(m.internalReferenceId),
-              )
-            : null;
+        const parent = await this.ensureLocationCustomer(tenantId, contactId);
 
         const created = await this.createQboCustomer(
           tenantId,

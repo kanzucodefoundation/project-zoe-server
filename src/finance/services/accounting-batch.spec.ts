@@ -27,6 +27,18 @@ describe('AccountingService — posting a batch', () => {
   let plugin: { buildSalesReceipt: jest.Mock };
   let qbService: { getConnection: jest.Mock; postSalesReceipt: jest.Mock };
 
+  /** A minimal sales receipt with every reference the payload guard requires. */
+  const receipt = () => ({
+    customer: { externalCustomerId: '1' },
+    depositAccount: { externalAccountId: '2' },
+    lineItems: [{ externalItemId: '3', amount: 2000, quantity: 1 }],
+    transactionDate: '2026-09-06',
+    referenceNumber: null,
+    location: null,
+    totalAmount: 2000,
+    currency: 'UGX',
+  });
+
   const transaction = (id: number, senderName: string, amount: number) => ({
     id,
     amount,
@@ -213,6 +225,9 @@ describe('AccountingService — posting a batch', () => {
     it('refuses a transaction another request has already posted', async () => {
       // The conditional upsert returns no row when the existing one is POSTED.
       repos.posting.query.mockResolvedValue([]);
+      repos.posting.findOne.mockResolvedValue({
+        status: AccountingPostingStatus.POSTED,
+      });
 
       await expect(service.post(1, 7)).rejects.toThrow(
         /already been posted/i,
@@ -221,28 +236,54 @@ describe('AccountingService — posting a batch', () => {
       expect(plugin.buildSalesReceipt).not.toHaveBeenCalled();
     });
 
+    it('refuses while another request still holds a live claim', async () => {
+      // A PENDING row inside its lease also yields no claim.
+      repos.posting.query.mockResolvedValue([]);
+      repos.posting.findOne.mockResolvedValue({
+        status: AccountingPostingStatus.PENDING,
+      });
+
+      await expect(service.post(1, 7)).rejects.toThrow(
+        /already being posted/i,
+      );
+      expect(plugin.buildSalesReceipt).not.toHaveBeenCalled();
+    });
+
+    it('only takes over a failed attempt or an expired lease', async () => {
+      repos.posting.query.mockResolvedValue([
+        { id: 9, status: AccountingPostingStatus.PENDING },
+      ]);
+      plugin.buildSalesReceipt.mockResolvedValue(receipt());
+      qbService.postSalesReceipt.mockResolvedValue({ Id: '5', DocNumber: '1' });
+      repos.posting.save.mockImplementation(async (row: any) => row);
+
+      await service.post(1, 7);
+
+      const [sql, params] = repos.posting.query.mock.calls[0];
+      // A live PENDING row must not be reclaimable.
+      expect(sql).not.toContain(`"status" <> 'POSTED'`);
+      expect(sql).toContain(`"accounting_posting"."status" = 'FAILED'`);
+      expect(sql).toContain(`"accounting_posting"."requestedAt" < now()`);
+      // The lease length is passed as an interval rather than interpolated.
+      expect(params).toContain('10 minutes');
+    });
+
     it('claims the row with a conditional upsert, not a blind insert', async () => {
       repos.posting.query.mockResolvedValue([
         { id: 9, status: AccountingPostingStatus.PENDING },
       ]);
-      plugin.buildSalesReceipt.mockResolvedValue({
-        customer: { externalCustomerId: '1' },
-        depositAccount: { externalAccountId: '2' },
-        lineItems: [{ externalItemId: '3', amount: 2000, quantity: 1 }],
-        transactionDate: '2026-09-06',
-        referenceNumber: null,
-        location: null,
-        totalAmount: 2000,
-        currency: 'UGX',
-      });
+      plugin.buildSalesReceipt.mockResolvedValue(receipt());
       qbService.postSalesReceipt.mockResolvedValue({ Id: '5', DocNumber: '1' });
       repos.posting.save.mockImplementation(async (row: any) => row);
 
       await service.post(1, 7);
 
       const [sql] = repos.posting.query.mock.calls[0];
+      // The insert itself is the claim: on conflict it updates conditionally
+      // and returns nothing when it may not take over.
       expect(sql).toContain('ON CONFLICT');
-      expect(sql).toContain(`"accounting_posting"."status" <> 'POSTED'`);
+      expect(sql).toContain('DO UPDATE SET');
+      expect(sql).toContain('RETURNING *');
     });
   });
 });
