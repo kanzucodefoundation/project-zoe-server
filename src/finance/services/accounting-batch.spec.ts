@@ -24,6 +24,8 @@ import { TenantContext } from '../../shared/tenant/tenant-context';
 describe('AccountingService — posting a batch', () => {
   let service: AccountingService;
   let repos: any;
+  let plugin: { buildSalesReceipt: jest.Mock };
+  let qbService: { getConnection: jest.Mock; postSalesReceipt: jest.Mock };
 
   const transaction = (id: number, senderName: string, amount: number) => ({
     id,
@@ -33,10 +35,21 @@ describe('AccountingService — posting a batch', () => {
   });
 
   beforeEach(async () => {
+    plugin = { buildSalesReceipt: jest.fn() };
+    qbService = {
+      getConnection: jest.fn(),
+      postSalesReceipt: jest.fn(),
+    };
+
     repos = {
       txn: { findOne: jest.fn() },
       match: { findOne: jest.fn().mockResolvedValue(null) },
-      posting: { findOne: jest.fn(), create: jest.fn(), save: jest.fn() },
+      posting: {
+        findOne: jest.fn(),
+        create: jest.fn((row) => row),
+        save: jest.fn(),
+        query: jest.fn(),
+      },
       contact: { findOne: jest.fn().mockResolvedValue(null) },
       account: { findOne: jest.fn() },
     };
@@ -73,11 +86,8 @@ describe('AccountingService — posting a batch', () => {
             resolveForContact: jest.fn(),
           },
         },
-        { provide: QuickBooksService, useValue: { getConnection: jest.fn() } },
-        {
-          provide: WorshipHarvestAccountingPlugin,
-          useValue: { buildSalesReceipt: jest.fn() },
-        },
+        { provide: QuickBooksService, useValue: qbService },
+        { provide: WorshipHarvestAccountingPlugin, useValue: plugin },
       ],
     }).compile();
 
@@ -186,5 +196,53 @@ describe('AccountingService — posting a batch', () => {
     expect(failure.transactionId).toBe(404);
     expect(failure.giver).toBe('Transaction 404');
     expect(failure.status).toBe('FAILED');
+  });
+
+  describe('claiming a transaction before posting', () => {
+    beforeEach(() => {
+      // preflight is exercised elsewhere; here the transaction is ready.
+      jest
+        .spyOn(service, 'preflight')
+        .mockResolvedValue({ ready: true, blockers: [] });
+      repos.txn.findOne.mockResolvedValue(
+        transaction(1, 'Joshua Nabugere', 2000),
+      );
+      repos.match.findOne.mockResolvedValue({ contact: { id: 42 } });
+    });
+
+    it('refuses a transaction another request has already posted', async () => {
+      // The conditional upsert returns no row when the existing one is POSTED.
+      repos.posting.query.mockResolvedValue([]);
+
+      await expect(service.post(1, 7)).rejects.toThrow(
+        /already been posted/i,
+      );
+      // Nothing may reach QuickBooks once the claim is refused.
+      expect(plugin.buildSalesReceipt).not.toHaveBeenCalled();
+    });
+
+    it('claims the row with a conditional upsert, not a blind insert', async () => {
+      repos.posting.query.mockResolvedValue([
+        { id: 9, status: AccountingPostingStatus.PENDING },
+      ]);
+      plugin.buildSalesReceipt.mockResolvedValue({
+        customer: { externalCustomerId: '1' },
+        depositAccount: { externalAccountId: '2' },
+        lineItems: [{ externalItemId: '3', amount: 2000, quantity: 1 }],
+        transactionDate: '2026-09-06',
+        referenceNumber: null,
+        location: null,
+        totalAmount: 2000,
+        currency: 'UGX',
+      });
+      qbService.postSalesReceipt.mockResolvedValue({ Id: '5', DocNumber: '1' });
+      repos.posting.save.mockImplementation(async (row: any) => row);
+
+      await service.post(1, 7);
+
+      const [sql] = repos.posting.query.mock.calls[0];
+      expect(sql).toContain('ON CONFLICT');
+      expect(sql).toContain(`"accounting_posting"."status" <> 'POSTED'`);
+    });
   });
 });

@@ -346,22 +346,22 @@ export class AccountingService {
       });
     }
 
-    const txn = await this.getTransaction(transactionId);
-    const match = await this.getApprovedMatch(transactionId);
-    const receipt = await this.accountingPlugin.buildSalesReceipt(txn, match);
-
-    const posting = this.postingRepo.create({
+    // Claim the transaction first, before doing any work for it. The unique
+    // index on (tenantId, transactionId, system, documentType) makes this
+    // insert the claim: a concurrent request either updates the same row or,
+    // if that row is already POSTED, gets nothing back and stops. Previously
+    // both requests could insert a PENDING row and both create a receipt.
+    const posting = await this.claimPosting(
       tenantId,
       transactionId,
-      system: AccountingPostingSystem.QUICKBOOKS,
-      documentType: AccountingPostingDocumentType.SALES_RECEIPT,
-      status: AccountingPostingStatus.PENDING,
       requestedById,
-      requestedAt: new Date(),
-    });
-    await this.postingRepo.save(posting);
+    );
 
     try {
+      const txn = await this.getTransaction(transactionId);
+      const match = await this.getApprovedMatch(transactionId);
+      const receipt = await this.accountingPlugin.buildSalesReceipt(txn, match);
+
       const qboPayload = this.toQboSalesReceiptPayload(receipt);
       const qboResponse = await this.qbService.postSalesReceipt(
         tenantId,
@@ -380,6 +380,51 @@ export class AccountingService {
     }
 
     return this.postingRepo.save(posting);
+  }
+
+  /**
+   * Takes exclusive ownership of the posting row for this transaction.
+   *
+   * Refuses when the transaction has already been posted, which is what stops a
+   * second receipt being created for the same gift.
+   */
+  private async claimPosting(
+    tenantId: number,
+    transactionId: number,
+    requestedById: number,
+  ): Promise<AccountingPosting> {
+    const rows = await this.postingRepo.query(
+      `
+      INSERT INTO "accounting_posting"
+        ("tenantId", "transactionId", "system", "documentType", "status",
+         "requestedById", "requestedAt")
+      VALUES ($1, $2, $3, $4, $5, $6, now())
+      ON CONFLICT ("tenantId", "transactionId", "system", "documentType")
+      DO UPDATE SET
+        "status" = EXCLUDED."status",
+        "requestedById" = EXCLUDED."requestedById",
+        "requestedAt" = EXCLUDED."requestedAt",
+        "errorMessage" = NULL
+      WHERE "accounting_posting"."status" <> 'POSTED'
+      RETURNING *
+      `,
+      [
+        tenantId,
+        transactionId,
+        AccountingPostingSystem.QUICKBOOKS,
+        AccountingPostingDocumentType.SALES_RECEIPT,
+        AccountingPostingStatus.PENDING,
+        requestedById,
+      ],
+    );
+
+    if (!rows || rows.length === 0) {
+      throw new BadRequestException(
+        'This transaction has already been posted to QuickBooks.',
+      );
+    }
+
+    return this.postingRepo.create(rows[0] as Partial<AccountingPosting>);
   }
 
   /**
@@ -446,6 +491,7 @@ export class AccountingService {
     amount: number;
     transactionDate: string;
   }> {
+    const tenantId = this.tenantContext.requireTenant();
     let giver = `Transaction ${transactionId}`;
     let amount = 0;
     let transactionDate = '';
@@ -461,7 +507,9 @@ export class AccountingService {
       const match = await this.getApprovedMatch(transactionId);
       if (match?.contact) {
         const contact = await this.contactRepo.findOne({
-          where: { id: match.contact.id },
+          // Tenant-scoped like every other read here, so an inconsistent
+          // relation row cannot surface another church's contact name.
+          where: { id: match.contact.id, tenantId },
           relations: ['person'],
         });
         const name = contact ? getPersonFullName(contact.person) : '';
@@ -1100,9 +1148,15 @@ export class AccountingService {
       let externalReferenceName = m.externalReferenceName;
 
       if (m.action === 'create') {
-        if (m.externalReferenceType !== 'CUSTOMER') {
+        // Both halves matter. Checking only the external type would let a
+        // GROUP -> CUSTOMER row create a standalone customer and map a campus
+        // to it, which is not something this dialog should ever do.
+        if (
+          m.internalReferenceType !== 'CONTACT' ||
+          m.externalReferenceType !== 'CUSTOMER'
+        ) {
           throw new BadRequestException(
-            `${m.externalReferenceType} records cannot be created from Zoe — add it in QuickBooks first, then pick it here.`,
+            `Only a giver can be created from Zoe. ${m.internalReferenceType} to ${m.externalReferenceType} must be added in QuickBooks first, then picked here.`,
           );
         }
         if (!m.create) {

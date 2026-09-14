@@ -2,6 +2,7 @@ import { Type } from 'class-transformer';
 import {
   ArrayNotEmpty,
   IsArray,
+  registerDecorator,
   IsEmail,
   IsIn,
   IsNotEmpty,
@@ -45,6 +46,26 @@ export class CreateQboCustomerDto {
 
 }
 
+/** Accepts only a non-empty string or a finite number. */
+function IsScalarReference() {
+  return function (object: object, propertyName: string) {
+    registerDecorator({
+      name: 'isScalarReference',
+      target: object.constructor,
+      propertyName,
+      validator: {
+        validate(value: unknown) {
+          if (typeof value === 'number') return Number.isFinite(value);
+          return typeof value === 'string' && value.trim().length > 0;
+        },
+        defaultMessage() {
+          return 'internalReferenceId must be a string or a number';
+        },
+      },
+    });
+  };
+}
+
 export class SetupMappingDto {
   /**
    * `link` points the internal record at an existing QBO record (default).
@@ -60,7 +81,13 @@ export class SetupMappingDto {
   @IsNotEmpty()
   internalReferenceType: string;
 
+  /**
+   * A scalar id. `IsNotEmpty` alone accepts objects and arrays, and the service
+   * stringifies this value — an object would persist a mapping keyed
+   * "[object Object]", and an array would put NaN into the contact lookup.
+   */
   @IsNotEmpty()
+  @IsScalarReference()
   internalReferenceId: string | number;
 
   @IsString()
