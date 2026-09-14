@@ -11,10 +11,8 @@ import {
 import { ApiTags } from '@nestjs/swagger';
 import { SentryInterceptor } from '../../utils/sentry.interceptor';
 import { TenantContextInterceptor } from '../../interceptors/tenant-context.interceptor';
-import {
-  AccountingService,
-  ApplySetupDto,
-} from '../services/accounting.service';
+import { AccountingService } from '../services/accounting.service';
+import { ApplySetupDto } from '../dto/accounting-setup.dto';
 
 @UseInterceptors(SentryInterceptor, TenantContextInterceptor)
 @ApiTags('Finance - Accounting')

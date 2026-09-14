@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { Connection, In, Repository } from 'typeorm';
+import { Connection, In, IsNull, Repository } from 'typeorm';
 import Group from '../entities/group.entity';
 import GroupMembership from '../entities/groupMembership.entity';
 import { GroupRole } from '../enums/groupRole';
@@ -231,6 +231,51 @@ export class GroupPermissionsService {
     }
 
     return { location, fob };
+  }
+
+  /**
+   * The tenant's "mother" group — the root of the group tree (Worship Harvest
+   * Global for WHM). Every other group descends from it.
+   */
+  async getRootGroup(): Promise<{ id: number; name: string } | null> {
+    const roots = await this.repository.find({
+      where: { parentId: IsNull() },
+      select: ['id', 'name'],
+      order: { id: 'ASC' },
+      take: 1,
+    });
+    return roots[0] ? { id: roots[0].id, name: roots[0].name } : null;
+  }
+
+  /**
+   * Like `resolveForContact`, but substitutes the tenant's mother group wherever
+   * the contact has no Location or FOB. Giving from someone who has not been
+   * placed in the hierarchy is attributed to the movement as a whole rather than
+   * left unattributed, so posting is never blocked on missing CRM data.
+   */
+  async resolveAttributionForContact(contactId: number): Promise<{
+    location: { id: number; name: string } | null;
+    fob: { id: number; name: string } | null;
+    locationIsFallback: boolean;
+    fobIsFallback: boolean;
+  }> {
+    const { location, fob } = await this.resolveForContact(contactId);
+    if (location && fob) {
+      return {
+        location,
+        fob,
+        locationIsFallback: false,
+        fobIsFallback: false,
+      };
+    }
+
+    const root = await this.getRootGroup();
+    return {
+      location: location ?? root,
+      fob: fob ?? root,
+      locationIsFallback: !location && !!root,
+      fobIsFallback: !fob && !!root,
+    };
   }
 
   private async getGroupAndAllDescendants(

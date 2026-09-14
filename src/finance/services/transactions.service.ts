@@ -8,6 +8,7 @@ import {
   Repository,
   Connection,
   ILike,
+  In,
   Between,
   MoreThanOrEqual,
   LessThanOrEqual,
@@ -16,6 +17,10 @@ import { Readable } from 'stream';
 import { Workbook, Worksheet } from 'exceljs';
 import Transaction from '../entities/transaction.entity';
 import FinancialAccount from '../entities/financial-account.entity';
+import {
+  AccountingPosting,
+  AccountingPostingStatus,
+} from '../../integrations/quickbooks/entities/accounting-posting.entity';
 import {
   CreateTransactionDto,
   UpdateTransactionDto,
@@ -27,7 +32,20 @@ import {
 } from '../dto/transaction.dto';
 import { TransactionStatus } from '../enums/transaction-status.enum';
 import { MatchStatus } from '../enums/match-status.enum';
-import { TransactionCategory } from '../enums/transaction-category.enum';
+import {
+  DEFAULT_TRANSACTION_CATEGORY,
+  TransactionCategory,
+} from '../enums/transaction-category.enum';
+import {
+  cleanSenderName,
+  detectCategory,
+  detectGivingItem,
+  extractPersonName,
+  extractPhone,
+  extractTitheNumber,
+  GivingItemCandidate,
+} from '../statement-parsing';
+import { GivingCategoriesService } from './giving-categories.service';
 import { CategoryRulesService } from './category-rules.service';
 import { TenantContext } from '../../shared/tenant/tenant-context';
 import { AppLogger, ContextLogger } from '../../utils/app-logger.service';
@@ -39,6 +57,7 @@ import { getPersonFullName } from '../../crm/crm.helpers';
 export class TransactionsService {
   private readonly repository: Repository<Transaction>;
   private readonly accountRepository: Repository<FinancialAccount>;
+  private readonly postingRepository: Repository<AccountingPosting>;
   private readonly logger: ContextLogger;
 
   constructor(
@@ -46,9 +65,11 @@ export class TransactionsService {
     private tenantContext: TenantContext,
     private appLogger: AppLogger,
     private categoryRulesService: CategoryRulesService,
+    private givingCategoriesService: GivingCategoriesService,
   ) {
     this.repository = connection.getRepository(Transaction);
     this.accountRepository = connection.getRepository(FinancialAccount);
+    this.postingRepository = connection.getRepository(AccountingPosting);
     this.logger = this.appLogger.createContextLogger('TransactionsService');
   }
 
@@ -285,40 +306,62 @@ export class TransactionsService {
       'completiontime',
     ],
     amountColumn: ['amount', 'credit', 'amountreceived', 'value', 'paidin'],
+    // Order matters. Mobile-money exports carry both "From" (a FRI identifier
+    // like FRI:256763676927/MSISDN) and "From name" (the actual person), so
+    // the more specific alias has to be tried first or every sender name comes
+    // through as a URI. "To name" is the church receiving the money, never the
+    // giver, and is deliberately absent from this list.
     senderNameColumn: [
+      'fromname',
       'sendername',
-      'name',
       'accountname',
-      'sender',
-      'from',
       'customername',
+      'name',
+      'sender',
       'payer',
+      'from',
     ],
+    // Last resort is "From": these statements put no bare phone column in the
+    // file at all, but the FRI value carries the MSISDN, which the matcher
+    // needs. `extractPhone` digs the number back out.
     senderPhoneColumn: [
       'senderphone',
-      'phone',
       'phonenumber',
+      'mobilenumber',
+      'phone',
       'msisdn',
       'mobile',
-      'mobilenumber',
+      'from',
     ],
     referenceColumn: [
-      'reference',
-      'ref',
       'referencenumber',
-      'transactionid',
       'transactionreference',
-      'receipt',
+      'transactionid',
       'receiptnumber',
       'accountnumber',
+      'reference',
+      'receipt',
+      'ref',
+      'id',
     ],
+    // MoMo exports label the free-text box inconsistently; "reason" and
+    // "to message" are what MTN and Airtel statements actually use, and that
+    // field is where givers put the category, tithe number and their name.
     narrationColumn: [
       'narration',
+      'reason',
+      'tomessage',
+      'message',
       'description',
       'details',
       'notes',
+      'note',
       'particulars',
       'remarks',
+      'remark',
+      'purpose',
+      'comment',
+      'transactiondetails',
     ],
   };
 
@@ -368,6 +411,11 @@ export class TransactionsService {
       }
 
       for (const alias of aliases) {
+        // Substring matching is only safe for distinctive aliases. Allowing a
+        // two- or three-letter one would let 'id' claim "Paid In".
+        if (alias.length < 4) {
+          continue;
+        }
         const partial = normalized.find((entry) => entry.key.includes(alias));
         if (partial) {
           return partial.header;
@@ -437,14 +485,24 @@ export class TransactionsService {
         : String(value);
     };
 
+    const narration = asText(columns.narrationColumn);
+
+    // MoMo statements often carry no sender-name column at all, and when they
+    // do it arrives shouting with the phone number glued on. Fall back to the
+    // name the giver typed into the message.
+    const senderName =
+      cleanSenderName(asText(columns.senderNameColumn)) ??
+      extractPersonName(narration);
+
     return {
       rowIndex,
       transactionDate: transactionDate ? transactionDate.toISOString() : '',
       amount: isNaN(amount) ? 0 : amount,
       externalReference: asText(columns.referenceColumn),
-      senderName: asText(columns.senderNameColumn),
-      senderPhone: asText(columns.senderPhoneColumn),
-      narration: asText(columns.narrationColumn),
+      senderName,
+      senderPhone: extractPhone(asText(columns.senderPhoneColumn)),
+      narration,
+      titheNumber: extractTitheNumber(narration),
       isValid: errors.length === 0,
       errors: errors.length > 0 ? errors : undefined,
     };
@@ -488,6 +546,27 @@ export class TransactionsService {
 
     const parsed = rows.map((row) => this.toParsedTransaction(row, columns));
 
+    // The giving items come from QuickBooks, so a message naming "Offertory -
+    // YXP" can be booked against that exact item rather than being flattened
+    // into the four-value category. Loaded once for the whole file.
+    const givingOptions = await this.givingCategoriesService
+      .list()
+      .catch(() => []);
+    const itemCandidates: GivingItemCandidate[] = givingOptions
+      .filter((option) => option.qboItemId && option.qboItemName)
+      .map((option) => ({
+        id: option.qboItemId as string,
+        name: option.qboItemName as string,
+      }));
+    const categoryByItemId = new Map(
+      givingOptions
+        .filter((option) => option.qboItemId && option.category)
+        .map((option) => [
+          option.qboItemId as string,
+          option.category as TransactionCategory,
+        ]),
+    );
+
     // `applyServiceTimeRules` gates the category-rules engine. Load the rules
     // once for the whole import — calling matchTransaction per row issued one
     // DB query per row, which is expensive for large statements.
@@ -516,17 +595,69 @@ export class TransactionsService {
           );
         }
 
-        item.category = matched?.category ?? options.defaultCategory;
-        item.matchedRule = matched ? matched.rule : 'Default category';
+        this.applyCategory(item, matched, options, itemCandidates, categoryByItemId);
       }
     } else {
       for (const item of parsed) {
-        item.category = options.defaultCategory;
-        item.matchedRule = 'Default category';
+        this.applyCategory(item, null, options, itemCandidates, categoryByItemId);
       }
     }
 
     return parsed;
+  }
+
+  /**
+   * Settles one preview row's category and records why.
+   *
+   * Order of preference: an explicit category rule, then the giving category
+   * named in the statement message, then the wizard's default. Nothing matching
+   * means tithe — MoMo lines routinely carry no message, and unspecified giving
+   * is treated as tithe.
+   */
+  private applyCategory(
+    item: ParsedTransactionDto,
+    matched: { category: TransactionCategory; rule: string } | null,
+    options: ParseTransactionDto,
+    itemCandidates: GivingItemCandidate[],
+    categoryByItemId: Map<string, TransactionCategory>,
+  ): void {
+    // The QuickBooks item is the precise answer; settle it first.
+    const detectedItem = detectGivingItem(item.narration, itemCandidates);
+    if (detectedItem) {
+      item.externalItemId = detectedItem.id;
+      item.externalItemName = detectedItem.name;
+    } else {
+      item.externalItemId = options.defaultItemId ?? null;
+      item.externalItemName = options.defaultItemId
+        ? (options.defaultItemName ?? null)
+        : null;
+    }
+
+    if (matched) {
+      item.category = matched.category;
+      item.matchedRule = matched.rule;
+      return;
+    }
+
+    if (detectedItem) {
+      item.category =
+        categoryByItemId.get(detectedItem.id) ??
+        detectCategory(item.narration) ??
+        options.defaultCategory ??
+        DEFAULT_TRANSACTION_CATEGORY;
+      item.matchedRule = `Matched "${detectedItem.name}" in the statement message`;
+      return;
+    }
+
+    const detected = detectCategory(item.narration);
+    if (detected) {
+      item.category = detected;
+      item.matchedRule = 'Detected from statement message';
+      return;
+    }
+
+    item.category = options.defaultCategory ?? DEFAULT_TRANSACTION_CATEGORY;
+    item.matchedRule = 'Default category';
   }
 
   /**
@@ -582,8 +713,22 @@ export class TransactionsService {
         transaction.senderPhone = item.senderPhone ?? null;
         transaction.senderPhoneNormalized = normalizePhone(item.senderPhone);
         transaction.narration = item.narration ?? null;
-        transaction.category = item.category;
+        transaction.category = item.category ?? DEFAULT_TRANSACTION_CATEGORY;
+        transaction.externalItemId = item.externalItemId ?? null;
+        transaction.externalItemName = item.externalItemName ?? null;
         transaction.status = TransactionStatus.PENDING;
+
+        // Keep what the importer read out of the message. The tithe number is
+        // what the matcher uses to identify the giver, so losing it here would
+        // make reconciliation fall back to fuzzy name matching.
+        const titheNumber =
+          item.titheNumber ?? extractTitheNumber(item.narration);
+        if (titheNumber) {
+          transaction.rawData = {
+            ...(transaction.rawData ?? {}),
+            titheNumber,
+          };
+        }
 
         await this.repository.save(transaction);
         imported++;
@@ -603,6 +748,29 @@ export class TransactionsService {
     });
 
     return { imported, errors };
+  }
+
+  /**
+   * The successful QuickBooks posting for each of these transactions, if any.
+   *
+   * Only POSTED rows count: a FAILED attempt must still be retryable, so it
+   * deliberately does not mark the transaction as done.
+   */
+  private async loadPostings(
+    transactionIds: number[],
+  ): Promise<Map<number, AccountingPosting>> {
+    if (transactionIds.length === 0) return new Map();
+
+    const tenantId = this.tenantContext.requireTenant();
+    const postings = await this.postingRepository.find({
+      where: {
+        tenantId,
+        transactionId: In(transactionIds),
+        status: AccountingPostingStatus.POSTED,
+      },
+    });
+
+    return new Map(postings.map((p) => [p.transactionId, p]));
   }
 
   async findAll(dto: SearchTransactionDto): Promise<Transaction[]> {
@@ -654,9 +822,18 @@ export class TransactionsService {
     // show who it was matched to, and to offer Approve/Reject while that match
     // is still pending. Without this it only ever saw `account`, so a matched
     // transaction looked untouched and could never be approved.
+    //
+    // It also needs to know what has already reached QuickBooks, so a posted
+    // receipt is shown as posted rather than offered for posting again. Fetched
+    // in one query for the whole page rather than one per row.
+    const postingsByTransaction = await this.loadPostings(
+      transactions.map((t) => t.id),
+    );
+
     return transactions.map((transaction) => ({
       ...transaction,
       reconciliationMatch: this.toActiveMatch(transaction),
+      accountingPosting: postingsByTransaction.get(transaction.id) ?? null,
     })) as Transaction[];
   }
 

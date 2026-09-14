@@ -23,6 +23,7 @@ import { getConnection } from './db.connection';
 import { ExternalSystemConnection } from '../src/integrations/quickbooks/entities/external-system-connection.entity';
 import { ExternalSystemMapping } from '../src/integrations/quickbooks/entities/external-system-mapping.entity';
 import Group from '../src/groups/entities/group.entity';
+import { GroupCategoryPurpose } from '../src/groups/enums/groups';
 import FinancialAccount from '../src/finance/entities/financial-account.entity';
 
 dotenv.config();
@@ -383,6 +384,15 @@ async function qboPost(
   }
 }
 
+/** Sparse-updates a customer. QuickBooks requires the current SyncToken. */
+async function qboUpdateCustomer(
+  body: any,
+  accessToken: string,
+  realmId: string,
+): Promise<any> {
+  return qboPost('/customer', { ...body, sparse: true }, accessToken, realmId);
+}
+
 async function qboQuery(
   query: string,
   accessToken: string,
@@ -720,6 +730,95 @@ async function main() {
       console.log(`  + Created ${displayName} (Id=${qboId})`);
     }
     customerResults.push({ name: displayName, qboId });
+  }
+
+  // ── 7. Campus customers, and re-parenting ────────────────────────────────
+  // Giving is grouped by campus through QuickBooks' sub-customer hierarchy: a
+  // person is a sub-customer of their location. Campuses are named after Zoe's
+  // own Location groups so the reverse importer can match them by name.
+  console.log('\nStep 7: Campus customers (from Zoe Location groups)...');
+
+  const zoeGroups = await groupRepo.find({
+    where: { tenant: { id: TENANT_ID } },
+    relations: ['category'],
+  });
+  const campuses = zoeGroups.filter(
+    (g) => g.category?.purpose === GroupCategoryPurpose.LOCATION,
+  );
+
+  if (campuses.length === 0) {
+    console.log(
+      '  ! Zoe has no Location groups, so no campus customers were created.',
+    );
+  }
+
+  const campusCustomerIds: Array<{ groupId: number; name: string; qboId: string }> =
+    [];
+
+  for (const campus of campuses) {
+    const existing = await qboQuery(
+      `SELECT * FROM Customer WHERE DisplayName = '${esc(campus.name)}' MAXRESULTS 5`,
+      accessToken,
+      realmId,
+    );
+    let qboId: string;
+    if (existing.length > 0) {
+      qboId = existing[0].Id;
+      console.log(`  ✓ ${campus.name} already exists (Id=${qboId})`);
+    } else {
+      const res = await qboPost(
+        '/customer',
+        { DisplayName: campus.name, CompanyName: campus.name },
+        accessToken,
+        realmId,
+      );
+      qboId = res.Customer.Id;
+      console.log(`  + Created campus ${campus.name} (Id=${qboId})`);
+    }
+
+    await upsertMapping(mappingRepo, {
+      internalReferenceType: 'GROUP',
+      internalReferenceId: campus.id,
+      externalReferenceType: 'CUSTOMER',
+      externalReferenceId: qboId,
+      externalReferenceName: campus.name,
+    });
+    campusCustomerIds.push({ groupId: campus.id, name: campus.name, qboId });
+  }
+
+  // Spread the test people across the campuses so every campus has givers and
+  // the reverse importer has a parent to read for each one.
+  if (campusCustomerIds.length > 0) {
+    console.log('\nStep 8: Parenting test customers to campuses...');
+    for (let i = 0; i < customerResults.length; i++) {
+      const person = customerResults[i];
+      const campus = campusCustomerIds[i % campusCustomerIds.length];
+
+      const current = await qboQuery(
+        `SELECT * FROM Customer WHERE Id = '${esc(person.qboId)}'`,
+        accessToken,
+        realmId,
+      );
+      const record = current[0];
+      if (!record) continue;
+
+      if (record.ParentRef?.value === campus.qboId) {
+        console.log(`  ✓ ${person.name} already under ${campus.name}`);
+        continue;
+      }
+
+      await qboUpdateCustomer(
+        {
+          Id: record.Id,
+          SyncToken: record.SyncToken,
+          ParentRef: { value: campus.qboId },
+          Job: true,
+        },
+        accessToken,
+        realmId,
+      );
+      console.log(`  + ${person.name} → ${campus.name}`);
+    }
   }
 
   // ── Summary ───────────────────────────────────────────────────────────────

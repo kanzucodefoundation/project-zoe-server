@@ -12,6 +12,7 @@ import {
 import { ExternalSystemMappingService } from '../../integrations/quickbooks/external-system-mapping.service';
 import { GroupPermissionsService } from '../../groups/services/group-permissions.service';
 import { getPersonFullName } from '../../crm/crm.helpers';
+import { resolveTransactionCategory } from '../enums/transaction-category.enum';
 
 const SYSTEM = 'QUICKBOOKS';
 
@@ -58,8 +59,11 @@ export class WorshipHarvestAccountingPlugin
     });
 
     // ── Contact → Location → QBO Department ─────────────────────────────────
-    const { location, fob } =
-      await this.groupPermissionsService.resolveForContact(contactId);
+    // Falls back to the mother group when the giver is in no Location or FOB.
+    const { location, fob, locationIsFallback, fobIsFallback } =
+      await this.groupPermissionsService.resolveAttributionForContact(
+        contactId,
+      );
 
     const locationMapping = location
       ? await this.mappingService.lookupByInternal({
@@ -81,7 +85,7 @@ export class WorshipHarvestAccountingPlugin
       : null;
 
     // ── Transaction category → QBO Item ─────────────────────────────────────
-    const categoryKey = transaction.category ?? 'TITHE';
+    const categoryKey = resolveTransactionCategory(transaction.category);
     const itemMapping = await this.mappingService.lookupByInternal({
       system: SYSTEM,
       internalReferenceType: 'GIVING_CATEGORY',
@@ -111,17 +115,24 @@ export class WorshipHarvestAccountingPlugin
         financialAccountName: account?.name ?? null,
         externalAccountId: accountMapping?.externalReferenceId ?? null,
       },
-      location: location
-        ? {
-            groupId: location.id,
-            groupName: location.name,
-            externalLocationId: locationMapping?.externalReferenceId ?? null,
-          }
-        : null,
+      location:
+        location && locationMapping
+          ? {
+              groupId: location.id,
+              groupName: location.name,
+              externalLocationId: locationMapping.externalReferenceId,
+              isFallback: locationIsFallback,
+            }
+          : null,
       lineItems: [
         {
-          category: categoryKey,
-          externalItemId: itemMapping?.externalReferenceId ?? null,
+          category: transaction.externalItemName ?? categoryKey,
+          // A statement that named a specific product/service books against it;
+          // the category mapping is only the fallback.
+          externalItemId:
+            transaction.externalItemId ??
+            itemMapping?.externalReferenceId ??
+            null,
           description: `${categoryKey} — ${
             contact ? getPersonFullName(contact.person) : ''
           } ${txnDate}`.trim(),
@@ -129,13 +140,15 @@ export class WorshipHarvestAccountingPlugin
           unitPrice: amount,
           amount,
           serviceDate: txnDate,
-          class: fob
-            ? {
-                groupId: fob.id,
-                groupName: fob.name,
-                externalClassId: fobMapping?.externalReferenceId ?? null,
-              }
-            : null,
+          class:
+            fob && fobMapping
+              ? {
+                  groupId: fob.id,
+                  groupName: fob.name,
+                  externalClassId: fobMapping.externalReferenceId,
+                  isFallback: fobIsFallback,
+                }
+              : null,
         },
       ],
       totalAmount: amount,

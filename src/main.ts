@@ -3,6 +3,7 @@ import 'reflect-metadata';
 import { AppModule } from './app.module';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
+import { json, urlencoded } from 'express';
 import * as compression from 'compression';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import config from './config';
@@ -22,6 +23,11 @@ async function bootstrap() {
     optionsSuccessStatus: 204,
   });
   app.use(compression());
+  // A reviewed import posts every parsed row back as JSON, and a few thousand
+  // statement lines comfortably exceed Express's 100kb default. The client also
+  // chunks large imports, so this is a ceiling rather than the normal size.
+  app.use(json({ limit: '25mb' }));
+  app.use(urlencoded({ limit: '25mb', extended: true }));
   app.use(
     rateLimit({
       windowMs: 15 * 60 * 1000, // 15 minutes

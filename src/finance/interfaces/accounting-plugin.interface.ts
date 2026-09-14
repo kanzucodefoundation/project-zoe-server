@@ -10,9 +10,11 @@ export interface AccountingSalesReceiptLineItem {
   amount: number;
   serviceDate: string;
   class: {
-    groupId: number;
+    /** Null when the giver has no FOB and the tenant default was used. */
+    groupId: number | null;
     groupName: string;
     externalClassId: string;
+    isFallback: boolean;
   } | null;
 }
 
@@ -31,9 +33,11 @@ export interface AccountingSalesReceipt {
     externalAccountId: string;
   };
   location: {
-    groupId: number;
+    /** Null when the giver has no Location and the tenant default was used. */
+    groupId: number | null;
     groupName: string;
     externalLocationId: string;
+    isFallback: boolean;
   } | null;
   lineItems: AccountingSalesReceiptLineItem[];
   totalAmount: number;

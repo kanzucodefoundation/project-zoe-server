@@ -14,6 +14,8 @@ import { DistributionsController } from './controllers/distributions.controller'
 import { CategoryRulesController } from './controllers/category-rules.controller';
 import { ReportsController } from './controllers/reports.controller';
 import { AccountingController } from './controllers/accounting.controller';
+import { GivingCategoriesController } from './controllers/giving-categories.controller';
+import { AccountingBatchController } from './controllers/accounting-batch.controller';
 
 // Services
 import { AccountsService } from './services/accounts.service';
@@ -24,6 +26,7 @@ import { CategoryRulesService } from './services/category-rules.service';
 import { DistributionsService } from './services/distributions.service';
 import { ReportsService } from './services/reports.service';
 import { AccountingService } from './services/accounting.service';
+import { GivingCategoriesService } from './services/giving-categories.service';
 
 // Plugins
 import { ReconciliationPluginRegistry } from './plugins/reconciliation-plugin.registry';
@@ -50,6 +53,8 @@ import { WorshipHarvestAccountingPlugin } from './plugins/worship-harvest-accoun
     CategoryRulesController,
     ReportsController,
     AccountingController,
+    GivingCategoriesController,
+    AccountingBatchController,
   ],
   providers: [
     AccountsService,
@@ -60,6 +65,7 @@ import { WorshipHarvestAccountingPlugin } from './plugins/worship-harvest-accoun
     DistributionsService,
     ReportsService,
     AccountingService,
+    GivingCategoriesService,
     ReconciliationPluginRegistry,
     DefaultReconciliationPlugin,
     WorshipHarvestReconciliationPlugin,

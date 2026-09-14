@@ -1,7 +1,13 @@
-import { Injectable, Inject, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  Inject,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { Repository, Connection, ILike } from 'typeorm';
 import FinancialAccount from '../entities/financial-account.entity';
 import {
+  CreateAccountFromQuickBooksDto,
   CreateFinancialAccountDto,
   UpdateFinancialAccountDto,
   SearchFinancialAccountDto,
@@ -9,6 +15,21 @@ import {
 import { TenantContext } from '../../shared/tenant/tenant-context';
 import { AppLogger, ContextLogger } from '../../utils/app-logger.service';
 import Group from '../../groups/entities/group.entity';
+import { QuickBooksService } from '../../integrations/quickbooks/quickbooks.service';
+import { ExternalSystemMappingService } from '../../integrations/quickbooks/external-system-mapping.service';
+import { ACCOUNTING_SYSTEM } from '../constants/accounting-mapping.constants';
+import { QboAccount } from '../../integrations/quickbooks/quickbooks.types';
+
+/** A QuickBooks account offered on the accounts screen. */
+export interface QboAccountOption {
+  id: string;
+  name: string;
+  accountType: string | null;
+  currency: string | null;
+  /** Set when a Zoe account is already linked to this QuickBooks account. */
+  linkedAccountId: number | null;
+  linkedAccountName: string | null;
+}
 
 @Injectable()
 export class AccountsService {
@@ -20,10 +41,115 @@ export class AccountsService {
     @Inject('CONNECTION') connection: Connection,
     private tenantContext: TenantContext,
     private appLogger: AppLogger,
+    private readonly qbService: QuickBooksService,
+    private readonly mappingService: ExternalSystemMappingService,
   ) {
     this.repository = connection.getRepository(FinancialAccount);
     this.groupRepository = connection.getRepository(Group);
     this.logger = this.appLogger.createContextLogger('AccountsService');
+  }
+
+  /**
+   * The QuickBooks chart of accounts, annotated with the Zoe account already
+   * linked to each one. Drives the "add from QuickBooks" picker so the operator
+   * chooses a real account instead of retyping its name and hoping it matches.
+   */
+  async listQuickBooksAccounts(): Promise<QboAccountOption[]> {
+    const tenantId = this.tenantContext.requireTenant();
+
+    const [qboAccounts, mappings, localAccounts] = await Promise.all([
+      this.qbService.getQboAccounts(tenantId),
+      this.mappingService.findAll(ACCOUNTING_SYSTEM),
+      this.repository.find({ where: { tenant: { id: tenantId } } }),
+    ]);
+
+    const accountsById = new Map(localAccounts.map((a) => [a.id, a]));
+    const linkedByExternalId = new Map<string, FinancialAccount | undefined>();
+    for (const mapping of mappings) {
+      if (
+        mapping.internalReferenceType === 'FINANCIAL_ACCOUNT' &&
+        mapping.externalReferenceType === 'ACCOUNT'
+      ) {
+        linkedByExternalId.set(
+          mapping.externalReferenceId,
+          accountsById.get(Number(mapping.internalReferenceId)),
+        );
+      }
+    }
+
+    return qboAccounts.map((account) => {
+      const linked = linkedByExternalId.get(String(account.Id));
+      return {
+        id: String(account.Id),
+        name: account.Name,
+        accountType: account.AccountType ?? null,
+        currency: account.CurrencyRef?.value ?? null,
+        linkedAccountId: linked?.id ?? null,
+        linkedAccountName: linked?.name ?? null,
+      };
+    });
+  }
+
+  /**
+   * Creates a Zoe account mirroring a QuickBooks one and records the mapping
+   * between them in the same step, so giving posted against this account never
+   * has to ask which QuickBooks account it belongs to.
+   */
+  async createFromQuickBooks(
+    dto: CreateAccountFromQuickBooksDto,
+    user: any,
+  ): Promise<FinancialAccount> {
+    const tenantId = this.tenantContext.requireTenant();
+
+    const qboAccounts = await this.qbService.getQboAccounts(tenantId);
+    const qboAccount: QboAccount | undefined = qboAccounts.find(
+      (a) => String(a.Id) === String(dto.qboAccountId),
+    );
+    if (!qboAccount) {
+      throw new NotFoundException(
+        `QuickBooks account ${dto.qboAccountId} was not found. It may have been deleted or made inactive.`,
+      );
+    }
+
+    const existing = await this.mappingService.lookupByExternal({
+      system: ACCOUNTING_SYSTEM,
+      externalReferenceType: 'ACCOUNT',
+      externalReferenceId: String(dto.qboAccountId),
+    });
+    if (existing) {
+      throw new BadRequestException(
+        `"${qboAccount.Name}" is already linked to an account in Zoe.`,
+      );
+    }
+
+    const account = new FinancialAccount();
+    account.tenant = { id: tenantId } as any;
+    account.name = dto.name?.trim() || qboAccount.Name;
+    account.accountNumber = dto.accountNumber ?? qboAccount.AcctNum ?? null;
+    account.accountType = dto.accountType;
+    account.currency =
+      dto.currency || qboAccount.CurrencyRef?.value || 'UGX';
+    account.description = `Linked to QuickBooks account "${qboAccount.Name}"`;
+    account.isActive = true;
+
+    const saved = await this.repository.save(account);
+
+    await this.mappingService.upsert({
+      system: ACCOUNTING_SYSTEM,
+      internalReferenceType: 'FINANCIAL_ACCOUNT',
+      internalReferenceId: String(saved.id),
+      externalReferenceType: 'ACCOUNT',
+      externalReferenceId: String(qboAccount.Id),
+      externalReferenceName: qboAccount.Name,
+    });
+
+    this.logger.business('log', 'Financial account created from QuickBooks', {
+      operation: 'createAccountFromQuickBooks',
+      userId: user?.id,
+      metadata: { accountId: saved.id, qboAccountId: qboAccount.Id },
+    });
+
+    return saved;
   }
 
   async create(dto: CreateFinancialAccountDto, user: any): Promise<FinancialAccount> {

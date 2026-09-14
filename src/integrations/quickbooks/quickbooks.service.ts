@@ -12,6 +12,12 @@ import { randomUUID } from 'crypto';
 import { ExternalSystemConnection } from './entities/external-system-connection.entity';
 import { ExchangeTokenDto } from './dto/exchange-token.dto';
 import { CreateChargeDto } from './dto/create-charge.dto';
+import {
+  QboAccount,
+  QboCustomer,
+  QboNamedEntity,
+  QboSalesReceipt,
+} from './quickbooks.types';
 
 interface IntuitTokenResponse {
   token_type: string;
@@ -196,75 +202,108 @@ export class QuickBooksService {
 
   // ─── QBO reference data ────────────────────────────────────────────────────
 
-  async getQboCustomers(tenantId: number): Promise<any[]> {
-    return this.qboQuery(
+  async getQboCustomers(tenantId: number): Promise<QboCustomer[]> {
+    return this.qboQuery<QboCustomer>(
       tenantId,
       'SELECT * FROM Customer WHERE Active = true MAXRESULTS 1000',
     );
   }
 
-  async getQboAccounts(tenantId: number): Promise<any[]> {
-    return this.qboQuery(
+  async getQboAccounts(tenantId: number): Promise<QboAccount[]> {
+    return this.qboQuery<QboAccount>(
       tenantId,
       'SELECT * FROM Account WHERE Active = true MAXRESULTS 1000',
     );
   }
 
-  async getQboItems(tenantId: number): Promise<any[]> {
-    return this.qboQuery(
+  async getQboItems(tenantId: number): Promise<QboNamedEntity[]> {
+    return this.qboQuery<QboNamedEntity>(
       tenantId,
       'SELECT * FROM Item WHERE Active = true MAXRESULTS 1000',
     );
   }
 
-  async getQboClasses(tenantId: number): Promise<any[]> {
-    return this.qboQuery(
+  async getQboClasses(tenantId: number): Promise<QboNamedEntity[]> {
+    return this.qboQuery<QboNamedEntity>(
       tenantId,
       'SELECT * FROM Class WHERE Active = true MAXRESULTS 1000',
     );
   }
 
-  async getQboDepartments(tenantId: number): Promise<any[]> {
-    return this.qboQuery(
+  async getQboDepartments(tenantId: number): Promise<QboNamedEntity[]> {
+    return this.qboQuery<QboNamedEntity>(
       tenantId,
       'SELECT * FROM Department WHERE Active = true MAXRESULTS 1000',
     );
   }
 
-  private async qboQuery(tenantId: number, query: string): Promise<any[]> {
-    const { accessToken, realmId } = await this.getValidAccessToken(tenantId);
-    const base = this.accountingApiBase();
-    const { data } = await firstValueFrom(
-      this.httpService.get(`${base}/v3/company/${realmId}/query`, {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          Accept: 'application/json',
-        },
-        params: { query, minorversion: 65 },
-      }),
-    );
-    const queryResponse = data?.QueryResponse ?? {};
-    // QBO wraps results under the entity name, e.g. { Customer: [...] }
-    const entities = Object.values(queryResponse).find(Array.isArray);
-    return (entities as any[]) ?? [];
+  /**
+   * Escapes a value for interpolation into a QBO query string literal.
+   * Intuit's query language escapes single quotes with a backslash.
+   */
+  private escapeQboLiteral(value: string): string {
+    return value.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
   }
 
-  accountingApiBase(): string {
-    return this.environment === 'sandbox'
-      ? 'https://sandbox-quickbooks.api.intuit.com'
-      : 'https://quickbooks.api.intuit.com';
-  }
-
-  async postSalesReceipt(
+  async findQboCustomerByDisplayName(
     tenantId: number,
-    payload: Record<string, any>,
-  ): Promise<any> {
+    displayName: string,
+  ): Promise<QboCustomer | null> {
+    const rows = await this.qboQuery<QboCustomer>(
+      tenantId,
+      `SELECT * FROM Customer WHERE DisplayName = '${this.escapeQboLiteral(
+        displayName,
+      )}'`,
+    );
+    return rows[0] ?? null;
+  }
+
+  async createQboCustomer(
+    tenantId: number,
+    payload: Record<string, unknown>,
+  ): Promise<QboCustomer> {
+    const customer = await this.withAuth(
+      tenantId,
+      async (accessToken, realmId) => {
+        const base = this.accountingApiBase();
+        const { data } = await firstValueFrom(
+          this.httpService.post(
+            `${base}/v3/company/${realmId}/customer`,
+            payload,
+            {
+              headers: {
+                Authorization: `Bearer ${accessToken}`,
+                'Content-Type': 'application/json',
+                Accept: 'application/json',
+              },
+              params: { minorversion: 65 },
+            },
+          ),
+        );
+        return data?.Customer ?? data;
+      },
+    );
+    this.logger.log(
+      `Created QuickBooks customer "${payload.DisplayName}" for tenant ${tenantId}`,
+    );
+    return customer;
+  }
+
+  /**
+   * Sparse-updates a customer. QuickBooks requires the current `SyncToken` on
+   * every write, so callers must read the customer first; passing a stale token
+   * is rejected rather than silently overwriting someone else's change.
+   */
+  async updateQboCustomer(
+    tenantId: number,
+    payload: Record<string, unknown>,
+  ): Promise<QboCustomer> {
     const { accessToken, realmId } = await this.getValidAccessToken(tenantId);
     const base = this.accountingApiBase();
     const { data } = await firstValueFrom(
       this.httpService.post(
-        `${base}/v3/company/${realmId}/salesreceipt`,
-        payload,
+        `${base}/v3/company/${realmId}/customer`,
+        { ...payload, sparse: true },
         {
           headers: {
             Authorization: `Bearer ${accessToken}`,
@@ -275,7 +314,106 @@ export class QuickBooksService {
         },
       ),
     );
-    return data?.SalesReceipt ?? data;
+    return data?.Customer ?? data;
+  }
+
+  /** One customer by id, including its `SyncToken` and `ParentRef`. */
+  async getQboCustomer(
+    tenantId: number,
+    id: string,
+  ): Promise<QboCustomer | null> {
+    const rows = await this.qboQuery<QboCustomer>(
+      tenantId,
+      `SELECT * FROM Customer WHERE Id = '${this.escapeQboLiteral(id)}'`,
+    );
+    return rows[0] ?? null;
+  }
+
+  private async qboQuery<T>(tenantId: number, query: string): Promise<T[]> {
+    return this.withAuth(tenantId, async (accessToken, realmId) => {
+      const base = this.accountingApiBase();
+      const { data } = await firstValueFrom(
+        this.httpService.get(`${base}/v3/company/${realmId}/query`, {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            Accept: 'application/json',
+          },
+          params: { query, minorversion: 65 },
+        }),
+      );
+      const queryResponse = data?.QueryResponse ?? {};
+      // QBO wraps results under the entity name, e.g. { Customer: [...] }
+      const entities = Object.values(queryResponse).find(Array.isArray);
+      return (entities as T[]) ?? [];
+    });
+  }
+
+  accountingApiBase(): string {
+    return this.environment === 'sandbox'
+      ? 'https://sandbox-quickbooks.api.intuit.com'
+      : 'https://quickbooks.api.intuit.com';
+  }
+
+  async postSalesReceipt(
+    tenantId: number,
+    payload: Record<string, unknown>,
+  ): Promise<QboSalesReceipt> {
+    return this.withAuth(tenantId, async (accessToken, realmId) => {
+      const base = this.accountingApiBase();
+      const { data } = await firstValueFrom(
+        this.httpService.post(
+          `${base}/v3/company/${realmId}/salesreceipt`,
+          payload,
+          {
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+              'Content-Type': 'application/json',
+              Accept: 'application/json',
+            },
+            params: { minorversion: 65 },
+          },
+        ),
+      );
+      return data?.SalesReceipt ?? data;
+    });
+  }
+
+  /**
+   * Runs an authenticated QuickBooks call, refreshing the token and retrying
+   * once if Intuit rejects it.
+   *
+   * `getValidAccessToken` only refreshes ahead of a known expiry. A token can
+   * still be rejected inside that window — Intuit expires it early, or the
+   * stored copy is stale — and without a retry every later call in the same
+   * batch fails the same way, so one unlucky receipt took the rest of the run
+   * down with it.
+   */
+  private async withAuth<T>(
+    tenantId: number,
+    run: (accessToken: string, realmId: string) => Promise<T>,
+  ): Promise<T> {
+    const { accessToken, realmId } = await this.getValidAccessToken(tenantId);
+
+    try {
+      return await run(accessToken, realmId);
+    } catch (err) {
+      if (err?.response?.status !== 401) {
+        throw err;
+      }
+
+      const connection = await this.connectionRepo.findOne({
+        where: { tenantId, system: 'quickbooks' },
+      });
+      if (!connection) {
+        throw err;
+      }
+
+      this.logger.warn(
+        `QuickBooks rejected the access token for tenant ${tenantId}; refreshing and retrying once`,
+      );
+      const refreshed = await this.refreshAccessToken(connection);
+      return run(refreshed.accessToken, refreshed.realmId);
+    }
   }
 
   // ─── Private helpers ───────────────────────────────────────────────────────

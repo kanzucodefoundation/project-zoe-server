@@ -54,3 +54,7 @@ __pycache__/
 !/data/scripts/
 !/data/scripts/**
 !/data/PENDING.md
+# Local-only finance reset helper. Deliberately untracked: it deletes imported
+# statement data, and must never be pushed somewhere it could be run against
+# real records.
+/scripts/reset-finance-data.ts

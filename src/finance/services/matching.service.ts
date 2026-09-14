@@ -9,6 +9,7 @@ import { MatchType } from '../enums/match-type.enum';
 import { MatchStatus } from '../enums/match-status.enum';
 import { TenantContext } from '../../shared/tenant/tenant-context';
 import { getPersonFullName } from '../../crm/crm.helpers';
+import { GroupPermissionsService } from '../../groups/services/group-permissions.service';
 import { MatchSuggestionDto } from '../dto/reconciliation.dto';
 import { AppLogger, ContextLogger } from '../../utils/app-logger.service';
 import { normalizePhone, calculateNameSimilarity } from '../finance.helpers';
@@ -48,6 +49,7 @@ export class MatchingService {
     private tenantContext: TenantContext,
     private appLogger: AppLogger,
     private pluginRegistry: ReconciliationPluginRegistry,
+    private groupPermissionsService: GroupPermissionsService,
   ) {
     this.transactionRepository = connection.getRepository(Transaction);
     this.matchRepository = connection.getRepository(ReconciliationMatch);
@@ -135,12 +137,24 @@ export class MatchingService {
       matchReasons.push('Previously reconciled to this contact');
     }
 
+    // Reconciliation is ultimately about attributing the gift to a campus and
+    // FOB, so show the reviewer where this contact posts to before they accept
+    // the match rather than making them discover it at posting time.
+    const attribution =
+      await this.groupPermissionsService.resolveAttributionForContact(
+        contact.id,
+      );
+
     return [
       {
         contact: {
           id: contact.id,
           name: getPersonFullName(contact.person) || `Contact ${contact.id}`,
           phone: contact.phones?.[0]?.value ?? undefined,
+          location: attribution.location?.name,
+          fob: attribution.fob?.name,
+          attributionIsFallback:
+            attribution.locationIsFallback || attribution.fobIsFallback,
         },
         confidenceScore: candidate.confidenceScore,
         matchReasons,
@@ -342,7 +356,7 @@ export class MatchingService {
   }
 
   async runMatching(
-    accountId: number,
+    accountId: number | undefined,
     minConfidenceThreshold: number = 60,
     autoApproveAboveThreshold?: number,
     pluginId?: string,
@@ -366,12 +380,18 @@ export class MatchingService {
       },
     });
 
+    // Filtering on `account: { id: undefined }` matches nothing, so the account
+    // clause is only added when an account was actually chosen.
+    const where: any = {
+      tenant: { id: tenantId },
+      status: 'PENDING' as any,
+    };
+    if (accountId) {
+      where.account = { id: accountId };
+    }
+
     const transactions = await this.transactionRepository.find({
-      where: {
-        tenant: { id: tenantId },
-        account: { id: accountId },
-        status: 'PENDING' as any,
-      },
+      where,
       relations: ['account'],
     });
 
@@ -422,10 +442,8 @@ export class MatchingService {
             match.approvedAt = new Date();
             autoApproved++;
           } else {
-            match.status =
-              matchResult.confidenceScore >= 80
-                ? MatchStatus.PENDING
-                : MatchStatus.PENDING;
+            // Everything below the auto-approve threshold waits for a human.
+            match.status = MatchStatus.PENDING;
           }
 
           await this.matchRepository.save(match);

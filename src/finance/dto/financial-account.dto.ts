@@ -37,6 +37,34 @@ export class CreateFinancialAccountDto {
   ownerGroupId?: number;
 }
 
+/**
+ * Creates a Zoe financial account from an existing QuickBooks account, so the
+ * two are linked from the moment the account exists rather than being
+ * reconciled later in the posting dialog.
+ */
+export class CreateAccountFromQuickBooksDto {
+  @IsNotEmpty()
+  @IsString()
+  qboAccountId: string;
+
+  @IsNotEmpty()
+  @IsEnum(AccountType)
+  accountType: AccountType;
+
+  /** Overrides the QuickBooks account name when the church prefers its own. */
+  @IsOptional()
+  @IsString()
+  name?: string;
+
+  @IsOptional()
+  @IsString()
+  accountNumber?: string;
+
+  @IsOptional()
+  @IsString()
+  currency?: string;
+}
+
 export class UpdateFinancialAccountDto {
   @IsNotEmpty()
   @Type(() => Number)
