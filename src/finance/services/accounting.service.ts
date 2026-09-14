@@ -1161,6 +1161,21 @@ export class AccountingService {
   private toQboSalesReceiptPayload(
     receipt: AccountingSalesReceipt,
   ): Record<string, any> {
+    // Mappings are verified in preflight, but they can be removed in between.
+    // Refuse rather than send a reference QuickBooks cannot resolve.
+    const missing: string[] = [];
+    if (!receipt.customer.externalCustomerId) missing.push('customer');
+    if (!receipt.depositAccount.externalAccountId) missing.push('deposit account');
+    if (receipt.lineItems.some((li) => !li.externalItemId)) {
+      missing.push('giving item');
+    }
+    if (missing.length > 0) {
+      throw new BadRequestException(
+        `QuickBooks mapping is missing for: ${missing.join(', ')}. ` +
+          'Re-open the posting dialog to set it.',
+      );
+    }
+
     const payload: Record<string, any> = {
       TxnDate: receipt.transactionDate,
       CustomerRef: { value: receipt.customer.externalCustomerId },

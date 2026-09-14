@@ -2,6 +2,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
@@ -65,7 +66,29 @@ export class QuickBooksService {
     private readonly httpService: HttpService,
   ) {}
 
+  /** True when the OAuth credentials needed to talk to Intuit are present. */
+  isConfigured(): boolean {
+    return Boolean(this.clientId && this.clientSecret && this.redirectUri);
+  }
+
+  /**
+   * Fails loudly when QuickBooks is not configured.
+   *
+   * Without this, a missing environment variable produced an authorization URL
+   * containing `client_id=undefined`, and a Basic header built from
+   * `undefined:undefined` — an outbound request that can only fail, with an
+   * error that says nothing about the real cause.
+   */
+  private requireConfigured(): void {
+    if (this.isConfigured()) return;
+    throw new ServiceUnavailableException(
+      'QuickBooks is not configured on this server. Set QUICKBOOKS_CLIENT_ID, ' +
+        'QUICKBOOKS_CLIENT_SECRET and QUICKBOOKS_REDIRECT_URI to enable it.',
+    );
+  }
+
   getAuthorizationUrl(tenantId: number): { url: string; state: string } {
+    this.requireConfigured();
     this.evictExpiredStates();
     const state = randomUUID();
     this.pendingStates.set(state, {
@@ -109,41 +132,39 @@ export class QuickBooksService {
     return this.upsertConnection(tenantId, dto.realmId, tokenData);
   }
 
-  async getCompanyInfo(tenantId: number): Promise<any> {
-    const { accessToken, realmId } = await this.getValidAccessToken(tenantId);
-    const base =
-      this.environment === 'sandbox'
-        ? 'https://sandbox-quickbooks.api.intuit.com'
-        : 'https://quickbooks.api.intuit.com';
-
-    const { data } = await firstValueFrom(
-      this.httpService.get(
-        `${base}/v3/company/${realmId}/companyinfo/${realmId}`,
-        {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            Accept: 'application/json',
+  async getCompanyInfo(tenantId: number): Promise<unknown> {
+    return this.withAuth(tenantId, async (accessToken, realmId) => {
+      const base = this.accountingApiBase();
+      const { data } = await firstValueFrom(
+        this.httpService.get(
+          `${base}/v3/company/${realmId}/companyinfo/${realmId}`,
+          {
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+              Accept: 'application/json',
+            },
+            params: { minorversion: 65 },
           },
-          params: { minorversion: 65 },
-        },
-      ),
-    );
-    return data;
+        ),
+      );
+      return data;
+    });
   }
 
-  async getUserInfo(tenantId: number): Promise<any> {
-    const { accessToken } = await this.getValidAccessToken(tenantId);
-    const base =
-      this.environment === 'sandbox'
-        ? 'https://sandbox-accounts.platform.intuit.com'
-        : 'https://accounts.platform.intuit.com';
+  async getUserInfo(tenantId: number): Promise<unknown> {
+    return this.withAuth(tenantId, async (accessToken) => {
+      const base =
+        this.environment === 'sandbox'
+          ? 'https://sandbox-accounts.platform.intuit.com'
+          : 'https://accounts.platform.intuit.com';
 
-    const { data } = await firstValueFrom(
-      this.httpService.get(`${base}/v1/openid_connect/userinfo`, {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      }),
-    );
-    return data;
+      const { data } = await firstValueFrom(
+        this.httpService.get(`${base}/v1/openid_connect/userinfo`, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        }),
+      );
+      return data;
+    });
   }
 
   async createCharge(tenantId: number, dto: CreateChargeDto): Promise<any> {
@@ -203,38 +224,49 @@ export class QuickBooksService {
   // ─── QBO reference data ────────────────────────────────────────────────────
 
   async getQboCustomers(tenantId: number): Promise<QboCustomer[]> {
-    return this.qboQuery<QboCustomer>(
-      tenantId,
-      'SELECT * FROM Customer WHERE Active = true MAXRESULTS 1000',
-    );
+    return this.qboQueryAll<QboCustomer>(tenantId, 'Customer');
   }
 
   async getQboAccounts(tenantId: number): Promise<QboAccount[]> {
-    return this.qboQuery<QboAccount>(
-      tenantId,
-      'SELECT * FROM Account WHERE Active = true MAXRESULTS 1000',
-    );
+    return this.qboQueryAll<QboAccount>(tenantId, 'Account');
   }
 
   async getQboItems(tenantId: number): Promise<QboNamedEntity[]> {
-    return this.qboQuery<QboNamedEntity>(
-      tenantId,
-      'SELECT * FROM Item WHERE Active = true MAXRESULTS 1000',
-    );
+    return this.qboQueryAll<QboNamedEntity>(tenantId, 'Item');
   }
 
   async getQboClasses(tenantId: number): Promise<QboNamedEntity[]> {
-    return this.qboQuery<QboNamedEntity>(
-      tenantId,
-      'SELECT * FROM Class WHERE Active = true MAXRESULTS 1000',
-    );
+    return this.qboQueryAll<QboNamedEntity>(tenantId, 'Class');
   }
 
   async getQboDepartments(tenantId: number): Promise<QboNamedEntity[]> {
-    return this.qboQuery<QboNamedEntity>(
-      tenantId,
-      'SELECT * FROM Department WHERE Active = true MAXRESULTS 1000',
-    );
+    return this.qboQueryAll<QboNamedEntity>(tenantId, 'Department');
+  }
+
+  /**
+   * Every active record of one entity type, following QuickBooks' paging.
+   *
+   * A single query returns at most 1000 rows. A church with more customers than
+   * that would silently get a truncated list, and the records beyond the first
+   * page could never be matched or mapped.
+   */
+  private async qboQueryAll<T>(
+    tenantId: number,
+    entity: 'Customer' | 'Account' | 'Item' | 'Class' | 'Department',
+  ): Promise<T[]> {
+    const pageSize = 1000;
+    const all: T[] = [];
+
+    for (let start = 1; ; start += pageSize) {
+      const page = await this.qboQuery<T>(
+        tenantId,
+        `SELECT * FROM ${entity} WHERE Active = true STARTPOSITION ${start} MAXRESULTS ${pageSize}`,
+      );
+      all.push(...page);
+      if (page.length < pageSize) break;
+    }
+
+    return all;
   }
 
   /**
@@ -298,23 +330,24 @@ export class QuickBooksService {
     tenantId: number,
     payload: Record<string, unknown>,
   ): Promise<QboCustomer> {
-    const { accessToken, realmId } = await this.getValidAccessToken(tenantId);
-    const base = this.accountingApiBase();
-    const { data } = await firstValueFrom(
-      this.httpService.post(
-        `${base}/v3/company/${realmId}/customer`,
-        { ...payload, sparse: true },
-        {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            'Content-Type': 'application/json',
-            Accept: 'application/json',
+    return this.withAuth(tenantId, async (accessToken, realmId) => {
+      const base = this.accountingApiBase();
+      const { data } = await firstValueFrom(
+        this.httpService.post(
+          `${base}/v3/company/${realmId}/customer`,
+          { ...payload, sparse: true },
+          {
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+              'Content-Type': 'application/json',
+              Accept: 'application/json',
+            },
+            params: { minorversion: 65 },
           },
-          params: { minorversion: 65 },
-        },
-      ),
-    );
-    return data?.Customer ?? data;
+        ),
+      );
+      return data?.Customer ?? data;
+    });
   }
 
   /** One customer by id, including its `SyncToken` and `ParentRef`. */
@@ -460,6 +493,7 @@ export class QuickBooksService {
   private async postTokenRequest(
     body: Record<string, string>,
   ): Promise<IntuitTokenResponse> {
+    this.requireConfigured();
     const credentials = Buffer.from(
       `${this.clientId}:${this.clientSecret}`,
     ).toString('base64');

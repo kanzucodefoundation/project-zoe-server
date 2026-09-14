@@ -20,12 +20,23 @@ export class MakePersonGenderNullable1789200000000
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    // The column cannot go back to NOT NULL while unknown genders exist, so
-    // anything imported without one is stamped Male purely to satisfy the
-    // constraint. This is lossy — that is the nature of reverting.
-    await queryRunner.query(
-      `UPDATE "person" SET "gender" = 'Male' WHERE "gender" IS NULL`,
+    // Refuse rather than invent. Stamping every unknown gender with a value to
+    // satisfy the constraint would write false data about real people, and a
+    // rollback is not a licence to do that. Whoever reverts has to decide what
+    // those records should say first.
+    const [{ count }] = await queryRunner.query(
+      `SELECT COUNT(*)::int AS count FROM "person" WHERE "gender" IS NULL`,
     );
+
+    if (count > 0) {
+      throw new Error(
+        `Cannot restore NOT NULL on person.gender: ${count} people have no ` +
+          'gender recorded. Set a value for those records, then re-run this ' +
+          'revert. They are people imported from QuickBooks, which does not ' +
+          'carry a gender field.',
+      );
+    }
+
     await queryRunner.query(
       `ALTER TABLE "person" ALTER COLUMN "gender" SET NOT NULL`,
     );

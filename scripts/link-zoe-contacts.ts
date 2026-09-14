@@ -159,6 +159,14 @@ const normalizeName = (value: string): string =>
     .replace(/[^a-z0-9]+/g, ' ')
     .trim();
 
+/**
+ * Escapes a value for a QuickBooks query literal. Intuit escapes a single quote
+ * with a backslash; a name like O'Brien would otherwise end the literal early
+ * and fail the query.
+ */
+const escapeQboLiteral = (value: string): string =>
+  value.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+
 /** Last 9 digits — what makes a Ugandan number comparable across formats. */
 const phoneKey = (value?: string | null): string | null => {
   const digits = (value ?? '').replace(/\D/g, '');
@@ -283,7 +291,7 @@ async function main() {
     const mapped = campusCustomerByGroupId.get(groupId);
     if (mapped) return mapped;
 
-    const escaped = groupName.replace(/'/g, "\\'");
+    const escaped = escapeQboLiteral(groupName);
     const existing = await qboQuery(
       `SELECT * FROM Customer WHERE DisplayName = '${escaped}' MAXRESULTS 1`,
       accessToken,
@@ -434,7 +442,7 @@ async function main() {
         // never sees — so look the name up without that filter and link to
         // whoever is already there rather than reporting a failure.
         if (message.includes('6240')) {
-          const escaped = fullName.replace(/'/g, "\'");
+          const escaped = escapeQboLiteral(fullName);
           const found = await qboQuery(
             `SELECT * FROM Customer WHERE DisplayName = '${escaped}' MAXRESULTS 1`,
             accessToken,

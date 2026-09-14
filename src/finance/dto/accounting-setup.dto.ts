@@ -1,5 +1,7 @@
 import { Type } from 'class-transformer';
 import {
+  ArrayNotEmpty,
+  IsArray,
   IsEmail,
   IsIn,
   IsNotEmpty,
@@ -81,6 +83,11 @@ export class SetupMappingDto {
 }
 
 export class ApplySetupDto {
+  // `ValidateNested({ each: true })` alone does not assert an array, so a body
+  // with `mappings` missing or an object reached the service and threw while
+  // iterating — a 500 where a 400 belongs.
+  @IsArray()
+  @ArrayNotEmpty()
   @ValidateNested({ each: true })
   @Type(() => SetupMappingDto)
   mappings: SetupMappingDto[];

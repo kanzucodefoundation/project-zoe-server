@@ -1,5 +1,5 @@
 import { Injectable, Inject, NotFoundException } from '@nestjs/common';
-import { Repository, Connection } from 'typeorm';
+import { Repository, Connection, ILike } from 'typeorm';
 import Transaction from '../entities/transaction.entity';
 import ContactPaymentMethod from '../entities/contact-payment-method.entity';
 import ReconciliationMatch from '../entities/reconciliation-match.entity';
@@ -10,6 +10,7 @@ import { MatchStatus } from '../enums/match-status.enum';
 import { TenantContext } from '../../shared/tenant/tenant-context';
 import { getPersonFullName } from '../../crm/crm.helpers';
 import { GroupPermissionsService } from '../../groups/services/group-permissions.service';
+import { extractTitheNumber } from '../statement-parsing';
 import { MatchSuggestionDto } from '../dto/reconciliation.dto';
 import { AppLogger, ContextLogger } from '../../utils/app-logger.service';
 import { normalizePhone, calculateNameSimilarity } from '../finance.helpers';
@@ -203,13 +204,21 @@ export class MatchingService {
       }
     }
 
-    // Strategy 0: Exact tithe number match in narration (98% confidence)
+    // Strategy 0: Exact tithe number match in narration (98% confidence).
+    //
+    // Uses the shared statement parser rather than a local digits-only regex:
+    // Worship Harvest tithe numbers look like TBGB0095, which a `\d{4,10}`
+    // pattern never matched, so this strategy could not fire on real data.
     if (transaction.narration) {
-      const titheMatch = transaction.narration.match(/\b(\d{4,10})\b/);
-      if (titheMatch) {
-        const candidate = titheMatch[1];
+      const candidate = extractTitheNumber(transaction.narration);
+      if (candidate) {
         const contact = await this.contactRepository.findOne({
-          where: { tenant: { id: tenantId }, titheNumber: candidate },
+          // Stored case varies by how the contact was imported, so compare
+          // case-insensitively rather than missing a legitimate match.
+          where: {
+            tenant: { id: tenantId },
+            titheNumber: ILike(candidate),
+          },
           relations: ['person'],
         });
         if (contact) {

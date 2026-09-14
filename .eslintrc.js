@@ -32,7 +32,6 @@ module.exports = {
     'comma-dangle': ['error', 'always-multiline'],
     'object-curly-spacing': ['error', 'always'],
     'array-bracket-spacing': ['error', 'never'],
-    'space-before-function-paren': ['error', 'never'],
     'keyword-spacing': ['error', { 'before': true, 'after': true }],
     'space-infix-ops': 'error',
     'eol-last': ['error', 'always'],

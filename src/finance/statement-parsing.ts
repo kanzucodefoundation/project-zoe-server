@@ -203,11 +203,19 @@ export const extractLocationCode = (
  * These arrive as `FRI:256763676927/MSISDN` rather than a bare number, so the
  * importer would otherwise record no phone at all — and phone is the matcher's
  * most reliable signal after the tithe number.
+ *
+ * Only the `/MSISDN` form is a phone. The same column also carries wallet
+ * identifiers such as `FRI:204945451/MM`, and treating one of those as a phone
+ * number would match the giver to the wrong person.
  */
 export const extractPhone = (value?: string | null): string | null => {
   if (!value) return null;
-  const fri = value.match(/FRI:(\d{6,15})/i);
-  if (fri) return fri[1];
+
+  const msisdn = value.match(/FRI:(\d{6,15})\/MSISDN/i);
+  if (msisdn) return msisdn[1];
+
+  // Any other FRI is an account identifier, not a phone.
+  if (/FRI:/i.test(value)) return null;
 
   const digits = value.replace(/\D/g, '');
   return digits.length >= 9 ? digits : null;

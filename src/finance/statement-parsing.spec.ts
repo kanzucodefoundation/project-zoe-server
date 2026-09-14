@@ -82,8 +82,13 @@ describe('statement message parsing', () => {
       expect(extractPhone('+256 772 123 456')).toBe('256772123456');
     });
 
+    it('ignores a wallet identifier that is not an MSISDN', () => {
+      // FRI:.../MM is an account id, not a phone number.
+      expect(extractPhone('FRI:204945451/MM')).toBeNull();
+      expect(extractPhone('FRI:66209845/MM')).toBeNull();
+    });
+
     it('returns null for a short or empty value', () => {
-      expect(extractPhone('FRI:204945451/MM')).toBe('204945451');
       expect(extractPhone('12345')).toBeNull();
       expect(extractPhone(null)).toBeNull();
     });

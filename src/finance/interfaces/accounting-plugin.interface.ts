@@ -3,7 +3,8 @@ import ReconciliationMatch from '../entities/reconciliation-match.entity';
 
 export interface AccountingSalesReceiptLineItem {
   category: string;
-  externalItemId: string;
+  /** Null when the category has no QuickBooks item mapped; posting must refuse. */
+  externalItemId: string | null;
   description: string;
   quantity: number;
   unitPrice: number;
@@ -25,12 +26,14 @@ export interface AccountingSalesReceipt {
   customer: {
     contactId: number;
     contactName: string;
-    externalCustomerId: string;
+    /** Null when the contact has no QuickBooks customer mapped. */
+    externalCustomerId: string | null;
   };
   depositAccount: {
     financialAccountId: number;
     financialAccountName: string;
-    externalAccountId: string;
+    /** Null when the financial account has no QuickBooks account mapped. */
+    externalAccountId: string | null;
   };
   location: {
     /** Null when the giver has no Location and the tenant default was used. */

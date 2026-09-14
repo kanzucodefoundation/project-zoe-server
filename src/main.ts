@@ -23,17 +23,24 @@ async function bootstrap() {
     optionsSuccessStatus: 204,
   });
   app.use(compression());
-  // A reviewed import posts every parsed row back as JSON, and a few thousand
-  // statement lines comfortably exceed Express's 100kb default. The client also
-  // chunks large imports, so this is a ceiling rather than the normal size.
-  app.use(json({ limit: '25mb' }));
-  app.use(urlencoded({ limit: '25mb', extended: true }));
+
+  // Rate limiting runs before any body parser. Parsing first would let an
+  // unauthenticated caller make the server allocate a large body on every
+  // request before the limiter ever saw it.
   app.use(
     rateLimit({
       windowMs: 15 * 60 * 1000, // 15 minutes
       max: 10000, // limit each IP to 100 requests per windowMs
     }),
   );
+
+  // A reviewed import posts every parsed row back as JSON, and a few thousand
+  // statement lines comfortably exceed Express's 100kb default. The allowance
+  // is scoped to that one route so no other endpoint accepts a body this size;
+  // the client also chunks large imports, so it is a ceiling, not the norm.
+  app.use('/api/finance/transactions/import', json({ limit: '25mb' }));
+  app.use(json());
+  app.use(urlencoded({ extended: true }));
   app.useGlobalFilters(new HttpExceptionFilter());
   app.useGlobalPipes(
     new ValidationPipe({

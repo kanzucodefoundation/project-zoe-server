@@ -12,6 +12,7 @@ import {
 import { ExternalSystemMappingService } from '../../integrations/quickbooks/external-system-mapping.service';
 import { GroupPermissionsService } from '../../groups/services/group-permissions.service';
 import { getPersonFullName } from '../../crm/crm.helpers';
+import { TenantContext } from '../../shared/tenant/tenant-context';
 import { resolveTransactionCategory } from '../enums/transaction-category.enum';
 
 const SYSTEM = 'QUICKBOOKS';
@@ -27,6 +28,7 @@ export class WorshipHarvestAccountingPlugin
     private readonly accountRepo: Repository<FinancialAccount>,
     private readonly mappingService: ExternalSystemMappingService,
     private readonly groupPermissionsService: GroupPermissionsService,
+    private readonly tenantContext: TenantContext,
   ) {}
 
   async buildSalesReceipt(
@@ -34,10 +36,14 @@ export class WorshipHarvestAccountingPlugin
     match: ReconciliationMatch,
   ): Promise<AccountingSalesReceipt> {
     const contactId = match.contact?.id;
+    // Both repositories below are plain, untenanted repositories, so every
+    // lookup has to carry the tenant itself. Without it a crafted id could read
+    // another church's contact or account.
+    const tenantId = this.tenantContext.requireTenant();
 
     // ── Contact → QBO Customer ───────────────────────────────────────────────
     const contact = await this.contactRepo.findOne({
-      where: { id: contactId },
+      where: { id: contactId, tenantId },
       relations: ['person'],
     });
     const customerMapping = await this.mappingService.lookupByInternal({
@@ -49,7 +55,10 @@ export class WorshipHarvestAccountingPlugin
 
     // ── FinancialAccount → QBO Account ───────────────────────────────────────
     const account = await this.accountRepo.findOne({
-      where: { id: transaction.account?.id ?? (transaction as any).accountId },
+      where: {
+        id: transaction.account?.id ?? (transaction as any).accountId,
+        tenant: { id: tenantId },
+      },
     });
     const accountMapping = await this.mappingService.lookupByInternal({
       system: SYSTEM,

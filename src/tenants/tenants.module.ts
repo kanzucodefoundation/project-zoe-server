@@ -72,8 +72,13 @@ const tenantValidationProvider = {
 
     // Third-party OAuth redirects carry no JWT and no tenant header.
     // See OAUTH_CALLBACK_PATHS above for criteria and how to extend this.
+    //
+    // The pathname is compared exactly. `startsWith` would also exempt anything
+    // sharing that prefix, so a future route below the callback would silently
+    // skip tenant validation.
     const url: string = req.url ?? '';
-    if (OAUTH_CALLBACK_PATHS.some((p) => url.startsWith(p))) {
+    const pathname = url.split('?')[0].replace(/\/+$/, '') || '/';
+    if (OAUTH_CALLBACK_PATHS.includes(pathname)) {
       return null;
     }
 
