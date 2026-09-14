@@ -99,27 +99,56 @@ export class UniqueAccountingPostingPerTransaction1789200200000
     // Scoped to one schema. Without it a same-named table in any other schema
     // contributes its columns too, and the restore would build an INSERT whose
     // column list is doubled.
-    const columns = await queryRunner.query(`
-      SELECT string_agg(quote_ident(column_name), ', ' ORDER BY ordinal_position) AS cols
+    const columns: { column_name: string }[] = await queryRunner.query(`
+      SELECT column_name
       FROM information_schema.columns
       WHERE table_schema = 'public'
         AND table_name = 'accounting_posting'
+      ORDER BY ordinal_position
     `);
-    const cols = columns[0].cols;
+    const quote = (name: string) => `"${name.replace(/"/g, '""')}"`;
+    const cols = columns.map((c) => quote(c.column_name)).join(', ');
+
+    // The archive is a plain copy with no foreign keys, so time can pass and
+    // the rows it points at can go away. The live table does have those keys,
+    // and would reject the restore outright. Attribution is the one part that
+    // can be dropped and still leave a meaningful row, so a requester who no
+    // longer exists comes back as NULL rather than failing the rollback.
+    const selected = columns
+      .map((c) =>
+        c.column_name === 'requestedById'
+          ? `CASE WHEN EXISTS (
+               SELECT 1 FROM "user" u WHERE u."id" = a."requestedById"
+             ) THEN a."requestedById" END AS "requestedById"`
+          : `a.${quote(c.column_name)}`,
+      )
+      .join(', ');
 
     await queryRunner.query(`
       INSERT INTO "accounting_posting" (${cols})
-      SELECT ${cols}
+      SELECT ${selected}
       FROM "accounting_posting_duplicate_archive" a
       WHERE a."archivedBy" = '${this.name}'
         AND NOT EXISTS (
           SELECT 1 FROM "accounting_posting" p WHERE p."id" = a."id"
         )
+        -- A tenant or transaction that is gone cannot be restored at all; the
+        -- row stays in the archive rather than taking the rollback down with it.
+        AND EXISTS (SELECT 1 FROM "tenant" t WHERE t."id" = a."tenantId")
+        AND EXISTS (
+          SELECT 1 FROM "transaction" x WHERE x."id" = a."transactionId"
+        )
     `);
 
+    // Only what actually made it back is cleared. Anything left behind is a row
+    // whose parents have been deleted, and it is the only remaining record that
+    // the posting ever existed.
     await queryRunner.query(`
-      DELETE FROM "accounting_posting_duplicate_archive"
-      WHERE "archivedBy" = '${this.name}'
+      DELETE FROM "accounting_posting_duplicate_archive" a
+      WHERE a."archivedBy" = '${this.name}'
+        AND EXISTS (
+          SELECT 1 FROM "accounting_posting" p WHERE p."id" = a."id"
+        )
     `);
   }
 }

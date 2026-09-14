@@ -25,7 +25,22 @@ export enum AccountingPostingStatus {
   FAILED = 'FAILED',
 }
 
+/**
+ * One posting per transaction, and the arbiter for the claim's ON CONFLICT.
+ *
+ * Declared here as well as in its migration because development runs with
+ * `DB_SYNCHRONIZE=true`: schema sync drops any index the entity does not know
+ * about, so an index that lived only in the migration disappeared on the next
+ * app start and posting failed with "no unique or exclusion constraint matching
+ * the ON CONFLICT specification". The name matches the migration's exactly, so
+ * the two agree rather than each creating their own.
+ */
 @Entity()
+@Index(
+  'UQ_accounting_posting_tenant_transaction_doc',
+  ['tenantId', 'transactionId', 'system', 'documentType'],
+  { unique: true },
+)
 @Index(['tenantId', 'transactionId'])
 @Index(['tenantId', 'status'])
 export class AccountingPosting {
