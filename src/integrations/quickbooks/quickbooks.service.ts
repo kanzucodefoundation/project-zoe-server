@@ -387,12 +387,33 @@ export class QuickBooksService {
       : 'https://quickbooks.api.intuit.com';
   }
 
+  /**
+   * Creates a sales receipt in QuickBooks.
+   *
+   * `requestId` is Intuit's idempotency key. It matters because this call can
+   * be retried in two ways that neither the caller nor this method can tell
+   * apart from a first attempt: `withAuth` refreshes and retries on a 401 —
+   * Intuit may already have accepted the first request before rejecting the
+   * token on it — and a request that times out may have been accepted with the
+   * response lost on the way back. Without a key, each retry creates another
+   * receipt and a giver is credited twice.
+   *
+   * Given the same key and the same operation, Intuit returns the original
+   * response instead of creating a second document, which makes a retry safe.
+   * The caller derives the key from the transaction, so it is stable across
+   * every attempt at posting that one gift. Intuit caps it at 50 characters.
+   */
   async postSalesReceipt(
     tenantId: number,
     payload: Record<string, unknown>,
+    requestId?: string,
   ): Promise<QboSalesReceipt> {
     return this.withAuth(tenantId, async (accessToken, realmId) => {
       const base = this.accountingApiBase();
+      const params: Record<string, unknown> = { minorversion: 65 };
+      if (requestId) {
+        params.requestid = requestId.slice(0, 50);
+      }
       const { data } = await firstValueFrom(
         this.httpService.post(
           `${base}/v3/company/${realmId}/salesreceipt`,
@@ -403,7 +424,7 @@ export class QuickBooksService {
               'Content-Type': 'application/json',
               Accept: 'application/json',
             },
-            params: { minorversion: 65 },
+            params,
           },
         ),
       );

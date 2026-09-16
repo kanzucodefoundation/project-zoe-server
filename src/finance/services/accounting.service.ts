@@ -377,6 +377,7 @@ export class AccountingService {
       const qboResponse = await this.qbService.postSalesReceipt(
         tenantId,
         qboPayload,
+        AccountingService.idempotencyKey(tenantId, transactionId),
       );
 
       posting.status = AccountingPostingStatus.POSTED;
@@ -384,6 +385,11 @@ export class AccountingService {
       posting.externalDocumentNumber = qboResponse?.DocNumber ?? null;
       posting.postedAt = new Date();
     } catch (err) {
+      // A failed attempt stays retryable, and the retry is safe because it
+      // carries the same idempotency key as the attempt that failed. That
+      // matters most for the case this cannot distinguish: a request that
+      // timed out may already have been accepted by QuickBooks. Without the
+      // key, retrying such a row created a second receipt for the same gift.
       posting.status = AccountingPostingStatus.FAILED;
       posting.errorMessage = err?.response?.data
         ? JSON.stringify(err.response.data)
@@ -391,6 +397,24 @@ export class AccountingService {
     }
 
     return this.postingRepo.save(posting);
+  }
+
+  /**
+   * The idempotency key sent to QuickBooks for a transaction's sales receipt.
+   *
+   * Stable across every attempt at posting the same gift, and distinct across
+   * tenants, so Intuit recognises a retry as the same request and returns the
+   * original receipt instead of creating another. This is what makes retrying
+   * an ambiguous outcome safe: `withAuth` refreshes and retries on a 401 when
+   * the first request may already have been accepted, and a request that times
+   * out may have been accepted with the response lost on the way back. Intuit
+   * caps the value at 50 characters.
+   */
+  private static idempotencyKey(
+    tenantId: number,
+    transactionId: number,
+  ): string {
+    return `zoe-sr-${tenantId}-${transactionId}`;
   }
 
   /**
@@ -416,6 +440,12 @@ export class AccountingService {
         "requestedById" = EXCLUDED."requestedById",
         "requestedAt" = EXCLUDED."requestedAt",
         "errorMessage" = NULL
+      -- A FAILED row is retryable, and safely so: the retry carries the same
+      -- idempotency key, so a receipt QuickBooks may already have created is
+      -- returned rather than duplicated. A PENDING row older than the lease
+      -- means the process died mid-flight; the HTTP timeout bounds how long a
+      -- live attempt can occupy that state, so the lease cannot expire under a
+      -- call that is still running.
       WHERE "accounting_posting"."status" = 'FAILED'
          OR (
            "accounting_posting"."status" = 'PENDING'

@@ -20,11 +20,39 @@ import { ExchangeTokenDto } from './dto/exchange-token.dto';
 import { CreateChargeDto } from './dto/create-charge.dto';
 
 type CsvFormat = 'json' | 'csv';
+
+/**
+ * Encodes one CSV cell.
+ *
+ * Two separate jobs, and the previous `JSON.stringify` did only the first, and
+ * that imperfectly — it escapes backslashes and non-ASCII the JSON way, which
+ * is not the CSV way:
+ *
+ * 1. Quoting, so a value containing a comma, quote or newline stays a single
+ *    field. RFC 4180 doubles an embedded quote; JSON backslash-escapes it, and
+ *    spreadsheet software does not understand that form.
+ *
+ * 2. Formula neutralisation. Excel, LibreOffice and Google Sheets evaluate any
+ *    cell whose text begins with `=`, `+`, `-` or `@` as a formula, and quoting
+ *    does not prevent it — the CSV parser strips the quotes before the formula
+ *    is ever considered. These cells carry QuickBooks customer and reference
+ *    names, which anyone able to edit the QBO company controls, so a display
+ *    name of `=HYPERLINK(...)` or a DDE call would execute on the machine of
+ *    whichever finance user opens the export. A leading apostrophe makes the
+ *    cell unambiguously text; spreadsheets consume it on open and show the
+ *    original value.
+ */
+export function csvCell(value: unknown): string {
+  const text = value === null || value === undefined ? '' : String(value);
+  // Tab and carriage return are included because a leading one is stripped by
+  // some spreadsheet importers, exposing the formula character behind it.
+  const neutralised = /^[=+\-@\t\r]/.test(text) ? `'${text}` : text;
+  return `"${neutralised.replace(/"/g, '""')}"`;
+}
+
 function toCsv(rows: any[], columns: string[]): string {
-  const header = columns.join(',');
-  const lines = rows.map((r) =>
-    columns.map((c) => JSON.stringify(r[c] ?? '')).join(','),
-  );
+  const header = columns.map(csvCell).join(',');
+  const lines = rows.map((r) => columns.map((c) => csvCell(r[c])).join(','));
   return [header, ...lines].join('\n');
 }
 
@@ -184,9 +212,9 @@ export class QuickBooksController {
         'Tithe Number',
         'QuickBooks Customer ID',
       ];
-      const header = columns.map((c) => JSON.stringify(c)).join(',');
+      const header = columns.map(csvCell).join(',');
       const lines = csvRows.map((r) =>
-        columns.map((c) => JSON.stringify(r[c] ?? '')).join(','),
+        columns.map((c) => csvCell(r[c])).join(','),
       );
       res.setHeader('Content-Type', 'text/csv');
       res.setHeader(

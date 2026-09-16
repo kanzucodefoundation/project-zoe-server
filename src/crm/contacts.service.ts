@@ -1708,6 +1708,47 @@ export class ContactsService {
     return membership?.contact;
   }
 
+  /**
+   * Stores a tithe number on a contact that has already been saved.
+   *
+   * Written this way rather than set on the model before creation because
+   * `getContactModel` builds a fresh Contact and copies only the fields it
+   * knows about, so an assignment there never reaches the database; the import
+   * path that reuses an existing contact never calls `createPerson` at all.
+   * Going through the saved contact covers both. The tithe number is the field
+   * the reconciliation matcher trusts above all others, so losing one silently
+   * stops that giver's payments from auto-matching with nothing on screen to
+   * explain why.
+   *
+   * Returns false when the contact already carries a different tithe number:
+   * an import must not quietly overwrite an identifier finance may already
+   * have reconciled against.
+   */
+  async setTitheNumber(
+    contactId: number,
+    titheNumber: string,
+  ): Promise<boolean> {
+    const tenantId = this.tenantContext.requireTenant();
+    const normalized = titheNumber.trim().toUpperCase();
+    if (!normalized) {
+      return false;
+    }
+
+    const contact = await this.repository.findOne({
+      where: { id: contactId, tenant: { id: tenantId } },
+    });
+    if (!contact) {
+      return false;
+    }
+    if (contact.titheNumber) {
+      return contact.titheNumber.toUpperCase() === normalized;
+    }
+
+    contact.titheNumber = normalized;
+    await this.repository.save(contact);
+    return true;
+  }
+
   async findByName(username: string): Promise<Contact | undefined> {
     return await this.repository
       .createQueryBuilder('user')

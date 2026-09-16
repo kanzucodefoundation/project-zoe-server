@@ -35,6 +35,7 @@ export interface QboAccountOption {
 export class AccountsService {
   private readonly repository: Repository<FinancialAccount>;
   private readonly groupRepository: Repository<Group>;
+  private readonly connection: Connection;
   private readonly logger: ContextLogger;
 
   constructor(
@@ -46,6 +47,7 @@ export class AccountsService {
   ) {
     this.repository = connection.getRepository(FinancialAccount);
     this.groupRepository = connection.getRepository(Group);
+    this.connection = connection;
     this.logger = this.appLogger.createContextLogger('AccountsService');
   }
 
@@ -111,36 +113,55 @@ export class AccountsService {
       );
     }
 
-    const existing = await this.mappingService.lookupByExternal({
-      system: ACCOUNTING_SYSTEM,
-      externalReferenceType: 'ACCOUNT',
-      externalReferenceId: String(dto.qboAccountId),
-    });
-    if (existing) {
-      throw new BadRequestException(
-        `"${qboAccount.Name}" is already linked to an account in Zoe.`,
+    // The duplicate check, the account insert and the mapping write are one
+    // transaction. Previously the account was committed before the mapping was
+    // attempted, so a failed mapping write returned an error to the caller and
+    // still left a financial account behind with no link to QuickBooks — an
+    // account that looks ordinary on the accounts screen but silently blocks
+    // every posting made against it. Two concurrent requests could also both
+    // pass the duplicate check and create two accounts for one QuickBooks
+    // account; holding the check inside the transaction closes that window.
+    const saved = await this.connection.transaction(async (manager) => {
+      const existing = await this.mappingService.lookupByExternal(
+        {
+          system: ACCOUNTING_SYSTEM,
+          externalReferenceType: 'ACCOUNT',
+          externalReferenceId: String(dto.qboAccountId),
+        },
+        manager,
       );
-    }
+      if (existing) {
+        throw new BadRequestException(
+          `"${qboAccount.Name}" is already linked to an account in Zoe.`,
+        );
+      }
 
-    const account = new FinancialAccount();
-    account.tenant = { id: tenantId } as any;
-    account.name = dto.name?.trim() || qboAccount.Name;
-    account.accountNumber = dto.accountNumber ?? qboAccount.AcctNum ?? null;
-    account.accountType = dto.accountType;
-    account.currency =
-      dto.currency || qboAccount.CurrencyRef?.value || 'UGX';
-    account.description = `Linked to QuickBooks account "${qboAccount.Name}"`;
-    account.isActive = true;
+      const account = new FinancialAccount();
+      account.tenant = { id: tenantId } as any;
+      account.name = dto.name?.trim() || qboAccount.Name;
+      account.accountNumber = dto.accountNumber ?? qboAccount.AcctNum ?? null;
+      account.accountType = dto.accountType;
+      account.currency = dto.currency || qboAccount.CurrencyRef?.value || 'UGX';
+      account.description = `Linked to QuickBooks account "${qboAccount.Name}"`;
+      account.isActive = true;
 
-    const saved = await this.repository.save(account);
+      const persisted = await manager
+        .getRepository(FinancialAccount)
+        .save(account);
 
-    await this.mappingService.upsert({
-      system: ACCOUNTING_SYSTEM,
-      internalReferenceType: 'FINANCIAL_ACCOUNT',
-      internalReferenceId: String(saved.id),
-      externalReferenceType: 'ACCOUNT',
-      externalReferenceId: String(qboAccount.Id),
-      externalReferenceName: qboAccount.Name,
+      await this.mappingService.upsert(
+        {
+          system: ACCOUNTING_SYSTEM,
+          internalReferenceType: 'FINANCIAL_ACCOUNT',
+          internalReferenceId: String(persisted.id),
+          externalReferenceType: 'ACCOUNT',
+          externalReferenceId: String(qboAccount.Id),
+          externalReferenceName: qboAccount.Name,
+        },
+        manager,
+      );
+
+      return persisted;
     });
 
     this.logger.business('log', 'Financial account created from QuickBooks', {

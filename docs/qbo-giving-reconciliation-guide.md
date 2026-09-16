@@ -142,5 +142,5 @@ After this, the "Post to QuickBooks" panel should pass the Customer check and sh
 ## Notes
 
 - **Sandbox only** — the sandbox QBO account is a test environment. Posting here does not affect the live WHM QuickBooks account.
-- **Safe to retry** — if a posting fails, you can click "Post to QuickBooks" again. The system creates a new attempt each time.
+- **Safe to retry** — if a posting fails, you can click "Post to QuickBooks" again. Every attempt for a given transaction carries the same idempotency key, so if an earlier attempt did reach QuickBooks — a timeout where the reply was lost, for example — the retry returns that original receipt instead of creating a second one.
 - **Seeded reference data** — Locations (Departments), FOBs (Classes), giving categories (Items), and bank accounts have been pre-loaded into the sandbox by Peter. You do not need to set these up yourself.

@@ -1,37 +1,21 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { EntityManager, Repository } from 'typeorm';
 import { ExternalSystemMapping } from './entities/external-system-mapping.entity';
 import { TenantContext } from '../../shared/tenant/tenant-context';
+import {
+  CreateMappingDto,
+  UpdateMappingDto,
+  LookupByInternalDto,
+  LookupByExternalDto,
+} from './dto/external-system-mapping.dto';
 
-export interface CreateMappingDto {
-  system: string;
-  internalReferenceType: string;
-  internalReferenceId: string;
-  externalReferenceType: string;
-  externalReferenceId: string;
-  externalReferenceName?: string;
-  metadata?: Record<string, any>;
-}
-
-export interface UpdateMappingDto {
-  externalReferenceId?: string;
-  externalReferenceName?: string;
-  metadata?: Record<string, any>;
-}
-
-export interface LookupByInternalDto {
-  system: string;
-  internalReferenceType: string;
-  internalReferenceId: string | number;
-  externalReferenceType?: string;
-}
-
-export interface LookupByExternalDto {
-  system: string;
-  externalReferenceType: string;
-  externalReferenceId: string;
-}
+export {
+  CreateMappingDto,
+  UpdateMappingDto,
+  LookupByInternalDto,
+  LookupByExternalDto,
+} from './dto/external-system-mapping.dto';
 
 @Injectable()
 export class ExternalSystemMappingService {
@@ -41,9 +25,26 @@ export class ExternalSystemMappingService {
     private readonly tenantContext: TenantContext,
   ) {}
 
-  async create(dto: CreateMappingDto): Promise<ExternalSystemMapping> {
+  /**
+   * The repository to write through.
+   *
+   * Callers whose own writes must succeed or fail together with the mapping
+   * pass the manager of an open transaction; everything else gets the ambient
+   * repository. Without this a caller can commit its own row and then fail to
+   * record the mapping for it, leaving a record that points at nothing in the
+   * external system and no indication that it is unlinked.
+   */
+  private repoFor(manager?: EntityManager): Repository<ExternalSystemMapping> {
+    return manager ? manager.getRepository(ExternalSystemMapping) : this.repo;
+  }
+
+  async create(
+    dto: CreateMappingDto,
+    manager?: EntityManager,
+  ): Promise<ExternalSystemMapping> {
     const tenantId = this.tenantContext.requireTenant();
-    const mapping = this.repo.create({
+    const repo = this.repoFor(manager);
+    const mapping = repo.create({
       tenantId,
       system: dto.system,
       internalReferenceType: dto.internalReferenceType,
@@ -53,7 +54,7 @@ export class ExternalSystemMappingService {
       externalReferenceName: dto.externalReferenceName ?? null,
       metadata: dto.metadata ?? null,
     });
-    return this.repo.save(mapping);
+    return repo.save(mapping);
   }
 
   async findAll(system?: string): Promise<ExternalSystemMapping[]> {
@@ -109,9 +110,10 @@ export class ExternalSystemMappingService {
 
   async lookupByExternal(
     dto: LookupByExternalDto,
+    manager?: EntityManager,
   ): Promise<ExternalSystemMapping | null> {
     const tenantId = this.tenantContext.requireTenant();
-    return this.repo.findOne({
+    return this.repoFor(manager).findOne({
       where: {
         tenantId,
         system: dto.system,
@@ -121,9 +123,13 @@ export class ExternalSystemMappingService {
     });
   }
 
-  async upsert(dto: CreateMappingDto): Promise<ExternalSystemMapping> {
+  async upsert(
+    dto: CreateMappingDto,
+    manager?: EntityManager,
+  ): Promise<ExternalSystemMapping> {
     const tenantId = this.tenantContext.requireTenant();
-    const existing = await this.repo.findOne({
+    const repo = this.repoFor(manager);
+    const existing = await repo.findOne({
       where: {
         tenantId,
         system: dto.system,
@@ -138,8 +144,8 @@ export class ExternalSystemMappingService {
         dto.externalReferenceName ?? existing.externalReferenceName;
       existing.metadata = dto.metadata ?? existing.metadata;
       existing.lastSyncedAt = new Date();
-      return this.repo.save(existing);
+      return repo.save(existing);
     }
-    return this.create(dto);
+    return this.create(dto, manager);
   }
 }

@@ -179,16 +179,14 @@ describe('AccountingService — posting a batch', () => {
     );
     repos.match.findOne.mockResolvedValue(null);
 
-    jest
-      .spyOn(service, 'post')
-      .mockRejectedValue(
-        new BadRequestException({
-          message: 'Transaction is not ready to post',
-          blockers: [
-            { code: 'CUSTOMER_MAPPING_MISSING', message: 'No customer mapped' },
-          ],
-        }),
-      );
+    jest.spyOn(service, 'post').mockRejectedValue(
+      new BadRequestException({
+        message: 'Transaction is not ready to post',
+        blockers: [
+          { code: 'CUSTOMER_MAPPING_MISSING', message: 'No customer mapped' },
+        ],
+      }),
+    );
 
     const [failure] = (await service.postMany([5], 7)).results;
 
@@ -228,9 +226,7 @@ describe('AccountingService — posting a batch', () => {
         status: AccountingPostingStatus.POSTED,
       });
 
-      await expect(service.post(1, 7)).rejects.toThrow(
-        /already been posted/i,
-      );
+      await expect(service.post(1, 7)).rejects.toThrow(/already been posted/i);
       // Nothing may reach QuickBooks once the claim is refused.
       expect(plugin.buildSalesReceipt).not.toHaveBeenCalled();
     });
@@ -242,9 +238,7 @@ describe('AccountingService — posting a batch', () => {
         status: AccountingPostingStatus.PENDING,
       });
 
-      await expect(service.post(1, 7)).rejects.toThrow(
-        /already being posted/i,
-      );
+      await expect(service.post(1, 7)).rejects.toThrow(/already being posted/i);
       expect(plugin.buildSalesReceipt).not.toHaveBeenCalled();
     });
 
@@ -305,9 +299,11 @@ describe('AccountingService — posting a batch', () => {
     });
 
     beforeEach(() => {
-      jest
-        .spyOn(service, 'getSetup')
-        .mockResolvedValue({ ready: true, missingMappings: [], dataIssues: [] });
+      jest.spyOn(service, 'getSetup').mockResolvedValue({
+        ready: true,
+        missingMappings: [],
+        dataIssues: [],
+      });
     });
 
     it('refuses to link a contact that does not exist', async () => {
@@ -336,6 +332,97 @@ describe('AccountingService — posting a batch', () => {
       expect(mapping.upsert).toHaveBeenCalledWith(
         expect.objectContaining({ internalReferenceId: '1' }),
       );
+    });
+  });
+
+  /**
+   * A retry after an ambiguous outcome is the dangerous case: `withAuth` may
+   * refresh and retry a 401 that QuickBooks had already accepted, and a request
+   * that times out may have been accepted with the reply lost on the way back.
+   * The idempotency key is what makes retrying those safe, so its stability is
+   * worth pinning down — without it a member is credited twice and someone has
+   * to void a receipt by hand.
+   */
+  describe('idempotency of a retried posting', () => {
+    beforeEach(() => {
+      repos.txn.findOne.mockResolvedValue(
+        transaction(1, 'Joshua Nabugere', 2000),
+      );
+      repos.match.findOne.mockResolvedValue({ contact: { id: 42 } });
+      repos.posting.query.mockResolvedValue([
+        {
+          status: AccountingPostingStatus.PENDING,
+          errorMessage: null,
+          externalDocumentId: null,
+          externalDocumentNumber: null,
+          postedAt: null,
+        },
+      ]);
+      repos.posting.save.mockImplementation((row: any) => Promise.resolve(row));
+      plugin.buildSalesReceipt.mockResolvedValue(receipt());
+      jest
+        .spyOn(service, 'preflight')
+        .mockResolvedValue({ ready: true, blockers: [] });
+    });
+
+    it('sends the same key on every attempt at the same transaction', async () => {
+      qbService.postSalesReceipt.mockResolvedValue({
+        Id: '99',
+        DocNumber: '1037',
+      });
+
+      await service.post(1, 7);
+      await service.post(1, 7);
+
+      const [firstKey, secondKey] = qbService.postSalesReceipt.mock.calls.map(
+        (call: any[]) => call[2],
+      );
+      expect(firstKey).toBe(secondKey);
+      expect(firstKey).toBeTruthy();
+      // Intuit rejects anything longer.
+      expect(firstKey.length).toBeLessThanOrEqual(50);
+    });
+
+    it('gives a different key to a different transaction', async () => {
+      qbService.postSalesReceipt.mockResolvedValue({ Id: '99' });
+      repos.txn.findOne.mockImplementation(({ where }: any) =>
+        Promise.resolve(transaction(where.id, 'Joshua Nabugere', 2000)),
+      );
+
+      await service.post(1, 7);
+      await service.post(2, 7);
+
+      const [firstKey, secondKey] = qbService.postSalesReceipt.mock.calls.map(
+        (call: any[]) => call[2],
+      );
+      expect(firstKey).not.toBe(secondKey);
+    });
+
+    it('records a refusal as failed, leaving it retryable', async () => {
+      qbService.postSalesReceipt.mockRejectedValue({
+        response: {
+          status: 400,
+          data: { Fault: { Error: [{ Detail: 'Duplicate Document Number' }] } },
+        },
+        message: 'Bad Request',
+      });
+
+      const posting = await service.post(1, 7);
+
+      expect(posting.status).toBe(AccountingPostingStatus.FAILED);
+    });
+
+    it('records a timeout as failed too, since the key makes the retry safe', async () => {
+      qbService.postSalesReceipt.mockRejectedValue(
+        Object.assign(new Error('timeout of 30000ms exceeded'), {
+          code: 'ECONNABORTED',
+        }),
+      );
+
+      const posting = await service.post(1, 7);
+
+      expect(posting.status).toBe(AccountingPostingStatus.FAILED);
+      expect(posting.errorMessage).toMatch(/timeout/);
     });
   });
 });

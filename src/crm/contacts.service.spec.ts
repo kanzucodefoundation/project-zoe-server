@@ -398,4 +398,76 @@ describe('ContactsService', () => {
       expect(mockRepositories.user.update).not.toHaveBeenCalled();
     });
   });
+
+  /**
+   * The contact import reuses a contact it finds by name and group rather than
+   * creating one, and that path never reaches `createPerson`. Without an
+   * explicit write the tithe number on the row is discarded — and the tithe
+   * number is the field the reconciliation matcher trusts above all others, so
+   * losing one quietly stops that giver's payments from auto-matching with
+   * nothing on screen to explain why.
+   */
+  describe('setTitheNumber', () => {
+    it('stores the number on a contact that has none', async () => {
+      mockRepositories.contact.findOne.mockResolvedValue({
+        id: 7,
+        titheNumber: null,
+      });
+
+      await expect(service.setTitheNumber(7, 'TBGB0095')).resolves.toBe(true);
+
+      expect(mockRepositories.contact.save).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 7, titheNumber: 'TBGB0095' }),
+      );
+    });
+
+    it('upper-cases on the way in so one number cannot be stored two ways', async () => {
+      mockRepositories.contact.findOne.mockResolvedValue({
+        id: 7,
+        titheNumber: null,
+      });
+
+      await service.setTitheNumber(7, ' tbgb0095 ');
+
+      expect(mockRepositories.contact.save).toHaveBeenCalledWith(
+        expect.objectContaining({ titheNumber: 'TBGB0095' }),
+      );
+    });
+
+    it('accepts a repeat of the number already stored, whatever its case', async () => {
+      mockRepositories.contact.findOne.mockResolvedValue({
+        id: 7,
+        titheNumber: 'tbgb0095',
+      });
+
+      await expect(service.setTitheNumber(7, 'TBGB0095')).resolves.toBe(true);
+
+      // Nothing to write — the contact already carries this number.
+      expect(mockRepositories.contact.save).not.toHaveBeenCalled();
+    });
+
+    it('refuses to overwrite a different number an import did not set', async () => {
+      mockRepositories.contact.findOne.mockResolvedValue({
+        id: 7,
+        titheNumber: 'TBGB0095',
+      });
+
+      // Finance may already have reconciled against the stored number, so a
+      // conflicting one is reported rather than applied.
+      await expect(service.setTitheNumber(7, 'WHRA0001')).resolves.toBe(false);
+      expect(mockRepositories.contact.save).not.toHaveBeenCalled();
+    });
+
+    it('does nothing for a contact outside the current tenant', async () => {
+      mockRepositories.contact.findOne.mockResolvedValue(null);
+
+      await expect(service.setTitheNumber(7, 'TBGB0095')).resolves.toBe(false);
+      expect(mockRepositories.contact.save).not.toHaveBeenCalled();
+    });
+
+    it('ignores a blank value rather than storing an empty identifier', async () => {
+      await expect(service.setTitheNumber(7, '   ')).resolves.toBe(false);
+      expect(mockRepositories.contact.findOne).not.toHaveBeenCalled();
+    });
+  });
 });

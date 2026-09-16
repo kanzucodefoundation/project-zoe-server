@@ -204,11 +204,13 @@ export class ContactImportController {
           // already exists throws here, is caught below, and is reported as a
           // per-row error — never silently reused/merged into the existing
           // contact (that was the original bug).
-          if (uploadedContact.titheNumber) {
-            contactModel['titheNumber'] = String(
-              uploadedContact.titheNumber,
-            ).trim();
-          }
+          // Upper-cased on the way in so the value matches however the same
+          // number was typed on another row or in QuickBooks. The matcher
+          // compares case-insensitively, so storing two casings of one number
+          // would let two contacts claim the same giver.
+          const titheNumber = uploadedContact.titheNumber
+            ? String(uploadedContact.titheNumber).trim().toUpperCase()
+            : null;
 
           let person = contactModel.email
             ? null
@@ -220,23 +222,80 @@ export class ContactImportController {
           if (!person) {
             person = await this.service.createPerson(contactModel);
           }
+
+          // Written against the saved contact rather than set on the model
+          // beforehand. `getContactModel` builds a fresh Contact and copies
+          // only the fields it knows about, so assigning to the model dropped
+          // the tithe number on the create path; the reuse path never reaches
+          // createPerson at all and dropped it too. Going through the contact
+          // that actually exists covers both, and is the field the
+          // reconciliation matcher trusts most, so losing it silently stops
+          // that giver's payments from auto-matching.
+          if (titheNumber) {
+            try {
+              const stored = await this.service.setTitheNumber(
+                person.id,
+                titheNumber,
+              );
+              if (!stored) {
+                errors.push(
+                  `Contact ${contactName} at position ${index + 1} out of ${
+                    list.length
+                  }: the contact already carries a different tithe number, so "${titheNumber}" was not applied. Update the contact directly if the new number is correct.`,
+                );
+              }
+            } catch (titheErr) {
+              // Most likely the tenant-scoped unique index: another contact
+              // already holds this number. The contact itself is saved, so the
+              // row is not a failure — reporting it as one would send the
+              // operator back to re-upload a contact that already exists.
+              const titheErrorMessage = `Contact ${contactName} at position ${
+                index + 1
+              } out of ${
+                list.length
+              } was saved, but tithe number "${titheNumber}" could not be applied: ${
+                titheErr.message
+              }. It is most likely already assigned to another contact.`;
+              Logger.error(titheErrorMessage);
+              errors.push(titheErrorMessage);
+            }
+          }
+
           await this.groupMembershipService.create({
             groupId: effectiveGroupId,
             members: [person.id],
             role: GroupRole.Member,
           });
 
+          // Past this point the contact and its group membership are already
+          // committed. A failure here is a failure to link QuickBooks, not a
+          // failure to create the contact — reporting the row as uncreated
+          // would send the operator back to re-upload it, and the retry would
+          // find the contact already there and still leave no mapping. So the
+          // two outcomes are reported separately.
           const qboCustomerId = uploadedContact.quickbooksCustomerId
             ? String(uploadedContact.quickbooksCustomerId).trim()
             : null;
           if (qboCustomerId) {
-            await this.mappingService.upsert({
-              system: 'QUICKBOOKS',
-              internalReferenceType: 'CONTACT',
-              internalReferenceId: String(person.id),
-              externalReferenceType: 'CUSTOMER',
-              externalReferenceId: qboCustomerId,
-            });
+            try {
+              await this.mappingService.upsert({
+                system: 'QUICKBOOKS',
+                internalReferenceType: 'CONTACT',
+                internalReferenceId: String(person.id),
+                externalReferenceType: 'CUSTOMER',
+                externalReferenceId: qboCustomerId,
+              });
+            } catch (mappingErr) {
+              const mappingErrorMessage = `Contact ${contactName} at position ${
+                index + 1
+              } out of ${
+                list.length
+              } was created, but linking it to QuickBooks customer ${qboCustomerId} failed: ${
+                mappingErr.message
+              }. The contact is saved — re-link it from the QuickBooks mappings screen rather than re-importing the row.`;
+              Logger.error(mappingErrorMessage);
+              errors.push(mappingErrorMessage);
+            }
           }
 
           created.push(person);
