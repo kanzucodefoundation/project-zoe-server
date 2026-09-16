@@ -201,6 +201,7 @@
     "*.{js,ts}": [
       "eslint --cache --fix",
       "prettier --write"
-    ]
+    ],
+    "src/**/*.entity.ts": "bash -c 'git diff --cached --name-only | grep -q src/migrations/ || { echo \"Entity file changed without a migration -- run: npm run migration:generate -- src/migrations/DescriptiveName (or git commit --no-verify to skip)\"; exit 1; }'"
   }
 }
