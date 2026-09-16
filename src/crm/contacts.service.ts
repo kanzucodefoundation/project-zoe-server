@@ -1723,6 +1723,20 @@ export class ContactsService {
    * Returns false when the contact already carries a different tithe number:
    * an import must not quietly overwrite an identifier finance may already
    * have reconciled against.
+   *
+   * The write is a single conditional UPDATE rather than a read followed by a
+   * save. Read-then-write lets two concurrent imports both observe an empty
+   * field and both save, so the later one silently overwrites an identifier the
+   * earlier one had already accepted — the exact outcome the no-overwrite rule
+   * exists to prevent. Letting the database evaluate the condition makes the
+   * claim atomic.
+   *
+   * A stored value that differs only in case is rewritten to the canonical
+   * upper-case form. The unique index on (tenantId, titheNumber) is
+   * case-sensitive while the reconciliation matcher compares case-insensitively,
+   * so leaving `tbgb0095` in place would let a second contact store `TBGB0095`
+   * — two rows the matcher considers equal, with nothing to decide between
+   * them but which one the planner returns first.
    */
   async setTitheNumber(
     contactId: number,
@@ -1734,19 +1748,35 @@ export class ContactsService {
       return false;
     }
 
+    const result = await this.repository
+      .createQueryBuilder()
+      .update(Contact)
+      .set({ titheNumber: normalized })
+      .where('"id" = :contactId', { contactId })
+      .andWhere('"tenantId" = :tenantId', { tenantId })
+      // Claim an empty field, or canonicalise one already holding this same
+      // number in a different case. Any other value is left untouched.
+      .andWhere(
+        '("titheNumber" IS NULL OR UPPER("titheNumber") = :normalized)',
+        { normalized },
+      )
+      .execute();
+
+    if (result.affected && result.affected > 0) {
+      return true;
+    }
+
+    // Nothing was updated. Either the contact is not in this tenant, or it
+    // already carries a different number — tell those apart so the caller can
+    // report the second case rather than reporting a missing contact.
     const contact = await this.repository.findOne({
       where: { id: contactId, tenant: { id: tenantId } },
+      select: { id: true, titheNumber: true },
     });
     if (!contact) {
       return false;
     }
-    if (contact.titheNumber) {
-      return contact.titheNumber.toUpperCase() === normalized;
-    }
-
-    contact.titheNumber = normalized;
-    await this.repository.save(contact);
-    return true;
+    return contact.titheNumber?.toUpperCase() === normalized;
   }
 
   async findByName(username: string): Promise<Contact | undefined> {
