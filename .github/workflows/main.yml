@@ -165,15 +165,13 @@ jobs:
         run: rsync -rtvO --delete ./node_modules/ projectzoe-prod:/opt/projectzoe/production/server/node_modules/
 
       - name: Deploy .env
-        run: |
-          rsync -rtvO ./.env projectzoe-prod:/opt/projectzoe/production/server/
-          rsync -rtvO ./.env projectzoe-prod:/opt/projectzoe/production/server/dist/
+        run: rsync -rtvO ./.env projectzoe-prod:/opt/projectzoe/production/server/
 
       - name: Run database migrations
         run: ssh projectzoe-prod 'bash -l -c "cd /opt/projectzoe/production/server/raw/ && npm run migration:run"'
 
       - name: Restart app
-        run: ssh projectzoe-prod 'bash -l -c "cd /opt/projectzoe/production/server/dist/ && pm2 delete zoeServer 2>/dev/null || true && production=true pm2 start src/main.js --name zoeServer"'
+        run: ssh projectzoe-prod 'bash -l -c "cd /opt/projectzoe/production/server/ && pm2 delete zoeServer 2>/dev/null || true && production=true pm2 start dist/src/main.js --name zoeServer"'
 
       - name: Close firewall
         if: always() && steps.firewall-open.conclusion == 'success'
