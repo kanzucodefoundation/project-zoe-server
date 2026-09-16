@@ -40,9 +40,9 @@ export default class Person {
   @Column({
     type: 'enum',
     enum: Gender,
-    nullable: false,
+    nullable: true,
   })
-  gender: Gender;
+  gender: Gender | null;
 
   @Column({
     type: 'enum',

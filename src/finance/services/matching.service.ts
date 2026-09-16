@@ -1,5 +1,5 @@
 import { Injectable, Inject, NotFoundException } from '@nestjs/common';
-import { Repository, Connection } from 'typeorm';
+import { Repository, Connection, ILike } from 'typeorm';
 import Transaction from '../entities/transaction.entity';
 import ContactPaymentMethod from '../entities/contact-payment-method.entity';
 import ReconciliationMatch from '../entities/reconciliation-match.entity';
@@ -9,6 +9,8 @@ import { MatchType } from '../enums/match-type.enum';
 import { MatchStatus } from '../enums/match-status.enum';
 import { TenantContext } from '../../shared/tenant/tenant-context';
 import { getPersonFullName } from '../../crm/crm.helpers';
+import { GroupPermissionsService } from '../../groups/services/group-permissions.service';
+import { extractTitheNumber } from '../statement-parsing';
 import { MatchSuggestionDto } from '../dto/reconciliation.dto';
 import { AppLogger, ContextLogger } from '../../utils/app-logger.service';
 import { normalizePhone, calculateNameSimilarity } from '../finance.helpers';
@@ -48,6 +50,7 @@ export class MatchingService {
     private tenantContext: TenantContext,
     private appLogger: AppLogger,
     private pluginRegistry: ReconciliationPluginRegistry,
+    private groupPermissionsService: GroupPermissionsService,
   ) {
     this.transactionRepository = connection.getRepository(Transaction);
     this.matchRepository = connection.getRepository(ReconciliationMatch);
@@ -64,6 +67,7 @@ export class MatchingService {
    * bare identifier like "contact_phone_normalized".
    */
   private static readonly MATCH_METHOD_LABELS: Record<string, string> = {
+    tithe_number: 'Tithe number',
     payment_method_phone: 'Registered payment method phone',
     contact_phone: 'Contact phone number',
     contact_phone_normalized: 'Contact phone number (normalised)',
@@ -134,12 +138,24 @@ export class MatchingService {
       matchReasons.push('Previously reconciled to this contact');
     }
 
+    // Reconciliation is ultimately about attributing the gift to a campus and
+    // FOB, so show the reviewer where this contact posts to before they accept
+    // the match rather than making them discover it at posting time.
+    const attribution =
+      await this.groupPermissionsService.resolveAttributionForContact(
+        contact.id,
+      );
+
     return [
       {
         contact: {
           id: contact.id,
           name: getPersonFullName(contact.person) || `Contact ${contact.id}`,
           phone: contact.phones?.[0]?.value ?? undefined,
+          location: attribution.location?.name,
+          fob: attribution.fob?.name,
+          attributionIsFallback:
+            attribution.locationIsFallback || attribution.fobIsFallback,
         },
         confidenceScore: candidate.confidenceScore,
         matchReasons,
@@ -185,6 +201,38 @@ export class MatchingService {
           confidenceScore: pluginResult.confidenceScore,
           matchCriteria: pluginResult.matchCriteria,
         };
+      }
+    }
+
+    // Strategy 0: Exact tithe number match in narration (98% confidence).
+    //
+    // Uses the shared statement parser rather than a local digits-only regex:
+    // Worship Harvest tithe numbers look like TBGB0095, which a `\d{4,10}`
+    // pattern never matched, so this strategy could not fire on real data.
+    if (transaction.narration) {
+      const candidate = extractTitheNumber(transaction.narration);
+      if (candidate) {
+        const contact = await this.contactRepository.findOne({
+          // Stored case varies by how the contact was imported, so compare
+          // case-insensitively rather than missing a legitimate match.
+          where: {
+            tenant: { id: tenantId },
+            titheNumber: ILike(candidate),
+          },
+          relations: ['person'],
+        });
+        if (contact) {
+          const historical = hasHistoricalMatch(contact.id);
+          return {
+            contact,
+            confidenceScore: historical ? 100 : 98,
+            matchCriteria: {
+              method: 'tithe_number',
+              matchedValue: candidate,
+              historicalBonus: historical,
+            },
+          };
+        }
       }
     }
 
@@ -317,7 +365,7 @@ export class MatchingService {
   }
 
   async runMatching(
-    accountId: number,
+    accountId: number | undefined,
     minConfidenceThreshold: number = 60,
     autoApproveAboveThreshold?: number,
     pluginId?: string,
@@ -341,12 +389,18 @@ export class MatchingService {
       },
     });
 
+    // Filtering on `account: { id: undefined }` matches nothing, so the account
+    // clause is only added when an account was actually chosen.
+    const where: any = {
+      tenant: { id: tenantId },
+      status: 'PENDING' as any,
+    };
+    if (accountId) {
+      where.account = { id: accountId };
+    }
+
     const transactions = await this.transactionRepository.find({
-      where: {
-        tenant: { id: tenantId },
-        account: { id: accountId },
-        status: 'PENDING' as any,
-      },
+      where,
       relations: ['account'],
     });
 
@@ -397,10 +451,8 @@ export class MatchingService {
             match.approvedAt = new Date();
             autoApproved++;
           } else {
-            match.status =
-              matchResult.confidenceScore >= 80
-                ? MatchStatus.PENDING
-                : MatchStatus.PENDING;
+            // Everything below the auto-approve threshold waits for a human.
+            match.status = MatchStatus.PENDING;
           }
 
           await this.matchRepository.save(match);

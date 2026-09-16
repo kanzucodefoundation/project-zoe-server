@@ -123,10 +123,10 @@ export class SearchMatchDto {
 }
 
 export class RunMatchingDto {
-  @IsNotEmpty()
+  @IsOptional()
   @Type(() => Number)
   @IsNumber()
-  accountId: number;
+  accountId?: number;
 
   @IsOptional()
   @Type(() => Number)
@@ -153,7 +153,15 @@ export class MatchSuggestionDto {
     id: number;
     name: string;
     phone?: string;
+    /** Campus this giver belongs to, which is what the gift is attributed to. */
     location?: string;
+    /** FOB above that campus — the QuickBooks class the gift posts against. */
+    fob?: string;
+    /**
+     * True when the giver is in no Location or FOB and both fell back to the
+     * mother group, so the reviewer can see the attribution is a default.
+     */
+    attributionIsFallback?: boolean;
   };
   confidenceScore: number;
   matchReasons: string[];

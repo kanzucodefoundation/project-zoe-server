@@ -5,6 +5,7 @@ import {
   IsEnum,
   IsNumber,
   IsBoolean,
+  MaxLength,
   Min,
 } from 'class-validator';
 import { Type } from 'class-transformer';
@@ -35,6 +36,40 @@ export class CreateFinancialAccountDto {
   @Type(() => Number)
   @IsNumber()
   ownerGroupId?: number;
+}
+
+/**
+ * Creates a Zoe financial account from an existing QuickBooks account, so the
+ * two are linked from the moment the account exists rather than being
+ * reconciled later in the posting dialog.
+ */
+export class CreateAccountFromQuickBooksDto {
+  @IsNotEmpty()
+  @IsString()
+  @MaxLength(100)
+  qboAccountId: string;
+
+  @IsNotEmpty()
+  @IsEnum(AccountType)
+  accountType: AccountType;
+
+  // Lengths mirror the entity columns, so over-long input is rejected with a
+  // validation error rather than failing inside the database driver.
+  /** Overrides the QuickBooks account name when the church prefers its own. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  name?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  accountNumber?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(10)
+  currency?: string;
 }
 
 export class UpdateFinancialAccountDto {

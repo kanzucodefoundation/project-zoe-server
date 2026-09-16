@@ -65,6 +65,11 @@ export default class Transaction {
     nullable: true,
   })
   category: TransactionCategory;
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  externalItemId: string | null;
+
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  externalItemName: string | null;
 
   @Column({ type: 'jsonb', nullable: true })
   rawData: any;

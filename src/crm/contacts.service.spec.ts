@@ -398,4 +398,110 @@ describe('ContactsService', () => {
       expect(mockRepositories.user.update).not.toHaveBeenCalled();
     });
   });
+
+  /**
+   * The contact import reuses a contact it finds by name and group rather than
+   * creating one, and that path never reaches `createPerson`. Without an
+   * explicit write the tithe number on the row is discarded — and the tithe
+   * number is the field the reconciliation matcher trusts above all others, so
+   * losing one quietly stops that giver's payments from auto-matching with
+   * nothing on screen to explain why.
+   */
+  describe('setTitheNumber', () => {
+    let updateBuilder: any;
+    let updateResult: { affected: number };
+
+    beforeEach(() => {
+      updateResult = { affected: 0 };
+      // The write is one conditional UPDATE rather than a read-then-save, so
+      // the builder chain is what these tests assert against.
+      updateBuilder = {
+        update: jest.fn().mockReturnThis(),
+        set: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        execute: jest.fn().mockImplementation(() => Promise.resolve(updateResult)),
+      };
+      mockRepositories.contact.createQueryBuilder = jest
+        .fn()
+        .mockReturnValue(updateBuilder);
+    });
+
+    it('stores the number on a contact that has none', async () => {
+      updateResult.affected = 1;
+
+      await expect(service.setTitheNumber(7, 'TBGB0095')).resolves.toBe(true);
+
+      expect(updateBuilder.set).toHaveBeenCalledWith({
+        titheNumber: 'TBGB0095',
+      });
+    });
+
+    it('upper-cases on the way in so one number cannot be stored two ways', async () => {
+      updateResult.affected = 1;
+
+      await service.setTitheNumber(7, ' tbgb0095 ');
+
+      expect(updateBuilder.set).toHaveBeenCalledWith({
+        titheNumber: 'TBGB0095',
+      });
+    });
+
+    it('claims the field in one statement, not a read followed by a save', async () => {
+      // Two concurrent imports could both read an empty field and both save,
+      // and the later write would silently replace an identifier the earlier
+      // one had already accepted. The condition has to live in the UPDATE.
+      updateResult.affected = 1;
+
+      await service.setTitheNumber(7, 'TBGB0095');
+
+      const conditions = updateBuilder.andWhere.mock.calls
+        .map((call: any[]) => call[0])
+        .join(' ');
+      expect(conditions).toContain('"tenantId" = :tenantId');
+      expect(conditions).toContain('"titheNumber" IS NULL');
+      expect(mockRepositories.contact.save).not.toHaveBeenCalled();
+    });
+
+    it('canonicalises a stored number that differs only in case', async () => {
+      // The unique index is case-sensitive but the matcher compares
+      // case-insensitively, so leaving 'tbgb0095' in place would let another
+      // contact store 'TBGB0095' and hand the matcher two rows it treats as
+      // equal. The UPDATE matches on UPPER(), so such a row is rewritten.
+      updateResult.affected = 1;
+
+      await expect(service.setTitheNumber(7, 'tbgb0095')).resolves.toBe(true);
+
+      const conditions = updateBuilder.andWhere.mock.calls
+        .map((call: any[]) => call[0])
+        .join(' ');
+      expect(conditions).toContain('UPPER("titheNumber") = :normalized');
+      expect(updateBuilder.set).toHaveBeenCalledWith({
+        titheNumber: 'TBGB0095',
+      });
+    });
+
+    it('refuses to overwrite a different number an import did not set', async () => {
+      // The UPDATE matched nothing; the re-read explains why.
+      updateResult.affected = 0;
+      mockRepositories.contact.findOne.mockResolvedValue({
+        id: 7,
+        titheNumber: 'TBGB0095',
+      });
+
+      await expect(service.setTitheNumber(7, 'WHRA0001')).resolves.toBe(false);
+    });
+
+    it('does nothing for a contact outside the current tenant', async () => {
+      updateResult.affected = 0;
+      mockRepositories.contact.findOne.mockResolvedValue(null);
+
+      await expect(service.setTitheNumber(7, 'TBGB0095')).resolves.toBe(false);
+    });
+
+    it('ignores a blank value rather than storing an empty identifier', async () => {
+      await expect(service.setTitheNumber(7, '   ')).resolves.toBe(false);
+      expect(mockRepositories.contact.createQueryBuilder).not.toHaveBeenCalled();
+    });
+  });
 });

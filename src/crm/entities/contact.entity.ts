@@ -9,6 +9,7 @@ import {
   OneToOne,
   PrimaryGeneratedColumn,
 } from 'typeorm';
+import { Tenant } from '../../tenants/entities/tenant.entity';
 import Person from './person.entity';
 import Company from './company.entity';
 import Email from './email.entity';
@@ -24,7 +25,6 @@ import Relationship from './relationship.entity';
 import GroupMembershipRequest from '../../groups/entities/groupMembershipRequest.entity';
 import EventAttendance from '../../events/entities/eventAttendance.entity';
 import EventRegistration from 'src/events/entities/eventRegistration.entity';
-import { Tenant } from '../../tenants/entities/tenant.entity';
 
 @Entity()
 @Index(['tenant', 'id'])
@@ -34,6 +34,12 @@ export default class Contact {
 
   @ManyToOne(() => Tenant, (tenant) => tenant.contacts, { nullable: false })
   tenant: Tenant;
+
+  @Column({ nullable: false })
+  tenantId: number;
+
+  @Column({ type: 'varchar', length: 50, nullable: true })
+  titheNumber: string | null;
 
   @Column({
     type: 'enum',

@@ -3,10 +3,12 @@ import { BadRequestException } from '@nestjs/common';
 import { Connection } from 'typeorm';
 import { TransactionsService } from './transactions.service';
 import { CategoryRulesService } from './category-rules.service';
+import { GivingCategoriesService } from './giving-categories.service';
 import { TenantContext } from '../../shared/tenant/tenant-context';
 import { AppLogger } from '../../utils/app-logger.service';
 import Transaction from '../entities/transaction.entity';
 import FinancialAccount from '../entities/financial-account.entity';
+import { AccountingPosting } from '../../integrations/quickbooks/entities/accounting-posting.entity';
 import { TransactionCategory } from '../enums/transaction-category.enum';
 import { MatchStatus } from '../enums/match-status.enum';
 import { MatchType } from '../enums/match-type.enum';
@@ -34,12 +36,16 @@ describe('TransactionsService — file import', () => {
         find: jest.fn().mockResolvedValue([]),
       },
       account: { findOne: jest.fn().mockResolvedValue({ id: 1 }) },
+      // findAll reads postings so the screen can show what already reached
+      // QuickBooks; default to none posted.
+      posting: { find: jest.fn().mockResolvedValue([]) },
     };
 
     const mockConnection: Partial<Connection> = {
       getRepository: jest.fn((entity: any) => {
         if (entity === Transaction) return mockRepositories.transaction;
         if (entity === FinancialAccount) return mockRepositories.account;
+        if (entity === AccountingPosting) return mockRepositories.posting;
         return {};
       }) as any,
     };
@@ -73,6 +79,10 @@ describe('TransactionsService — file import', () => {
           },
         },
         { provide: CategoryRulesService, useValue: mockCategoryRules },
+        {
+          provide: GivingCategoriesService,
+          useValue: { list: jest.fn().mockResolvedValue([]) },
+        },
       ],
     }).compile();
 

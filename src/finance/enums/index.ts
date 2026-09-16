@@ -1,6 +1,10 @@
 export { AccountType } from './account-type.enum';
 export { TransactionStatus } from './transaction-status.enum';
-export { TransactionCategory } from './transaction-category.enum';
+export {
+  TransactionCategory,
+  DEFAULT_TRANSACTION_CATEGORY,
+  resolveTransactionCategory,
+} from './transaction-category.enum';
 export { MatchType } from './match-type.enum';
 export { MatchStatus } from './match-status.enum';
 export { BatchStatus } from './batch-status.enum';

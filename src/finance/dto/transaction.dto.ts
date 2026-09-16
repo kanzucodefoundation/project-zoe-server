@@ -185,6 +185,15 @@ export class ParseTransactionDto extends ImportTransactionDto {
   @IsEnum(TransactionCategory)
   defaultCategory?: TransactionCategory;
 
+  /** QuickBooks item to fall back to when the message names none. */
+  @IsOptional()
+  @IsString()
+  defaultItemId?: string;
+
+  @IsOptional()
+  @IsString()
+  defaultItemName?: string;
+
   @IsOptional()
   @Transform(({ value }) => value === true || value === 'true')
   @IsBoolean()
@@ -235,10 +244,24 @@ export class ParsedTransactionDto {
 
   errors?: string[];
 
-  /** Why this row got its category — a rule name, or the default fallback. */
+  /** Why this row got its category — a rule name, the message, or the default. */
   @IsOptional()
   @IsString()
   matchedRule?: string;
+
+  /** Tithe number read out of the statement message, when one is present. */
+  @IsOptional()
+  @IsString()
+  titheNumber?: string | null;
+
+  /** QuickBooks product/service this row posts to. */
+  @IsOptional()
+  @IsString()
+  externalItemId?: string | null;
+
+  @IsOptional()
+  @IsString()
+  externalItemName?: string | null;
 }
 
 export class BulkImportTransactionDto {

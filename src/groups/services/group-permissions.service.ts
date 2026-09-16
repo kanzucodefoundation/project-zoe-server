@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { Connection, In,  Repository } from 'typeorm';
+import { Connection, In, IsNull, Repository } from 'typeorm';
 import Group from '../entities/group.entity';
 import GroupMembership from '../entities/groupMembership.entity';
 import { GroupRole } from '../enums/groupRole';
@@ -194,6 +194,88 @@ export class GroupPermissionsService {
 
   async getUserIsMemberLeaderGroupIds(user: any) {
     return this.getUserGroupIds(user);
+  }
+
+  /**
+   * Resolves a contact's Location and FOB (parent of Location) from their
+   * group memberships. Used by the accounting layer to build QBO mappings.
+   */
+  async resolveForContact(contactId: number): Promise<{
+    location: { id: number; name: string } | null;
+    fob: { id: number; name: string } | null;
+  }> {
+    const locationId = await this.getContactLocationGroupId(contactId);
+    if (!locationId) {
+      return { location: null, fob: null };
+    }
+
+    const locationGroup = await this.repository.findOne({
+      where: { id: locationId },
+      select: ['id', 'name', 'parentId'],
+    });
+    if (!locationGroup) {
+      return { location: null, fob: null };
+    }
+
+    const location = { id: locationGroup.id, name: locationGroup.name };
+
+    let fob: { id: number; name: string } | null = null;
+    if (locationGroup.parentId) {
+      const fobGroup = await this.repository.findOne({
+        where: { id: Number(locationGroup.parentId) },
+        select: ['id', 'name'],
+      });
+      if (fobGroup) {
+        fob = { id: fobGroup.id, name: fobGroup.name };
+      }
+    }
+
+    return { location, fob };
+  }
+
+  /**
+   * The tenant's "mother" group — the root of the group tree (Worship Harvest
+   * Global for WHM). Every other group descends from it.
+   */
+  async getRootGroup(): Promise<{ id: number; name: string } | null> {
+    const roots = await this.repository.find({
+      where: { parentId: IsNull() },
+      select: ['id', 'name'],
+      order: { id: 'ASC' },
+      take: 1,
+    });
+    return roots[0] ? { id: roots[0].id, name: roots[0].name } : null;
+  }
+
+  /**
+   * Like `resolveForContact`, but substitutes the tenant's mother group wherever
+   * the contact has no Location or FOB. Giving from someone who has not been
+   * placed in the hierarchy is attributed to the movement as a whole rather than
+   * left unattributed, so posting is never blocked on missing CRM data.
+   */
+  async resolveAttributionForContact(contactId: number): Promise<{
+    location: { id: number; name: string } | null;
+    fob: { id: number; name: string } | null;
+    locationIsFallback: boolean;
+    fobIsFallback: boolean;
+  }> {
+    const { location, fob } = await this.resolveForContact(contactId);
+    if (location && fob) {
+      return {
+        location,
+        fob,
+        locationIsFallback: false,
+        fobIsFallback: false,
+      };
+    }
+
+    const root = await this.getRootGroup();
+    return {
+      location: location ?? root,
+      fob: fob ?? root,
+      locationIsFallback: !location && !!root,
+      fobIsFallback: !fob && !!root,
+    };
   }
 
   private async getGroupAndAllDescendants(

@@ -1708,6 +1708,77 @@ export class ContactsService {
     return membership?.contact;
   }
 
+  /**
+   * Stores a tithe number on a contact that has already been saved.
+   *
+   * Written this way rather than set on the model before creation because
+   * `getContactModel` builds a fresh Contact and copies only the fields it
+   * knows about, so an assignment there never reaches the database; the import
+   * path that reuses an existing contact never calls `createPerson` at all.
+   * Going through the saved contact covers both. The tithe number is the field
+   * the reconciliation matcher trusts above all others, so losing one silently
+   * stops that giver's payments from auto-matching with nothing on screen to
+   * explain why.
+   *
+   * Returns false when the contact already carries a different tithe number:
+   * an import must not quietly overwrite an identifier finance may already
+   * have reconciled against.
+   *
+   * The write is a single conditional UPDATE rather than a read followed by a
+   * save. Read-then-write lets two concurrent imports both observe an empty
+   * field and both save, so the later one silently overwrites an identifier the
+   * earlier one had already accepted — the exact outcome the no-overwrite rule
+   * exists to prevent. Letting the database evaluate the condition makes the
+   * claim atomic.
+   *
+   * A stored value that differs only in case is rewritten to the canonical
+   * upper-case form. The unique index on (tenantId, titheNumber) is
+   * case-sensitive while the reconciliation matcher compares case-insensitively,
+   * so leaving `tbgb0095` in place would let a second contact store `TBGB0095`
+   * — two rows the matcher considers equal, with nothing to decide between
+   * them but which one the planner returns first.
+   */
+  async setTitheNumber(
+    contactId: number,
+    titheNumber: string,
+  ): Promise<boolean> {
+    const tenantId = this.tenantContext.requireTenant();
+    const normalized = titheNumber.trim().toUpperCase();
+    if (!normalized) {
+      return false;
+    }
+
+    const result = await this.repository
+      .createQueryBuilder()
+      .update(Contact)
+      .set({ titheNumber: normalized })
+      .where('"id" = :contactId', { contactId })
+      .andWhere('"tenantId" = :tenantId', { tenantId })
+      // Claim an empty field, or canonicalise one already holding this same
+      // number in a different case. Any other value is left untouched.
+      .andWhere(
+        '("titheNumber" IS NULL OR UPPER("titheNumber") = :normalized)',
+        { normalized },
+      )
+      .execute();
+
+    if (result.affected && result.affected > 0) {
+      return true;
+    }
+
+    // Nothing was updated. Either the contact is not in this tenant, or it
+    // already carries a different number — tell those apart so the caller can
+    // report the second case rather than reporting a missing contact.
+    const contact = await this.repository.findOne({
+      where: { id: contactId, tenant: { id: tenantId } },
+      select: { id: true, titheNumber: true },
+    });
+    if (!contact) {
+      return false;
+    }
+    return contact.titheNumber?.toUpperCase() === normalized;
+  }
+
   async findByName(username: string): Promise<Contact | undefined> {
     return await this.repository
       .createQueryBuilder('user')

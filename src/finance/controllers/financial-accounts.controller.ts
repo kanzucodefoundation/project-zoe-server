@@ -13,8 +13,12 @@ import {
 import { ApiTags } from '@nestjs/swagger';
 import { SentryInterceptor } from '../../utils/sentry.interceptor';
 import { TenantContextInterceptor } from '../../interceptors/tenant-context.interceptor';
-import { AccountsService } from '../services/accounts.service';
 import {
+  AccountsService,
+  QboAccountOption,
+} from '../services/accounts.service';
+import {
+  CreateAccountFromQuickBooksDto,
   CreateFinancialAccountDto,
   UpdateFinancialAccountDto,
   SearchFinancialAccountDto,
@@ -40,6 +44,23 @@ export class FinancialAccountsController {
     @Request() req: any,
   ): Promise<FinancialAccount> {
     return this.service.create(data, req.user);
+  }
+
+  /**
+   * The QuickBooks chart of accounts. Declared before ':id' so "quickbooks" is
+   * never swallowed as an account id.
+   */
+  @Get('quickbooks')
+  async listQuickBooksAccounts(): Promise<QboAccountOption[]> {
+    return this.service.listQuickBooksAccounts();
+  }
+
+  @Post('quickbooks')
+  async createFromQuickBooks(
+    @Body() data: CreateAccountFromQuickBooksDto,
+    @Request() req: any,
+  ): Promise<FinancialAccount> {
+    return this.service.createFromQuickBooks(data, req.user);
   }
 
   @Get(':id')

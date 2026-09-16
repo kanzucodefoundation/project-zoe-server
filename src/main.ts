@@ -3,6 +3,7 @@ import 'reflect-metadata';
 import { AppModule } from './app.module';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
+import { json, urlencoded } from 'express';
 import * as compression from 'compression';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import config from './config';
@@ -22,12 +23,24 @@ async function bootstrap() {
     optionsSuccessStatus: 204,
   });
   app.use(compression());
+
+  // Rate limiting runs before any body parser. Parsing first would let an
+  // unauthenticated caller make the server allocate a large body on every
+  // request before the limiter ever saw it.
   app.use(
     rateLimit({
       windowMs: 15 * 60 * 1000, // 15 minutes
       max: 10000, // limit each IP to 100 requests per windowMs
     }),
   );
+
+  // A reviewed import posts every parsed row back as JSON, and a few thousand
+  // statement lines comfortably exceed Express's 100kb default. The allowance
+  // is scoped to that one route so no other endpoint accepts a body this size;
+  // the client also chunks large imports, so it is a ceiling, not the norm.
+  app.use('/api/finance/transactions/import', json({ limit: '25mb' }));
+  app.use(json());
+  app.use(urlencoded({ extended: true }));
   app.useGlobalFilters(new HttpExceptionFilter());
   app.useGlobalPipes(
     new ValidationPipe({
