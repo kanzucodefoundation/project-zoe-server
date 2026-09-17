@@ -12,7 +12,6 @@ import { firstValueFrom } from 'rxjs';
 import { randomUUID } from 'crypto';
 import { ExternalSystemConnection } from './entities/external-system-connection.entity';
 import { ExchangeTokenDto } from './dto/exchange-token.dto';
-import { CreateChargeDto } from './dto/create-charge.dto';
 import {
   QboAccount,
   QboCustomer,
@@ -49,7 +48,6 @@ export class QuickBooksService {
 
   private readonly scopes = [
     'com.intuit.quickbooks.accounting',
-    'com.intuit.quickbooks.payment',
     'openid',
     'profile',
     'email',
@@ -165,48 +163,6 @@ export class QuickBooksService {
       );
       return data;
     });
-  }
-
-  async createCharge(tenantId: number, dto: CreateChargeDto): Promise<any> {
-    const { accessToken, realmId } = await this.getValidAccessToken(tenantId);
-    const base =
-      this.environment === 'sandbox'
-        ? 'https://sandbox.api.intuit.com'
-        : 'https://api.intuit.com';
-
-    const { data } = await firstValueFrom(
-      this.httpService.post(
-        `${base}/quickbooks/v4/payments/charges`,
-        {
-          amount: dto.amount.toFixed(2),
-          currency: dto.currency,
-          card: {
-            number: dto.cardNumber,
-            expMonth: dto.expMonth,
-            expYear: dto.expYear,
-            cvc: dto.cvc,
-            name: dto.cardholderName,
-          },
-          description: dto.description,
-          context: {
-            mobile: false,
-            isEcommerce: true,
-            reconnect: false,
-          },
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            'Content-Type': 'application/json',
-            'Request-Id': randomUUID(),
-          },
-        },
-      ),
-    );
-    this.logger.log(
-      `Charge created for tenant ${tenantId}, realmId ${realmId}`,
-    );
-    return data;
   }
 
   async getConnection(
