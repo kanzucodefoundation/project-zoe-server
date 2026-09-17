@@ -151,26 +151,40 @@ async function getSandboxTokens(
 
   if (rec.accessTokenExpiresAt.getTime() - Date.now() < 5 * 60 * 1000) {
     console.log('Refreshing sandbox QBO access token...');
-    const { data } = await axios.post(
-      'https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer',
-      new URLSearchParams({
-        grant_type: 'refresh_token',
-        refresh_token: rec.refreshToken,
-      }).toString(),
-      {
-        headers: {
-          Authorization: `Basic ${Buffer.from(
-            `${process.env.QUICKBOOKS_CLIENT_ID}:${process.env.QUICKBOOKS_CLIENT_SECRET}`,
-          ).toString('base64')}`,
-          'Content-Type': 'application/x-www-form-urlencoded',
+    try {
+      const { data } = await axios.post(
+        'https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer',
+        new URLSearchParams({
+          grant_type: 'refresh_token',
+          refresh_token: rec.refreshToken,
+        }).toString(),
+        {
+          headers: {
+            Authorization: `Basic ${Buffer.from(
+              `${process.env.QUICKBOOKS_CLIENT_ID}:${process.env.QUICKBOOKS_CLIENT_SECRET}`,
+            ).toString('base64')}`,
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
         },
-      },
-    );
-    rec.accessToken = data.access_token;
-    rec.refreshToken = data.refresh_token;
-    rec.accessTokenExpiresAt = new Date(Date.now() + data.expires_in * 1000);
-    await connRepo.save(rec);
-    console.log('  ✓ Sandbox token refreshed and saved to DB');
+      );
+      rec.accessToken = data.access_token;
+      rec.refreshToken = data.refresh_token;
+      rec.accessTokenExpiresAt = new Date(Date.now() + data.expires_in * 1000);
+      await connRepo.save(rec);
+      console.log('  ✓ Sandbox token refreshed and saved to DB');
+    } catch (err: any) {
+      const detail = err?.response?.data
+        ? JSON.stringify(err.response.data)
+        : err.message;
+      throw new Error(
+        `Sandbox token refresh failed (${
+          err?.response?.status ?? 'network error'
+        }): ${detail}\n` +
+          'Fix: reconnect the sandbox company via Settings → QuickBooks in the staging app,\n' +
+          'then re-run the script. The sandbox OAuth connection must be made from the same\n' +
+          'app whose QUICKBOOKS_CLIENT_ID/SECRET are in the staging .env.',
+      );
+    }
   }
 
   return { accessToken: rec.accessToken, realmId: rec.realmId };
