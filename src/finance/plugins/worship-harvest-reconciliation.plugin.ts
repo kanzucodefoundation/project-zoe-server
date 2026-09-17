@@ -13,7 +13,8 @@ import ReconciliationMatch from '../entities/reconciliation-match.entity';
  * Tithe Distribution:
  * - 10% to Ministries
  * - 30% to Operations
- * - 60% to Locations
+ * - 30% to Welfare
+ * - 30% to Location
  */
 @Injectable()
 export class WorshipHarvestReconciliationPlugin
@@ -26,6 +27,7 @@ export class WorshipHarvestReconciliationPlugin
   // For now, using placeholder IDs that should be configured during setup
   private readonly MINISTRIES_GROUP_ID = 1; // Placeholder - configure in setup
   private readonly OPERATIONS_GROUP_ID = 2; // Placeholder - configure in setup
+  private readonly WELFARE_GROUP_ID = 3; // Placeholder - configure in setup
 
   async calculateDistributions(
     match: ReconciliationMatch,
@@ -60,7 +62,9 @@ export class WorshipHarvestReconciliationPlugin
     }
   }
 
-  private calculateTitheDistribution(locationGroupId: number): DistributionRule[] {
+  private calculateTitheDistribution(
+    locationGroupId: number,
+  ): DistributionRule[] {
     return [
       {
         targetType: 'group',
@@ -76,9 +80,15 @@ export class WorshipHarvestReconciliationPlugin
       },
       {
         targetType: 'group',
+        targetId: this.WELFARE_GROUP_ID,
+        percentage: 30,
+        description: 'Tithe - Welfare allocation (30%)',
+      },
+      {
+        targetType: 'group',
         targetId: locationGroupId,
-        percentage: 60,
-        description: 'Tithe - Location allocation (60%)',
+        percentage: 30,
+        description: 'Tithe - Location allocation (30%)',
       },
     ];
   }
