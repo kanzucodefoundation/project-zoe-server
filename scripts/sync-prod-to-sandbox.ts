@@ -366,6 +366,9 @@ async function upsertMapping(
 async function main() {
   const args = process.argv.slice(2);
   const dryRun = args.includes('--dry-run');
+  const fromStepIdx = args.findIndex((a) => a === '--from-step');
+  const fromStep =
+    fromStepIdx !== -1 ? parseInt(args[fromStepIdx + 1], 10) || 1 : 1;
 
   const connection = await getConnection();
   const connRepo = connection.getRepository(ExternalSystemConnection);
@@ -385,7 +388,11 @@ async function main() {
 
   console.log(`\nProduction realm : ${prodRealm}`);
   console.log(`Sandbox realm    : ${sbRealm}`);
-  if (dryRun) console.log('\nDRY RUN — nothing will be written.\n');
+  if (dryRun) console.log('\nDRY RUN — nothing will be written.');
+  if (fromStep > 1)
+    console.log(
+      `Resuming from step ${fromStep} — steps 1–${fromStep - 1} skipped.\n`,
+    );
 
   // ── Pull everything from production (in parallel) ─────────────────────────
   console.log('\nPulling data from production QBO (read-only)...');
@@ -509,281 +516,329 @@ async function main() {
   };
 
   // ── Step 1: Income accounts (items reference these) ─────────────────────────
-  console.log('\nStep 1: Income accounts...');
   const sbIncomeIdByName = new Map<string, string>();
-
-  for (const name of incomeAccountNames) {
-    const existing = sbAccountsByName.get(normalize(name));
-    if (existing) {
-      sbIncomeIdByName.set(name, String(existing.Id));
-      console.log(`  ✓ ${name} (Id=${existing.Id})`);
-    } else if (!dryRun) {
-      const res = await postToSandbox(
-        '/account',
-        {
-          Name: name,
-          AccountType: 'Income',
-          AccountSubType: 'ServiceFeeIncome',
-          CurrencyRef: { value: 'UGX' },
-        },
-        sbToken,
-        sbRealm,
-      );
-      const sbId = String(res.Account.Id);
-      sbIncomeIdByName.set(name, sbId);
-      sbAccountsByName.set(normalize(name), res.Account);
-      stats.incomeCreated++;
-      console.log(`  + Created ${name} (Id=${sbId})`);
-    } else {
-      sbIncomeIdByName.set(name, 'DRY_RUN');
-      stats.incomeCreated++;
-      console.log(`  ~ ${name} (dry run)`);
+  if (fromStep <= 1) {
+    console.log('\nStep 1: Income accounts...');
+    for (const name of incomeAccountNames) {
+      const existing = sbAccountsByName.get(normalize(name));
+      if (existing) {
+        sbIncomeIdByName.set(name, String(existing.Id));
+        console.log(`  ✓ ${name} (Id=${existing.Id})`);
+      } else if (!dryRun) {
+        const res = await postToSandbox(
+          '/account',
+          {
+            Name: name,
+            AccountType: 'Income',
+            AccountSubType: 'ServiceFeeIncome',
+            CurrencyRef: { value: 'UGX' },
+          },
+          sbToken,
+          sbRealm,
+        );
+        const sbId = String(res.Account.Id);
+        sbIncomeIdByName.set(name, sbId);
+        sbAccountsByName.set(normalize(name), res.Account);
+        stats.incomeCreated++;
+        console.log(`  + Created ${name} (Id=${sbId})`);
+      } else {
+        sbIncomeIdByName.set(name, 'DRY_RUN');
+        stats.incomeCreated++;
+        console.log(`  ~ ${name} (dry run)`);
+      }
     }
+  } else {
+    // Still populate the map from sandbox data so Step 5 can reference income IDs
+    for (const name of incomeAccountNames) {
+      const existing = sbAccountsByName.get(normalize(name));
+      if (existing) sbIncomeIdByName.set(name, String(existing.Id));
+    }
+    console.log(
+      `\nStep 1: skipped (${incomeAccountNames.size} income accounts already in sandbox)`,
+    );
   }
 
   // ── Step 2: Bank accounts ─────────────────────────────────────────────────
-  console.log('\nStep 2: Bank accounts...');
-  for (const account of prodBankAccounts) {
-    const name: string = account.Name;
-    const existing = sbAccountsByName.get(normalize(name));
-    let sbId: string;
+  if (fromStep > 2) {
+    console.log(`\nStep 2: skipped (${prodBankAccounts.length} bank accounts)`);
+  } else {
+    console.log('\nStep 2: Bank accounts...');
+    for (const account of prodBankAccounts) {
+      const name: string = account.Name;
+      const existing = sbAccountsByName.get(normalize(name));
+      let sbId: string;
 
-    if (existing) {
-      sbId = String(existing.Id);
-      stats.bankSkipped++;
-    } else if (!dryRun) {
-      const res = await postToSandbox(
-        '/account',
-        {
-          Name: name,
-          AccountType: 'Bank',
-          AccountSubType: 'Checking',
-          CurrencyRef: { value: 'UGX' },
-        },
-        sbToken,
-        sbRealm,
-      );
-      sbId = String(res.Account.Id);
-      sbAccountsByName.set(normalize(name), res.Account);
-      stats.bankCreated++;
-      console.log(`  + ${name} (Id=${sbId})`);
-    } else {
-      sbId = 'DRY_RUN';
-      stats.bankCreated++;
-    }
+      if (existing) {
+        sbId = String(existing.Id);
+        stats.bankSkipped++;
+      } else if (!dryRun) {
+        const res = await postToSandbox(
+          '/account',
+          {
+            Name: name,
+            AccountType: 'Bank',
+            AccountSubType: 'Checking',
+            CurrencyRef: { value: 'UGX' },
+          },
+          sbToken,
+          sbRealm,
+        );
+        sbId = String(res.Account.Id);
+        sbAccountsByName.set(normalize(name), res.Account);
+        stats.bankCreated++;
+        console.log(`  + ${name} (Id=${sbId})`);
+      } else {
+        sbId = 'DRY_RUN';
+        stats.bankCreated++;
+      }
 
-    const zoeAccount = matchFinancialAccount(name, zoeFinancialAccounts);
-    if (zoeAccount && !dryRun) {
-      await upsertMapping(mappingRepo, {
-        internalReferenceType: 'FINANCIAL_ACCOUNT',
-        internalReferenceId: zoeAccount.id,
-        externalReferenceType: 'ACCOUNT',
-        externalReferenceId: sbId,
-        externalReferenceName: name,
-      });
-    } else if (!zoeAccount) {
-      stats.bankUnmapped++;
-      console.log(`  ~ No Zoe FinancialAccount matched: "${name}"`);
+      const zoeAccount = matchFinancialAccount(name, zoeFinancialAccounts);
+      if (zoeAccount && !dryRun) {
+        await upsertMapping(mappingRepo, {
+          internalReferenceType: 'FINANCIAL_ACCOUNT',
+          internalReferenceId: zoeAccount.id,
+          externalReferenceType: 'ACCOUNT',
+          externalReferenceId: sbId,
+          externalReferenceName: name,
+        });
+      } else if (!zoeAccount) {
+        stats.bankUnmapped++;
+        console.log(`  ~ No Zoe FinancialAccount matched: "${name}"`);
+      }
     }
-  }
-  console.log(
-    `  → Created ${stats.bankCreated}, skipped ${stats.bankSkipped}, unmatched ${stats.bankUnmapped}`,
-  );
+    console.log(
+      `  → Created ${stats.bankCreated}, skipped ${stats.bankSkipped}, unmatched ${stats.bankUnmapped}`,
+    );
+  } // end fromStep <= 2
 
   // ── Step 3: Departments / Locations ──────────────────────────────────────
-  console.log('\nStep 3: Departments / Locations...');
-  for (const dept of prodDepartments) {
-    const name: string = dept.Name;
-    const existing = sbDeptsByName.get(normalize(name));
-    let sbId: string;
+  if (fromStep > 3) {
+    console.log(`\nStep 3: skipped (${prodDepartments.length} departments)`);
+  } else {
+    console.log('\nStep 3: Departments / Locations...');
+    for (const dept of prodDepartments) {
+      const name: string = dept.Name;
+      const existing = sbDeptsByName.get(normalize(name));
+      let sbId: string;
 
-    if (existing) {
-      sbId = String(existing.Id);
-      stats.deptSkipped++;
-    } else if (!dryRun) {
-      const res = await postToSandbox(
-        '/department',
-        { Name: name },
-        sbToken,
-        sbRealm,
-      );
-      sbId = String(res.Department.Id);
-      sbDeptsByName.set(normalize(name), res.Department);
-      stats.deptCreated++;
-      console.log(`  + ${name}`);
-    } else {
-      sbId = 'DRY_RUN';
-      stats.deptCreated++;
-    }
-
-    const zoeGroup = locationByName.get(normalize(name));
-    if (zoeGroup && !dryRun) {
-      await upsertMapping(mappingRepo, {
-        internalReferenceType: 'GROUP',
-        internalReferenceId: zoeGroup.id,
-        externalReferenceType: 'LOCATION',
-        externalReferenceId: sbId,
-        externalReferenceName: name,
-      });
-    }
-  }
-  console.log(`  → Created ${stats.deptCreated}, skipped ${stats.deptSkipped}`);
-
-  // ── Step 4: Classes / FOBs ────────────────────────────────────────────────
-  console.log('\nStep 4: Classes / FOBs...');
-  for (const cls of prodClasses) {
-    const name: string = cls.Name;
-    const existing = sbClassesByName.get(normalize(name));
-    let sbId: string | undefined;
-
-    if (existing) {
-      sbId = String(existing.Id);
-      stats.classSkipped++;
-    } else if (!dryRun) {
-      try {
+      if (existing) {
+        sbId = String(existing.Id);
+        stats.deptSkipped++;
+      } else if (!dryRun) {
         const res = await postToSandbox(
-          '/class',
+          '/department',
           { Name: name },
           sbToken,
           sbRealm,
         );
-        sbId = String(res.Class.Id);
-        sbClassesByName.set(normalize(name), res.Class);
-        stats.classCreated++;
-      } catch (err: any) {
-        console.log(`  ✗ "${name}": ${err.message}`);
-        stats.classFailed++;
-        continue;
+        sbId = String(res.Department.Id);
+        sbDeptsByName.set(normalize(name), res.Department);
+        stats.deptCreated++;
+        console.log(`  + ${name}`);
+      } else {
+        sbId = 'DRY_RUN';
+        stats.deptCreated++;
       }
-    } else {
-      sbId = 'DRY_RUN';
-      stats.classCreated++;
-    }
 
-    if (sbId) {
-      const zoeGroup = groupByName.get(normalize(name));
+      const zoeGroup = locationByName.get(normalize(name));
       if (zoeGroup && !dryRun) {
         await upsertMapping(mappingRepo, {
           internalReferenceType: 'GROUP',
           internalReferenceId: zoeGroup.id,
-          externalReferenceType: 'CLASS',
+          externalReferenceType: 'LOCATION',
           externalReferenceId: sbId,
           externalReferenceName: name,
         });
       }
     }
-  }
-  console.log(
-    `  → Created ${stats.classCreated}, skipped ${stats.classSkipped}, failed ${stats.classFailed}`,
-  );
+    console.log(
+      `  → Created ${stats.deptCreated}, skipped ${stats.deptSkipped}`,
+    );
+  } // end fromStep <= 3
+
+  // ── Step 4: Classes / FOBs ────────────────────────────────────────────────
+  if (fromStep > 4) {
+    console.log(`\nStep 4: skipped (${prodClasses.length} classes)`);
+  } else {
+    console.log('\nStep 4: Classes / FOBs...');
+    for (const cls of prodClasses) {
+      const name: string = cls.Name;
+      const existing = sbClassesByName.get(normalize(name));
+      let sbId: string | undefined;
+
+      if (existing) {
+        sbId = String(existing.Id);
+        stats.classSkipped++;
+      } else if (!dryRun) {
+        try {
+          const res = await postToSandbox(
+            '/class',
+            { Name: name },
+            sbToken,
+            sbRealm,
+          );
+          sbId = String(res.Class.Id);
+          sbClassesByName.set(normalize(name), res.Class);
+          stats.classCreated++;
+        } catch (err: any) {
+          console.log(`  ✗ "${name}": ${err.message}`);
+          stats.classFailed++;
+          continue;
+        }
+      } else {
+        sbId = 'DRY_RUN';
+        stats.classCreated++;
+      }
+
+      if (sbId) {
+        const zoeGroup = groupByName.get(normalize(name));
+        if (zoeGroup && !dryRun) {
+          await upsertMapping(mappingRepo, {
+            internalReferenceType: 'GROUP',
+            internalReferenceId: zoeGroup.id,
+            externalReferenceType: 'CLASS',
+            externalReferenceId: sbId,
+            externalReferenceName: name,
+          });
+        }
+      }
+    }
+    console.log(
+      `  → Created ${stats.classCreated}, skipped ${stats.classSkipped}, failed ${stats.classFailed}`,
+    );
+  } // end fromStep <= 4
 
   // ── Step 5: Items / giving categories ────────────────────────────────────
-  console.log('\nStep 5: Items (income items only)...');
-  const sbItemIdByName = new Map<string, string>();
+  if (fromStep > 5) {
+    console.log(`\nStep 5: skipped (${incomeItems.length} income items)`);
+  } else {
+    console.log('\nStep 5: Items (income items only)...');
+    const sbItemIdByName = new Map<string, string>();
 
-  for (const item of incomeItems) {
-    const name: string = item.Name;
-    const existing = sbItemsByName.get(normalize(name));
-    let sbId: string;
+    for (const item of incomeItems) {
+      const name: string = item.Name;
+      const existing = sbItemsByName.get(normalize(name));
+      let sbId: string;
 
-    if (existing) {
-      sbId = String(existing.Id);
-      sbItemIdByName.set(name, sbId);
-      stats.itemSkipped++;
-    } else if (!dryRun) {
-      const sbIncomeId = sbIncomeIdByName.get(item.IncomeAccountRef.name) ?? '';
-      const res = await postToSandbox(
-        '/item',
-        {
-          Name: name,
-          Type: item.Type ?? 'Service',
-          IncomeAccountRef: { value: sbIncomeId },
-          ...(item.Sku ? { Sku: item.Sku } : {}),
-        },
-        sbToken,
-        sbRealm,
-      );
-      sbId = String(res.Item.Id);
-      sbItemsByName.set(normalize(name), res.Item);
-      sbItemIdByName.set(name, sbId);
-      stats.itemCreated++;
-      console.log(`  + ${name} (Id=${sbId})`);
-    } else {
-      sbId = 'DRY_RUN';
-      sbItemIdByName.set(name, sbId);
-      stats.itemCreated++;
-    }
-  }
-
-  for (const [categoryKey, itemName] of Object.entries(GIVING_CATEGORY_MAP)) {
-    const sbItemId = sbItemIdByName.get(itemName);
-    if (!sbItemId || dryRun) {
-      if (!sbItemIdByName.has(itemName)) {
-        console.log(
-          `  ! GIVING_CATEGORY "${categoryKey}" → item "${itemName}" not found in production`,
+      if (existing) {
+        sbId = String(existing.Id);
+        sbItemIdByName.set(name, sbId);
+        stats.itemSkipped++;
+      } else if (!dryRun) {
+        const sbIncomeId =
+          sbIncomeIdByName.get(item.IncomeAccountRef.name) ?? '';
+        const res = await postToSandbox(
+          '/item',
+          {
+            Name: name,
+            Type: item.Type ?? 'Service',
+            IncomeAccountRef: { value: sbIncomeId },
+            ...(item.Sku ? { Sku: item.Sku } : {}),
+          },
+          sbToken,
+          sbRealm,
         );
+        sbId = String(res.Item.Id);
+        sbItemsByName.set(normalize(name), res.Item);
+        sbItemIdByName.set(name, sbId);
+        stats.itemCreated++;
+        console.log(`  + ${name} (Id=${sbId})`);
+      } else {
+        sbId = 'DRY_RUN';
+        sbItemIdByName.set(name, sbId);
+        stats.itemCreated++;
       }
-      continue;
     }
-    await upsertMapping(mappingRepo, {
-      internalReferenceType: 'GIVING_CATEGORY',
-      internalReferenceId: categoryKey,
-      externalReferenceType: 'ITEM',
-      externalReferenceId: sbItemId,
-      externalReferenceName: itemName,
-    });
-  }
-  console.log(`  → Created ${stats.itemCreated}, skipped ${stats.itemSkipped}`);
+
+    for (const [categoryKey, itemName] of Object.entries(GIVING_CATEGORY_MAP)) {
+      const sbItemId = sbItemIdByName.get(itemName);
+      if (!sbItemId || dryRun) {
+        if (!sbItemIdByName.has(itemName)) {
+          console.log(
+            `  ! GIVING_CATEGORY "${categoryKey}" → item "${itemName}" not found in production`,
+          );
+        }
+        continue;
+      }
+      await upsertMapping(mappingRepo, {
+        internalReferenceType: 'GIVING_CATEGORY',
+        internalReferenceId: categoryKey,
+        externalReferenceType: 'ITEM',
+        externalReferenceId: sbItemId,
+        externalReferenceName: itemName,
+      });
+    }
+    console.log(
+      `  → Created ${stats.itemCreated}, skipped ${stats.itemSkipped}`,
+    );
+  } // end fromStep <= 5
 
   // ── Step 6: Campus customers ──────────────────────────────────────────────
-  // Production customers whose DisplayName matches a Zoe Location group
-  console.log('\nStep 6: Campus customers...');
+  // Production customers whose DisplayName matches a Zoe Location group.
+  // campusProdToSandbox is always rebuilt (needed by Step 7) even when skipping.
   const prodCampusIds = new Set<string>();
   const campusProdToSandbox = new Map<string, string>(); // prod ID → sandbox ID
 
-  for (const c of prodCustomers) {
-    const zoeGroup = locationByName.get(normalize(c.DisplayName ?? ''));
-    if (!zoeGroup) continue;
-
-    prodCampusIds.add(String(c.Id));
-    const displayName: string = c.DisplayName;
-    const existing = sbCustomersByName.get(normalize(displayName));
-    let sbId: string;
-
-    if (existing) {
-      sbId = String(existing.Id);
-      stats.campusSkipped++;
-    } else if (!dryRun) {
-      const res = await postToSandbox(
-        '/customer',
-        { DisplayName: displayName, CompanyName: displayName },
-        sbToken,
-        sbRealm,
-      );
-      sbId = String(res.Customer.Id);
-      sbCustomersByName.set(normalize(displayName), res.Customer);
-      stats.campusCreated++;
-      console.log(`  + ${displayName} (Id=${sbId})`);
-    } else {
-      sbId = 'DRY_RUN';
-      stats.campusCreated++;
+  if (fromStep > 6) {
+    console.log(
+      '\nStep 6: skipped — rebuilding campus map from sandbox data...',
+    );
+    for (const c of prodCustomers) {
+      const zoeGroup = locationByName.get(normalize(c.DisplayName ?? ''));
+      if (!zoeGroup) continue;
+      prodCampusIds.add(String(c.Id));
+      const existing = sbCustomersByName.get(normalize(c.DisplayName ?? ''));
+      if (existing) campusProdToSandbox.set(String(c.Id), String(existing.Id));
     }
+    console.log(
+      `  → ${campusProdToSandbox.size} campus entries resolved from sandbox`,
+    );
+  } else {
+    console.log('\nStep 6: Campus customers...');
+    for (const c of prodCustomers) {
+      const zoeGroup = locationByName.get(normalize(c.DisplayName ?? ''));
+      if (!zoeGroup) continue;
 
-    campusProdToSandbox.set(String(c.Id), sbId);
+      prodCampusIds.add(String(c.Id));
+      const displayName: string = c.DisplayName;
+      const existing = sbCustomersByName.get(normalize(displayName));
+      let sbId: string;
 
-    if (!dryRun) {
-      await upsertMapping(mappingRepo, {
-        internalReferenceType: 'GROUP',
-        internalReferenceId: zoeGroup.id,
-        externalReferenceType: 'CUSTOMER',
-        externalReferenceId: sbId,
-        externalReferenceName: displayName,
-      });
+      if (existing) {
+        sbId = String(existing.Id);
+        stats.campusSkipped++;
+      } else if (!dryRun) {
+        const res = await postToSandbox(
+          '/customer',
+          { DisplayName: displayName, CompanyName: displayName },
+          sbToken,
+          sbRealm,
+        );
+        sbId = String(res.Customer.Id);
+        sbCustomersByName.set(normalize(displayName), res.Customer);
+        stats.campusCreated++;
+        console.log(`  + ${displayName} (Id=${sbId})`);
+      } else {
+        sbId = 'DRY_RUN';
+        stats.campusCreated++;
+      }
+
+      campusProdToSandbox.set(String(c.Id), sbId);
+
+      if (!dryRun) {
+        await upsertMapping(mappingRepo, {
+          internalReferenceType: 'GROUP',
+          internalReferenceId: zoeGroup.id,
+          externalReferenceType: 'CUSTOMER',
+          externalReferenceId: sbId,
+          externalReferenceName: displayName,
+        });
+      }
     }
+    console.log(
+      `  → Created ${stats.campusCreated}, skipped ${stats.campusSkipped}`,
+    );
   }
-  console.log(
-    `  → Created ${stats.campusCreated}, skipped ${stats.campusSkipped}`,
-  );
 
   // ── Step 7: Person customers ──────────────────────────────────────────────
   console.log('\nStep 7: Person customers...');
