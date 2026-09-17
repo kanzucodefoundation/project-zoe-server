@@ -36,6 +36,7 @@
     "migration:show": "npm run typeorm -- migration:show -d src/data-source.ts",
     "link:contacts": "ts-node -r tsconfig-paths/register scripts/link-zoe-contacts.ts",
     "import:qbo-customers": "ts-node -r tsconfig-paths/register scripts/import-qbo-customers.ts",
+    "sync:qbo-customers-to-sandbox": "ts-node -r tsconfig-paths/register scripts/sync-prod-qbo-customers-to-sandbox.ts",
     "import:fobs": "TS_NODE_PROJECT=tsconfig.json ts-node -r tsconfig-paths/register scripts/import-fobs-locations.ts",
     "sync:schemas": "NODE_OPTIONS='--max-old-space-size=4096' ts-node -r tsconfig-paths/register scripts/syncSchemas.ts",
     "sync:migrateReportSubmissionData": "ts-node -r tsconfig-paths/register scripts/migrateReportData.ts",

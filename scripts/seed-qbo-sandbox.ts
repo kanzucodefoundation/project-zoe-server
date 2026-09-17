@@ -1,17 +1,23 @@
 /**
  * seed-qbo-sandbox.ts
  *
- * One-time script: populates the QBO sandbox account with entities mirroring
- * production, and writes ExternalSystemMapping rows into Zoe's DB.
+ * Populates the QBO sandbox with the structural entities that mirror production
+ * and writes the corresponding ExternalSystemMapping rows into Zoe's DB.
+ *
+ * Covers everything except individual givers — run sync-prod-qbo-customers-to-sandbox.ts
+ * afterwards to mirror real customers from production QBO.
+ *
+ * Idempotent: existing QBO entities are reused by name, existing mappings are upserted.
+ *
+ * Prerequisites:
+ *   - .env loaded (DB credentials, sandbox QUICKBOOKS_CLIENT_ID/SECRET,
+ *     SEED_TENANT_ID, QUICKBOOKS_ENVIRONMENT=sandbox)
+ *   - Staging QBO sandbox connection stored in Zoe DB for SEED_TENANT_ID
+ *     (connect via Settings → QuickBooks in the app if not done)
  *
  * Run:
  *   npx ts-node -r tsconfig-paths/register scripts/seed-qbo-sandbox.ts
- *
- * Prerequisites:
- *   - QBO sandbox OAuth connection already stored in Zoe DB for TENANT_ID
- *     (connect via the app's Settings → QuickBooks first if not done)
- *   - TENANT_ID below matches the WHM tenant in your local/staging DB
- *   - .env loaded (DB creds + QUICKBOOKS_CLIENT_ID/SECRET + QUICKBOOKS_ENVIRONMENT=sandbox)
+ *   npx ts-node -r tsconfig-paths/register scripts/seed-qbo-sandbox.ts --dry-run
  */
 
 import 'reflect-metadata';
@@ -28,14 +34,12 @@ import FinancialAccount from '../src/finance/entities/financial-account.entity';
 
 dotenv.config();
 
-// ─── Configuration ────────────────────────────────────────────────────────────
-
-const TENANT_ID = 1; // WHM tenant — verify in your DB before running
+const TENANT_ID = Number(process.env.SEED_TENANT_ID ?? 1);
 const SYSTEM = 'QUICKBOOKS';
-const QBO_BASE = 'https://sandbox-quickbooks.api.intuit.com';
+const SANDBOX_BASE = 'https://sandbox-quickbooks.api.intuit.com';
 const MINOR_VERSION = 65;
 
-// ─── All 40 Classes / FOBs (from production) ─────────────────────────────────
+// ─── All Classes / FOBs (from production) ────────────────────────────────────
 
 const FOBS = [
   'Arua FOB',
@@ -80,7 +84,7 @@ const FOBS = [
   'Wakiso FOB',
 ];
 
-// ─── All 150 Locations / Departments (from production) ───────────────────────
+// ─── All Locations / Departments (from production) ───────────────────────────
 
 const LOCATIONS = [
   'WH Abayita',
@@ -234,7 +238,7 @@ const LOCATIONS = [
   'WH Mayuge',
 ];
 
-// ─── All 12 giving (Y-prefix) Items from production ──────────────────────────
+// ─── Giving items (from production) ──────────────────────────────────────────
 
 const ITEMS = [
   { name: 'Tithes', code: 'Y100' },
@@ -251,7 +255,6 @@ const ITEMS = [
   { name: 'Investment Income', code: 'Y900' },
 ];
 
-// TransactionCategory enum → QBO item name
 const CATEGORY_TO_ITEM: Record<string, string> = {
   TITHE: 'Tithes',
   OFFERING: 'Offertory - Main Garage',
@@ -259,13 +262,11 @@ const CATEGORY_TO_ITEM: Record<string, string> = {
   ARISE_BUILD: 'Arise and Build',
 };
 
-// ─── Bank accounts from production QBO (source of truth) ────────────────────
-// These mirror the real QBO chart of accounts. Created in sandbox as Bank type.
-// zoeNameHint: substring matched against Zoe FinancialAccount.name to create mapping.
-// Leave zoeNameHint null for accounts that have no Zoe counterpart yet.
+// ─── Bank accounts (mirroring production QBO chart of accounts) ───────────────
+// zoeNameHint: substring matched against Zoe FinancialAccount.name to create the mapping.
+// TODO: add remaining A011 sub-accounts from production QBO pages 2-3 then re-run.
 
 const BANK_ACCOUNTS: Array<{ qboName: string; zoeNameHint: string | null }> = [
-  // Top-level accounts (page 1 of production Chart of Accounts)
   { qboName: 'WHKLRO Absa Bank AC', zoeNameHint: 'WHKLRO' },
   { qboName: 'A001 . Central Fund Absa A/C', zoeNameHint: 'Central Fund' },
   { qboName: 'WHBWNG Absa Bank A/C', zoeNameHint: 'WHBWNG' },
@@ -276,7 +277,6 @@ const BANK_ACCOUNTS: Array<{ qboName: string; zoeNameHint: string | null }> = [
   { qboName: 'A0009 Healing Jesus Campaign', zoeNameHint: 'Healing Jesus' },
   { qboName: 'A002 Projects Absa Bank A/C', zoeNameHint: 'Projects' },
   { qboName: 'A003 Welfare Absa Bank A/C', zoeNameHint: 'Welfare' },
-  // A011 sub-accounts (location-specific, page 2 — partial capture)
   { qboName: 'WHNLYA Absa Bank A/C', zoeNameHint: 'WHNLYA' },
   { qboName: 'WHNMLG Absa Bank A/C', zoeNameHint: 'WHNMLG' },
   { qboName: 'WHNMVE Absa Bank A/C', zoeNameHint: 'WHNMVE' },
@@ -291,44 +291,25 @@ const BANK_ACCOUNTS: Array<{ qboName: string; zoeNameHint: string | null }> = [
   { qboName: 'WHNYSA Absa A/C', zoeNameHint: 'WHNYSA' },
   { qboName: 'WHPDHA Absa A/C', zoeNameHint: 'WHPDHA' },
   { qboName: 'WHSEGK Absa Bank A/C', zoeNameHint: 'WHSEGK' },
-  // TODO: add remaining A011 sub-accounts from production QBO pages 2-3
-  //       Re-run script after adding — it is fully idempotent.
 ];
 
-// ─── Test customers (2 per representative location for testing) ───────────────
+// ─── Sandbox token management ─────────────────────────────────────────────────
 
-const TEST_CUSTOMERS: Array<{
-  givenName: string;
-  familyName: string;
-  locationName: string;
-}> = [
-  { givenName: 'Alex', familyName: 'Mwangi', locationName: 'WH Sonde' },
-  { givenName: 'Grace', familyName: 'Nakato', locationName: 'WH Sonde' },
-  { givenName: 'Brian', familyName: 'Otieno', locationName: 'WH Bugolobi' },
-  { givenName: 'Sarah', familyName: 'Auma', locationName: 'WH Bugolobi' },
-  { givenName: 'David', familyName: 'Kamau', locationName: 'WH Kira' },
-  { givenName: 'Faith', familyName: 'Nandawula', locationName: 'WH Kira' },
-  { givenName: 'Peter', familyName: 'Ssemanda', locationName: 'WH Entebbe' },
-  { givenName: 'Mary', familyName: 'Akello', locationName: 'WH Entebbe' },
-  { givenName: 'John', familyName: 'Mukisa', locationName: 'WH Makerere' },
-  { givenName: 'Ruth', familyName: 'Namukasa', locationName: 'WH Makerere' },
-];
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
-async function getTokens(connRepo: Repository<ExternalSystemConnection>) {
+async function getSandboxTokens(
+  connRepo: Repository<ExternalSystemConnection>,
+): Promise<{ accessToken: string; realmId: string }> {
   const rec = await connRepo.findOne({
     where: { tenantId: TENANT_ID, system: 'quickbooks' },
   });
   if (!rec) {
     throw new Error(
-      `No QBO connection found for tenant ${TENANT_ID}.\n` +
+      `No QBO sandbox connection for tenant ${TENANT_ID}.\n` +
         'Connect the sandbox account via the Zoe app first (Settings → QuickBooks → Connect).',
     );
   }
 
   if (rec.accessTokenExpiresAt.getTime() - Date.now() < 5 * 60 * 1000) {
-    console.log('Refreshing QBO access token...');
+    console.log('Refreshing sandbox QBO access token...');
     const credentials = Buffer.from(
       `${process.env.QUICKBOOKS_CLIENT_ID}:${process.env.QUICKBOOKS_CLIENT_SECRET}`,
     ).toString('base64');
@@ -349,18 +330,40 @@ async function getTokens(connRepo: Repository<ExternalSystemConnection>) {
     rec.refreshToken = data.refresh_token;
     rec.accessTokenExpiresAt = new Date(Date.now() + data.expires_in * 1000);
     await connRepo.save(rec);
+    console.log('  ✓ Sandbox token refreshed');
   }
 
   return { accessToken: rec.accessToken, realmId: rec.realmId };
 }
 
-async function qboPost(
-  path: string,
+// ─── Sandbox QBO — read + write ───────────────────────────────────────────────
+
+async function querySandbox<T>(
+  query: string,
+  accessToken: string,
+  realmId: string,
+): Promise<T[]> {
+  const { data } = await axios.get(
+    `${SANDBOX_BASE}/v3/company/${realmId}/query`,
+    {
+      params: { query, minorversion: MINOR_VERSION },
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        Accept: 'application/json',
+      },
+    },
+  );
+  const qr = data?.QueryResponse ?? {};
+  return (Object.values(qr).find(Array.isArray) as T[]) ?? [];
+}
+
+async function postToSandbox(
+  endpoint: string,
   body: any,
   accessToken: string,
   realmId: string,
 ): Promise<any> {
-  const url = `${QBO_BASE}/v3/company/${realmId}${path}?minorversion=${MINOR_VERSION}`;
+  const url = `${SANDBOX_BASE}/v3/company/${realmId}${endpoint}?minorversion=${MINOR_VERSION}`;
   try {
     const { data } = await axios.post(url, body, {
       headers: {
@@ -371,50 +374,19 @@ async function qboPost(
     });
     return data;
   } catch (err: any) {
-    const detail = err?.response?.data;
-    const qboErrors = detail?.Fault?.Error ?? [];
+    const qboErrors = err?.response?.data?.Fault?.Error ?? [];
     const msg = qboErrors
       .map((e: any) => `[${e.code}] ${e.Message}: ${e.Detail}`)
       .join('; ');
-    throw new Error(
-      `QBO POST ${path} failed: ${
-        msg || JSON.stringify(detail) || err.message
-      }`,
-    );
+    throw new Error(`QBO POST ${endpoint} failed: ${msg || err.message}`);
   }
 }
 
-/** Sparse-updates a customer. QuickBooks requires the current SyncToken. */
-async function qboUpdateCustomer(
-  body: any,
-  accessToken: string,
-  realmId: string,
-): Promise<any> {
-  return qboPost('/customer', { ...body, sparse: true }, accessToken, realmId);
-}
-
-async function qboQuery(
-  query: string,
-  accessToken: string,
-  realmId: string,
-): Promise<any[]> {
-  const url = `${QBO_BASE}/v3/company/${realmId}/query?minorversion=${MINOR_VERSION}`;
-  const { data } = await axios.get(url, {
-    params: { query },
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      Accept: 'application/json',
-    },
-  });
-  const qr = data?.QueryResponse ?? {};
-  const entities = Object.values(qr).find(Array.isArray);
-  return (entities as any[]) ?? [];
-}
-
-// Escape single quotes in QBO query strings
-function esc(s: string) {
+function esc(s: string): string {
   return s.replace(/'/g, "\\'");
 }
+
+// ─── Zoe DB helpers ───────────────────────────────────────────────────────────
 
 async function upsertMapping(
   repo: Repository<ExternalSystemMapping>,
@@ -445,36 +417,38 @@ async function upsertMapping(
     externalReferenceName: opts.externalReferenceName ?? null,
     lastSyncedAt: new Date(),
   });
-  await repo.save(record);
+  return repo.save(record);
 }
 
-// ─── Main ─────────────────────────────────────────────────────────────────────
+// ─── Main ──────────────────────────────────────────────────────────────────────
 
 async function main() {
+  const args = process.argv.slice(2);
+  const dryRun = args.includes('--dry-run');
+
   const connection = await getConnection();
   const connRepo = connection.getRepository(ExternalSystemConnection);
   const mappingRepo = connection.getRepository(ExternalSystemMapping);
   const groupRepo = connection.getRepository(Group);
   const accountRepo = connection.getRepository(FinancialAccount);
 
-  const { accessToken, realmId } = await getTokens(connRepo);
-  console.log('\n══════════════════════════════════════════════════════════');
-  console.log(`Seeding QBO sandbox   realmId=${realmId}   tenant=${TENANT_ID}`);
-  console.log('══════════════════════════════════════════════════════════\n');
+  const { accessToken, realmId } = await getSandboxTokens(connRepo);
+  console.log(`\nSandbox realm: ${realmId}   tenant: ${TENANT_ID}`);
+  if (dryRun) console.log('\nDRY RUN — nothing will be written.\n');
 
-  // ── 1. Income account (items need this ref) ────────────────────────────────
-  console.log('Step 1: Ensure income account exists...');
-  const existingIncome = await qboQuery(
+  // ── Step 1: Income account (items need this ref) ───────────────────────────
+  console.log('\nStep 1: Income account...');
+  let incomeAccountId: string;
+  const existingIncome = await querySandbox<any>(
     "SELECT * FROM Account WHERE Name = 'Giving Income' MAXRESULTS 5",
     accessToken,
     realmId,
   );
-  let incomeAccountId: string;
   if (existingIncome.length > 0) {
     incomeAccountId = existingIncome[0].Id;
     console.log(`  ✓ Giving Income already exists (Id=${incomeAccountId})`);
-  } else {
-    const res = await qboPost(
+  } else if (!dryRun) {
+    const res = await postToSandbox(
       '/account',
       {
         Name: 'Giving Income',
@@ -487,12 +461,12 @@ async function main() {
     );
     incomeAccountId = res.Account.Id;
     console.log(`  + Created Giving Income (Id=${incomeAccountId})`);
+  } else {
+    incomeAccountId = 'DRY_RUN';
   }
 
-  // ── 2. Bank accounts — mirror production QBO into sandbox ─────────────────
-  // QBO is the source of truth. We create the same accounts in sandbox, then
-  // map each one to the matching Zoe FinancialAccount (by name hint).
-  console.log('\nStep 2: Bank accounts (mirroring production QBO)...');
+  // ── Step 2: Bank accounts ──────────────────────────────────────────────────
+  console.log('\nStep 2: Bank accounts...');
   const zoeAccounts = await accountRepo.find({
     where: { tenant: { id: TENANT_ID } },
   });
@@ -500,7 +474,7 @@ async function main() {
   let bankSkipped = 0;
 
   for (const ba of BANK_ACCOUNTS) {
-    const existing = await qboQuery(
+    const existing = await querySandbox<any>(
       `SELECT * FROM Account WHERE Name = '${esc(ba.qboName)}' MAXRESULTS 5`,
       accessToken,
       realmId,
@@ -509,8 +483,8 @@ async function main() {
     if (existing.length > 0) {
       qboId = existing[0].Id;
       bankSkipped++;
-    } else {
-      const res = await qboPost(
+    } else if (!dryRun) {
+      const res = await postToSandbox(
         '/account',
         {
           Name: ba.qboName,
@@ -523,13 +497,16 @@ async function main() {
       );
       qboId = res.Account.Id;
       bankCreated++;
+    } else {
+      qboId = 'DRY_RUN';
+      bankCreated++;
     }
 
     if (ba.zoeNameHint) {
       const zoeAccount = zoeAccounts.find((a) =>
         a.name.toLowerCase().includes(ba.zoeNameHint!.toLowerCase()),
       );
-      if (zoeAccount) {
+      if (zoeAccount && !dryRun) {
         await upsertMapping(mappingRepo, {
           internalReferenceType: 'FINANCIAL_ACCOUNT',
           internalReferenceId: zoeAccount.id,
@@ -538,23 +515,22 @@ async function main() {
           externalReferenceName: ba.qboName,
         });
         console.log(`  ✓ ${ba.qboName} → Zoe "${zoeAccount.name}"`);
-      } else {
+      } else if (!zoeAccount) {
         console.log(
           `  ~ ${ba.qboName} (no Zoe FinancialAccount matched "${ba.zoeNameHint}")`,
         );
       }
-    } else {
-      console.log(`  ~ ${ba.qboName} (no Zoe mapping configured)`);
     }
   }
   console.log(`  → Created ${bankCreated}, already existed ${bankSkipped}`);
 
-  // ── 3. Departments / Locations (all) ─────────────────────────────────────
+  // ── Step 3: Departments / Locations ───────────────────────────────────────
   console.log('\nStep 3: Departments / Locations...');
   let deptCreated = 0;
   let deptSkipped = 0;
+
   for (const locationName of LOCATIONS) {
-    const existing = await qboQuery(
+    const existing = await querySandbox<any>(
       `SELECT * FROM Department WHERE Name = '${esc(
         locationName,
       )}' MAXRESULTS 5`,
@@ -565,14 +541,17 @@ async function main() {
     if (existing.length > 0) {
       qboId = existing[0].Id;
       deptSkipped++;
-    } else {
-      const res = await qboPost(
+    } else if (!dryRun) {
+      const res = await postToSandbox(
         '/department',
         { Name: locationName },
         accessToken,
         realmId,
       );
       qboId = res.Department.Id;
+      deptCreated++;
+    } else {
+      qboId = 'DRY_RUN';
       deptCreated++;
     }
 
@@ -582,7 +561,7 @@ async function main() {
       .andWhere('g.name = :name', { name: locationName })
       .getOne();
 
-    if (zoeGroup) {
+    if (zoeGroup && !dryRun) {
       await upsertMapping(mappingRepo, {
         internalReferenceType: 'GROUP',
         internalReferenceId: zoeGroup.id,
@@ -594,11 +573,9 @@ async function main() {
   }
   console.log(`  → Created ${deptCreated}, already existed ${deptSkipped}`);
 
-  // ── 4. Classes / FOBs ────────────────────────────────────────────────────
-  // Fetch all existing classes first, then create any that are missing.
-  // Creation failures (e.g. plan limits) are logged but don't abort the script.
+  // ── Step 4: Classes / FOBs ─────────────────────────────────────────────────
   console.log('\nStep 4: Classes / FOBs...');
-  const allClasses = await qboQuery(
+  const allClasses = await querySandbox<any>(
     'SELECT * FROM Class WHERE Active = true MAXRESULTS 1000',
     accessToken,
     realmId,
@@ -606,18 +583,17 @@ async function main() {
   const classByName = new Map<string, string>(
     allClasses.map((c: any) => [c.Name as string, c.Id as string]),
   );
-  console.log(`  Found ${allClasses.length} existing Classes in QBO sandbox`);
-
   let classCreated = 0;
   let classSkipped = 0;
   let classFailed = 0;
+
   for (const fobName of FOBS) {
     let qboId = classByName.get(fobName);
     if (qboId) {
       classSkipped++;
-    } else {
+    } else if (!dryRun) {
       try {
-        const res = await qboPost(
+        const res = await postToSandbox(
           '/class',
           { Name: fobName },
           accessToken,
@@ -630,6 +606,9 @@ async function main() {
         classFailed++;
         continue;
       }
+    } else {
+      qboId = 'DRY_RUN';
+      classCreated++;
     }
 
     const zoeGroup = await groupRepo
@@ -638,7 +617,7 @@ async function main() {
       .andWhere('g.name = :name', { name: fobName })
       .getOne();
 
-    if (zoeGroup) {
+    if (zoeGroup && !dryRun) {
       await upsertMapping(mappingRepo, {
         internalReferenceType: 'GROUP',
         internalReferenceId: zoeGroup.id,
@@ -652,11 +631,12 @@ async function main() {
     `  → Created ${classCreated}, already existed ${classSkipped}, failed ${classFailed}`,
   );
 
-  // ── 5. Items / giving categories (all 12) ────────────────────────────────
-  console.log('\nStep 5: Items / giving categories (12)...');
+  // ── Step 5: Items / giving categories ─────────────────────────────────────
+  console.log('\nStep 5: Items / giving categories...');
   const itemIds: Record<string, string> = {};
+
   for (const item of ITEMS) {
-    const existing = await qboQuery(
+    const existing = await querySandbox<any>(
       `SELECT * FROM Item WHERE Name = '${esc(item.name)}' MAXRESULTS 5`,
       accessToken,
       realmId,
@@ -665,8 +645,8 @@ async function main() {
     if (existing.length > 0) {
       qboId = existing[0].Id;
       console.log(`  ✓ ${item.name} already exists (Id=${qboId})`);
-    } else {
-      const res = await qboPost(
+    } else if (!dryRun) {
+      const res = await postToSandbox(
         '/item',
         {
           Name: item.name,
@@ -679,14 +659,16 @@ async function main() {
       );
       qboId = res.Item.Id;
       console.log(`  + Created ${item.name} (Id=${qboId})`);
+    } else {
+      qboId = 'DRY_RUN';
+      console.log(`  ~ ${item.name} (dry run)`);
     }
     itemIds[item.name] = qboId;
   }
 
-  // GIVING_CATEGORY → ITEM mappings
   for (const [categoryKey, itemName] of Object.entries(CATEGORY_TO_ITEM)) {
     const qboItemId = itemIds[itemName];
-    if (!qboItemId) continue;
+    if (!qboItemId || dryRun) continue;
     await upsertMapping(mappingRepo, {
       internalReferenceType: 'GIVING_CATEGORY',
       internalReferenceId: categoryKey,
@@ -694,50 +676,13 @@ async function main() {
       externalReferenceId: qboItemId,
       externalReferenceName: itemName,
     });
-    console.log(
-      `  Mapped GIVING_CATEGORY:${categoryKey} → ${itemName} (Id=${qboItemId})`,
-    );
   }
 
-  // ── 6. Test customers ─────────────────────────────────────────────────────
-  console.log('\nStep 6: Test customers (10)...');
-  const customerResults: Array<{ name: string; qboId: string }> = [];
-  for (const c of TEST_CUSTOMERS) {
-    const displayName = `${c.givenName} ${c.familyName}`;
-    const existing = await qboQuery(
-      `SELECT * FROM Customer WHERE DisplayName = '${esc(
-        displayName,
-      )}' MAXRESULTS 5`,
-      accessToken,
-      realmId,
-    );
-    let qboId: string;
-    if (existing.length > 0) {
-      qboId = existing[0].Id;
-      console.log(`  ✓ ${displayName} already exists (Id=${qboId})`);
-    } else {
-      const res = await qboPost(
-        '/customer',
-        {
-          GivenName: c.givenName,
-          FamilyName: c.familyName,
-          DisplayName: displayName,
-        },
-        accessToken,
-        realmId,
-      );
-      qboId = res.Customer.Id;
-      console.log(`  + Created ${displayName} (Id=${qboId})`);
-    }
-    customerResults.push({ name: displayName, qboId });
-  }
-
-  // ── 7. Campus customers, and re-parenting ────────────────────────────────
-  // Giving is grouped by campus through QuickBooks' sub-customer hierarchy: a
-  // person is a sub-customer of their location. Campuses are named after Zoe's
-  // own Location groups so the reverse importer can match them by name.
-  console.log('\nStep 7: Campus customers (from Zoe Location groups)...');
-
+  // ── Step 6: Campus customers (from Zoe Location groups) ───────────────────
+  // Creates a top-level QBO customer per campus so individual givers can be
+  // nested under their location. sync-prod-qbo-customers-to-sandbox.ts will
+  // reuse these when creating person customers.
+  console.log('\nStep 6: Campus customers...');
   const zoeGroups = await groupRepo.find({
     where: { tenant: { id: TENANT_ID } },
     relations: ['category'],
@@ -748,108 +693,64 @@ async function main() {
 
   if (campuses.length === 0) {
     console.log(
-      '  ! Zoe has no Location groups, so no campus customers were created.',
+      '  ! No Location groups found in Zoe — skipping campus customers.',
     );
   }
 
-  const campusCustomerIds: Array<{ groupId: number; name: string; qboId: string }> =
-    [];
+  let campusCreated = 0;
+  let campusSkipped = 0;
 
   for (const campus of campuses) {
-    const existing = await qboQuery(
-      `SELECT * FROM Customer WHERE DisplayName = '${esc(campus.name)}' MAXRESULTS 5`,
+    const existing = await querySandbox<any>(
+      `SELECT * FROM Customer WHERE DisplayName = '${esc(
+        campus.name,
+      )}' MAXRESULTS 5`,
       accessToken,
       realmId,
     );
     let qboId: string;
     if (existing.length > 0) {
       qboId = existing[0].Id;
-      console.log(`  ✓ ${campus.name} already exists (Id=${qboId})`);
-    } else {
-      const res = await qboPost(
+      campusSkipped++;
+    } else if (!dryRun) {
+      const res = await postToSandbox(
         '/customer',
         { DisplayName: campus.name, CompanyName: campus.name },
         accessToken,
         realmId,
       );
       qboId = res.Customer.Id;
-      console.log(`  + Created campus ${campus.name} (Id=${qboId})`);
+      campusCreated++;
+      console.log(`  + ${campus.name} (Id=${qboId})`);
+    } else {
+      qboId = 'DRY_RUN';
+      campusCreated++;
     }
 
-    await upsertMapping(mappingRepo, {
-      internalReferenceType: 'GROUP',
-      internalReferenceId: campus.id,
-      externalReferenceType: 'CUSTOMER',
-      externalReferenceId: qboId,
-      externalReferenceName: campus.name,
-    });
-    campusCustomerIds.push({ groupId: campus.id, name: campus.name, qboId });
-  }
-
-  // Spread the test people across the campuses so every campus has givers and
-  // the reverse importer has a parent to read for each one.
-  if (campusCustomerIds.length > 0) {
-    console.log('\nStep 8: Parenting test customers to campuses...');
-    for (let i = 0; i < customerResults.length; i++) {
-      const person = customerResults[i];
-      const campus = campusCustomerIds[i % campusCustomerIds.length];
-
-      const current = await qboQuery(
-        `SELECT * FROM Customer WHERE Id = '${esc(person.qboId)}'`,
-        accessToken,
-        realmId,
-      );
-      const record = current[0];
-      if (!record) continue;
-
-      if (record.ParentRef?.value === campus.qboId) {
-        console.log(`  ✓ ${person.name} already under ${campus.name}`);
-        continue;
-      }
-
-      await qboUpdateCustomer(
-        {
-          Id: record.Id,
-          SyncToken: record.SyncToken,
-          ParentRef: { value: campus.qboId },
-          Job: true,
-        },
-        accessToken,
-        realmId,
-      );
-      console.log(`  + ${person.name} → ${campus.name}`);
+    if (!dryRun) {
+      await upsertMapping(mappingRepo, {
+        internalReferenceType: 'GROUP',
+        internalReferenceId: campus.id,
+        externalReferenceType: 'CUSTOMER',
+        externalReferenceId: qboId,
+        externalReferenceName: campus.name,
+      });
     }
   }
+  console.log(`  → Created ${campusCreated}, already existed ${campusSkipped}`);
 
-  // ── Summary ───────────────────────────────────────────────────────────────
+  // ── Summary ────────────────────────────────────────────────────────────────
   console.log('\n══════════════════════════════════════════════════════════');
-  console.log('Seeding complete.\n');
-
-  console.log('NEXT STEP — upload this CSV via Zoe Contacts → Bulk Upload:');
-  console.log(
-    '(This creates Contact records and CUSTOMER mappings in one step)\n',
-  );
-  console.log(
-    'First Name,Last Name,Email,Phone,Date of Birth,Gender,District,Country,Tithe Number,QuickBooks Customer ID',
-  );
-  for (const c of TEST_CUSTOMERS) {
-    const result = customerResults.find(
-      (r) => r.name === `${c.givenName} ${c.familyName}`,
-    );
-    console.log(
-      `${c.givenName},${c.familyName},,,,,,,,${result?.qboId ?? 'ERROR'}`,
-    );
-  }
-  console.log('\nAll ExternalSystemMapping rows written to DB.');
+  console.log(dryRun ? 'DRY RUN SUMMARY' : 'SEED COMPLETE');
+  console.log('══════════════════════════════════════════════════════════');
+  console.log('  Run sync-prod-qbo-customers-to-sandbox.ts next to mirror');
+  console.log('  real givers from production QBO into the sandbox.');
   console.log('══════════════════════════════════════════════════════════\n');
 
   await connection.close();
 }
 
 main().catch((err) => {
-  console.error(
-    '\nSeeding failed:',
-    err?.response?.data ?? err?.message ?? err,
-  );
+  console.error('\nFATAL:', err instanceof Error ? err.message : err);
   process.exit(1);
 });
