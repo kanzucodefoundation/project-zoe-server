@@ -22,13 +22,13 @@ export default class Person {
   })
   salutation: Salutation;
 
-  @Column({ length: 40 })
+  @Column({ length: 100 })
   firstName: string;
 
-  @Column({ length: 40 })
+  @Column({ length: 100 })
   lastName: string;
 
-  @Column({ nullable: true, length: 40 })
+  @Column({ nullable: true, length: 100 })
   middleName: string;
 
   @Column({ nullable: true })

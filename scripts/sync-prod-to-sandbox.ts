@@ -962,8 +962,8 @@ async function main() {
       await personRepo.save(
         personRepo.create({
           contactId: contact.id,
-          firstName: first.substring(0, 40),
-          lastName: last.substring(0, 40),
+          firstName: first,
+          lastName: last,
           gender,
         }),
       );
