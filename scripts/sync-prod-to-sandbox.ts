@@ -408,26 +408,27 @@ async function main() {
     fetchAllProd<any>('Customer', prodToken, prodRealm),
   ]);
 
-  // Collect unique income and expense account names referenced by items
+  // Collect unique income account names referenced by items.
+  // Expense-only items (Bad Debt, etc.) are not giving items and are skipped.
   const incomeAccountNames = new Set<string>();
-  const expenseAccountNames = new Set<string>();
   for (const item of prodItems) {
     if (item.IncomeAccountRef?.name)
       incomeAccountNames.add(item.IncomeAccountRef.name);
-    if (item.ExpenseAccountRef?.name)
-      expenseAccountNames.add(item.ExpenseAccountRef.name);
   }
+
+  const incomeItems = prodItems.filter((i) => i.IncomeAccountRef?.name);
 
   console.log(`  Bank accounts  : ${prodBankAccounts.length}`);
   console.log(`  Departments    : ${prodDepartments.length}`);
   console.log(`  Classes        : ${prodClasses.length}`);
-  console.log(`  Items          : ${prodItems.length}`);
+  console.log(
+    `  Items          : ${prodItems.length} (${incomeItems.length} income, ${
+      prodItems.length - incomeItems.length
+    } expense-only — skipped)`,
+  );
   console.log(`  Customers      : ${prodCustomers.length}`);
   console.log(
-    `  Income accounts : ${incomeAccountNames.size} (referenced by items)`,
-  );
-  console.log(
-    `  Expense accounts: ${expenseAccountNames.size} (referenced by items)`,
+    `  Income accounts: ${incomeAccountNames.size} (referenced by items)`,
   );
 
   // ── Load Zoe staging data ─────────────────────────────────────────────────
@@ -507,16 +508,15 @@ async function main() {
     alreadyMapped: 0,
   };
 
-  // ── Step 1: Income + expense accounts (items reference these) ───────────────
-  console.log('\nStep 1: Income and expense accounts...');
+  // ── Step 1: Income accounts (items reference these) ─────────────────────────
+  console.log('\nStep 1: Income accounts...');
   const sbIncomeIdByName = new Map<string, string>();
-  const sbExpenseIdByName = new Map<string, string>();
 
   for (const name of incomeAccountNames) {
     const existing = sbAccountsByName.get(normalize(name));
     if (existing) {
       sbIncomeIdByName.set(name, String(existing.Id));
-      console.log(`  ✓ Income: ${name} (Id=${existing.Id})`);
+      console.log(`  ✓ ${name} (Id=${existing.Id})`);
     } else if (!dryRun) {
       const res = await postToSandbox(
         '/account',
@@ -533,40 +533,11 @@ async function main() {
       sbIncomeIdByName.set(name, sbId);
       sbAccountsByName.set(normalize(name), res.Account);
       stats.incomeCreated++;
-      console.log(`  + Income: ${name} (Id=${sbId})`);
+      console.log(`  + Created ${name} (Id=${sbId})`);
     } else {
       sbIncomeIdByName.set(name, 'DRY_RUN');
       stats.incomeCreated++;
-      console.log(`  ~ Income: ${name} (dry run)`);
-    }
-  }
-
-  for (const name of expenseAccountNames) {
-    const existing = sbAccountsByName.get(normalize(name));
-    if (existing) {
-      sbExpenseIdByName.set(name, String(existing.Id));
-      console.log(`  ✓ Expense: ${name} (Id=${existing.Id})`);
-    } else if (!dryRun) {
-      const res = await postToSandbox(
-        '/account',
-        {
-          Name: name,
-          AccountType: 'Expense',
-          AccountSubType: 'OtherMiscellaneousExpense',
-          CurrencyRef: { value: 'UGX' },
-        },
-        sbToken,
-        sbRealm,
-      );
-      const sbId = String(res.Account.Id);
-      sbExpenseIdByName.set(name, sbId);
-      sbAccountsByName.set(normalize(name), res.Account);
-      stats.incomeCreated++;
-      console.log(`  + Expense: ${name} (Id=${sbId})`);
-    } else {
-      sbExpenseIdByName.set(name, 'DRY_RUN');
-      stats.incomeCreated++;
-      console.log(`  ~ Expense: ${name} (dry run)`);
+      console.log(`  ~ ${name} (dry run)`);
     }
   }
 
@@ -707,10 +678,10 @@ async function main() {
   );
 
   // ── Step 5: Items / giving categories ────────────────────────────────────
-  console.log('\nStep 5: Items...');
+  console.log('\nStep 5: Items (income items only)...');
   const sbItemIdByName = new Map<string, string>();
 
-  for (const item of prodItems) {
+  for (const item of incomeItems) {
     const name: string = item.Name;
     const existing = sbItemsByName.get(normalize(name));
     let sbId: string;
@@ -720,20 +691,18 @@ async function main() {
       sbItemIdByName.set(name, sbId);
       stats.itemSkipped++;
     } else if (!dryRun) {
-      const body: Record<string, any> = {
-        Name: name,
-        Type: item.Type ?? 'Service',
-        ...(item.Sku ? { Sku: item.Sku } : {}),
-      };
-      if (item.IncomeAccountRef?.name) {
-        const sbId = sbIncomeIdByName.get(item.IncomeAccountRef.name);
-        if (sbId) body.IncomeAccountRef = { value: sbId };
-      }
-      if (item.ExpenseAccountRef?.name) {
-        const sbId = sbExpenseIdByName.get(item.ExpenseAccountRef.name);
-        if (sbId) body.ExpenseAccountRef = { value: sbId };
-      }
-      const res = await postToSandbox('/item', body, sbToken, sbRealm);
+      const sbIncomeId = sbIncomeIdByName.get(item.IncomeAccountRef.name) ?? '';
+      const res = await postToSandbox(
+        '/item',
+        {
+          Name: name,
+          Type: item.Type ?? 'Service',
+          IncomeAccountRef: { value: sbIncomeId },
+          ...(item.Sku ? { Sku: item.Sku } : {}),
+        },
+        sbToken,
+        sbRealm,
+      );
       sbId = String(res.Item.Id);
       sbItemsByName.set(normalize(name), res.Item);
       sbItemIdByName.set(name, sbId);
