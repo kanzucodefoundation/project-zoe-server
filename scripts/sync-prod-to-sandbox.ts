@@ -254,6 +254,12 @@ async function fetchAllSandbox<T>(
   return all;
 }
 
+class QboUnauthorizedError extends Error {
+  constructor() {
+    super('QBO token expired (401)');
+  }
+}
+
 async function postToSandbox(
   endpoint: string,
   body: any,
@@ -274,11 +280,31 @@ async function postToSandbox(
     );
     return data;
   } catch (err: any) {
+    if (err?.response?.status === 401) throw new QboUnauthorizedError();
     const qboErrors = err?.response?.data?.Fault?.Error ?? [];
     const msg = qboErrors
       .map((e: any) => `[${e.code}] ${e.Message}: ${e.Detail}`)
       .join('; ');
     throw new Error(`QBO POST ${endpoint} failed: ${msg || err.message}`);
+  }
+}
+
+async function postToSandboxWithRetry(
+  endpoint: string,
+  body: any,
+  getToken: () => string,
+  realmId: string,
+  refreshToken: () => Promise<void>,
+): Promise<any> {
+  try {
+    return await postToSandbox(endpoint, body, getToken(), realmId);
+  } catch (err) {
+    if (err instanceof QboUnauthorizedError) {
+      console.log('  Token expired — refreshing and retrying...');
+      await refreshToken();
+      return await postToSandbox(endpoint, body, getToken(), realmId);
+    }
+    throw err;
   }
 }
 
@@ -857,10 +883,6 @@ async function main() {
     personIdx++;
     if (personIdx % 500 === 0 || personIdx === personCustomers.length) {
       console.log(`  [${personIdx}/${personCustomers.length}] processed...`);
-      // Refresh sandbox token proactively — access tokens expire after 60 min
-      // and this loop can run for several hours.
-      const refreshed = await getSandboxTokens(connRepo);
-      sbToken = refreshed.accessToken;
     }
 
     const prodParentId = c.ParentRef?.value ? String(c.ParentRef.value) : null;
@@ -897,7 +919,15 @@ async function main() {
         body.PrimaryEmailAddr = { Address: emailValue };
 
       try {
-        const res = await postToSandbox('/customer', body, sbToken, sbRealm);
+        const res = await postToSandboxWithRetry(
+          '/customer',
+          body,
+          () => sbToken,
+          sbRealm,
+          async () => {
+            ({ accessToken: sbToken } = await getSandboxTokens(connRepo));
+          },
+        );
         sbId = String(res.Customer.Id);
         sbCustomersByName.set(normalize(displayName), res.Customer);
         stats.personCreated++;
