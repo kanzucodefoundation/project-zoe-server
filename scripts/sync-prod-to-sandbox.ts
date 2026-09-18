@@ -383,8 +383,9 @@ async function main() {
 
   const [
     { accessToken: prodToken, realmId: prodRealm },
-    { accessToken: sbToken, realmId: sbRealm },
+    { accessToken: initialSbToken, realmId: sbRealm },
   ] = await Promise.all([getProdTokens(), getSandboxTokens(connRepo)]);
+  let sbToken = initialSbToken;
 
   console.log(`\nProduction realm : ${prodRealm}`);
   console.log(`Sandbox realm    : ${sbRealm}`);
@@ -856,6 +857,10 @@ async function main() {
     personIdx++;
     if (personIdx % 500 === 0 || personIdx === personCustomers.length) {
       console.log(`  [${personIdx}/${personCustomers.length}] processed...`);
+      // Refresh sandbox token proactively — access tokens expire after 60 min
+      // and this loop can run for several hours.
+      const refreshed = await getSandboxTokens(connRepo);
+      sbToken = refreshed.accessToken;
     }
 
     const prodParentId = c.ParentRef?.value ? String(c.ParentRef.value) : null;
@@ -888,7 +893,8 @@ async function main() {
       if (c.GivenName) body.GivenName = c.GivenName;
       if (c.FamilyName) body.FamilyName = c.FamilyName;
       if (phoneValue) body.PrimaryPhone = { FreeFormNumber: phoneValue };
-      if (emailValue) body.PrimaryEmailAddr = { Address: emailValue };
+      if (emailValue && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailValue))
+        body.PrimaryEmailAddr = { Address: emailValue };
 
       try {
         const res = await postToSandbox('/customer', body, sbToken, sbRealm);
