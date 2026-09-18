@@ -846,8 +846,17 @@ async function main() {
     prodCustomers.map((c) => [String(c.Id), c]),
   );
 
-  for (const c of prodCustomers) {
-    if (prodCampusIds.has(String(c.Id))) continue;
+  const personCustomers = prodCustomers.filter(
+    (c) => !prodCampusIds.has(String(c.Id)),
+  );
+  console.log(`  ${personCustomers.length} person customers to process`);
+  let personIdx = 0;
+
+  for (const c of personCustomers) {
+    personIdx++;
+    if (personIdx % 500 === 0 || personIdx === personCustomers.length) {
+      console.log(`  [${personIdx}/${personCustomers.length}] processed...`);
+    }
 
     const prodParentId = c.ParentRef?.value ? String(c.ParentRef.value) : null;
     const sbParentId = prodParentId
