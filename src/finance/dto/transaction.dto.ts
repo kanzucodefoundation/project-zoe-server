@@ -8,6 +8,10 @@ import {
   IsArray,
   IsBoolean,
   ValidateNested,
+  ValidateIf,
+  ArrayNotEmpty,
+  ArrayMaxSize,
+  MaxLength,
   Min,
 } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
@@ -88,6 +92,29 @@ export class UpdateTransactionDto {
   @IsOptional()
   @IsEnum(TransactionCategory)
   category?: TransactionCategory;
+
+  /** QuickBooks giving item; also sets `category`. Null clears it. */
+  @IsOptional()
+  @ValidateIf((_, value) => value !== null)
+  @IsString()
+  @MaxLength(100)
+  externalItemId?: string | null;
+}
+
+/** Re-categorises several transactions at once. */
+export class BulkUpdateGivingItemDto {
+  @IsArray()
+  @ArrayNotEmpty()
+  @ArrayMaxSize(500)
+  @Type(() => Number)
+  @IsNumber({}, { each: true })
+  transactionIds: number[];
+
+  @IsOptional()
+  @ValidateIf((_, value) => value !== null)
+  @IsString()
+  @MaxLength(100)
+  externalItemId?: string | null;
 }
 
 export class SearchTransactionDto {

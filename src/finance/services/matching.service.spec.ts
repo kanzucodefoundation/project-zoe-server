@@ -6,6 +6,7 @@ import { TenantContext } from '../../shared/tenant/tenant-context';
 import { AppLogger } from '../../utils/app-logger.service';
 import { ReconciliationPluginRegistry } from '../plugins/reconciliation-plugin.registry';
 import { GroupPermissionsService } from '../../groups/services/group-permissions.service';
+import { CategoryRoutingService } from './category-routing.service';
 import Transaction from '../entities/transaction.entity';
 import ReconciliationMatch from '../entities/reconciliation-match.entity';
 import ContactPaymentMethod from '../entities/contact-payment-method.entity';
@@ -69,6 +70,12 @@ describe('MatchingService — suggestions', () => {
         {
           provide: ReconciliationPluginRegistry,
           useValue: { get: jest.fn(), getDefault: jest.fn() },
+        },
+        {
+          // Nothing here routes a category to a standing customer, so every
+          // transaction stays in the sweep.
+          provide: CategoryRoutingService,
+          useValue: { isCurrencyRouted: jest.fn().mockReturnValue(false) },
         },
         {
           provide: GroupPermissionsService,
@@ -276,12 +283,95 @@ describe('MatchingService — suggestions', () => {
         matchCriteria: { method: 'fuzzy_name' },
       });
 
-      const result = await service.runMatching(undefined, 60, undefined, undefined, {
-        id: 1,
-      });
+      const result = await service.runMatching(
+        undefined,
+        60,
+        undefined,
+        undefined,
+        {
+          id: 1,
+        },
+      );
 
       expect(result.matched).toBe(0);
       expect(mockRepositories.match.save).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('categories with a standing customer', () => {
+    it('leaves offertory out of the sweep', async () => {
+      const categoryCustomer = (service as any).categoryRoutingService;
+      categoryCustomer.isCurrencyRouted.mockImplementation(
+        (category: string) => category === 'OFFERING',
+      );
+      (service as any).transactionRepository.find = jest
+        .fn()
+        .mockResolvedValue([
+          { id: 1, category: 'TITHE', account: { id: 1 } },
+          { id: 2, category: 'OFFERING', account: { id: 1 } },
+        ]);
+      const findMatch = jest
+        .spyOn(service, 'findMatchForTransaction')
+        .mockResolvedValue(null);
+
+      await service.runMatching(undefined, 60);
+
+      const swept = findMatch.mock.calls.map((call: any[]) => call[0].id);
+      expect(swept).toEqual([1]);
+    });
+  });
+
+  describe('the name in the message', () => {
+    it('is matched on ahead of the account the money came from', async () => {
+      const repo = (service as any).contactRepository;
+      repo.find = jest.fn().mockResolvedValue([
+        {
+          id: 7,
+          person: { firstName: 'Isaac', lastName: 'Wakweyika' },
+        },
+      ]);
+      (service as any).matchRepository.find = jest.fn().mockResolvedValue([]);
+      (service as any).paymentMethodRepository.findOne = jest
+        .fn()
+        .mockResolvedValue(null);
+      (service as any).contactRepository.findOne = jest
+        .fn()
+        .mockResolvedValue(null);
+      (service as any).phoneRepository.find = jest.fn().mockResolvedValue([]);
+
+      const candidate = await service.findMatchForTransaction({
+        id: 1,
+        senderName: 'JANE ACCOUNTHOLDER',
+        narration: 'isaac wakweyika tithe',
+      } as any);
+
+      expect(candidate?.contact.id).toBe(7);
+      expect(candidate?.matchCriteria.method).toBe('fuzzy_name');
+    });
+
+    it('falls back to the statement name when the message names nobody', async () => {
+      const repo = (service as any).contactRepository;
+      repo.find = jest
+        .fn()
+        .mockResolvedValue([
+          { id: 9, person: { firstName: 'Church', lastName: 'Account' } },
+        ]);
+      (service as any).matchRepository.find = jest.fn().mockResolvedValue([]);
+      (service as any).paymentMethodRepository.findOne = jest
+        .fn()
+        .mockResolvedValue(null);
+      (service as any).contactRepository.findOne = jest
+        .fn()
+        .mockResolvedValue(null);
+      (service as any).phoneRepository.find = jest.fn().mockResolvedValue([]);
+
+      const candidate = await service.findMatchForTransaction({
+        id: 1,
+        senderName: 'Church Account',
+        narration: 'Sunday banking',
+      } as any);
+
+      expect(candidate?.contact.id).toBe(9);
     });
   });
 });

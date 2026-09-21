@@ -4,19 +4,25 @@ import {
   Get,
   Param,
   Query,
+  UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { SentryInterceptor } from '../../utils/sentry.interceptor';
 import { TenantContextInterceptor } from '../../interceptors/tenant-context.interceptor';
 import { ReportsService } from '../services/reports.service';
+import { PermissionsGuard } from '../../auth/guards/permissions.guard';
+import { RequirePermissions } from '../../auth/decorators/permissions.decorator';
+import { appPermissions } from '../../auth/constants';
 
 @UseInterceptors(SentryInterceptor, TenantContextInterceptor)
 @ApiTags('Finance - Reports')
+@UseGuards(PermissionsGuard)
 @Controller('api/finance/reports')
 export class ReportsController {
   constructor(private readonly service: ReportsService) {}
 
+  @RequirePermissions(appPermissions.roleFinanceView)
   @Get('summary')
   async getReconciliationSummary(
     @Query('startDate') startDate: string,
@@ -31,6 +37,7 @@ export class ReportsController {
    * response body so the client can fetch it with its usual bearer token and
    * save the blob, rather than needing a credential-less URL.
    */
+  @RequirePermissions(appPermissions.roleFinanceView)
   @Get('export')
   async exportReconciliation(
     @Query('startDate') startDate: string,
@@ -55,6 +62,7 @@ export class ReportsController {
     res.send(csv);
   }
 
+  @RequirePermissions(appPermissions.roleFinanceView)
   @Get('distributions')
   async getDistributionsByPeriod(
     @Query('startDate') startDate: string,
@@ -63,6 +71,7 @@ export class ReportsController {
     return this.service.getDistributionsByPeriod(startDate, endDate);
   }
 
+  @RequirePermissions(appPermissions.roleFinanceView)
   @Get('locations/:id')
   async getLocationSummary(
     @Param('id') id: number,

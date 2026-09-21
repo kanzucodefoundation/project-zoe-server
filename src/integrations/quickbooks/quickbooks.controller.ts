@@ -8,6 +8,7 @@ import {
   Query,
   Request,
   Res,
+  UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import { Response } from 'express';
@@ -18,6 +19,9 @@ import { TenantContextInterceptor } from '../../interceptors/tenant-context.inte
 import { QuickBooksService } from './quickbooks.service';
 import { ExchangeTokenDto } from './dto/exchange-token.dto';
 import { CreateChargeDto } from './dto/create-charge.dto';
+import { PermissionsGuard } from '../../auth/guards/permissions.guard';
+import { RequirePermissions } from '../../auth/decorators/permissions.decorator';
+import { appPermissions } from '../../auth/constants';
 
 type CsvFormat = 'json' | 'csv';
 
@@ -81,6 +85,7 @@ function mapQboCustomerToContactRow(c: any): Record<string, string> {
 
 @UseInterceptors(SentryInterceptor, TenantContextInterceptor)
 @ApiTags('QuickBooks')
+@UseGuards(PermissionsGuard)
 @Controller('api/integrations/quickbooks')
 export class QuickBooksController {
   private readonly logger = new Logger(QuickBooksController.name);
@@ -99,6 +104,7 @@ export class QuickBooksController {
    * - If redirect_uri is https://developer.intuit.com/app/developer/quickstart:
    *   copy code/realmId/state from that page and POST them to /exchange.
    */
+  @RequirePermissions(appPermissions.roleIntegrationsView)
   @Get('connect')
   connect(@Request() req): { url: string; state: string } {
     return this.quickBooksService.getAuthorizationUrl(req.tenantId);
@@ -138,6 +144,7 @@ export class QuickBooksController {
    * After the quickstart page displays code/realmId/state, POST them here
    * with your JWT to complete the connection.
    */
+  @RequirePermissions(appPermissions.roleIntegrationsEdit)
   @Post('exchange')
   async exchange(@Body() dto: ExchangeTokenDto) {
     const connection = await this.quickBooksService.exchangeCodeForTokens(dto);
@@ -151,6 +158,7 @@ export class QuickBooksController {
   }
 
   /** Current connection status for this tenant */
+  @RequirePermissions(appPermissions.roleIntegrationsView)
   @Get('connection')
   async getConnection(@Request() req) {
     const conn = await this.quickBooksService.getConnection(req.tenantId);
@@ -165,24 +173,28 @@ export class QuickBooksController {
   }
 
   /** Step 3a — QBO Accounting: company info */
+  @RequirePermissions(appPermissions.roleIntegrationsView)
   @Get('company-info')
   getCompanyInfo(@Request() req) {
     return this.quickBooksService.getCompanyInfo(req.tenantId);
   }
 
   /** Step 3b — OpenID: user info */
+  @RequirePermissions(appPermissions.roleIntegrationsView)
   @Get('userinfo')
   getUserInfo(@Request() req) {
     return this.quickBooksService.getUserInfo(req.tenantId);
   }
 
   /** Step 3c — Payments: create a test charge */
+  @RequirePermissions(appPermissions.roleIntegrationsEdit)
   @Post('charges')
   createCharge(@Request() req, @Body() dto: CreateChargeDto) {
     return this.quickBooksService.createCharge(req.tenantId, dto);
   }
 
   /** Remove the stored connection for this tenant */
+  @RequirePermissions(appPermissions.roleIntegrationsEdit)
   @Delete('connection')
   async disconnect(@Request() req) {
     await this.quickBooksService.revokeConnection(req.tenantId);
@@ -191,6 +203,7 @@ export class QuickBooksController {
 
   // ─── Reference data endpoints ─────────────────────────────────────────────
 
+  @RequirePermissions(appPermissions.roleIntegrationsView)
   @Get('references/customers')
   async getCustomers(
     @Request() req,
@@ -226,6 +239,7 @@ export class QuickBooksController {
     return res.json(rows);
   }
 
+  @RequirePermissions(appPermissions.roleIntegrationsView)
   @Get('references/accounts')
   async getAccounts(
     @Request() req,
@@ -242,6 +256,7 @@ export class QuickBooksController {
     ]);
   }
 
+  @RequirePermissions(appPermissions.roleIntegrationsView)
   @Get('references/items')
   async getItems(
     @Request() req,
@@ -258,6 +273,7 @@ export class QuickBooksController {
     ]);
   }
 
+  @RequirePermissions(appPermissions.roleIntegrationsView)
   @Get('references/classes')
   async getClasses(
     @Request() req,
@@ -273,6 +289,7 @@ export class QuickBooksController {
     ]);
   }
 
+  @RequirePermissions(appPermissions.roleIntegrationsView)
   @Get('references/departments')
   async getDepartments(
     @Request() req,

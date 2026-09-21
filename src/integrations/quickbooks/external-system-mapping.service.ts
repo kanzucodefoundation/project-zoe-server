@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { EntityManager, Repository } from 'typeorm';
+import { EntityManager, Like, Repository } from 'typeorm';
 import { ExternalSystemMapping } from './entities/external-system-mapping.entity';
 import { TenantContext } from '../../shared/tenant/tenant-context';
 import {
@@ -17,6 +17,10 @@ export {
   LookupByExternalDto,
 } from './dto/external-system-mapping.dto';
 
+/** Neutralises LIKE wildcards so a prefix matches itself literally. */
+const escapeLikePattern = (value: string): string =>
+  value.replace(/[\%_]/g, (match) => `\${match}`);
+
 @Injectable()
 export class ExternalSystemMappingService {
   constructor(
@@ -25,15 +29,7 @@ export class ExternalSystemMappingService {
     private readonly tenantContext: TenantContext,
   ) {}
 
-  /**
-   * The repository to write through.
-   *
-   * Callers whose own writes must succeed or fail together with the mapping
-   * pass the manager of an open transaction; everything else gets the ambient
-   * repository. Without this a caller can commit its own row and then fail to
-   * record the mapping for it, leaving a record that points at nothing in the
-   * external system and no indication that it is unlinked.
-   */
+  /** Callers inside a transaction pass its manager so writes commit together. */
   private repoFor(manager?: EntityManager): Repository<ExternalSystemMapping> {
     return manager ? manager.getRepository(ExternalSystemMapping) : this.repo;
   }
@@ -106,6 +102,23 @@ export class ExternalSystemMappingService {
     if (dto.externalReferenceType)
       where.externalReferenceType = dto.externalReferenceType;
     return this.repo.findOne({ where });
+  }
+
+  /** Mappings of one internal type whose id starts with `prefix`. */
+  async listByInternalPrefix(
+    system: string,
+    internalReferenceType: string,
+    prefix: string,
+  ): Promise<ExternalSystemMapping[]> {
+    const tenantId = this.tenantContext.requireTenant();
+    return this.repo.find({
+      where: {
+        tenantId,
+        system,
+        internalReferenceType,
+        internalReferenceId: Like(`${escapeLikePattern(prefix)}%`),
+      },
+    });
   }
 
   async lookupByExternal(

@@ -24,6 +24,7 @@ import {
 import {
   CreateTransactionDto,
   UpdateTransactionDto,
+  BulkUpdateGivingItemDto,
   SearchTransactionDto,
   ImportTransactionDto,
   ParseTransactionDto,
@@ -35,6 +36,7 @@ import { MatchStatus } from '../enums/match-status.enum';
 import {
   DEFAULT_TRANSACTION_CATEGORY,
   TransactionCategory,
+  resolveTransactionCategory,
 } from '../enums/transaction-category.enum';
 import {
   cleanSenderName,
@@ -46,6 +48,7 @@ import {
   GivingItemCandidate,
 } from '../statement-parsing';
 import { GivingCategoriesService } from './giving-categories.service';
+import { CategoryRoutingService } from './category-routing.service';
 import { CategoryRulesService } from './category-rules.service';
 import { TenantContext } from '../../shared/tenant/tenant-context';
 import { AppLogger, ContextLogger } from '../../utils/app-logger.service';
@@ -66,6 +69,7 @@ export class TransactionsService {
     private appLogger: AppLogger,
     private categoryRulesService: CategoryRulesService,
     private givingCategoriesService: GivingCategoriesService,
+    private categoryRoutingService: CategoryRoutingService,
   ) {
     this.repository = connection.getRepository(Transaction);
     this.accountRepository = connection.getRepository(FinancialAccount);
@@ -188,6 +192,10 @@ export class TransactionsService {
           ? String(row[narrationColumn])
           : null;
         transaction.status = TransactionStatus.PENDING;
+        // The wizard import reads the category out of the message; this path
+        // never did, so every uploaded row arrived uncategorised.
+        transaction.category =
+          detectCategory(transaction.narration) ?? DEFAULT_TRANSACTION_CATEGORY;
         transaction.rawData = row;
 
         await this.repository.save(transaction);
@@ -558,6 +566,17 @@ export class TransactionsService {
         id: option.qboItemId as string,
         name: option.qboItemName as string,
       }));
+    const itemByCategory = new Map(
+      givingOptions
+        .filter((option) => option.qboItemId && option.category)
+        .map((option) => [
+          option.category as TransactionCategory,
+          {
+            id: option.qboItemId as string,
+            name: option.qboItemName as string,
+          },
+        ]),
+    );
     const categoryByItemId = new Map(
       givingOptions
         .filter((option) => option.qboItemId && option.category)
@@ -595,11 +614,25 @@ export class TransactionsService {
           );
         }
 
-        this.applyCategory(item, matched, options, itemCandidates, categoryByItemId);
+        this.applyCategory(
+          item,
+          matched,
+          options,
+          itemCandidates,
+          categoryByItemId,
+          itemByCategory,
+        );
       }
     } else {
       for (const item of parsed) {
-        this.applyCategory(item, null, options, itemCandidates, categoryByItemId);
+        this.applyCategory(
+          item,
+          null,
+          options,
+          itemCandidates,
+          categoryByItemId,
+          itemByCategory,
+        );
       }
     }
 
@@ -620,6 +653,7 @@ export class TransactionsService {
     options: ParseTransactionDto,
     itemCandidates: GivingItemCandidate[],
     categoryByItemId: Map<string, TransactionCategory>,
+    itemByCategory: Map<TransactionCategory, { id: string; name: string }>,
   ): void {
     // The QuickBooks item is the precise answer; settle it first.
     const detectedItem = detectGivingItem(item.narration, itemCandidates);
@@ -629,7 +663,7 @@ export class TransactionsService {
     } else {
       item.externalItemId = options.defaultItemId ?? null;
       item.externalItemName = options.defaultItemId
-        ? (options.defaultItemName ?? null)
+        ? options.defaultItemName ?? null
         : null;
     }
 
@@ -653,11 +687,37 @@ export class TransactionsService {
     if (detected) {
       item.category = detected;
       item.matchedRule = 'Detected from statement message';
+      if (!detectedItem)
+        this.applyItemForCategory(item, itemByCategory, options);
       return;
     }
 
     item.category = options.defaultCategory ?? DEFAULT_TRANSACTION_CATEGORY;
     item.matchedRule = 'Default category';
+    if (!detectedItem) this.applyItemForCategory(item, itemByCategory, options);
+  }
+
+  /**
+   * The item for the category the message resolved to, so "Special Offering"
+   * books against the offering item rather than the wizard's default.
+   */
+  private applyItemForCategory(
+    item: ParsedTransactionDto,
+    itemByCategory: Map<TransactionCategory, { id: string; name: string }>,
+    options: ParseTransactionDto,
+  ): void {
+    const forCategory = item.category
+      ? itemByCategory.get(item.category)
+      : undefined;
+    if (forCategory) {
+      item.externalItemId = forCategory.id;
+      item.externalItemName = forCategory.name;
+      return;
+    }
+    item.externalItemId = options.defaultItemId ?? null;
+    item.externalItemName = options.defaultItemId
+      ? options.defaultItemName ?? null
+      : null;
   }
 
   /**
@@ -829,11 +889,17 @@ export class TransactionsService {
     const postingsByTransaction = await this.loadPostings(
       transactions.map((t) => t.id),
     );
+    const currencyRouted = this.currencyRoutedCategories(transactions);
 
     return transactions.map((transaction) => ({
       ...transaction,
       reconciliationMatch: this.toActiveMatch(transaction),
       accountingPosting: postingsByTransaction.get(transaction.id) ?? null,
+      // False for offertory: it books to a standing customer, so there is no
+      // giver to identify and the screen offers it for posting straight away.
+      requiresMatch: !currencyRouted.has(
+        resolveTransactionCategory(transaction.category),
+      ),
     })) as Transaction[];
   }
 
@@ -914,9 +980,106 @@ export class TransactionsService {
     }
     if (dto.narration !== undefined) transaction.narration = dto.narration;
     if (dto.status !== undefined) transaction.status = dto.status;
+
+    // Both describe what the gift was booked as, so both freeze once posted.
+    if (dto.category !== undefined || dto.externalItemId !== undefined) {
+      await this.assertNotPosted([transaction.id]);
+    }
+
     if (dto.category !== undefined) transaction.category = dto.category;
 
-    return this.repository.save(transaction);
+    if (dto.externalItemId !== undefined) {
+      const resolved = await this.givingCategoriesService.resolveGivingItem(
+        dto.externalItemId,
+      );
+      // The item wins over `dto.category`: it is what QuickBooks books against.
+      transaction.externalItemId = resolved.externalItemId;
+      transaction.externalItemName = resolved.externalItemName;
+      transaction.category = resolved.category;
+    }
+
+    const saved = await this.repository.save(transaction);
+    // Re-categorising to or from a collected category changes whether the row
+    // still needs a giver, so the screen is told straight away.
+    return {
+      ...saved,
+      requiresMatch: !this.categoryRoutingService.isCurrencyRouted(
+        resolveTransactionCategory(saved.category),
+      ),
+    } as Transaction;
+  }
+
+  /** Re-categorises several transactions, with one QuickBooks item lookup. */
+  async bulkUpdateGivingItem(
+    dto: BulkUpdateGivingItemDto,
+    user: any,
+  ): Promise<{ updated: number; transactionIds: number[] }> {
+    const tenantId = this.tenantContext.requireTenant();
+    const ids = [...new Set(dto.transactionIds)];
+
+    const transactions = await this.repository.find({
+      where: { id: In(ids), tenant: { id: tenantId } },
+    });
+
+    if (transactions.length !== ids.length) {
+      const found = new Set(transactions.map((t) => t.id));
+      const missing = ids.filter((id) => !found.has(id));
+      throw new NotFoundException(
+        `These transactions were not found: ${missing.join(', ')}`,
+      );
+    }
+
+    await this.assertNotPosted(ids);
+
+    const resolved = await this.givingCategoriesService.resolveGivingItem(
+      dto.externalItemId ?? null,
+    );
+
+    transactions.forEach((transaction) => {
+      transaction.externalItemId = resolved.externalItemId;
+      transaction.externalItemName = resolved.externalItemName;
+      transaction.category = resolved.category;
+    });
+
+    await this.repository.save(transactions);
+
+    this.logger.business('log', 'Bulk updated giving item', {
+      operation: 'bulkUpdateGivingItem',
+      userId: user?.id,
+      resource: 'transaction',
+      metadata: {
+        count: transactions.length,
+        externalItemId: resolved.externalItemId,
+        externalItemName: resolved.externalItemName,
+        category: resolved.category,
+      },
+    });
+
+    return { updated: transactions.length, transactionIds: ids };
+  }
+
+  /** Categories in this page that post to a standing customer. */
+  private currencyRoutedCategories(transactions: Transaction[]): Set<string> {
+    return new Set(
+      transactions
+        .map((t) => resolveTransactionCategory(t.category))
+        .filter((category) =>
+          this.categoryRoutingService.isCurrencyRouted(category),
+        ),
+    );
+  }
+
+  /** Refuses to re-categorise a gift already posted; correct it in QuickBooks. */
+  private async assertNotPosted(transactionIds: number[]): Promise<void> {
+    const postings = await this.loadPostings(transactionIds);
+    if (postings.size === 0) return;
+
+    const posted = [...postings.keys()].sort((a, b) => a - b);
+    throw new BadRequestException(
+      `Already posted to QuickBooks, so the giving category can no longer be changed here: transaction${
+        posted.length > 1 ? 's' : ''
+      } ${posted.join(', ')}. Correct it in QuickBooks instead.`,
+    );
   }
 
   async getPendingForMatching(accountId: number): Promise<Transaction[]> {

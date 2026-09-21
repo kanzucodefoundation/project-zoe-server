@@ -34,6 +34,9 @@ export const appPermissions = {
   roleTaskView: 'TASK_VIEW',
   roleTaskEdit: 'TASK_EDIT',
 
+  roleIntegrationsView: 'INTEGRATIONS_VIEW',
+  roleIntegrationsEdit: 'INTEGRATIONS_EDIT',
+
   roleAttendanceView: 'ATTENDANCE_VIEW',
   roleAttendanceEdit: 'ATTENDANCE_EDIT',
 };

@@ -8,6 +8,7 @@ import Transaction from '../entities/transaction.entity';
 import FinancialAccount from '../entities/financial-account.entity';
 import { TransactionCategory } from '../enums/transaction-category.enum';
 import { GivingCategoriesService } from './giving-categories.service';
+import { CategoryRoutingService } from './category-routing.service';
 
 /**
  * End-to-end import checks against the two statement shapes Worship Harvest
@@ -117,6 +118,10 @@ describe('TransactionsService — real mobile-money statements', () => {
           },
         },
         {
+          provide: CategoryRoutingService,
+          useValue: { isCurrencyRouted: jest.fn().mockReturnValue(false) },
+        },
+        {
           provide: GivingCategoriesService,
           useValue: givingCategoriesMock,
         },
@@ -183,12 +188,14 @@ describe('TransactionsService — real mobile-money statements', () => {
 
     it('books each row against the QuickBooks item the message names', async () => {
       const rows = await parseWithMessage();
+      // A message naming an item books against it; the rest fall back to the
+      // item for the category they resolved to, never to nothing.
       expect(rows.map((r) => r.externalItemName)).toEqual([
         'Offertory - YXP', // WHARUAYXPOFFERTORY — not just "an offering"
-        null, // "Arua WH" names no item
+        'Tithes', // "Arua WH" names no item, so its category's item
         'Tithes', // "tbgb0095 tithe"
-        null, // "TBGB0416(Imbazo)"
-        null, // "TBGB0148"
+        'Tithes', // "TBGB0416(Imbazo)"
+        'Tithes', // "TBGB0148"
       ]);
       expect(rows[0].matchedRule).toBe(
         'Matched "Offertory - YXP" in the statement message',
@@ -228,6 +235,70 @@ describe('TransactionsService — real mobile-money statements', () => {
       expect(rows[0].senderPhone).toBe('256795249268');
       // The "Id" column is the statement's own reference.
       expect(rows[0].externalReference).toBe('43302654004');
+    });
+  });
+
+  describe('categories other than tithe', () => {
+    const MIXED = [
+      'Date,Amount,From name,To message',
+      '06/09/2026,10000,ALICE A,offering for sunday',
+      '06/09/2026,20000,BOB B,arise and build',
+      '06/09/2026,30000,CAROL C,donation for missions',
+      '06/09/2026,40000,DAN D,WHARUAYXPOFFERTORY',
+      '06/09/2026,50000,ERIC E,tbgb0095 tithe',
+    ].join(String.fromCharCode(10));
+
+    const parseMixed = (options: Record<string, unknown> = {}) =>
+      service.parseFile(
+        asUpload('mixed.csv', MIXED),
+        { accountId: 1, applyServiceTimeRules: false, ...options } as any,
+        { id: 1 },
+      );
+
+    it('reads each giving type out of the message', async () => {
+      const rows = await parseMixed();
+
+      expect(rows.map((r) => r.category)).toEqual([
+        'OFFERING',
+        'ARISE_BUILD',
+        'DONATION',
+        'OFFERING',
+        'TITHE',
+      ]);
+    });
+
+    it('books each row against the item for its own category', async () => {
+      givingCategoriesMock.list.mockResolvedValue([
+        {
+          category: 'TITHE',
+          label: 'Tithe',
+          internalLabel: 'Tithe',
+          qboItemId: '24',
+          qboItemName: 'Tithe',
+          selectable: true,
+          isDefault: true,
+        },
+        {
+          category: 'OFFERING',
+          label: 'Offertory UGX',
+          internalLabel: 'Offering',
+          qboItemId: '31',
+          qboItemName: 'Offertory UGX',
+          selectable: true,
+          isDefault: false,
+        },
+      ]);
+
+      const rows = await parseMixed({
+        defaultItemId: '24',
+        defaultItemName: 'Tithe',
+      });
+
+      // "offering for sunday" names no item, so it takes the offering item
+      // rather than the wizard's default of Tithe.
+      expect(rows[0].category).toBe('OFFERING');
+      expect(rows[0].externalItemId).toBe('31');
+      expect(rows[4].externalItemId).toBe('24');
     });
   });
 });

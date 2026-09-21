@@ -4,6 +4,7 @@ import { Connection } from 'typeorm';
 import { TransactionsService } from './transactions.service';
 import { CategoryRulesService } from './category-rules.service';
 import { GivingCategoriesService } from './giving-categories.service';
+import { CategoryRoutingService } from './category-routing.service';
 import { TenantContext } from '../../shared/tenant/tenant-context';
 import { AppLogger } from '../../utils/app-logger.service';
 import Transaction from '../entities/transaction.entity';
@@ -79,6 +80,10 @@ describe('TransactionsService — file import', () => {
           },
         },
         { provide: CategoryRulesService, useValue: mockCategoryRules },
+        {
+          provide: CategoryRoutingService,
+          useValue: { isCurrencyRouted: jest.fn().mockReturnValue(false) },
+        },
         {
           provide: GivingCategoriesService,
           useValue: { list: jest.fn().mockResolvedValue([]) },
