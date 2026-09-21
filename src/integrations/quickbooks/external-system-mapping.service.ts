@@ -19,7 +19,7 @@ export {
 
 /** Neutralises LIKE wildcards so a prefix matches itself literally. */
 const escapeLikePattern = (value: string): string =>
-  value.replace(/[\%_]/g, (match) => `\${match}`);
+  value.replace(/[%_]/g, (match) => `\\${match}`);
 
 @Injectable()
 export class ExternalSystemMappingService {
