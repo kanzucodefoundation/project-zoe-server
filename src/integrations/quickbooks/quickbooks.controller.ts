@@ -104,7 +104,7 @@ export class QuickBooksController {
    * - If redirect_uri is https://developer.intuit.com/app/developer/quickstart:
    *   copy code/realmId/state from that page and POST them to /exchange.
    */
-  @RequirePermissions(appPermissions.roleIntegrationsView)
+  @RequirePermissions(appPermissions.roleIntegrationsEdit)
   @Get('connect')
   connect(@Request() req): { url: string; state: string } {
     return this.quickBooksService.getAuthorizationUrl(req.tenantId);
