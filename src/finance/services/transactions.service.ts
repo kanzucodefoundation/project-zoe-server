@@ -670,6 +670,7 @@ export class TransactionsService {
     if (matched) {
       item.category = matched.category;
       item.matchedRule = matched.rule;
+      this.applyItemForCategory(item, itemByCategory, options);
       return;
     }
 

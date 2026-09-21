@@ -275,14 +275,15 @@ export class AccountingService {
       }
     }
 
-    // Category → Item mapping?
+    // Category → Item mapping? Not for a collected category: it books against
+    // the currency-specific item, which is checked above.
     const itemMap = await this.mappingService.lookupByInternal({
       system: SYSTEM,
       internalReferenceType: 'GIVING_CATEGORY',
       internalReferenceId: categoryKey,
       externalReferenceType: 'ITEM',
     });
-    if (!itemMap) {
+    if (!collected && !itemMap) {
       blockers.push({
         code: 'ITEM_MAPPING_MISSING',
         message: `No QuickBooks Item mapped for category ${categoryKey}`,
@@ -886,7 +887,7 @@ export class AccountingService {
       }
     }
 
-    if (!itemMap) {
+    if (!collected && !itemMap) {
       missingMappings.push({
         code: 'ITEM_MAPPING_MISSING',
         internalReferenceType: 'GIVING_CATEGORY',

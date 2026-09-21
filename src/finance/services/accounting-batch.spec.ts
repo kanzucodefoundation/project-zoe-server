@@ -506,6 +506,53 @@ describe('AccountingService — posting a batch', () => {
       expect(codes).not.toContain('CUSTOMER_MAPPING_MISSING');
     });
 
+    it('does not also demand the legacy category item mapping', async () => {
+      const routing = (service as any).categoryRoutingService;
+      routing.isCurrencyRouted.mockReturnValue(true);
+      routing.resolveGivingItem.mockResolvedValue({
+        kind: 'category',
+        externalItemId: '31',
+        externalItemName: 'Offertory UGX',
+        currency: 'UGX',
+        configuredCurrencies: ['UGX'],
+      });
+      // No GIVING_CATEGORY -> ITEM mapping anywhere.
+      mapping.lookupByInternal.mockImplementation(({ internalReferenceType }) =>
+        Promise.resolve(
+          internalReferenceType === 'GIVING_CATEGORY'
+            ? null
+            : { externalReferenceId: 'x' },
+        ),
+      );
+
+      const { blockers } = await service.preflight(1);
+
+      expect(blockers.map((b) => b.code)).not.toContain('ITEM_MAPPING_MISSING');
+    });
+
+    it('still demands it for a gift that posts under its giver', async () => {
+      mapping.lookupByInternal.mockImplementation(({ internalReferenceType }) =>
+        Promise.resolve(
+          internalReferenceType === 'GIVING_CATEGORY'
+            ? null
+            : { externalReferenceId: 'x' },
+        ),
+      );
+      repos.match.findOne.mockResolvedValue({ contact: { id: 42 } });
+      (
+        service as any
+      ).groupPermissionsService.resolveAttributionForContact.mockResolvedValue({
+        location: { id: 1, name: 'WH Global' },
+        fob: { id: 1, name: 'WH Global' },
+        locationIsFallback: true,
+        fobIsFallback: true,
+      });
+
+      const { blockers } = await service.preflight(1);
+
+      expect(blockers.map((b) => b.code)).toContain('ITEM_MAPPING_MISSING');
+    });
+
     it('still asks for a match on a gift that posts under its giver', async () => {
       const { blockers } = await service.preflight(1);
 
