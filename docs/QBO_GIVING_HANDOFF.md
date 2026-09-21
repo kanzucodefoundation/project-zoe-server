@@ -7,6 +7,71 @@ feature can move from develop → staging → production. Items are grouped by g
 
 ---
 
+## Sandbox Setup — one-time migration from production QBO
+
+Before running any staging test, the QBO sandbox must mirror production
+(locations, FOBs, items, givers). Two scripts handle this. Run them once from
+the Contabo staging server.
+
+### Step 1 — Export production credentials
+
+The production QBO connection is stored in the staging DB. Export it to
+`.env.prod` before the sandbox OAuth swap overwrites it:
+
+```bash
+npm run export:prod-qbo-creds
+```
+
+This writes `.env.prod` alongside `.env` with `PROD_QBO_*` vars. A `.env.prod.bak`
+is created if one already existed. Both files are gitignored.
+
+### Step 2 — Connect the sandbox company
+
+1. Set `QUICKBOOKS_ENVIRONMENT=sandbox` in `.env`
+2. Open the staging app → Settings → QuickBooks → Connect
+3. Authorize a sandbox company — this overwrites the DB row with sandbox credentials
+
+The sandbox OAuth must be done from the staging app itself so the tokens are
+tied to the `QUICKBOOKS_CLIENT_ID`/`SECRET` in that `.env`.
+
+### Step 3 — Run the sync
+
+```bash
+# Dry run first — verify counts
+npm run sync:prod-to-sandbox -- --dry-run
+
+# Then for real (idempotent — safe to re-run)
+npm run sync:prod-to-sandbox
+```
+
+What it syncs from production (read-only) into sandbox:
+
+| Entity | QBO type | Zoe mapping written |
+|---|---|---|
+| Bank accounts | `Account (Bank)` | `FINANCIAL_ACCOUNT → ACCOUNT` (if Zoe account name matches) |
+| Income accounts | `Account (Income)` | none — reference only for items |
+| Expense accounts | `Account (Expense)` | none — reference only for items |
+| Locations | `Department` | `GROUP → LOCATION` |
+| FOBs | `Class` | `GROUP → CLASS` |
+| Giving items | `Item` | `GIVING_CATEGORY → ITEM` |
+| Campus customers | `Customer` (top-level) | `GROUP → CUSTOMER` |
+| Individual givers | `Customer` (sub-customer) | `CONTACT → CUSTOMER` |
+
+After the run succeeds, delete `.env.prod` from the server — the sandbox DB
+connection is self-managing from that point.
+
+### Known gaps after sync
+
+- **Bank account mappings**: `FINANCIAL_ACCOUNT → ACCOUNT` rows are only written
+  where a Zoe `FinancialAccount` name is a substring of the QBO account name.
+  Any unmatched accounts are logged as `~ No Zoe FinancialAccount matched: "..."`.
+  These can be wired up manually via the app once FinancialAccounts exist in staging.
+- **~9 700 customers skipped**: production customers whose `ParentRef` does not
+  resolve to a Location-group campus. These are orphaned in production QBO and
+  cannot be synced without manual cleanup there.
+
+---
+
 ## Gate 1 — Before staging test
 
 These two items can cause incorrect or duplicated data in QBO. Do not run a staging test until both are done.
@@ -264,3 +329,6 @@ This is a wider CRM change — coordinate with whoever owns the contacts module.
 | `externalItemId` / `externalItemName` on `Transaction` | Done |
 | `ExternalSystemMappingController` has `PermissionsGuard` | Done |
 | Tithe distribution percentages corrected (10/30/30/30) | Done (group IDs still need wiring — see Gate 2 item 4) |
+| QBO Payments scope removed (`com.intuit.quickbooks.payment`, `POST /charges`) | Done |
+| `export-prod-qbo-credentials.ts` — exports prod DB connection to `.env.prod` | Done |
+| `sync-prod-to-sandbox.ts` — full prod→sandbox migration (replaces seed + customer sync scripts) | Done |
