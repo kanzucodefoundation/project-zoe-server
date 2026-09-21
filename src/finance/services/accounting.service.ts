@@ -923,10 +923,12 @@ export class AccountingService {
         );
       // Also offered when a mapping exists but QuickBooks will not accept it,
       // or a bad pick leaves no way to change it.
-      const mappedIsValid =
-        !mappedDeposit.externalAccountId ||
-        depositOptions.some((o) => o.id === mappedDeposit.externalAccountId);
-      if (!mappedIsValid || !mappedDeposit.externalAccountId) {
+      // Only a mapping QuickBooks will reject blocks readiness. With no
+      // override the imported statement account is used, which is valid.
+      const mappedIsInvalid =
+        !!mappedDeposit.externalAccountId &&
+        !depositOptions.some((o) => o.id === mappedDeposit.externalAccountId);
+      if (mappedIsInvalid) {
         missingMappings.push({
           code: 'CATEGORY_CURRENCY_DEPOSIT_OPTIONAL',
           internalReferenceType: CATEGORY_CURRENCY_REFERENCE_TYPE,
