@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ForbiddenException } from '@nestjs/common';
+import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { of, throwError } from 'rxjs';
@@ -110,5 +110,62 @@ describe('QuickBooksService — charging without a payments grant', () => {
       (call: any[]) => call[2].headers['Request-Id'],
     );
     expect(keys).toEqual(['charge-1', 'charge-1']);
+  });
+
+  describe('when the refresh itself fails', () => {
+    beforeEach(() => {
+      // Let the real refresh run so the token endpoint's answer is what decides.
+      (service as any).refreshAccessToken.mockRestore();
+      (service as any).clientId = 'id';
+      (service as any).clientSecret = 'secret';
+      (service as any).redirectUri = 'http://localhost/cb';
+    });
+
+    it('asks for a reconnect when the refresh token is dead', async () => {
+      httpService.post
+        // The charge 401s, then the token endpoint rejects the refresh.
+        .mockReturnValueOnce(
+          throwError(() => ({ response: { status: 401, data: {} } })),
+        )
+        .mockReturnValueOnce(
+          throwError(() => ({
+            response: { status: 400, data: { error: 'invalid_grant' } },
+          })),
+        );
+
+      // One call only: the queued `once` responses are consumed by it.
+      const error = await service
+        .createCharge(1, charge, 'charge-1')
+        .catch((e) => e);
+
+      expect(error).toBeInstanceOf(UnauthorizedException);
+      expect(error.message).toMatch(/expired or been revoked/);
+    });
+
+    it('leaves any other refresh failure as it was', async () => {
+      const upstream = {
+        response: { status: 500, data: { error: 'server_error' } },
+      };
+      httpService.post
+        .mockReturnValueOnce(
+          throwError(() => ({ response: { status: 401, data: {} } })),
+        )
+        .mockReturnValueOnce(throwError(() => upstream));
+
+      await expect(service.createCharge(1, charge, 'charge-1')).rejects.toBe(
+        upstream,
+      );
+    });
+
+    it('still passes a card decline straight through', async () => {
+      const declined = {
+        response: { status: 400, data: { code: 'PAYMENT_DECLINED' } },
+      };
+      httpService.post.mockReturnValue(throwError(() => declined));
+
+      await expect(service.createCharge(1, charge, 'charge-1')).rejects.toBe(
+        declined,
+      );
+    });
   });
 });

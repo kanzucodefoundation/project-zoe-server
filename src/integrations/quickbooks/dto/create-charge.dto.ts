@@ -1,4 +1,4 @@
-import { IsNumber, IsString, MaxLength, Min } from 'class-validator';
+import { IsNumber, IsString, Matches, MaxLength, Min } from 'class-validator';
 
 export class CreateChargeDto {
   /**
@@ -7,6 +7,7 @@ export class CreateChargeDto {
    * value it sent the first time — a fresh one charges the card again.
    */
   @IsString()
+  @Matches(/\S/, { message: 'requestId must not be blank' })
   @MaxLength(50)
   requestId: string;
 

@@ -552,14 +552,41 @@ export class QuickBooksService {
     this.logger.log(
       `Refreshing QuickBooks access token for tenant ${connection.tenantId}`,
     );
-    const tokenData = await this.postTokenRequest({
-      grant_type: 'refresh_token',
-      refresh_token: connection.refreshToken,
-    });
+    let tokenData: IntuitTokenResponse;
+    try {
+      tokenData = await this.postTokenRequest({
+        grant_type: 'refresh_token',
+        refresh_token: connection.refreshToken,
+      });
+    } catch (error) {
+      // `invalid_grant` is the one refresh failure nothing here can recover
+      // from: the refresh token is revoked, expired or belongs to a company
+      // that has since disconnected. Every other failure — a network blip, a
+      // misconfigured client, Intuit being down — is left untouched so it is
+      // not mistaken for a dead connection.
+      if (this.isInvalidGrant(error)) {
+        this.logger.warn(
+          `QuickBooks refused the refresh token for tenant ${connection.tenantId}; the connection needs reauthorising`,
+        );
+        throw new UnauthorizedException(
+          'The QuickBooks connection has expired or been revoked. Reconnect QuickBooks to continue.',
+        );
+      }
+      throw error;
+    }
+
     return this.upsertConnection(
       connection.tenantId,
       connection.realmId,
       tokenData,
+    );
+  }
+
+  /** True only for Intuit's `invalid_grant`, not for any other 400. */
+  private isInvalidGrant(error: any): boolean {
+    return (
+      error?.response?.status === 400 &&
+      error?.response?.data?.error === 'invalid_grant'
     );
   }
 
