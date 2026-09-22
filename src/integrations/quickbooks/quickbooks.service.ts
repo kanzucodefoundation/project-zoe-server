@@ -171,57 +171,69 @@ export class QuickBooksService {
   /**
    * Charges a card through QuickBooks Payments.
    *
+   * `requestId` is Intuit's idempotency key for the Payments API. The caller
+   * supplies it so a retry of the same charge reuses it; a fresh value would
+   * charge the card twice. It is created before `withAuth` runs because that
+   * re-runs the callback after refreshing a token, and a key generated inside
+   * would differ between the two attempts.
+   *
    * A company connected before `com.intuit.quickbooks.payment` joined the
    * requested scopes holds an accounting-only grant, and refreshing a token
    * never widens a grant — so the first sign of the missing permission is
-   * Intuit rejecting the charge. Reconnecting is the only fix, so say that
-   * rather than surfacing a bare 401.
+   * Intuit rejecting the charge. That is only distinguishable from an ordinary
+   * stale token after `withAuth` has refreshed and retried, so the translation
+   * happens outside it.
    */
-  async createCharge(tenantId: number, dto: CreateChargeDto): Promise<any> {
-    const { accessToken, realmId } = await this.getValidAccessToken(tenantId);
+  async createCharge(
+    tenantId: number,
+    dto: CreateChargeDto,
+    requestId: string,
+  ): Promise<any> {
     const base =
       this.environment === 'sandbox'
         ? 'https://sandbox.api.intuit.com'
         : 'https://api.intuit.com';
 
     try {
-      const { data } = await firstValueFrom(
-        this.httpService.post(
-          `${base}/quickbooks/v4/payments/charges`,
-          {
-            amount: dto.amount.toFixed(2),
-            currency: dto.currency,
-            card: {
-              number: dto.cardNumber,
-              expMonth: dto.expMonth,
-              expYear: dto.expYear,
-              cvc: dto.cvc,
-              name: dto.cardholderName,
+      return await this.withAuth(tenantId, async (accessToken, realmId) => {
+        const { data } = await firstValueFrom(
+          this.httpService.post(
+            `${base}/quickbooks/v4/payments/charges`,
+            {
+              amount: dto.amount.toFixed(2),
+              currency: dto.currency,
+              card: {
+                number: dto.cardNumber,
+                expMonth: dto.expMonth,
+                expYear: dto.expYear,
+                cvc: dto.cvc,
+                name: dto.cardholderName,
+              },
+              description: dto.description,
+              context: {
+                mobile: false,
+                isEcommerce: true,
+                reconnect: false,
+              },
             },
-            description: dto.description,
-            context: {
-              mobile: false,
-              isEcommerce: true,
-              reconnect: false,
+            {
+              headers: {
+                Authorization: `Bearer ${accessToken}`,
+                'Content-Type': 'application/json',
+                'Request-Id': requestId,
+              },
             },
-          },
-          {
-            headers: {
-              Authorization: `Bearer ${accessToken}`,
-              'Content-Type': 'application/json',
-              'Request-Id': randomUUID(),
-            },
-          },
-        ),
-      );
-      this.logger.log(
-        `Charge created for tenant ${tenantId}, realmId ${realmId}`,
-      );
-      return data;
+          ),
+        );
+        this.logger.log(
+          `Charge created for tenant ${tenantId}, realmId ${realmId}`,
+        );
+        return data;
+      });
     } catch (error) {
       if (this.isPaymentsPermissionFailure(error)) {
         this.logger.warn(
-          `QuickBooks rejected a charge for tenant ${tenantId}: the connection has no payments grant`,
+          `QuickBooks rejected a charge for tenant ${tenantId} after refreshing: the connection has no payments grant`,
         );
         throw new ForbiddenException(
           'This QuickBooks connection does not grant payment permission. It was connected before payments were requested, and refreshing a token cannot widen the grant — disconnect QuickBooks and connect again to authorise payments.',
@@ -233,7 +245,8 @@ export class QuickBooksService {
 
   /**
    * True when Intuit refused the call for want of permission rather than for a
-   * problem with the card or the request.
+   * problem with the card or the request. Only meaningful after `withAuth` has
+   * already refreshed and retried, which rules out a merely stale token.
    */
   private isPaymentsPermissionFailure(error: any): boolean {
     const status = error?.response?.status;

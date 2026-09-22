@@ -19,6 +19,7 @@ describe('QuickBooksService — charging without a payments grant', () => {
     cvc: '123',
     cardholderName: 'Joshua Nabugere',
     description: 'Tithe',
+    requestId: 'charge-1',
   } as any;
 
   beforeEach(async () => {
@@ -39,6 +40,13 @@ describe('QuickBooksService — charging without a payments grant', () => {
     jest
       .spyOn(service as any, 'getValidAccessToken')
       .mockResolvedValue({ accessToken: 'tok', realmId: '123' });
+    (service as any).connectionRepo.findOne.mockResolvedValue({
+      id: 1,
+      tenantId: 1,
+    });
+    jest
+      .spyOn(service as any, 'refreshAccessToken')
+      .mockResolvedValue({ accessToken: 'fresh', realmId: '123' });
   });
 
   it('tells the operator to reconnect when Intuit refuses for permission', async () => {
@@ -48,10 +56,10 @@ describe('QuickBooksService — charging without a payments grant', () => {
       })),
     );
 
-    await expect(service.createCharge(1, charge)).rejects.toThrow(
+    await expect(service.createCharge(1, charge, 'charge-1')).rejects.toThrow(
       ForbiddenException,
     );
-    await expect(service.createCharge(1, charge)).rejects.toThrow(
+    await expect(service.createCharge(1, charge, 'charge-1')).rejects.toThrow(
       /disconnect QuickBooks and connect again/,
     );
   });
@@ -62,14 +70,45 @@ describe('QuickBooksService — charging without a payments grant', () => {
     };
     httpService.post.mockReturnValue(throwError(() => declined));
 
-    await expect(service.createCharge(1, charge)).rejects.toBe(declined);
+    await expect(service.createCharge(1, charge, 'charge-1')).rejects.toBe(
+      declined,
+    );
   });
 
   it('returns the charge when the grant is in place', async () => {
     httpService.post.mockReturnValue(of({ data: { id: 'ch_1' } }));
 
-    await expect(service.createCharge(1, charge)).resolves.toEqual({
+    await expect(service.createCharge(1, charge, 'charge-1')).resolves.toEqual({
       id: 'ch_1',
     });
+  });
+
+  it('refreshes a stale token and retries before blaming the grant', async () => {
+    // First attempt 401s on a stale-but-unexpired token; the retry succeeds.
+    httpService.post
+      .mockReturnValueOnce(
+        throwError(() => ({ response: { status: 401, data: {} } })),
+      )
+      .mockReturnValueOnce(of({ data: { id: 'ch_2' } }));
+
+    await expect(service.createCharge(1, charge, 'charge-1')).resolves.toEqual({
+      id: 'ch_2',
+    });
+    expect((service as any).refreshAccessToken).toHaveBeenCalled();
+  });
+
+  it('reuses the same key on every attempt, so a retry cannot double-charge', async () => {
+    httpService.post
+      .mockReturnValueOnce(
+        throwError(() => ({ response: { status: 401, data: {} } })),
+      )
+      .mockReturnValueOnce(of({ data: { id: 'ch_3' } }));
+
+    await service.createCharge(1, charge, 'charge-1');
+
+    const keys = httpService.post.mock.calls.map(
+      (call: any[]) => call[2].headers['Request-Id'],
+    );
+    expect(keys).toEqual(['charge-1', 'charge-1']);
   });
 });

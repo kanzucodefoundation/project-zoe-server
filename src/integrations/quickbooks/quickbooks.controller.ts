@@ -190,7 +190,11 @@ export class QuickBooksController {
   @RequirePermissions(appPermissions.roleIntegrationsEdit)
   @Post('charges')
   createCharge(@Request() req, @Body() dto: CreateChargeDto) {
-    return this.quickBooksService.createCharge(req.tenantId, dto);
+    return this.quickBooksService.createCharge(
+      req.tenantId,
+      dto,
+      dto.requestId,
+    );
   }
 
   /** Remove the stored connection for this tenant */

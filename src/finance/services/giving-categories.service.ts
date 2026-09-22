@@ -165,19 +165,30 @@ export class GivingCategoriesService {
     };
   }
 
-  /** The QuickBooks item a category books against, or nulls when none is mapped. */
+  /**
+   * The QuickBooks item a category books against.
+   *
+   * Read from the mapping table rather than `list()`: that degrades to Zoe's
+   * own categories when QuickBooks is unreachable, and a caller overwriting a
+   * stored item with the resulting nulls would lose it. Nulls here mean the
+   * category genuinely has no item mapped.
+   */
   async resolveItemForCategory(category: TransactionCategory | null): Promise<{
     externalItemId: string | null;
     externalItemName: string | null;
   }> {
     if (!category) return { externalItemId: null, externalItemName: null };
 
-    const match = (await this.list().catch(() => [])).find(
-      (option) => option.category === category && option.qboItemId,
-    );
+    const mapping = await this.mappingService.lookupByInternal({
+      system: ACCOUNTING_SYSTEM,
+      internalReferenceType: 'GIVING_CATEGORY',
+      internalReferenceId: category,
+      externalReferenceType: 'ITEM',
+    });
+
     return {
-      externalItemId: match?.qboItemId ?? null,
-      externalItemName: match?.qboItemName ?? null,
+      externalItemId: mapping?.externalReferenceId ?? null,
+      externalItemName: mapping?.externalReferenceName ?? null,
     };
   }
 

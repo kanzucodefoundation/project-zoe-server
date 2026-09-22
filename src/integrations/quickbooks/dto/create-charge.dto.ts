@@ -1,6 +1,15 @@
-import { IsNumber, IsString, Min } from 'class-validator';
+import { IsNumber, IsString, MaxLength, Min } from 'class-validator';
 
 export class CreateChargeDto {
+  /**
+   * Idempotency key for this charge. Intuit treats a repeat of the same value
+   * as the same operation, so a caller retrying after a timeout must send the
+   * value it sent the first time — a fresh one charges the card again.
+   */
+  @IsString()
+  @MaxLength(50)
+  requestId: string;
+
   @IsNumber()
   @Min(0.01)
   amount: number;
