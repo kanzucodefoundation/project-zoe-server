@@ -110,11 +110,10 @@ export class BulkUpdateGivingItemDto {
   @IsNumber({}, { each: true })
   transactionIds: number[];
 
-  @IsOptional()
   @ValidateIf((_, value) => value !== null)
   @IsString()
   @MaxLength(100)
-  externalItemId?: string | null;
+  externalItemId: string | null;
 }
 
 export class SearchTransactionDto {
