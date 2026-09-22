@@ -18,7 +18,6 @@ import { SentryInterceptor } from '../../utils/sentry.interceptor';
 import { TenantContextInterceptor } from '../../interceptors/tenant-context.interceptor';
 import { QuickBooksService } from './quickbooks.service';
 import { ExchangeTokenDto } from './dto/exchange-token.dto';
-import { CreateChargeDto } from './dto/create-charge.dto';
 import { PermissionsGuard } from '../../auth/guards/permissions.guard';
 import { RequirePermissions } from '../../auth/decorators/permissions.decorator';
 import { appPermissions } from '../../auth/constants';
@@ -184,17 +183,6 @@ export class QuickBooksController {
   @Get('userinfo')
   getUserInfo(@Request() req) {
     return this.quickBooksService.getUserInfo(req.tenantId);
-  }
-
-  /** Step 3c — Payments: create a test charge */
-  @RequirePermissions(appPermissions.roleIntegrationsEdit)
-  @Post('charges')
-  createCharge(@Request() req, @Body() dto: CreateChargeDto) {
-    return this.quickBooksService.createCharge(
-      req.tenantId,
-      dto,
-      dto.requestId,
-    );
   }
 
   /** Remove the stored connection for this tenant */
