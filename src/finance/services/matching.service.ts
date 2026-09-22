@@ -10,7 +10,9 @@ import { MatchStatus } from '../enums/match-status.enum';
 import { TenantContext } from '../../shared/tenant/tenant-context';
 import { getPersonFullName } from '../../crm/crm.helpers';
 import { GroupPermissionsService } from '../../groups/services/group-permissions.service';
-import { extractTitheNumber } from '../statement-parsing';
+import { extractPersonName, extractTitheNumber } from '../statement-parsing';
+import { resolveTransactionCategory } from '../enums/transaction-category.enum';
+import { CategoryRoutingService } from './category-routing.service';
 import { MatchSuggestionDto } from '../dto/reconciliation.dto';
 import { AppLogger, ContextLogger } from '../../utils/app-logger.service';
 import { normalizePhone, calculateNameSimilarity } from '../finance.helpers';
@@ -50,6 +52,7 @@ export class MatchingService {
     private tenantContext: TenantContext,
     private appLogger: AppLogger,
     private pluginRegistry: ReconciliationPluginRegistry,
+    private categoryRoutingService: CategoryRoutingService,
     private groupPermissionsService: GroupPermissionsService,
   ) {
     this.transactionRepository = connection.getRepository(Transaction);
@@ -314,50 +317,58 @@ export class MatchingService {
     // Strategy 3: Fuzzy name match (60-85% confidence based on similarity).
     // Capped at 500 contacts so a dialog open is bounded — the batch runMatching
     // path is the right place for exhaustive scanning.
-    if (transaction.senderName) {
+    // The name typed into the message is tried first: givers regularly send on
+    // someone else's phone, so the account holder is not always the giver. It
+    // falls back to the statement's own name when it matches nobody, because
+    // the extractor reads any two plain words as a name.
+    const namesToTry = [
+      extractPersonName(transaction.narration),
+      transaction.senderName,
+    ].filter((name): name is string => !!name);
+
+    if (namesToTry.length > 0) {
       const contacts = await this.contactRepository.find({
         where: { tenant: { id: tenantId } },
         relations: ['person'],
         take: 500,
       });
 
-      let bestMatch: MatchCandidate | null = null;
+      for (const nameToMatch of namesToTry) {
+        let bestMatch: MatchCandidate | null = null;
 
-      for (const contact of contacts) {
-        if (!contact.person) continue;
+        for (const contact of contacts) {
+          if (!contact.person) continue;
 
-        const fullName = `${contact.person.firstName || ''} ${
-          contact.person.middleName || ''
-        } ${contact.person.lastName || ''}`.trim();
-        const similarity = calculateNameSimilarity(
-          transaction.senderName,
-          fullName,
-        );
+          const fullName = `${contact.person.firstName || ''} ${
+            contact.person.middleName || ''
+          } ${contact.person.lastName || ''}`.trim();
+          const similarity = calculateNameSimilarity(nameToMatch, fullName);
 
-        if (similarity >= 0.6) {
-          const baseConfidence = Math.round(60 + similarity * 25);
-          const historical = hasHistoricalMatch(contact.id);
-          const confidenceScore = historical
-            ? Math.min(baseConfidence + 10, 100)
-            : baseConfidence;
+          if (similarity >= 0.6) {
+            const baseConfidence = Math.round(60 + similarity * 25);
+            const historical = hasHistoricalMatch(contact.id);
+            const confidenceScore = historical
+              ? Math.min(baseConfidence + 10, 100)
+              : baseConfidence;
 
-          if (!bestMatch || confidenceScore > bestMatch.confidenceScore) {
-            bestMatch = {
-              contact,
-              confidenceScore,
-              matchCriteria: {
-                method: 'fuzzy_name',
-                matchedValue: fullName,
-                similarity: Math.round(similarity * 100),
-                historicalBonus: historical,
-              },
-            };
+            if (!bestMatch || confidenceScore > bestMatch.confidenceScore) {
+              bestMatch = {
+                contact,
+                confidenceScore,
+                matchCriteria: {
+                  method: 'fuzzy_name',
+                  matchedValue: fullName,
+                  similarity: Math.round(similarity * 100),
+                  historicalBonus: historical,
+                },
+              };
+            }
           }
         }
-      }
 
-      if (bestMatch) {
-        return bestMatch;
+        if (bestMatch) {
+          return bestMatch;
+        }
       }
     }
 
@@ -399,10 +410,38 @@ export class MatchingService {
       where.account = { id: accountId };
     }
 
-    const transactions = await this.transactionRepository.find({
+    const allPending = await this.transactionRepository.find({
       where,
       relations: ['account'],
     });
+
+    // Offertory has no giver to find, so it is left out of the sweep entirely.
+    const categoriesInSweep = [
+      ...new Set(
+        allPending.map((txn) => resolveTransactionCategory(txn.category)),
+      ),
+    ];
+    const currencyRouted = new Set(
+      categoriesInSweep.filter((category) =>
+        this.categoryRoutingService.isCurrencyRouted(category),
+      ),
+    );
+
+    const transactions = allPending.filter(
+      (txn) => !currencyRouted.has(resolveTransactionCategory(txn.category)),
+    );
+
+    const skipped = allPending.length - transactions.length;
+    if (skipped > 0) {
+      this.logger.business(
+        'log',
+        'Skipped categories with a standing customer',
+        {
+          operation: 'runMatching',
+          metadata: { skipped, categories: [...currencyRouted] },
+        },
+      );
+    }
 
     let processed = 0;
     let matched = 0;

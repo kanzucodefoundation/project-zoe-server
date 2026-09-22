@@ -13,14 +13,19 @@ import FinancialAccount from '../entities/financial-account.entity';
 import { MatchStatus } from '../enums/match-status.enum';
 import { resolveTransactionCategory } from '../enums/transaction-category.enum';
 import {
+  CATEGORY_CURRENCY_REFERENCE_TYPE,
+  DEPOSIT_ACCOUNT_NONE,
+  QBO_DEPOSITABLE_ACCOUNT_TYPES,
   QBO_DEFAULT_CLASS_NAME,
   QBO_DEFAULT_LOCATION_NAME,
+  categoryCurrencyKey,
 } from '../constants/accounting-mapping.constants';
 import { TenantContext } from '../../shared/tenant/tenant-context';
 import { ExternalSystemMappingService } from '../../integrations/quickbooks/external-system-mapping.service';
 import { GroupPermissionsService } from '../../groups/services/group-permissions.service';
 import { QuickBooksService } from '../../integrations/quickbooks/quickbooks.service';
 import { WorshipHarvestAccountingPlugin } from '../plugins/worship-harvest-accounting.plugin';
+import { CategoryRoutingService } from './category-routing.service';
 import {
   AccountingPosting,
   AccountingPostingStatus,
@@ -29,6 +34,7 @@ import {
 } from '../../integrations/quickbooks/entities/accounting-posting.entity';
 import { AccountingSalesReceipt } from '../interfaces/accounting-plugin.interface';
 import {
+  QboAccount,
   QboCustomer,
   QboErrorBody,
   QboNamedEntity,
@@ -154,7 +160,19 @@ export class AccountingService {
     private readonly groupPermissionsService: GroupPermissionsService,
     private readonly qbService: QuickBooksService,
     private readonly accountingPlugin: WorshipHarvestAccountingPlugin,
+    private readonly categoryRoutingService: CategoryRoutingService,
   ) {}
+
+  /** Mother-group attribution for a gift with no giver behind it. */
+  private async resolveRootAttributionForSetup() {
+    const root = await this.groupPermissionsService.getRootGroup();
+    return {
+      location: root,
+      fob: root,
+      locationIsFallback: !!root,
+      fobIsFallback: !!root,
+    };
+  }
 
   private async getTransaction(transactionId: number): Promise<Transaction> {
     const tenantId = this.tenantContext.requireTenant();
@@ -215,9 +233,12 @@ export class AccountingService {
       });
     }
 
-    // Approved match with a contact?
+    const categoryKey = resolveTransactionCategory(txn.category);
+
+    // Offertory is collected, not given, so it needs no giver.
+    const collected = this.categoryRoutingService.isCurrencyRouted(categoryKey);
     const match = await this.getApprovedMatch(transactionId);
-    if (!match?.contact) {
+    if (!collected && !match?.contact) {
       blockers.push({
         code: 'MATCH_NOT_APPROVED',
         message: 'Transaction must have an approved contact match',
@@ -225,38 +246,82 @@ export class AccountingService {
       return { ready: blockers.length === 0, blockers };
     }
 
-    const contactId = match.contact.id;
+    const contactId = match?.contact?.id ?? null;
 
-    // QBO Customer mapping?
-    const customerMap = await this.mappingService.lookupByInternal({
-      system: SYSTEM,
-      internalReferenceType: 'CONTACT',
-      internalReferenceId: contactId,
-      externalReferenceType: 'CUSTOMER',
-    });
-    if (!customerMap) {
+    const categoryItem = await this.categoryRoutingService.resolveGivingItem(
+      categoryKey,
+      txn.account?.currency,
+    );
+    if (categoryItem.kind === 'unconfigured') {
       blockers.push({
-        code: 'CUSTOMER_MAPPING_MISSING',
-        message: `No QuickBooks Customer mapped for contact ${contactId}`,
+        code: 'CATEGORY_CURRENCY_ITEM_MISSING',
+        message: `${categoryKey} books against its own QuickBooks product/service per currency, and none is mapped for ${categoryItem.currency}. Pick the ${categoryItem.currency} offering item in the posting dialog.`,
       });
     }
 
-    // Category → Item mapping?
-    const categoryKey = resolveTransactionCategory(txn.category);
+    // Only needed when the gift posts under the giver.
+    if (!collected) {
+      const customerMap = await this.mappingService.lookupByInternal({
+        system: SYSTEM,
+        internalReferenceType: 'CONTACT',
+        internalReferenceId: contactId,
+        externalReferenceType: 'CUSTOMER',
+      });
+      if (!customerMap) {
+        blockers.push({
+          code: 'CUSTOMER_MAPPING_MISSING',
+          message: `No QuickBooks Customer mapped for contact ${contactId}`,
+        });
+      }
+    }
+
+    // Category → Item mapping? Not for a collected category: it books against
+    // the currency-specific item, which is checked above.
     const itemMap = await this.mappingService.lookupByInternal({
       system: SYSTEM,
       internalReferenceType: 'GIVING_CATEGORY',
       internalReferenceId: categoryKey,
       externalReferenceType: 'ITEM',
     });
-    if (!itemMap) {
+    if (!collected && !itemMap) {
       blockers.push({
         code: 'ITEM_MAPPING_MISSING',
         message: `No QuickBooks Item mapped for category ${categoryKey}`,
       });
     }
 
-    // FinancialAccount → QBO Account?
+    // A deposit account mapped for this category must be one QuickBooks will
+    // accept, or posting fails with a 6000 validation fault.
+    if (collected) {
+      const mappedDeposit =
+        await this.categoryRoutingService.resolveDepositAccount(
+          categoryKey,
+          txn.account?.currency,
+        );
+      if (mappedDeposit.externalAccountId) {
+        const qboAccounts = await this.tryQbo<QboNamedEntity>(() =>
+          this.qbService.getQboAccounts(tenantId),
+        );
+        const chosen = qboAccounts.data.find(
+          (a) => String(a.Id) === mappedDeposit.externalAccountId,
+        ) as QboAccount | undefined;
+        const type = chosen?.AccountType ?? '';
+        if (chosen && !QBO_DEPOSITABLE_ACCOUNT_TYPES.includes(type)) {
+          blockers.push({
+            code: 'CATEGORY_CURRENCY_DEPOSIT_INVALID',
+            message: `"${
+              chosen.Name
+            }" is a ${type} account, and QuickBooks only accepts ${QBO_DEPOSITABLE_ACCOUNT_TYPES.join(
+              ' or ',
+            )} as a deposit account. Pick a bank account for ${categoryKey} ${
+              mappedDeposit.currency
+            }; the income side is set by the giving item, not the deposit.`,
+          });
+        }
+      }
+    }
+
+    // Every receipt deposits into the bank account the money arrived in.
     const accountId = txn.account?.id ?? (txn as any).accountId;
     const accountMap = await this.mappingService.lookupByInternal({
       system: SYSTEM,
@@ -273,10 +338,11 @@ export class AccountingService {
 
     // Location and FOB — a giver who is in neither is attributed to the mother
     // group rather than blocked, so both are ordinary GROUP mappings from here.
-    const { location, fob } =
-      await this.groupPermissionsService.resolveAttributionForContact(
-        contactId,
-      );
+    const { location, fob } = contactId
+      ? await this.groupPermissionsService.resolveAttributionForContact(
+          contactId,
+        )
+      : await this.resolveRootAttributionForSetup();
     if (!location) {
       blockers.push({
         code: 'LOCATION_MISSING',
@@ -661,8 +727,18 @@ export class AccountingService {
       };
     }
 
+    const categoryKey = resolveTransactionCategory(txn.category);
+    const accountId = txn.account?.id ?? (txn as any).accountId;
+
     const match = await this.getApprovedMatch(transactionId);
-    if (!match?.contact) {
+    const setupCategoryItem =
+      await this.categoryRoutingService.resolveGivingItem(
+        categoryKey,
+        txn.account?.currency,
+      );
+
+    const collected = this.categoryRoutingService.isCurrencyRouted(categoryKey);
+    if (!collected && !match?.contact) {
       return {
         ready: false,
         missingMappings: [],
@@ -675,47 +751,41 @@ export class AccountingService {
       };
     }
 
-    const contactId = match.contact.id;
-    const categoryKey = resolveTransactionCategory(txn.category);
-    const accountId = txn.account?.id ?? (txn as any).accountId;
+    const contactId = match?.contact?.id ?? null;
 
-    const [
-      contact,
-      account,
-      customerMap,
-      itemMap,
-      accountMap,
-      attribution,
-    ] = await Promise.all([
-      this.contactRepo.findOne({
-        where: { id: contactId, tenantId },
-        relations: ['person', 'phones', 'emails'],
-      }),
-      this.accountRepo.findOne({
-        // Tenant-scoped: Transaction.account does not itself guarantee the
-        // account belongs to this tenant.
-        where: { id: accountId, tenant: { id: tenantId } },
-      }),
-      this.mappingService.lookupByInternal({
-        system: SYSTEM,
-        internalReferenceType: 'CONTACT',
-        internalReferenceId: contactId,
-        externalReferenceType: 'CUSTOMER',
-      }),
-      this.mappingService.lookupByInternal({
-        system: SYSTEM,
-        internalReferenceType: 'GIVING_CATEGORY',
-        internalReferenceId: categoryKey,
-        externalReferenceType: 'ITEM',
-      }),
-      this.mappingService.lookupByInternal({
-        system: SYSTEM,
-        internalReferenceType: 'FINANCIAL_ACCOUNT',
-        internalReferenceId: accountId,
-        externalReferenceType: 'ACCOUNT',
-      }),
-      this.groupPermissionsService.resolveAttributionForContact(contactId),
-    ]);
+    const [contact, account, customerMap, itemMap, accountMap, attribution] =
+      await Promise.all([
+        this.contactRepo.findOne({
+          where: { id: contactId, tenantId },
+          relations: ['person', 'phones', 'emails'],
+        }),
+        this.accountRepo.findOne({
+          // Tenant-scoped: Transaction.account does not itself guarantee the
+          // account belongs to this tenant.
+          where: { id: accountId, tenant: { id: tenantId } },
+        }),
+        this.mappingService.lookupByInternal({
+          system: SYSTEM,
+          internalReferenceType: 'CONTACT',
+          internalReferenceId: contactId,
+          externalReferenceType: 'CUSTOMER',
+        }),
+        this.mappingService.lookupByInternal({
+          system: SYSTEM,
+          internalReferenceType: 'GIVING_CATEGORY',
+          internalReferenceId: categoryKey,
+          externalReferenceType: 'ITEM',
+        }),
+        this.mappingService.lookupByInternal({
+          system: SYSTEM,
+          internalReferenceType: 'FINANCIAL_ACCOUNT',
+          internalReferenceId: accountId,
+          externalReferenceType: 'ACCOUNT',
+        }),
+        contactId
+          ? this.groupPermissionsService.resolveAttributionForContact(contactId)
+          : this.resolveRootAttributionForSetup(),
+      ]);
     const { location, fob, locationIsFallback, fobIsFallback } = attribution;
 
     const [locationMap, fobMap] = await Promise.all([
@@ -745,17 +815,19 @@ export class AccountingService {
     // degrade to an explained warning rather than a 500 for the whole dialog.
     const [customers, items, accounts, departments, classes] =
       await Promise.all([
-        !customerMap
+        !collected && !customerMap
           ? this.tryQbo<QboCustomer>(() =>
               this.qbService.getQboCustomers(tenantId),
             )
           : this.emptyQbo<QboCustomer>(),
-        !itemMap
+        !itemMap || setupCategoryItem.kind === 'unconfigured'
           ? this.tryQbo<QboNamedEntity>(() =>
               this.qbService.getQboItems(tenantId),
             )
           : this.emptyQbo<QboNamedEntity>(),
-        !accountMap
+        // Also needed for the collected-category deposit picker, which is
+        // offered even when the imported account is already mapped.
+        !accountMap || collected
           ? this.tryQbo<QboNamedEntity>(() =>
               this.qbService.getQboAccounts(tenantId),
             )
@@ -774,9 +846,10 @@ export class AccountingService {
 
     const contactName = contact
       ? getPersonFullName(contact.person) || `Contact ${contactId}`
-      : `Contact ${contactId}`;
+      : txn.senderName ?? 'Collected offering';
 
-    if (!customerMap) {
+    // Only needed when the gift posts under the giver.
+    if (!collected && !customerMap) {
       const customerOptions: QboOption[] = customers.data.map((c) => ({
         id: String(c.Id),
         name: c.DisplayName ?? c.FullyQualifiedName ?? c.CompanyName ?? c.Id,
@@ -814,7 +887,7 @@ export class AccountingService {
       }
     }
 
-    if (!itemMap) {
+    if (!collected && !itemMap) {
       missingMappings.push({
         code: 'ITEM_MAPPING_MISSING',
         internalReferenceType: 'GIVING_CATEGORY',
@@ -834,6 +907,76 @@ export class AccountingService {
             'QuickBooks products and services could not be loaded. Check the QuickBooks connection and try again.',
         });
       }
+    }
+
+    if (collected) {
+      const depositOptions = accounts.data
+        .filter((a) =>
+          QBO_DEPOSITABLE_ACCOUNT_TYPES.includes(
+            (a as QboAccount).AccountType ?? '',
+          ),
+        )
+        .map((a) => ({ id: String(a.Id), name: a.Name }));
+      const mappedDeposit =
+        await this.categoryRoutingService.resolveDepositAccount(
+          categoryKey,
+          txn.account?.currency,
+        );
+      // Also offered when a mapping exists but QuickBooks will not accept it,
+      // or a bad pick leaves no way to change it.
+      // Only a mapping QuickBooks will reject blocks readiness. With no
+      // override the imported statement account is used, which is valid.
+      const mappedIsInvalid =
+        !!mappedDeposit.externalAccountId &&
+        !depositOptions.some((o) => o.id === mappedDeposit.externalAccountId);
+      if (mappedIsInvalid) {
+        missingMappings.push({
+          code: 'CATEGORY_CURRENCY_DEPOSIT_OPTIONAL',
+          internalReferenceType: CATEGORY_CURRENCY_REFERENCE_TYPE,
+          internalReferenceId: categoryCurrencyKey(
+            categoryKey,
+            mappedDeposit.currency,
+          ),
+          internalName: `${categoryKey} deposit account (${mappedDeposit.currency}) — optional`,
+          externalReferenceType: 'ACCOUNT',
+          qboOptions: [
+            {
+              id: DEPOSIT_ACCOUNT_NONE,
+              name: 'Deposit where the statement was imported (recommended)',
+            },
+            ...depositOptions,
+          ],
+          creatable: false,
+          ...this.suggestCategoryCurrencyOption(
+            depositOptions,
+            categoryKey,
+            mappedDeposit.currency,
+          ),
+        });
+      }
+    }
+
+    if (setupCategoryItem.kind === 'unconfigured') {
+      missingMappings.push({
+        code: 'CATEGORY_CURRENCY_ITEM_MISSING',
+        internalReferenceType: CATEGORY_CURRENCY_REFERENCE_TYPE,
+        internalReferenceId: categoryCurrencyKey(
+          categoryKey,
+          setupCategoryItem.currency,
+        ),
+        internalName: `${categoryKey} (${setupCategoryItem.currency})`,
+        externalReferenceType: 'ITEM',
+        qboOptions: items.data.map((i) => ({
+          id: String(i.Id),
+          name: i.Name,
+        })),
+        creatable: false,
+        ...this.suggestCategoryCurrencyOption(
+          items.data.map((i) => ({ id: String(i.Id), name: i.Name })),
+          categoryKey,
+          setupCategoryItem.currency,
+        ),
+      });
     }
 
     if (!accountMap) {
@@ -952,7 +1095,7 @@ export class AccountingService {
 
     return {
       ready: missingMappings.length === 0 && dataIssues.length === 0,
-      contact: { id: contactId, name: contactName },
+      contact: contactId ? { id: contactId, name: contactName } : undefined,
       missingMappings,
       dataIssues,
     };
@@ -1024,7 +1167,7 @@ export class AccountingService {
     const displayName =
       contactName && !contactName.startsWith('Contact ')
         ? contactName
-        : (txn.senderName ?? contactName);
+        : txn.senderName ?? contactName;
 
     return {
       // QBO caps DisplayName at 100 characters and requires it to be unique.
@@ -1040,6 +1183,99 @@ export class AccountingService {
    * Picks the QBO customer most likely to already represent this contact, so
    * the operator confirms a suggestion instead of scanning a list of hundreds.
    */
+  /** Removes a deposit override so the imported account is used again. */
+  private async clearedDepositAccount(
+    mapping: SetupMappingDto,
+    externalReferenceId: string,
+  ): Promise<boolean> {
+    if (
+      mapping.internalReferenceType !== CATEGORY_CURRENCY_REFERENCE_TYPE ||
+      mapping.externalReferenceType !== 'ACCOUNT' ||
+      externalReferenceId !== DEPOSIT_ACCOUNT_NONE
+    ) {
+      return false;
+    }
+
+    const existing = await this.mappingService.lookupByInternal({
+      system: SYSTEM,
+      internalReferenceType: CATEGORY_CURRENCY_REFERENCE_TYPE,
+      internalReferenceId: String(mapping.internalReferenceId),
+      externalReferenceType: 'ACCOUNT',
+    });
+    if (existing) await this.mappingService.remove(existing.id);
+    return true;
+  }
+
+  /**
+   * Refuses a deposit account QuickBooks will reject, at the moment it is
+   * chosen rather than at posting time.
+   */
+  private async assertDepositAccountUsable(
+    tenantId: number,
+    mapping: SetupMappingDto,
+    externalReferenceId: string,
+  ): Promise<void> {
+    if (
+      mapping.internalReferenceType !== CATEGORY_CURRENCY_REFERENCE_TYPE ||
+      mapping.externalReferenceType !== 'ACCOUNT'
+    ) {
+      return;
+    }
+
+    const accounts = await this.tryQbo<QboNamedEntity>(() =>
+      this.qbService.getQboAccounts(tenantId),
+    );
+    // An unvalidated deposit account is worse than none: it is only found out
+    // at posting time, as a 6000 fault from Intuit.
+    if (accounts.failed) {
+      throw new BadRequestException(
+        'QuickBooks accounts could not be loaded, so the deposit account cannot be verified. Try again once QuickBooks is reachable.',
+      );
+    }
+    const chosen = accounts.data.find(
+      (a) => String(a.Id) === externalReferenceId,
+    ) as QboAccount | undefined;
+    if (!chosen) {
+      throw new BadRequestException(
+        'The selected QuickBooks deposit account no longer exists. Reload the posting dialog and pick again.',
+      );
+    }
+
+    const type = chosen.AccountType ?? '';
+    if (!QBO_DEPOSITABLE_ACCOUNT_TYPES.includes(type)) {
+      throw new BadRequestException(
+        `"${
+          chosen.Name
+        }" is a ${type} account. QuickBooks only accepts ${QBO_DEPOSITABLE_ACCOUNT_TYPES.join(
+          ' or ',
+        )} as a deposit account — the income side is set by the giving item, not the deposit.`,
+      );
+    }
+  }
+
+  /** Pre-selects an option whose name mentions the category and currency. */
+  private suggestCategoryCurrencyOption(
+    options: QboOption[],
+    category: string,
+    currency: string,
+  ): { suggestedOptionId: string | null; suggestionReason: string | null } {
+    const currencyCode = currency.toLowerCase();
+    // OFFERING vs "offertory": compare on the stem both spellings share.
+    const stem = category.toLowerCase().slice(0, 5);
+
+    const match = options.find((option) => {
+      const name = option.name.toLowerCase();
+      return name.includes(stem) && name.includes(currencyCode);
+    });
+
+    return match
+      ? {
+          suggestedOptionId: match.id,
+          suggestionReason: `name mentions ${category.toLowerCase()} and ${currency}`,
+        }
+      : { suggestedOptionId: null, suggestionReason: null };
+  }
+
   private suggestCustomer(
     customers: QboCustomer[],
     contactName: string,
@@ -1264,6 +1500,11 @@ export class AccountingService {
         );
       }
 
+      if (await this.clearedDepositAccount(m, externalReferenceId)) {
+        continue;
+      }
+      await this.assertDepositAccountUsable(tenantId, m, externalReferenceId);
+
       await this.mappingService.upsert({
         system: SYSTEM,
         internalReferenceType: m.internalReferenceType,
@@ -1323,9 +1564,14 @@ export class AccountingService {
   ): Record<string, any> {
     // Mappings are verified in preflight, but they can be removed in between.
     // Refuse rather than send a reference QuickBooks cannot resolve.
+    const collected = receipt.customer.postsAs === 'CATEGORY';
     const missing: string[] = [];
-    if (!receipt.customer.externalCustomerId) missing.push('customer');
-    if (!receipt.depositAccount.externalAccountId) missing.push('deposit account');
+    // Collected giving carries no customer at all.
+    if (!collected && !receipt.customer.externalCustomerId) {
+      missing.push('customer');
+    }
+    if (!receipt.depositAccount.externalAccountId)
+      missing.push('deposit account');
     if (receipt.lineItems.some((li) => !li.externalItemId)) {
       missing.push('giving item');
     }
@@ -1338,7 +1584,9 @@ export class AccountingService {
 
     const payload: Record<string, any> = {
       TxnDate: receipt.transactionDate,
-      CustomerRef: { value: receipt.customer.externalCustomerId },
+      ...(collected
+        ? {}
+        : { CustomerRef: { value: receipt.customer.externalCustomerId } }),
       DepositToAccountRef: { value: receipt.depositAccount.externalAccountId },
       Line: receipt.lineItems.map((li) => ({
         Amount: li.amount,

@@ -25,9 +25,13 @@ export interface AccountingSalesReceipt {
   referenceNumber: string | null;
   customer: {
     contactId: number;
+    /** The giver's name, kept on the receipt whichever customer it posts to. */
     contactName: string;
-    /** Null when the contact has no QuickBooks customer mapped. */
+    /** The giver's customer, or the standing one for the category + currency. */
     externalCustomerId: string | null;
+    /** `CATEGORY` means it books to a standing customer, not the person. */
+    postsAs: 'GIVER' | 'CATEGORY';
+    externalCustomerName: string | null;
   };
   depositAccount: {
     financialAccountId: number;

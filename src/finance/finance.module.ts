@@ -27,6 +27,7 @@ import { DistributionsService } from './services/distributions.service';
 import { ReportsService } from './services/reports.service';
 import { AccountingService } from './services/accounting.service';
 import { GivingCategoriesService } from './services/giving-categories.service';
+import { CategoryRoutingService } from './services/category-routing.service';
 
 // Plugins
 import { ReconciliationPluginRegistry } from './plugins/reconciliation-plugin.registry';
@@ -66,6 +67,7 @@ import { WorshipHarvestAccountingPlugin } from './plugins/worship-harvest-accoun
     ReportsService,
     AccountingService,
     GivingCategoriesService,
+    CategoryRoutingService,
     ReconciliationPluginRegistry,
     DefaultReconciliationPlugin,
     WorshipHarvestReconciliationPlugin,

@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import {
   DEFAULT_TRANSACTION_CATEGORY,
   TransactionCategory,
@@ -125,6 +125,71 @@ export class GivingCategoriesService {
       if (aMapped !== bMapped) return aMapped ? -1 : 1;
       return a.label.localeCompare(b.label);
     });
+  }
+
+  /** Validates a picked item against the live list and derives its category. */
+  async resolveGivingItem(externalItemId: string | null): Promise<{
+    externalItemId: string | null;
+    externalItemName: string | null;
+    category: TransactionCategory;
+  }> {
+    if (!externalItemId) {
+      return {
+        externalItemId: null,
+        externalItemName: null,
+        category: DEFAULT_TRANSACTION_CATEGORY,
+      };
+    }
+
+    const options = await this.list();
+    const chosen = options.find(
+      (option) => option.qboItemId === externalItemId,
+    );
+
+    if (!chosen) {
+      // `list()` falls back to Zoe categories (no item ids) when QBO is down.
+      const quickBooksUnavailable = options.every(
+        (option) => option.qboItemId === null,
+      );
+      throw new BadRequestException(
+        quickBooksUnavailable
+          ? 'QuickBooks could not be reached, so the giving item could not be verified. Try again in a moment.'
+          : `"${externalItemId}" is not a giving item available in QuickBooks. It may have been archived — reload the categories and pick again.`,
+      );
+    }
+
+    return {
+      externalItemId: chosen.qboItemId,
+      externalItemName: chosen.qboItemName,
+      category: chosen.category ?? DEFAULT_TRANSACTION_CATEGORY,
+    };
+  }
+
+  /**
+   * The QuickBooks item a category books against.
+   *
+   * Read from the mapping table rather than `list()`: that degrades to Zoe's
+   * own categories when QuickBooks is unreachable, and a caller overwriting a
+   * stored item with the resulting nulls would lose it. Nulls here mean the
+   * category genuinely has no item mapped.
+   */
+  async resolveItemForCategory(category: TransactionCategory | null): Promise<{
+    externalItemId: string | null;
+    externalItemName: string | null;
+  }> {
+    if (!category) return { externalItemId: null, externalItemName: null };
+
+    const mapping = await this.mappingService.lookupByInternal({
+      system: ACCOUNTING_SYSTEM,
+      internalReferenceType: 'GIVING_CATEGORY',
+      internalReferenceId: category,
+      externalReferenceType: 'ITEM',
+    });
+
+    return {
+      externalItemId: mapping?.externalReferenceId ?? null,
+      externalItemName: mapping?.externalReferenceName ?? null,
+    };
   }
 
   private async fetchItems(tenantId: number): Promise<QboNamedEntity[]> {

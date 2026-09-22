@@ -7,6 +7,7 @@ import {
   Put,
   Query,
   Request,
+  UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
@@ -24,9 +25,13 @@ import {
 } from '../dto/reconciliation.dto';
 import { MatchStatus } from '../enums/match-status.enum';
 import ReconciliationMatch from '../entities/reconciliation-match.entity';
+import { PermissionsGuard } from '../../auth/guards/permissions.guard';
+import { RequirePermissions } from '../../auth/decorators/permissions.decorator';
+import { appPermissions } from '../../auth/constants';
 
 @UseInterceptors(SentryInterceptor, TenantContextInterceptor)
 @ApiTags('Finance - Reconciliation')
+@UseGuards(PermissionsGuard)
 @Controller('api/finance/reconciliation')
 export class ReconciliationController {
   constructor(
@@ -34,6 +39,7 @@ export class ReconciliationController {
     private readonly matchingService: MatchingService,
   ) {}
 
+  @RequirePermissions(appPermissions.roleFinanceEdit)
   @Post('run')
   async runMatching(
     @Body() data: RunMatchingDto,
@@ -57,6 +63,7 @@ export class ReconciliationController {
    * Suggested contacts for the manual match dialog.
    * Keyed by transaction, which is what that screen has to hand.
    */
+  @RequirePermissions(appPermissions.roleFinanceView)
   @Get('suggestions/:transactionId')
   async getSuggestions(
     @Param('transactionId') transactionId: number,
@@ -69,6 +76,7 @@ export class ReconciliationController {
   }
 
   /** Approve the match on a transaction, marking the transaction reconciled. */
+  @RequirePermissions(appPermissions.roleFinanceEdit)
   @Put('approve/:transactionId')
   async approveForTransaction(
     @Param('transactionId') transactionId: number,
@@ -82,6 +90,7 @@ export class ReconciliationController {
   }
 
   /** Reject the match on a transaction, leaving the transaction unreconciled. */
+  @RequirePermissions(appPermissions.roleFinanceEdit)
   @Put('reject/:transactionId')
   async rejectForTransaction(
     @Param('transactionId') transactionId: number,
@@ -94,6 +103,7 @@ export class ReconciliationController {
     );
   }
 
+  @RequirePermissions(appPermissions.roleFinanceEdit)
   @Post('matches')
   async createMatch(
     @Body() data: CreateMatchDto,
@@ -102,6 +112,7 @@ export class ReconciliationController {
     return this.reconciliationService.createMatch(data, req.user);
   }
 
+  @RequirePermissions(appPermissions.roleFinanceEdit)
   @Put('matches')
   async updateMatch(
     @Body() data: UpdateMatchDto,
@@ -110,6 +121,7 @@ export class ReconciliationController {
     return this.reconciliationService.updateMatch(data, req.user);
   }
 
+  @RequirePermissions(appPermissions.roleFinanceEdit)
   @Post('bulk-approve')
   async bulkApprove(
     @Body() data: BulkApproveMatchesDto,
@@ -118,6 +130,7 @@ export class ReconciliationController {
     return this.reconciliationService.bulkApprove(data, req.user);
   }
 
+  @RequirePermissions(appPermissions.roleFinanceView)
   @Get('matches')
   async findMatches(
     @Query() query: SearchMatchDto,
@@ -125,6 +138,7 @@ export class ReconciliationController {
     return this.reconciliationService.findMatches(query);
   }
 
+  @RequirePermissions(appPermissions.roleFinanceView)
   @Get('matches/:id')
   async findOneMatch(@Param('id') id: number): Promise<ReconciliationMatch> {
     return this.reconciliationService.findOne(id);

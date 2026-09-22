@@ -14,6 +14,7 @@ import { ExternalSystemMappingService } from '../../integrations/quickbooks/exte
 import { QuickBooksService } from '../../integrations/quickbooks/quickbooks.service';
 import { GroupPermissionsService } from '../../groups/services/group-permissions.service';
 import { WorshipHarvestAccountingPlugin } from '../plugins/worship-harvest-accounting.plugin';
+import { CategoryRoutingService } from './category-routing.service';
 import { TenantContext } from '../../shared/tenant/tenant-context';
 
 /**
@@ -25,7 +26,11 @@ describe('AccountingService — posting a batch', () => {
   let service: AccountingService;
   let repos: any;
   let plugin: { buildSalesReceipt: jest.Mock };
-  let qbService: { getConnection: jest.Mock; postSalesReceipt: jest.Mock };
+  let qbService: {
+    getConnection: jest.Mock;
+    postSalesReceipt: jest.Mock;
+    getQboAccounts: jest.Mock;
+  };
   let mapping: { lookupByInternal: jest.Mock; upsert: jest.Mock };
 
   /** A minimal sales receipt with every reference the payload guard requires. */
@@ -52,6 +57,7 @@ describe('AccountingService — posting a batch', () => {
     qbService = {
       getConnection: jest.fn(),
       postSalesReceipt: jest.fn(),
+      getQboAccounts: jest.fn().mockResolvedValue([]),
     };
     mapping = { lookupByInternal: jest.fn(), upsert: jest.fn() };
 
@@ -95,10 +101,32 @@ describe('AccountingService — posting a batch', () => {
           useValue: {
             resolveAttributionForContact: jest.fn(),
             resolveForContact: jest.fn(),
+            getRootGroup: jest
+              .fn()
+              .mockResolvedValue({ id: 1, name: 'WH Global' }),
           },
         },
         { provide: QuickBooksService, useValue: qbService },
         { provide: WorshipHarvestAccountingPlugin, useValue: plugin },
+        {
+          // Nothing in these tests routes a category to a standing customer, so
+          // every gift resolves to the giver — the behaviour that predates the
+          // offertory work.
+          provide: CategoryRoutingService,
+          useValue: {
+            isCurrencyRouted: jest.fn().mockReturnValue(false),
+            resolveDepositAccount: jest
+              .fn()
+              .mockResolvedValue({ externalAccountId: null, currency: 'UGX' }),
+            resolveGivingItem: jest.fn().mockResolvedValue({
+              kind: 'giver',
+              externalItemId: null,
+              externalItemName: null,
+              currency: 'UGX',
+              configuredCurrencies: [],
+            }),
+          },
+        },
       ],
     }).compile();
 
@@ -423,6 +451,210 @@ describe('AccountingService — posting a batch', () => {
 
       expect(posting.status).toBe(AccountingPostingStatus.FAILED);
       expect(posting.errorMessage).toMatch(/timeout/);
+    });
+  });
+
+  describe('preflight for a collected offering', () => {
+    beforeEach(() => {
+      repos.txn.findOne.mockResolvedValue({
+        id: 1,
+        amount: 45000,
+        category: 'OFFERING',
+        senderName: 'Isaac Wakweyika',
+        account: { id: 3, currency: 'UGX' },
+      });
+      repos.posting.findOne.mockResolvedValue(null);
+      repos.match.findOne.mockResolvedValue(null);
+      qbService.getConnection.mockResolvedValue({ id: 1 });
+      mapping.lookupByInternal.mockResolvedValue({ externalReferenceId: 'x' });
+    });
+
+    it('does not ask for an approved match', async () => {
+      const routing = (service as any).categoryRoutingService;
+      routing.isCurrencyRouted.mockReturnValue(true);
+      routing.resolveGivingItem.mockResolvedValue({
+        kind: 'category',
+        externalItemId: '91',
+        externalItemName: 'Offertory UGX',
+        currency: 'UGX',
+        configuredCurrencies: ['UGX'],
+      });
+
+      const { blockers } = await service.preflight(1);
+      const codes = blockers.map((b) => b.code);
+
+      expect(codes).not.toContain('MATCH_NOT_APPROVED');
+      expect(codes).not.toContain('CUSTOMER_MAPPING_MISSING');
+    });
+
+    it('asks for the item, not a giver, when the currency is unmapped', async () => {
+      const routing = (service as any).categoryRoutingService;
+      routing.isCurrencyRouted.mockReturnValue(true);
+      routing.resolveGivingItem.mockResolvedValue({
+        kind: 'unconfigured',
+        externalItemId: null,
+        externalItemName: null,
+        currency: 'UGX',
+        configuredCurrencies: [],
+      });
+
+      const { blockers } = await service.preflight(1);
+      const codes = blockers.map((b) => b.code);
+
+      expect(codes).toContain('CATEGORY_CURRENCY_ITEM_MISSING');
+      expect(codes).not.toContain('MATCH_NOT_APPROVED');
+      expect(codes).not.toContain('CUSTOMER_MAPPING_MISSING');
+    });
+
+    it('does not also demand the legacy category item mapping', async () => {
+      const routing = (service as any).categoryRoutingService;
+      routing.isCurrencyRouted.mockReturnValue(true);
+      routing.resolveGivingItem.mockResolvedValue({
+        kind: 'category',
+        externalItemId: '31',
+        externalItemName: 'Offertory UGX',
+        currency: 'UGX',
+        configuredCurrencies: ['UGX'],
+      });
+      // No GIVING_CATEGORY -> ITEM mapping anywhere.
+      mapping.lookupByInternal.mockImplementation(({ internalReferenceType }) =>
+        Promise.resolve(
+          internalReferenceType === 'GIVING_CATEGORY'
+            ? null
+            : { externalReferenceId: 'x' },
+        ),
+      );
+
+      const { blockers } = await service.preflight(1);
+
+      expect(blockers.map((b) => b.code)).not.toContain('ITEM_MAPPING_MISSING');
+    });
+
+    it('still demands it for a gift that posts under its giver', async () => {
+      mapping.lookupByInternal.mockImplementation(({ internalReferenceType }) =>
+        Promise.resolve(
+          internalReferenceType === 'GIVING_CATEGORY'
+            ? null
+            : { externalReferenceId: 'x' },
+        ),
+      );
+      repos.match.findOne.mockResolvedValue({ contact: { id: 42 } });
+      (
+        service as any
+      ).groupPermissionsService.resolveAttributionForContact.mockResolvedValue({
+        location: { id: 1, name: 'WH Global' },
+        fob: { id: 1, name: 'WH Global' },
+        locationIsFallback: true,
+        fobIsFallback: true,
+      });
+
+      const { blockers } = await service.preflight(1);
+
+      expect(blockers.map((b) => b.code)).toContain('ITEM_MAPPING_MISSING');
+    });
+
+    it('still asks for a match on a gift that posts under its giver', async () => {
+      const { blockers } = await service.preflight(1);
+
+      expect(blockers.map((b) => b.code)).toContain('MATCH_NOT_APPROVED');
+    });
+  });
+
+  describe('an offering deposit account QuickBooks will not accept', () => {
+    beforeEach(() => {
+      repos.txn.findOne.mockResolvedValue({
+        id: 1,
+        amount: 20000,
+        category: 'OFFERING',
+        senderName: 'Josephine Kyokunda',
+        account: { id: 3, currency: 'UGX' },
+      });
+      repos.posting.findOne.mockResolvedValue(null);
+      repos.match.findOne.mockResolvedValue(null);
+      qbService.getConnection.mockResolvedValue({ id: 1 });
+      mapping.lookupByInternal.mockResolvedValue({ externalReferenceId: 'x' });
+
+      const routing = (service as any).categoryRoutingService;
+      routing.isCurrencyRouted.mockReturnValue(true);
+      routing.resolveGivingItem.mockResolvedValue({
+        kind: 'category',
+        externalItemId: '31',
+        externalItemName: 'Offertory UGX',
+        currency: 'UGX',
+        configuredCurrencies: ['UGX'],
+      });
+      routing.resolveDepositAccount.mockResolvedValue({
+        externalAccountId: '77',
+        currency: 'UGX',
+      });
+      qbService.getQboAccounts.mockResolvedValue([
+        { Id: '77', Name: 'YXP Offertory', AccountType: 'Income' },
+        { Id: '12', Name: 'MoMo UGX', AccountType: 'Bank' },
+      ]);
+    });
+
+    it('names the account and its type rather than leaving Intuit to refuse it', async () => {
+      const { blockers } = await service.preflight(1);
+      const blocker = blockers.find(
+        (b) => b.code === 'CATEGORY_CURRENCY_DEPOSIT_INVALID',
+      );
+
+      expect(blocker?.message).toMatch(/YXP Offertory/);
+      expect(blocker?.message).toMatch(/Income/);
+    });
+
+    it('refuses to save a deposit account it could not verify', async () => {
+      repos.contact.findOne.mockResolvedValue({ id: 1 });
+      qbService.getQboAccounts.mockRejectedValue(new Error('QuickBooks down'));
+
+      await expect(
+        service.applySetup(1, {
+          mappings: [
+            {
+              internalReferenceType: 'CATEGORY_CURRENCY',
+              internalReferenceId: 'OFFERING:UGX',
+              externalReferenceType: 'ACCOUNT',
+              externalReferenceId: '77',
+            },
+          ],
+        } as any),
+      ).rejects.toThrow(/could not be loaded/);
+      expect(mapping.upsert).not.toHaveBeenCalled();
+    });
+
+    it('refuses a deposit account that no longer exists', async () => {
+      repos.contact.findOne.mockResolvedValue({ id: 1 });
+
+      await expect(
+        service.applySetup(1, {
+          mappings: [
+            {
+              internalReferenceType: 'CATEGORY_CURRENCY',
+              internalReferenceId: 'OFFERING:UGX',
+              externalReferenceType: 'ACCOUNT',
+              externalReferenceId: 'gone',
+            },
+          ],
+        } as any),
+      ).rejects.toThrow(/no longer exists/);
+      expect(mapping.upsert).not.toHaveBeenCalled();
+    });
+
+    it('refuses to save an income account as the deposit', async () => {
+      repos.contact.findOne.mockResolvedValue({ id: 1 });
+
+      await expect(
+        service.applySetup(1, {
+          mappings: [
+            {
+              internalReferenceType: 'CATEGORY_CURRENCY',
+              internalReferenceId: 'OFFERING:UGX',
+              externalReferenceType: 'ACCOUNT',
+              externalReferenceId: '77',
+            },
+          ],
+        } as any),
+      ).rejects.toThrow(/Income account/);
     });
   });
 });

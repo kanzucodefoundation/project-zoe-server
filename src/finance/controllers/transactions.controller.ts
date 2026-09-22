@@ -5,9 +5,11 @@ import {
   Param,
   Post,
   Put,
+  Patch,
   Query,
   Request,
   UploadedFile,
+  UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -18,6 +20,7 @@ import { TransactionsService } from '../services/transactions.service';
 import {
   CreateTransactionDto,
   UpdateTransactionDto,
+  BulkUpdateGivingItemDto,
   SearchTransactionDto,
   ImportTransactionDto,
   ParseTransactionDto,
@@ -25,18 +28,24 @@ import {
   BulkImportTransactionDto,
 } from '../dto/transaction.dto';
 import Transaction from '../entities/transaction.entity';
+import { PermissionsGuard } from '../../auth/guards/permissions.guard';
+import { RequirePermissions } from '../../auth/decorators/permissions.decorator';
+import { appPermissions } from '../../auth/constants';
 
 @UseInterceptors(SentryInterceptor, TenantContextInterceptor)
 @ApiTags('Finance - Transactions')
+@UseGuards(PermissionsGuard)
 @Controller('api/finance/transactions')
 export class TransactionsController {
   constructor(private readonly service: TransactionsService) {}
 
+  @RequirePermissions(appPermissions.roleFinanceView)
   @Get()
   async findAll(@Query() query: SearchTransactionDto): Promise<Transaction[]> {
     return this.service.findAll(query);
   }
 
+  @RequirePermissions(appPermissions.roleFinanceEdit)
   @Post()
   async create(
     @Body() data: CreateTransactionDto,
@@ -51,6 +60,7 @@ export class TransactionsController {
    *
    * Declared before the ':id' routes below so 'parse' is never swallowed as an id.
    */
+  @RequirePermissions(appPermissions.roleFinanceEdit)
   @Post('parse')
   @ApiConsumes('multipart/form-data')
   @UseInterceptors(FileInterceptor('file'))
@@ -63,6 +73,7 @@ export class TransactionsController {
   }
 
   /** Step 3 of the import wizard: commit the rows the user kept. */
+  @RequirePermissions(appPermissions.roleFinanceEdit)
   @Post('import')
   async importParsed(
     @Body() data: BulkImportTransactionDto,
@@ -72,6 +83,7 @@ export class TransactionsController {
   }
 
   /** One-shot import: parse and save a file in a single request, no preview. */
+  @RequirePermissions(appPermissions.roleFinanceEdit)
   @Post('import/:accountId')
   @ApiConsumes('multipart/form-data')
   @UseInterceptors(FileInterceptor('file'))
@@ -84,16 +96,28 @@ export class TransactionsController {
     return this.service.importFromFile(accountId, file, options, req.user);
   }
 
+  @RequirePermissions(appPermissions.roleFinanceView)
   @Get(':id')
   async findOne(@Param('id') id: number): Promise<Transaction> {
     return this.service.findOne(id);
   }
 
+  @RequirePermissions(appPermissions.roleFinanceEdit)
   @Put()
   async update(
     @Body() data: UpdateTransactionDto,
     @Request() req: any,
   ): Promise<Transaction> {
     return this.service.update(data, req.user);
+  }
+
+  /** Re-categorises several transactions at once. */
+  @RequirePermissions(appPermissions.roleFinanceEdit)
+  @Patch('giving-item')
+  async bulkUpdateGivingItem(
+    @Body() data: BulkUpdateGivingItemDto,
+    @Request() req: any,
+  ): Promise<{ updated: number; transactionIds: number[] }> {
+    return this.service.bulkUpdateGivingItem(data, req.user);
   }
 }

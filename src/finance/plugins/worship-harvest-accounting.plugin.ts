@@ -14,6 +14,8 @@ import { GroupPermissionsService } from '../../groups/services/group-permissions
 import { getPersonFullName } from '../../crm/crm.helpers';
 import { TenantContext } from '../../shared/tenant/tenant-context';
 import { resolveTransactionCategory } from '../enums/transaction-category.enum';
+import { CategoryRoutingService } from '../services/category-routing.service';
+import { DEFAULT_CURRENCY } from '../constants/accounting-mapping.constants';
 
 const SYSTEM = 'QUICKBOOKS';
 
@@ -29,29 +31,46 @@ export class WorshipHarvestAccountingPlugin
     private readonly mappingService: ExternalSystemMappingService,
     private readonly groupPermissionsService: GroupPermissionsService,
     private readonly tenantContext: TenantContext,
+    private readonly categoryRoutingService: CategoryRoutingService,
   ) {}
+
+  /** Mother-group attribution for a gift with no giver behind it. */
+  private async resolveRootAttribution() {
+    const root = await this.groupPermissionsService.getRootGroup();
+    return {
+      location: root,
+      fob: root,
+      locationIsFallback: !!root,
+      fobIsFallback: !!root,
+    };
+  }
 
   async buildSalesReceipt(
     transaction: Transaction,
-    match: ReconciliationMatch,
+    match: ReconciliationMatch | null,
   ): Promise<AccountingSalesReceipt> {
-    const contactId = match.contact?.id;
+    // Null for offertory: collected in the room, so there is nobody to match.
+    const contactId = match?.contact?.id ?? null;
     // Both repositories below are plain, untenanted repositories, so every
     // lookup has to carry the tenant itself. Without it a crafted id could read
     // another church's contact or account.
     const tenantId = this.tenantContext.requireTenant();
 
     // ── Contact → QBO Customer ───────────────────────────────────────────────
-    const contact = await this.contactRepo.findOne({
-      where: { id: contactId, tenantId },
-      relations: ['person'],
-    });
-    const customerMapping = await this.mappingService.lookupByInternal({
-      system: SYSTEM,
-      internalReferenceType: 'CONTACT',
-      internalReferenceId: contactId,
-      externalReferenceType: 'CUSTOMER',
-    });
+    const contact = contactId
+      ? await this.contactRepo.findOne({
+          where: { id: contactId, tenantId },
+          relations: ['person'],
+        })
+      : null;
+    const customerMapping = contactId
+      ? await this.mappingService.lookupByInternal({
+          system: SYSTEM,
+          internalReferenceType: 'CONTACT',
+          internalReferenceId: contactId,
+          externalReferenceType: 'CUSTOMER',
+        })
+      : null;
 
     // ── FinancialAccount → QBO Account ───────────────────────────────────────
     const account = await this.accountRepo.findOne({
@@ -69,10 +88,13 @@ export class WorshipHarvestAccountingPlugin
 
     // ── Contact → Location → QBO Department ─────────────────────────────────
     // Falls back to the mother group when the giver is in no Location or FOB.
-    const { location, fob, locationIsFallback, fobIsFallback } =
-      await this.groupPermissionsService.resolveAttributionForContact(
-        contactId,
-      );
+    // With no giver the campus cannot be derived from one, so it falls back to
+    // the mother group — flagged as a fallback so the preview shows it as such.
+    const { location, fob, locationIsFallback, fobIsFallback } = contactId
+      ? await this.groupPermissionsService.resolveAttributionForContact(
+          contactId,
+        )
+      : await this.resolveRootAttribution();
 
     const locationMapping = location
       ? await this.mappingService.lookupByInternal({
@@ -102,6 +124,20 @@ export class WorshipHarvestAccountingPlugin
       externalReferenceType: 'ITEM',
     });
 
+    // ── Category + currency → standing QBO Customer ─────────────────────────
+    const currency = account?.currency ?? DEFAULT_CURRENCY;
+    const collected = this.categoryRoutingService.isCurrencyRouted(categoryKey);
+    // Offerings book against their own income item, chosen by currency.
+    const categoryItem = await this.categoryRoutingService.resolveGivingItem(
+      categoryKey,
+      currency,
+    );
+    const categoryDeposit =
+      await this.categoryRoutingService.resolveDepositAccount(
+        categoryKey,
+        currency,
+      );
+
     const amount = Number(transaction.amount);
     const txnDate =
       transaction.transactionDate instanceof Date
@@ -114,15 +150,25 @@ export class WorshipHarvestAccountingPlugin
       referenceNumber: transaction.externalReference ?? null,
       customer: {
         contactId,
-        contactName: contact
+        contactName: collected
+          ? 'Collected offering'
+          : contact
           ? getPersonFullName(contact.person) ?? `Contact ${contactId}`
-          : `Contact ${contactId}`,
-        externalCustomerId: customerMapping?.externalReferenceId ?? null,
+          : transaction.senderName ?? `Contact ${contactId}`,
+        // Offertory carries no customer at all — it is not anyone's gift.
+        externalCustomerId: collected
+          ? null
+          : customerMapping?.externalReferenceId ?? null,
+        postsAs: collected ? 'CATEGORY' : 'GIVER',
+        externalCustomerName: null,
       },
       depositAccount: {
         financialAccountId: account?.id ?? null,
         financialAccountName: account?.name ?? null,
-        externalAccountId: accountMapping?.externalReferenceId ?? null,
+        externalAccountId:
+          categoryDeposit.externalAccountId ??
+          accountMapping?.externalReferenceId ??
+          null,
       },
       location:
         location && locationMapping
@@ -135,16 +181,24 @@ export class WorshipHarvestAccountingPlugin
           : null,
       lineItems: [
         {
-          category: transaction.externalItemName ?? categoryKey,
+          category:
+            categoryItem.externalItemName ??
+            transaction.externalItemName ??
+            categoryKey,
           // A statement that named a specific product/service books against it;
           // the category mapping is only the fallback.
           externalItemId:
+            categoryItem.externalItemId ??
             transaction.externalItemId ??
             itemMapping?.externalReferenceId ??
             null,
-          description: `${categoryKey} — ${
-            contact ? getPersonFullName(contact.person) : ''
-          } ${txnDate}`.trim(),
+          description: collected
+            ? `${categoryKey} ${txnDate}`
+            : `${categoryKey} — ${
+                contact
+                  ? getPersonFullName(contact.person)
+                  : transaction.senderName ?? ''
+              } ${txnDate}`.trim(),
           quantity: 1,
           unitPrice: amount,
           amount,
