@@ -142,6 +142,30 @@ export class TransactionsService {
       narrationColumn,
     } = this.resolveColumns(headers, options);
 
+    // Same item resolution as the wizard import: a message naming an item books
+    // against it, otherwise the item mapped to the category it resolved to.
+    // Loaded once for the whole file rather than per row.
+    const givingOptions = await this.givingCategoriesService
+      .list()
+      .catch(() => []);
+    const itemCandidates: GivingItemCandidate[] = givingOptions
+      .filter((option) => option.qboItemId && option.qboItemName)
+      .map((option) => ({
+        id: option.qboItemId as string,
+        name: option.qboItemName as string,
+      }));
+    const itemByCategory = new Map(
+      givingOptions
+        .filter((option) => option.qboItemId && option.category)
+        .map((option) => [
+          option.category as TransactionCategory,
+          {
+            id: option.qboItemId as string,
+            name: option.qboItemName as string,
+          },
+        ]),
+    );
+
     let imported = 0;
     const errors: string[] = [];
 
@@ -196,6 +220,15 @@ export class TransactionsService {
         // never did, so every uploaded row arrived uncategorised.
         transaction.category =
           detectCategory(transaction.narration) ?? DEFAULT_TRANSACTION_CATEGORY;
+
+        const namedItem = detectGivingItem(
+          transaction.narration,
+          itemCandidates,
+        );
+        const item = namedItem ?? itemByCategory.get(transaction.category);
+        transaction.externalItemId = item?.id ?? null;
+        transaction.externalItemName = item?.name ?? null;
+
         transaction.rawData = row;
 
         await this.repository.save(transaction);
@@ -987,7 +1020,19 @@ export class TransactionsService {
       await this.assertNotPosted([transaction.id]);
     }
 
-    if (dto.category !== undefined) transaction.category = dto.category;
+    if (dto.category !== undefined) {
+      transaction.category = dto.category;
+      // The posting plugin prefers the stored item, so leaving the previous one
+      // would book the new category against the old item's QuickBooks id.
+      if (dto.externalItemId === undefined) {
+        const forCategory =
+          await this.givingCategoriesService.resolveItemForCategory(
+            dto.category,
+          );
+        transaction.externalItemId = forCategory.externalItemId;
+        transaction.externalItemName = forCategory.externalItemName;
+      }
+    }
 
     if (dto.externalItemId !== undefined) {
       const resolved = await this.givingCategoriesService.resolveGivingItem(

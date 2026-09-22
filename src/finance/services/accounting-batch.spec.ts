@@ -603,6 +603,43 @@ describe('AccountingService — posting a batch', () => {
       expect(blocker?.message).toMatch(/Income/);
     });
 
+    it('refuses to save a deposit account it could not verify', async () => {
+      repos.contact.findOne.mockResolvedValue({ id: 1 });
+      qbService.getQboAccounts.mockRejectedValue(new Error('QuickBooks down'));
+
+      await expect(
+        service.applySetup(1, {
+          mappings: [
+            {
+              internalReferenceType: 'CATEGORY_CURRENCY',
+              internalReferenceId: 'OFFERING:UGX',
+              externalReferenceType: 'ACCOUNT',
+              externalReferenceId: '77',
+            },
+          ],
+        } as any),
+      ).rejects.toThrow(/could not be loaded/);
+      expect(mapping.upsert).not.toHaveBeenCalled();
+    });
+
+    it('refuses a deposit account that no longer exists', async () => {
+      repos.contact.findOne.mockResolvedValue({ id: 1 });
+
+      await expect(
+        service.applySetup(1, {
+          mappings: [
+            {
+              internalReferenceType: 'CATEGORY_CURRENCY',
+              internalReferenceId: 'OFFERING:UGX',
+              externalReferenceType: 'ACCOUNT',
+              externalReferenceId: 'gone',
+            },
+          ],
+        } as any),
+      ).rejects.toThrow(/no longer exists/);
+      expect(mapping.upsert).not.toHaveBeenCalled();
+    });
+
     it('refuses to save an income account as the deposit', async () => {
       repos.contact.findOne.mockResolvedValue({ id: 1 });
 

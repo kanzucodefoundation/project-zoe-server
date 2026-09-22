@@ -238,6 +238,48 @@ describe('TransactionsService — real mobile-money statements', () => {
     });
   });
 
+  describe('the direct file-upload import', () => {
+    it('stores the giving item, not only the category', async () => {
+      givingCategoriesMock.list.mockResolvedValue([
+        {
+          category: 'OFFERING',
+          label: 'Offertory UGX',
+          internalLabel: 'Offering',
+          qboItemId: '31',
+          qboItemName: 'Offertory UGX',
+          selectable: true,
+          isDefault: false,
+        },
+      ]);
+      const saved: any[] = [];
+      (service as any).accountRepository.findOne = jest
+        .fn()
+        .mockResolvedValue({ id: 1, name: 'MoMo' });
+      (service as any).repository.save = jest.fn((t: any) => {
+        saved.push(t);
+        return Promise.resolve(t);
+      });
+
+      await service.importFromFile(
+        1,
+        asUpload(
+          'upload.csv',
+          [
+            'Date,Amount,From name,To message',
+            '06/09/2026,10000,ALICE A,offering for sunday',
+          ].join(String.fromCharCode(10)),
+        ),
+        {} as any,
+        { id: 1 },
+      );
+
+      expect(saved).toHaveLength(1);
+      expect(saved[0].category).toBe('OFFERING');
+      expect(saved[0].externalItemId).toBe('31');
+      expect(saved[0].externalItemName).toBe('Offertory UGX');
+    });
+  });
+
   describe('categories other than tithe', () => {
     const MIXED = [
       'Date,Amount,From name,To message',

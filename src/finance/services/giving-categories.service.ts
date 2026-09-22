@@ -165,6 +165,22 @@ export class GivingCategoriesService {
     };
   }
 
+  /** The QuickBooks item a category books against, or nulls when none is mapped. */
+  async resolveItemForCategory(category: TransactionCategory | null): Promise<{
+    externalItemId: string | null;
+    externalItemName: string | null;
+  }> {
+    if (!category) return { externalItemId: null, externalItemName: null };
+
+    const match = (await this.list().catch(() => [])).find(
+      (option) => option.category === category && option.qboItemId,
+    );
+    return {
+      externalItemId: match?.qboItemId ?? null,
+      externalItemName: match?.qboItemName ?? null,
+    };
+  }
+
   private async fetchItems(tenantId: number): Promise<QboNamedEntity[]> {
     try {
       return await this.qbService.getQboItems(tenantId);

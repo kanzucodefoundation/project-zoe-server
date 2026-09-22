@@ -13,7 +13,10 @@ import { AccountingPostingStatus } from '../../integrations/quickbooks/entities/
 describe('TransactionsService — correcting the giving item', () => {
   let service: TransactionsService;
   let repos: any;
-  let givingCategories: { resolveGivingItem: jest.Mock };
+  let givingCategories: {
+    resolveGivingItem: jest.Mock;
+    resolveItemForCategory: jest.Mock;
+  };
 
   const transaction = (id: number, over: Record<string, any> = {}) => ({
     id,
@@ -24,7 +27,12 @@ describe('TransactionsService — correcting the giving item', () => {
   });
 
   beforeEach(async () => {
-    givingCategories = { resolveGivingItem: jest.fn() };
+    givingCategories = {
+      resolveGivingItem: jest.fn(),
+      resolveItemForCategory: jest
+        .fn()
+        .mockResolvedValue({ externalItemId: null, externalItemName: null }),
+    };
 
     repos = {
       transaction: {
@@ -126,6 +134,40 @@ describe('TransactionsService — correcting the giving item', () => {
 
       const saved = await service.update(
         { id: 1, externalItemId: null } as any,
+        { id: 9 },
+      );
+
+      expect(saved.externalItemId).toBeNull();
+      expect(saved.externalItemName).toBeNull();
+    });
+
+    it('moves the item with a category-only change', async () => {
+      repos.transaction.findOne.mockResolvedValue(transaction(1));
+      givingCategories.resolveItemForCategory.mockResolvedValue({
+        externalItemId: '31',
+        externalItemName: 'Offertory UGX',
+      });
+
+      const saved = await service.update(
+        { id: 1, category: TransactionCategory.OFFERING } as any,
+        { id: 9 },
+      );
+
+      // The plugin prefers the stored item, so the old Tithe id must not stay.
+      expect(saved.category).toBe(TransactionCategory.OFFERING);
+      expect(saved.externalItemId).toBe('31');
+      expect(saved.externalItemName).toBe('Offertory UGX');
+    });
+
+    it('clears the item when the new category maps to none', async () => {
+      repos.transaction.findOne.mockResolvedValue(transaction(1));
+      givingCategories.resolveItemForCategory.mockResolvedValue({
+        externalItemId: null,
+        externalItemName: null,
+      });
+
+      const saved = await service.update(
+        { id: 1, category: TransactionCategory.DONATION } as any,
         { id: 9 },
       );
 

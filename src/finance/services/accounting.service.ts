@@ -1225,10 +1225,21 @@ export class AccountingService {
     const accounts = await this.tryQbo<QboNamedEntity>(() =>
       this.qbService.getQboAccounts(tenantId),
     );
+    // An unvalidated deposit account is worse than none: it is only found out
+    // at posting time, as a 6000 fault from Intuit.
+    if (accounts.failed) {
+      throw new BadRequestException(
+        'QuickBooks accounts could not be loaded, so the deposit account cannot be verified. Try again once QuickBooks is reachable.',
+      );
+    }
     const chosen = accounts.data.find(
       (a) => String(a.Id) === externalReferenceId,
     ) as QboAccount | undefined;
-    if (!chosen) return;
+    if (!chosen) {
+      throw new BadRequestException(
+        'The selected QuickBooks deposit account no longer exists. Reload the posting dialog and pick again.',
+      );
+    }
 
     const type = chosen.AccountType ?? '';
     if (!QBO_DEPOSITABLE_ACCOUNT_TYPES.includes(type)) {
