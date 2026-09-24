@@ -648,34 +648,51 @@ export class GroupsService {
           : null;
       }
       groupData.parents = parentIds;
-      const childGroupIds: number[] = [data.id];
-      const pendingParentIds: number[] = [data.id];
+
+      // `children` is the group's DIRECT children only — that is what the
+      // group detail page lists. Deeper descendants belong on their own
+      // parent's page, not flattened into this one.
+      // Tenant-scoped: group ids are globally unique, so a stray cross-tenant
+      // parentId would otherwise leak another tenant's group id here and pull
+      // its events into the roll-up below.
+      const directChildren = await this.tenantAwareGroupRepository.find({
+        where: { parentId: data.id },
+        select: ['id'],
+      });
+      const directChildIds = directChildren
+        .map((it) => it.id)
+        .filter((childId) => childId !== data.id);
+      groupData.children = directChildIds;
+
+      // Attendance totals and reports below roll up the whole subtree plus the
+      // group itself, which is deliberately a different set from `children`.
+      const descendantGroupIds: number[] = [data.id, ...directChildIds];
+      const pendingParentIds: number[] = [...directChildIds];
 
       while (pendingParentIds.length > 0) {
         const currentParentId = pendingParentIds.shift();
         if (currentParentId === undefined) break;
 
-        const children = await this.repository.find({
+        const children = await this.tenantAwareGroupRepository.find({
           where: { parentId: currentParentId },
           select: ['id'],
         });
 
         for (const child of children) {
-          if (!childGroupIds.includes(child.id)) {
-            childGroupIds.push(child.id);
+          if (!descendantGroupIds.includes(child.id)) {
+            descendantGroupIds.push(child.id);
             pendingParentIds.push(child.id);
           }
         }
       }
 
-      groupData.children = childGroupIds;
-      const safeChildGroupIds = this.getSafeInValues(childGroupIds);
+      const safeDescendantGroupIds = this.getSafeInValues(descendantGroupIds);
       let totalAtt = 0;
       let totalMem = 0;
 
-      if (safeChildGroupIds) {
+      if (safeDescendantGroupIds) {
         const filter = {
-          groupId: In(childGroupIds),
+          groupId: In(descendantGroupIds),
           startDate: MoreThanOrEqual(startOfMonth(new Date())),
           endDate: LessThanOrEqual(endOfMonth(new Date())),
         };
@@ -699,10 +716,10 @@ export class GroupsService {
       groupData.leaders = membership.map((it) => it.contactId);
       groupData.canEditGroup =
         await this.groupsPermissionsService.hasPermissionForGroup(user, id);
-      groupData.reports = childGroupIds
+      groupData.reports = descendantGroupIds
         ? await this.eventRepository.find({
             relations: { category: true, attendance: true },
-            where: { groupId: In(childGroupIds) },
+            where: { groupId: In(descendantGroupIds) },
             select: ['id', 'name', 'startDate'],
           })
         : [];
