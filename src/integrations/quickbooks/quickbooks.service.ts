@@ -38,9 +38,24 @@ const QBO_PAGE_SIZE = 1000;
 const QBO_PARALLEL_PAGES = 4;
 const QBO_REFERENCE_CACHE_TTL_MS = 10 * 60 * 1000;
 
+/**
+ * Intuit throttles a company's requests and answers 429 beyond its allowance.
+ * The posting dialog reads five entity types at once and each of them pages,
+ * so the getters have to share a budget rather than each take four slots.
+ */
+const QBO_MAX_CONCURRENT_REQUESTS = 6;
+const QBO_THROTTLE_ATTEMPTS = 3;
+const QBO_THROTTLE_BACKOFF_MS = 500;
+const QBO_THROTTLE_MAX_WAIT_MS = 10 * 1000;
+
 interface PendingState {
   tenantId: number;
   expiresAt: Date;
+}
+
+interface RequestGate {
+  active: number;
+  waiting: Array<() => void>;
 }
 
 @Injectable()
@@ -54,6 +69,8 @@ export class QuickBooksService {
     string,
     { expiresAt: number; rows: Promise<unknown[]> }
   >();
+
+  private readonly requestGates = new Map<number, RequestGate>();
 
   private readonly clientId = process.env.QUICKBOOKS_CLIENT_ID;
   private readonly clientSecret = process.env.QUICKBOOKS_CLIENT_SECRET;
@@ -191,6 +208,7 @@ export class QuickBooksService {
 
   async revokeConnection(tenantId: number): Promise<void> {
     await this.connectionRepo.delete({ tenantId, system: 'quickbooks' });
+    this.invalidateReferenceCache(tenantId);
   }
 
   // ─── QBO reference data ────────────────────────────────────────────────────
@@ -319,10 +337,88 @@ export class QuickBooksService {
     entity: QboReferenceEntity,
     start: number,
   ): Promise<T[]> {
-    return this.qboQuery<T>(
-      tenantId,
-      `SELECT * FROM ${entity} WHERE Active = true STARTPOSITION ${start} MAXRESULTS ${QBO_PAGE_SIZE}`,
+    return this.withRequestSlot(tenantId, () =>
+      this.retryOnThrottle(tenantId, () =>
+        this.qboQuery<T>(
+          tenantId,
+          `SELECT * FROM ${entity} WHERE Active = true STARTPOSITION ${start} MAXRESULTS ${QBO_PAGE_SIZE}`,
+        ),
+      ),
     );
+  }
+
+  /**
+   * Holds a page request until the tenant is under its request budget.
+   *
+   * The budget is shared by every reference getter, so five getters paging at
+   * once stay within what Intuit will answer instead of together exceeding it
+   * and taking the dialog's whole read down with them.
+   */
+  private async withRequestSlot<T>(
+    tenantId: number,
+    run: () => Promise<T>,
+  ): Promise<T> {
+    const gate = this.requestGates.get(tenantId) ?? { active: 0, waiting: [] };
+    this.requestGates.set(tenantId, gate);
+
+    if (gate.active >= QBO_MAX_CONCURRENT_REQUESTS) {
+      await new Promise<void>((resolve) => gate.waiting.push(resolve));
+    }
+
+    gate.active += 1;
+    try {
+      return await run();
+    } finally {
+      gate.active -= 1;
+      const next = gate.waiting.shift();
+      if (next) {
+        next();
+      } else if (gate.active === 0) {
+        this.requestGates.delete(tenantId);
+      }
+    }
+  }
+
+  /**
+   * Retries a throttled read rather than failing the getter.
+   *
+   * A 429 says to come back shortly, not that the data is unavailable, and one
+   * rejected page would otherwise reject every page beside it.
+   */
+  private async retryOnThrottle<T>(
+    tenantId: number,
+    run: () => Promise<T>,
+  ): Promise<T> {
+    for (let attempt = 1; ; attempt += 1) {
+      try {
+        return await run();
+      } catch (err) {
+        if (err?.response?.status !== 429 || attempt >= QBO_THROTTLE_ATTEMPTS) {
+          throw err;
+        }
+        const waitMs = this.throttleWaitMs(err, attempt);
+        this.logger.warn(
+          `QuickBooks throttled a reference read for tenant ${tenantId}; retrying in ${waitMs}ms`,
+        );
+        await this.sleep(waitMs);
+      }
+    }
+  }
+
+  /** Intuit's `Retry-After` when it sends one, else exponential backoff. */
+  private throttleWaitMs(error: any, attempt: number): number {
+    const retryAfter = Number(error?.response?.headers?.['retry-after']);
+    if (Number.isFinite(retryAfter) && retryAfter > 0) {
+      return Math.min(retryAfter * 1000, QBO_THROTTLE_MAX_WAIT_MS);
+    }
+    return Math.min(
+      QBO_THROTTLE_BACKOFF_MS * 2 ** (attempt - 1),
+      QBO_THROTTLE_MAX_WAIT_MS,
+    );
+  }
+
+  private sleep(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   /**
@@ -387,24 +483,29 @@ export class QuickBooksService {
     tenantId: number,
     payload: Record<string, unknown>,
   ): Promise<QboCustomer> {
-    return this.withAuth(tenantId, async (accessToken, realmId) => {
-      const base = this.accountingApiBase();
-      const { data } = await firstValueFrom(
-        this.httpService.post(
-          `${base}/v3/company/${realmId}/customer`,
-          { ...payload, sparse: true },
-          {
-            headers: {
-              Authorization: `Bearer ${accessToken}`,
-              'Content-Type': 'application/json',
-              Accept: 'application/json',
+    const customer = await this.withAuth(
+      tenantId,
+      async (accessToken, realmId) => {
+        const base = this.accountingApiBase();
+        const { data } = await firstValueFrom(
+          this.httpService.post(
+            `${base}/v3/company/${realmId}/customer`,
+            { ...payload, sparse: true },
+            {
+              headers: {
+                Authorization: `Bearer ${accessToken}`,
+                'Content-Type': 'application/json',
+                Accept: 'application/json',
+              },
+              params: { minorversion: 65 },
             },
-            params: { minorversion: 65 },
-          },
-        ),
-      );
-      return data?.Customer ?? data;
-    });
+          ),
+        );
+        return data?.Customer ?? data;
+      },
+    );
+    this.invalidateReferenceCache(tenantId, 'Customer');
+    return customer;
   }
 
   /** One customer by id, including its `SyncToken` and `ParentRef`. */
@@ -632,6 +733,13 @@ export class QuickBooksService {
     const conn =
       existing ??
       this.connectionRepo.create({ tenantId, system: 'quickbooks' });
+
+    // A tenant that reconnects to a different company must not be served the
+    // previous company's customers, items or accounts. A token refresh keeps
+    // the same realm, so its cache is left intact.
+    if (existing && existing.realmId !== realmId) {
+      this.invalidateReferenceCache(tenantId);
+    }
 
     conn.realmId = realmId;
     conn.environment = this.environment;

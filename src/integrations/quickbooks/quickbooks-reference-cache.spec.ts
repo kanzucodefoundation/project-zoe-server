@@ -13,19 +13,39 @@ import { ExternalSystemConnection } from './entities/external-system-connection.
 describe('QuickBooksService — reference data', () => {
   let service: QuickBooksService;
   let httpService: { get: jest.Mock; post: jest.Mock };
+  let connectionRepo: {
+    findOne: jest.Mock;
+    delete: jest.Mock;
+    create: jest.Mock;
+    save: jest.Mock;
+  };
 
   const page = (size: number) =>
     Array.from({ length: size }, (_, i) => ({ Id: String(i + 1) }));
 
+  const tokenResponse = {
+    token_type: 'bearer',
+    access_token: 'access',
+    refresh_token: 'refresh',
+    expires_in: 3600,
+    x_refresh_token_expires_in: 8_726_400,
+  };
+
   beforeEach(async () => {
     httpService = { get: jest.fn(), post: jest.fn() };
+    connectionRepo = {
+      findOne: jest.fn(),
+      delete: jest.fn().mockResolvedValue({ affected: 1 }),
+      create: jest.fn((value) => value),
+      save: jest.fn(async (value) => value),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         QuickBooksService,
         {
           provide: getRepositoryToken(ExternalSystemConnection),
-          useValue: { findOne: jest.fn(), delete: jest.fn() },
+          useValue: connectionRepo,
         },
         { provide: HttpService, useValue: httpService },
       ],
@@ -116,5 +136,118 @@ describe('QuickBooksService — reference data', () => {
     await service.getQboItems(1);
 
     expect(query).toHaveBeenCalledTimes(1);
+  });
+
+  it('drops the cached customers after editing one', async () => {
+    const query = stubQuery([[{ Id: '1', DisplayName: 'Old' }]]);
+    httpService.post.mockReturnValue(
+      of({ data: { Customer: { Id: '1', DisplayName: 'New' } } }),
+    );
+
+    await service.getQboCustomers(1);
+    await service.updateQboCustomer(1, { Id: '1', SyncToken: '0' });
+    await service.getQboCustomers(1);
+
+    expect(query).toHaveBeenCalledTimes(2);
+  });
+
+  it('drops cached rows when the connection is revoked', async () => {
+    const query = stubQuery([[{ Id: '1' }]]);
+
+    await service.getQboCustomers(1);
+    await service.revokeConnection(1);
+    await service.getQboCustomers(1);
+
+    expect(query).toHaveBeenCalledTimes(2);
+  });
+
+  it('drops cached rows when the tenant reconnects to another company', async () => {
+    const query = stubQuery([[{ Id: '1' }]]);
+    connectionRepo.findOne.mockResolvedValue({
+      tenantId: 1,
+      system: 'quickbooks',
+      realmId: 'realm-a',
+    });
+
+    await service.getQboCustomers(1);
+    await (service as any).upsertConnection(1, 'realm-b', tokenResponse);
+    await service.getQboCustomers(1);
+
+    expect(query).toHaveBeenCalledTimes(2);
+  });
+
+  it('keeps cached rows through a token refresh on the same company', async () => {
+    const query = stubQuery([[{ Id: '1' }]]);
+    connectionRepo.findOne.mockResolvedValue({
+      tenantId: 1,
+      system: 'quickbooks',
+      realmId: 'realm-a',
+    });
+
+    await service.getQboCustomers(1);
+    await (service as any).upsertConnection(1, 'realm-a', tokenResponse);
+    await service.getQboCustomers(1);
+
+    expect(query).toHaveBeenCalledTimes(1);
+  });
+
+  it('retries a throttled page rather than failing the read', async () => {
+    const throttled = Object.assign(new Error('Too Many Requests'), {
+      response: { status: 429, headers: { 'retry-after': '0.01' } },
+    });
+    const query = jest
+      .fn()
+      .mockRejectedValueOnce(throttled)
+      .mockResolvedValue([{ Id: '1' }]);
+    (service as any).qboQuery = query;
+
+    await expect(service.getQboCustomers(1)).resolves.toHaveLength(1);
+    expect(query).toHaveBeenCalledTimes(2);
+  });
+
+  it('gives up on a page Intuit keeps throttling', async () => {
+    const throttled = Object.assign(new Error('Too Many Requests'), {
+      response: { status: 429, headers: { 'retry-after': '0.01' } },
+    });
+    (service as any).qboQuery = jest.fn().mockRejectedValue(throttled);
+
+    await expect(service.getQboCustomers(1)).rejects.toMatchObject({
+      response: { status: 429 },
+    });
+  });
+
+  /**
+   * Five getters paging at once would otherwise put twenty requests on one
+   * company at the same time, which Intuit answers with 429s.
+   */
+  it('keeps concurrent reference reads inside the request budget', async () => {
+    const pagesServed = new Map<string, number>();
+    let inFlight = 0;
+    let peak = 0;
+
+    (service as any).qboQuery = jest.fn(
+      async (_tenantId: number, query: string) => {
+        inFlight += 1;
+        peak = Math.max(peak, inFlight);
+        await new Promise((resolve) => setImmediate(resolve));
+        inFlight -= 1;
+
+        const entity = /FROM (\w+)/.exec(query)?.[1] ?? '';
+        const served = (pagesServed.get(entity) ?? 0) + 1;
+        pagesServed.set(entity, served);
+        return served === 1 ? page(1000) : [];
+      },
+    );
+
+    await Promise.all([
+      service.getQboCustomers(1),
+      service.getQboItems(1),
+      service.getQboAccounts(1),
+      service.getQboClasses(1),
+      service.getQboDepartments(1),
+    ]);
+
+    expect(peak).toBeLessThanOrEqual(6);
+    expect(peak).toBeGreaterThan(1);
   });
 });

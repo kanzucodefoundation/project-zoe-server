@@ -19,6 +19,14 @@ describe('posting-date', () => {
     it('returns null for a value that is not a date', () => {
       expect(reportingWeekStart('last sunday')).toBeNull();
     });
+
+    it('returns null for a day that month does not have', () => {
+      // Date.UTC would roll these into the next month and answer with a week
+      // the gift never belonged to.
+      expect(reportingWeekStart('2026-02-30')).toBeNull();
+      expect(reportingWeekStart('2026-13-01')).toBeNull();
+      expect(reportingWeekStart('2026-04-31')).toBeNull();
+    });
   });
 
   describe('toIsoDate', () => {
@@ -34,6 +42,16 @@ describe('posting-date', () => {
 
     it('trims a timestamp string to its date', () => {
       expect(toIsoDate('2026-10-18 09:15:00')).toBe('2026-10-18');
+    });
+
+    it('reads a string carrying an offset the same way as the Date', () => {
+      // Late UTC on the 18th is already the 19th in Kampala, and a string and
+      // a Date for the same instant must not disagree about which week it is.
+      expect(toIsoDate('2026-10-18T22:30:00.000Z')).toBe('2026-10-19');
+      expect(toIsoDate('2026-10-18T22:30:00.000Z')).toBe(
+        toIsoDate(new Date('2026-10-18T22:30:00.000Z')),
+      );
+      expect(toIsoDate('2026-10-19T01:30:00+03:00')).toBe('2026-10-19');
     });
   });
 
@@ -66,6 +84,14 @@ describe('posting-date', () => {
       expect(
         resolvePostingDate('2026-10-18', new Date('2026-10-18T22:30:00.000Z')),
       ).toBe('2026-10-19');
+    });
+
+    it('defers a gift whose import timestamp arrives as a string', () => {
+      // The instant is 01:30 on Monday the 19th in Kampala, a new reporting
+      // week, so the Sunday gift moves even though the text reads "18".
+      expect(resolvePostingDate('2026-10-18', '2026-10-18T22:30:00.000Z')).toBe(
+        '2026-10-19',
+      );
     });
 
     it('keeps the date when nothing says when it was imported', () => {

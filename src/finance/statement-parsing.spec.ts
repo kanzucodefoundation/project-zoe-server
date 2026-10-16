@@ -145,6 +145,20 @@ describe('statement message parsing', () => {
       expect(extractTitheNumber('tel 0772123456')).toBeNull();
     });
 
+    it('does not read a category word as a letter prefix', () => {
+      // "tithe 4471" labels the digits; TITHE4471 is an identifier no contact
+      // holds, so reading it that way loses the match entirely.
+      expect(extractTitheNumber('tithe 4471')).toBe('4471');
+      expect(extractTitheNumber('tithes 307')).toBe('307');
+      expect(extractTitheNumber('gift 20000')).toBeNull();
+      expect(extractTitheNumber('offering 15000')).toBeNull();
+    });
+
+    it('looks past a leading amount to the code behind it', () => {
+      expect(extractTitheNumber('ugx 5000 TBG 9088')).toBe('TBG9088');
+      expect(extractTitheNumber('tel 0772123456 tbgb_0095')).toBe('TBGB0095');
+    });
+
     it('returns null when there is no identifier', () => {
       expect(extractTitheNumber('tithe')).toBeNull();
       expect(extractTitheNumber('Arua WH')).toBeNull();

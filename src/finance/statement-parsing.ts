@@ -83,7 +83,7 @@ const TITHE_CODE = /\b([a-z]{2,6}\d{3,6})\b/i;
 const TITHE_CODE_LOOSE = /([a-z]{2,6}\d{3,6})/i;
 
 /** The same code written with a separator, e.g. "TBG-9088" or "TBG 9088". */
-const TITHE_CODE_SPACED = /\b([a-z]{2,6})[\s\-_.]+(\d{3,6})\b/i;
+const TITHE_CODE_SPACED = /\b([a-z]{2,6})[\s\-_.]+(\d{3,6})\b/gi;
 
 /**
  * Letter runs that sit in front of a number without naming a giver, so
@@ -94,9 +94,25 @@ const NOT_TITHE_PREFIX = new Set([
   'tel', 'phone', 'no', 'num', 'ref', 'id', 'acc', 'mtn', 'tn',
 ]);
 
+/**
+ * A category word is never a tithe prefix: "tithe 4471" and "gift 20000" name
+ * what the money is for and, in the first case, label the digits that follow.
+ * Reading either as a letter code produces an identifier no contact holds.
+ */
+const CATEGORY_WORDS = new Set(
+  CATEGORY_KEYWORDS.flatMap(({ keywords }) =>
+    keywords.flatMap((keyword) => keyword.split(/[^a-z]+/i)),
+  ).filter((word) => word.length >= 2),
+);
+
+const isTithePrefix = (prefix: string): boolean => {
+  const word = prefix.toLowerCase();
+  return !NOT_TITHE_PREFIX.has(word) && !CATEGORY_WORDS.has(word);
+};
+
 /** A tithe number written as digits with an explicit label. */
 const TITHE_LABELLED =
-  /(?:tithe\s*(?:no|number|num|#)?|tn|#)\s*[:\-.]?\s*(\d{3,10})\b/i;
+  /(?:tithes?\s*(?:no|number|num|#)?|tn|#)\s*[:\-.]?\s*(\d{3,10})\b/i;
 
 /**
  * A campus code standing on its own, e.g. "WHEBCT tithe". Only usable when the
@@ -172,9 +188,17 @@ export const extractTitheNumber = (text?: string | null): string | null => {
   const joined = text.match(TITHE_CODE) ?? text.match(TITHE_CODE_LOOSE);
   if (joined) return joined[1].toUpperCase();
 
-  const spaced = text.match(TITHE_CODE_SPACED);
-  if (spaced && !NOT_TITHE_PREFIX.has(spaced[1].toLowerCase())) {
-    return `${spaced[1]}${spaced[2]}`.toUpperCase();
+  // Every separated candidate is considered, not just the first: "ugx 5000 TBG
+  // 9088" leads with an amount, and stopping there would miss the real code.
+  TITHE_CODE_SPACED.lastIndex = 0;
+  for (
+    let spaced = TITHE_CODE_SPACED.exec(text);
+    spaced;
+    spaced = TITHE_CODE_SPACED.exec(text)
+  ) {
+    if (isTithePrefix(spaced[1])) {
+      return `${spaced[1]}${spaced[2]}`.toUpperCase();
+    }
   }
 
   const labelled = text.match(TITHE_LABELLED);
