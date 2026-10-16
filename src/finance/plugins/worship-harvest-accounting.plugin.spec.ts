@@ -12,7 +12,7 @@ import { TransactionCategory } from '../enums/transaction-category.enum';
 describe('WorshipHarvestAccountingPlugin — who the receipt is booked to', () => {
   let plugin: WorshipHarvestAccountingPlugin;
   let routing: {
-    isCurrencyRouted: jest.Mock;
+    isCollected: jest.Mock;
     resolveGivingItem: jest.Mock;
     resolveDepositAccount: jest.Mock;
     resolveLineItem: CategoryRoutingService['resolveLineItem'];
@@ -41,7 +41,7 @@ describe('WorshipHarvestAccountingPlugin — who the receipt is booked to', () =
 
   beforeEach(async () => {
     routing = {
-      isCurrencyRouted: jest.fn().mockReturnValue(false),
+      isCollected: jest.fn().mockReturnValue(false),
       resolveGivingItem: jest.fn().mockResolvedValue({
         kind: 'giver',
         externalItemId: null,
@@ -116,7 +116,7 @@ describe('WorshipHarvestAccountingPlugin — who the receipt is booked to', () =
   });
 
   const asCollected = () => {
-    routing.isCurrencyRouted.mockReturnValue(true);
+    routing.isCollected.mockReturnValue(true);
     routing.resolveGivingItem.mockResolvedValue({
       kind: 'category',
       externalItemId: '91',
@@ -234,7 +234,7 @@ describe('WorshipHarvestAccountingPlugin — which offering item and which date'
   beforeEach(async () => {
     const real = new CategoryRoutingService({} as any);
     routing = {
-      isCurrencyRouted: jest.fn().mockReturnValue(true),
+      isCollected: jest.fn().mockReturnValue(true),
       resolveGivingItem: jest.fn().mockResolvedValue({
         kind: 'category',
         externalItemId: '91',

@@ -8,6 +8,7 @@ import { QuickBooksService } from '../../integrations/quickbooks/quickbooks.serv
 import { TenantContext } from '../../shared/tenant/tenant-context';
 import { ACCOUNTING_SYSTEM } from '../constants/accounting-mapping.constants';
 import { QboNamedEntity } from '../../integrations/quickbooks/quickbooks.types';
+import { detectCategory } from '../statement-parsing';
 
 export interface GivingCategoryDto {
   /** Zoe's internal category key, which is what transactions store. */
@@ -161,7 +162,13 @@ export class GivingCategoriesService {
     return {
       externalItemId: chosen.qboItemId,
       externalItemName: chosen.qboItemName,
-      category: chosen.category ?? DEFAULT_TRANSACTION_CATEGORY,
+      // Only a few items carry a category mapping, so an unmapped one would
+      // otherwise fall to tithe — which made every offertory but the mapped
+      // one ask for a giver. The item's own name says what it is.
+      category:
+        chosen.category ??
+        detectCategory(chosen.qboItemName) ??
+        DEFAULT_TRANSACTION_CATEGORY,
     };
   }
 

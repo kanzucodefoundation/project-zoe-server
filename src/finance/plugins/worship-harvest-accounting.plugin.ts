@@ -127,7 +127,10 @@ export class WorshipHarvestAccountingPlugin
 
     // ── Category + currency → standing QBO Customer ─────────────────────────
     const currency = account?.currency ?? DEFAULT_CURRENCY;
-    const collected = this.categoryRoutingService.isCurrencyRouted(categoryKey);
+    const collected = this.categoryRoutingService.isCollected(
+      categoryKey,
+      transaction.externalItemName,
+    );
     // Offerings book against their own income item, chosen by currency.
     const categoryItem = await this.categoryRoutingService.resolveGivingItem(
       categoryKey,

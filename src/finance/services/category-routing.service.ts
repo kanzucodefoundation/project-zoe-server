@@ -8,6 +8,9 @@ import {
   categoryCurrencyKey,
 } from '../constants/accounting-mapping.constants';
 
+/** Offertory items, whatever service they were collected at. */
+const COLLECTED_ITEM = /offer(?:tory|ing)/i;
+
 /** `unconfigured` must block rather than fall back to the giver. */
 export type CategoryRoutingKind = 'giver' | 'category' | 'unconfigured';
 
@@ -26,6 +29,22 @@ export class CategoryRoutingService {
   /** Declared in code, not inferred from mappings, so it holds before setup. */
   isCurrencyRouted(category: string): boolean {
     return CURRENCY_ROUTED_CATEGORIES.includes(category);
+  }
+
+  /**
+   * True when the money was collected in the room rather than given by a
+   * named person, so posting it needs no giver.
+   *
+   * The four-value category cannot say which offering an item is: a YXP or
+   * children's church collection carries no category keyword and defaults to
+   * tithe, and "thanksgiving" reads as a donation. Both are still offertory,
+   * so the item the statement resolved to decides this as well as the
+   * category.
+   */
+  isCollected(category: string, itemName?: string | null): boolean {
+    return (
+      this.isCurrencyRouted(category) || COLLECTED_ITEM.test(itemName ?? '')
+    );
   }
 
   /** Offerings book against their own income item, chosen by currency. */

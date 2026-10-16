@@ -114,7 +114,7 @@ describe('AccountingService — posting a batch', () => {
           // offertory work.
           provide: CategoryRoutingService,
           useValue: {
-            isCurrencyRouted: jest.fn().mockReturnValue(false),
+            isCollected: jest.fn().mockReturnValue(false),
             resolveDepositAccount: jest
               .fn()
               .mockResolvedValue({ externalAccountId: null, currency: 'UGX' }),
@@ -471,7 +471,7 @@ describe('AccountingService — posting a batch', () => {
 
     it('does not ask for an approved match', async () => {
       const routing = (service as any).categoryRoutingService;
-      routing.isCurrencyRouted.mockReturnValue(true);
+      routing.isCollected.mockReturnValue(true);
       routing.resolveGivingItem.mockResolvedValue({
         kind: 'category',
         externalItemId: '91',
@@ -489,7 +489,7 @@ describe('AccountingService — posting a batch', () => {
 
     it('asks for the item, not a giver, when the currency is unmapped', async () => {
       const routing = (service as any).categoryRoutingService;
-      routing.isCurrencyRouted.mockReturnValue(true);
+      routing.isCollected.mockReturnValue(true);
       routing.resolveGivingItem.mockResolvedValue({
         kind: 'unconfigured',
         externalItemId: null,
@@ -508,7 +508,7 @@ describe('AccountingService — posting a batch', () => {
 
     it('does not also demand the legacy category item mapping', async () => {
       const routing = (service as any).categoryRoutingService;
-      routing.isCurrencyRouted.mockReturnValue(true);
+      routing.isCollected.mockReturnValue(true);
       routing.resolveGivingItem.mockResolvedValue({
         kind: 'category',
         externalItemId: '31',
@@ -575,7 +575,7 @@ describe('AccountingService — posting a batch', () => {
       mapping.lookupByInternal.mockResolvedValue({ externalReferenceId: 'x' });
 
       const routing = (service as any).categoryRoutingService;
-      routing.isCurrencyRouted.mockReturnValue(true);
+      routing.isCollected.mockReturnValue(true);
       routing.resolveGivingItem.mockResolvedValue({
         kind: 'category',
         externalItemId: '31',

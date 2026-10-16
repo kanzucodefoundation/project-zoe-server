@@ -7,6 +7,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import Transaction from '../entities/transaction.entity';
+import { TransactionStatus } from '../enums/transaction-status.enum';
 import ReconciliationMatch from '../entities/reconciliation-match.entity';
 import Contact from '../../crm/entities/contact.entity';
 import FinancialAccount from '../entities/financial-account.entity';
@@ -185,6 +186,22 @@ export class AccountingService {
     return txn;
   }
 
+  /**
+   * A gift that reached QuickBooks is settled, so it leaves the pending list.
+   *
+   * Approving a match reconciles a transaction, but a collected offering has
+   * no match to approve, so posting is the only point at which it stops being
+   * pending. Left out, every offering posted stayed on the pending list for
+   * good.
+   */
+  private async markReconciled(txn: Transaction): Promise<void> {
+    if (txn.status === TransactionStatus.RECONCILED) {
+      return;
+    }
+    txn.status = TransactionStatus.RECONCILED;
+    await this.txnRepo.save(txn);
+  }
+
   private async getApprovedMatch(
     transactionId: number,
   ): Promise<ReconciliationMatch | null> {
@@ -236,7 +253,10 @@ export class AccountingService {
     const categoryKey = resolveTransactionCategory(txn.category);
 
     // Offertory is collected, not given, so it needs no giver.
-    const collected = this.categoryRoutingService.isCurrencyRouted(categoryKey);
+    const collected = this.categoryRoutingService.isCollected(
+      categoryKey,
+      txn.externalItemName,
+    );
     const match = await this.getApprovedMatch(transactionId);
     if (!collected && !match?.contact) {
       blockers.push({
@@ -450,6 +470,7 @@ export class AccountingService {
       posting.externalDocumentId = qboResponse?.Id ?? null;
       posting.externalDocumentNumber = qboResponse?.DocNumber ?? null;
       posting.postedAt = new Date();
+      await this.markReconciled(txn);
     } catch (err) {
       // A failed attempt stays retryable, and the retry is safe because it
       // carries the same idempotency key as the attempt that failed. That
@@ -737,7 +758,10 @@ export class AccountingService {
         txn.account?.currency,
       );
 
-    const collected = this.categoryRoutingService.isCurrencyRouted(categoryKey);
+    const collected = this.categoryRoutingService.isCollected(
+      categoryKey,
+      txn.externalItemName,
+    );
     const needsCategoryCurrencyItem =
       setupCategoryItem.kind === 'unconfigured' && !txn.externalItemId;
 
