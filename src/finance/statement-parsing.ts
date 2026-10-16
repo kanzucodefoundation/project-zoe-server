@@ -82,6 +82,18 @@ const TITHE_CODE = /\b([a-z]{2,6}\d{3,6})\b/i;
 /** The same code when it is jammed against other text, e.g. "TBGB0416(Imbazo)". */
 const TITHE_CODE_LOOSE = /([a-z]{2,6}\d{3,6})/i;
 
+/** The same code written with a separator, e.g. "TBG-9088" or "TBG 9088". */
+const TITHE_CODE_SPACED = /\b([a-z]{2,6})[\s\-_.]+(\d{3,6})\b/i;
+
+/**
+ * Letter runs that sit in front of a number without naming a giver, so
+ * "UGX 5000" and "tel 0772..." are not read as codes.
+ */
+const NOT_TITHE_PREFIX = new Set([
+  'ugx', 'shs', 'ush', 'usd', 'kes', 'tzs', 'rwf',
+  'tel', 'phone', 'no', 'num', 'ref', 'id', 'acc', 'mtn', 'tn',
+]);
+
 /** A tithe number written as digits with an explicit label. */
 const TITHE_LABELLED =
   /(?:tithe\s*(?:no|number|num|#)?|tn|#)\s*[:\-.]?\s*(\d{3,10})\b/i;
@@ -157,8 +169,13 @@ export const detectCategory = (
 export const extractTitheNumber = (text?: string | null): string | null => {
   if (!text) return null;
 
-  const code = text.match(TITHE_CODE) ?? text.match(TITHE_CODE_LOOSE);
-  if (code) return code[1].toUpperCase();
+  const joined = text.match(TITHE_CODE) ?? text.match(TITHE_CODE_LOOSE);
+  if (joined) return joined[1].toUpperCase();
+
+  const spaced = text.match(TITHE_CODE_SPACED);
+  if (spaced && !NOT_TITHE_PREFIX.has(spaced[1].toLowerCase())) {
+    return `${spaced[1]}${spaced[2]}`.toUpperCase();
+  }
 
   const labelled = text.match(TITHE_LABELLED);
   if (labelled) return labelled[1];

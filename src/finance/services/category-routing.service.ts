@@ -83,6 +83,34 @@ export class CategoryRoutingService {
     };
   }
 
+  /**
+   * The product/service a line books against.
+   *
+   * A statement that named a specific item wins: offertory is collected per
+   * service, and "Offertory - Children's Church" is not the same income item as
+   * the campus default for the currency.
+   */
+  resolveLineItem(
+    categoryItem: CategoryItemResolution,
+    statementItemId: string | null | undefined,
+    statementItemName: string | null | undefined,
+    categoryMappingItemId: string | null | undefined,
+    categoryKey: string,
+  ): { externalItemId: string | null; externalItemName: string } {
+    if (statementItemId) {
+      return {
+        externalItemId: statementItemId,
+        externalItemName: statementItemName ?? categoryKey,
+      };
+    }
+
+    return {
+      externalItemId:
+        categoryItem.externalItemId ?? categoryMappingItemId ?? null,
+      externalItemName: categoryItem.externalItemName ?? categoryKey,
+    };
+  }
+
   /** Optional per-currency deposit account; falls back to the imported one. */
   async resolveDepositAccount(
     category: string,

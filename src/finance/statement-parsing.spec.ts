@@ -134,6 +134,17 @@ describe('statement message parsing', () => {
       expect(extractTitheNumber('#307 offering')).toBe('307');
     });
 
+    it('reads a code the giver separated', () => {
+      expect(extractTitheNumber('tithe TBG-9088')).toBe('TBG9088');
+      expect(extractTitheNumber('TBG 9088')).toBe('TBG9088');
+      expect(extractTitheNumber('tbgb_0095 offering')).toBe('TBGB0095');
+    });
+
+    it('does not read an amount or a phone label as a code', () => {
+      expect(extractTitheNumber('ugx 5000')).toBeNull();
+      expect(extractTitheNumber('tel 0772123456')).toBeNull();
+    });
+
     it('returns null when there is no identifier', () => {
       expect(extractTitheNumber('tithe')).toBeNull();
       expect(extractTitheNumber('Arua WH')).toBeNull();

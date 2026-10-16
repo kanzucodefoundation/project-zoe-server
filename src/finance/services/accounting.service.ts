@@ -252,7 +252,7 @@ export class AccountingService {
       categoryKey,
       txn.account?.currency,
     );
-    if (categoryItem.kind === 'unconfigured') {
+    if (categoryItem.kind === 'unconfigured' && !txn.externalItemId) {
       blockers.push({
         code: 'CATEGORY_CURRENCY_ITEM_MISSING',
         message: `${categoryKey} books against its own QuickBooks product/service per currency, and none is mapped for ${categoryItem.currency}. Pick the ${categoryItem.currency} offering item in the posting dialog.`,
@@ -738,6 +738,9 @@ export class AccountingService {
       );
 
     const collected = this.categoryRoutingService.isCurrencyRouted(categoryKey);
+    const needsCategoryCurrencyItem =
+      setupCategoryItem.kind === 'unconfigured' && !txn.externalItemId;
+
     if (!collected && !match?.contact) {
       return {
         ready: false,
@@ -820,7 +823,7 @@ export class AccountingService {
               this.qbService.getQboCustomers(tenantId),
             )
           : this.emptyQbo<QboCustomer>(),
-        !itemMap || setupCategoryItem.kind === 'unconfigured'
+        !itemMap || needsCategoryCurrencyItem
           ? this.tryQbo<QboNamedEntity>(() =>
               this.qbService.getQboItems(tenantId),
             )
@@ -956,7 +959,7 @@ export class AccountingService {
       }
     }
 
-    if (setupCategoryItem.kind === 'unconfigured') {
+    if (needsCategoryCurrencyItem) {
       missingMappings.push({
         code: 'CATEGORY_CURRENCY_ITEM_MISSING',
         internalReferenceType: CATEGORY_CURRENCY_REFERENCE_TYPE,

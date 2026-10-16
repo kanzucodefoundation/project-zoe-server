@@ -16,6 +16,7 @@ import { TenantContext } from '../../shared/tenant/tenant-context';
 import { resolveTransactionCategory } from '../enums/transaction-category.enum';
 import { CategoryRoutingService } from '../services/category-routing.service';
 import { DEFAULT_CURRENCY } from '../constants/accounting-mapping.constants';
+import { resolvePostingDate, toIsoDate } from '../posting-date';
 
 const SYSTEM = 'QUICKBOOKS';
 
@@ -139,14 +140,24 @@ export class WorshipHarvestAccountingPlugin
       );
 
     const amount = Number(transaction.amount);
-    const txnDate =
-      transaction.transactionDate instanceof Date
-        ? transaction.transactionDate.toISOString().slice(0, 10)
-        : String(transaction.transactionDate);
+    const statementDate = toIsoDate(transaction.transactionDate);
+    const txnDate = resolvePostingDate(
+      transaction.transactionDate,
+      transaction.createdAt,
+    );
+
+    const lineItem = this.categoryRoutingService.resolveLineItem(
+      categoryItem,
+      transaction.externalItemId,
+      transaction.externalItemName,
+      itemMapping?.externalReferenceId,
+      categoryKey,
+    );
 
     return {
       transactionId: transaction.id,
       transactionDate: txnDate,
+      statementDate,
       referenceNumber: transaction.externalReference ?? null,
       customer: {
         contactId,
@@ -181,17 +192,8 @@ export class WorshipHarvestAccountingPlugin
           : null,
       lineItems: [
         {
-          category:
-            categoryItem.externalItemName ??
-            transaction.externalItemName ??
-            categoryKey,
-          // A statement that named a specific product/service books against it;
-          // the category mapping is only the fallback.
-          externalItemId:
-            categoryItem.externalItemId ??
-            transaction.externalItemId ??
-            itemMapping?.externalReferenceId ??
-            null,
+          category: lineItem.externalItemName,
+          externalItemId: lineItem.externalItemId,
           description: collected
             ? `${categoryKey} ${txnDate}`
             : `${categoryKey} — ${

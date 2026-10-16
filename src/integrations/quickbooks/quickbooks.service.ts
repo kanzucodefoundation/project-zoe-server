@@ -27,6 +27,17 @@ interface IntuitTokenResponse {
   access_token: string;
 }
 
+type QboReferenceEntity =
+  | 'Customer'
+  | 'Account'
+  | 'Item'
+  | 'Class'
+  | 'Department';
+
+const QBO_PAGE_SIZE = 1000;
+const QBO_PARALLEL_PAGES = 4;
+const QBO_REFERENCE_CACHE_TTL_MS = 10 * 60 * 1000;
+
 interface PendingState {
   tenantId: number;
   expiresAt: Date;
@@ -38,6 +49,11 @@ export class QuickBooksService {
 
   // In-memory store for OAuth state → tenantId, TTL 10 min
   private readonly pendingStates = new Map<string, PendingState>();
+
+  private readonly referenceCache = new Map<
+    string,
+    { expiresAt: number; rows: Promise<unknown[]> }
+  >();
 
   private readonly clientId = process.env.QUICKBOOKS_CLIENT_ID;
   private readonly clientSecret = process.env.QUICKBOOKS_CLIENT_SECRET;
@@ -180,23 +196,81 @@ export class QuickBooksService {
   // ─── QBO reference data ────────────────────────────────────────────────────
 
   async getQboCustomers(tenantId: number): Promise<QboCustomer[]> {
-    return this.qboQueryAll<QboCustomer>(tenantId, 'Customer');
+    return this.cachedReference<QboCustomer>(tenantId, 'Customer');
   }
 
   async getQboAccounts(tenantId: number): Promise<QboAccount[]> {
-    return this.qboQueryAll<QboAccount>(tenantId, 'Account');
+    return this.cachedReference<QboAccount>(tenantId, 'Account');
   }
 
   async getQboItems(tenantId: number): Promise<QboNamedEntity[]> {
-    return this.qboQueryAll<QboNamedEntity>(tenantId, 'Item');
+    return this.cachedReference<QboNamedEntity>(tenantId, 'Item');
   }
 
   async getQboClasses(tenantId: number): Promise<QboNamedEntity[]> {
-    return this.qboQueryAll<QboNamedEntity>(tenantId, 'Class');
+    return this.cachedReference<QboNamedEntity>(tenantId, 'Class');
   }
 
   async getQboDepartments(tenantId: number): Promise<QboNamedEntity[]> {
-    return this.qboQueryAll<QboNamedEntity>(tenantId, 'Department');
+    return this.cachedReference<QboNamedEntity>(tenantId, 'Department');
+  }
+
+  /** Drops cached reference data so a change made here is visible at once. */
+  invalidateReferenceCache(
+    tenantId: number,
+    entity?: QboReferenceEntity,
+  ): void {
+    if (entity) {
+      this.referenceCache.delete(this.referenceCacheKey(tenantId, entity));
+      return;
+    }
+
+    for (const key of this.referenceCache.keys()) {
+      if (key.startsWith(`${tenantId}:`)) {
+        this.referenceCache.delete(key);
+      }
+    }
+  }
+
+  private referenceCacheKey(
+    tenantId: number,
+    entity: QboReferenceEntity,
+  ): string {
+    return `${tenantId}:${entity}`;
+  }
+
+  /**
+   * Reference data, read through a short-lived cache.
+   *
+   * A company's customers, items and accounts run to thousands of rows and
+   * change rarely, but the posting dialog needs them every time it opens. Read
+   * straight through, a reconciliation session pays a multi-page QuickBooks
+   * round trip per open, which is what pushed the dialog past the browser's
+   * request timeout. Pending reads are shared so several dialogs opening at
+   * once still make one call.
+   */
+  private async cachedReference<T>(
+    tenantId: number,
+    entity: QboReferenceEntity,
+  ): Promise<T[]> {
+    const key = this.referenceCacheKey(tenantId, entity);
+    const cached = this.referenceCache.get(key);
+
+    if (cached && cached.expiresAt > Date.now()) {
+      return cached.rows as Promise<T[]>;
+    }
+
+    const rows = this.qboQueryAll<T>(tenantId, entity).catch((err) => {
+      this.referenceCache.delete(key);
+      throw err;
+    });
+
+    this.referenceCache.set(key, {
+      expiresAt: Date.now() + QBO_REFERENCE_CACHE_TTL_MS,
+      rows,
+    });
+
+    return rows;
   }
 
   /**
@@ -208,21 +282,47 @@ export class QuickBooksService {
    */
   private async qboQueryAll<T>(
     tenantId: number,
-    entity: 'Customer' | 'Account' | 'Item' | 'Class' | 'Department',
+    entity: QboReferenceEntity,
   ): Promise<T[]> {
-    const pageSize = 1000;
-    const all: T[] = [];
-
-    for (let start = 1; ; start += pageSize) {
-      const page = await this.qboQuery<T>(
-        tenantId,
-        `SELECT * FROM ${entity} WHERE Active = true STARTPOSITION ${start} MAXRESULTS ${pageSize}`,
-      );
-      all.push(...page);
-      if (page.length < pageSize) break;
+    const first = await this.qboReferencePage<T>(tenantId, entity, 1);
+    if (first.length < QBO_PAGE_SIZE) {
+      return first;
     }
 
-    return all;
+    const all = [...first];
+
+    for (
+      let start = 1 + QBO_PAGE_SIZE;
+      ;
+      start += QBO_PAGE_SIZE * QBO_PARALLEL_PAGES
+    ) {
+      const pages = await Promise.all(
+        Array.from({ length: QBO_PARALLEL_PAGES }, (_, offset) =>
+          this.qboReferencePage<T>(
+            tenantId,
+            entity,
+            start + offset * QBO_PAGE_SIZE,
+          ),
+        ),
+      );
+
+      pages.forEach((page) => all.push(...page));
+
+      if (pages[pages.length - 1].length < QBO_PAGE_SIZE) {
+        return all;
+      }
+    }
+  }
+
+  private qboReferencePage<T>(
+    tenantId: number,
+    entity: QboReferenceEntity,
+    start: number,
+  ): Promise<T[]> {
+    return this.qboQuery<T>(
+      tenantId,
+      `SELECT * FROM ${entity} WHERE Active = true STARTPOSITION ${start} MAXRESULTS ${QBO_PAGE_SIZE}`,
+    );
   }
 
   /**
@@ -271,6 +371,7 @@ export class QuickBooksService {
         return data?.Customer ?? data;
       },
     );
+    this.invalidateReferenceCache(tenantId, 'Customer');
     this.logger.log(
       `Created QuickBooks customer "${payload.DisplayName}" for tenant ${tenantId}`,
     );
