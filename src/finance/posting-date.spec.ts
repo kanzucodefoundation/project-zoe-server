@@ -76,8 +76,10 @@ describe('posting-date', () => {
       expect(resolvePostingDate('2026-10-15', '2026-10-25')).toBe('2026-10-19');
     });
 
-    it('does not keep shifting a gift found much later', () => {
-      expect(resolvePostingDate('2026-10-18', '2026-12-01')).toBe('2026-10-19');
+    it('books a gift found much later into the week it was found', () => {
+      // 1 Dec is a Tuesday, so the open week began Monday 30 Nov. Booking it
+      // to 19 Oct would land in a week disbursed six weeks earlier.
+      expect(resolvePostingDate('2026-10-18', '2026-12-01')).toBe('2026-11-30');
     });
 
     it('uses the finance zone to decide which week an import fell in', () => {

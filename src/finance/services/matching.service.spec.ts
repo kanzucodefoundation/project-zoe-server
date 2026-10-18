@@ -350,6 +350,77 @@ describe('MatchingService — suggestions', () => {
       expect(candidate?.matchCriteria.method).toBe('fuzzy_name');
     });
 
+    it('stops rather than charging the account holder when the message name ties', async () => {
+      // Two Grace Nakatos fit the narration equally well. Falling through to
+      // senderName would book the gift to whoever owns the phone.
+      withRoster([
+        { id: 11, person: { firstName: 'Grace', lastName: 'Nakato' } },
+        { id: 12, person: { firstName: 'Grace', lastName: 'Nakato' } },
+        { id: 13, person: { firstName: 'Jane', lastName: 'Accountholder' } },
+      ]);
+
+      const candidate = await service.findMatchForTransaction({
+        id: 1,
+        senderName: 'Jane Accountholder',
+        narration: 'grace nakato tithe',
+      } as any);
+
+      expect(candidate).toBeNull();
+    });
+
+    it('still falls back to the statement name when the tie is on that name', async () => {
+      // The narration names nobody, so senderName is the only candidate and
+      // the fallback must still run.
+      withRoster([
+        { id: 21, person: { firstName: 'Church', lastName: 'Account' } },
+      ]);
+
+      const candidate = await service.findMatchForTransaction({
+        id: 1,
+        senderName: 'Church Account',
+        narration: 'ugx 5000',
+      } as any);
+
+      expect(candidate?.contact.id).toBe(21);
+    });
+
+    it('refuses a phone line two contacts share', async () => {
+      // A household line identifies neither, and a phone match auto-approves.
+      withRoster([
+        {
+          id: 41,
+          person: { firstName: 'A', lastName: 'One' },
+          phones: [{ value: '+256700000111' }],
+        },
+        {
+          id: 42,
+          person: { firstName: 'B', lastName: 'Two' },
+          phones: [{ value: '0700000111' }],
+        },
+      ]);
+
+      const candidate = await service.findMatchForTransaction({
+        id: 1,
+        senderPhone: '+256700000111',
+      } as any);
+
+      expect(candidate).toBeNull();
+    });
+
+    it('refuses a tithe number two contacts share', async () => {
+      withRoster([
+        { id: 31, titheNumber: 'TBG9088', person: { firstName: 'A', lastName: 'One' } },
+        { id: 32, titheNumber: 'tbg-9088', person: { firstName: 'B', lastName: 'Two' } },
+      ]);
+
+      const candidate = await service.findMatchForTransaction({
+        id: 1,
+        narration: 'tithe TBG9088',
+      } as any);
+
+      expect(candidate).toBeNull();
+    });
+
     it('falls back to the statement name when the message names nobody', async () => {
       withRoster([
         { id: 9, person: { firstName: 'Church', lastName: 'Account' } },

@@ -416,8 +416,11 @@ export class QuickBooksService {
   }
 
   /** Intuit's `Retry-After` when it sends one, else exponential backoff. */
-  private throttleWaitMs(error: any, attempt: number): number {
-    const retryAfter = Number(error?.response?.headers?.['retry-after']);
+  private throttleWaitMs(error: unknown, attempt: number): number {
+    const headers = (
+      error as { response?: { headers?: Record<string, unknown> } }
+    )?.response?.headers;
+    const retryAfter = Number(headers?.['retry-after']);
     if (Number.isFinite(retryAfter) && retryAfter > 0) {
       return Math.min(retryAfter * 1000, QBO_THROTTLE_MAX_WAIT_MS);
     }

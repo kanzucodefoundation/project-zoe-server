@@ -162,6 +162,15 @@ describe('statement message parsing', () => {
       expect(extractTitheNumber('John 5000 tithe no 4471')).toBe('4471');
     });
 
+    it('reads past an upper-case money label to the real code', () => {
+      // Upper case is what separates a code from prose, so a shouted money
+      // label would otherwise be read as one.
+      expect(extractTitheNumber('AMOUNT 50000')).toBeNull();
+      expect(extractTitheNumber('AMOUNT 50000 TBG 9088')).toBe('TBG9088');
+      expect(extractTitheNumber('TOTAL 20000')).toBeNull();
+      expect(extractTitheNumber('BALANCE 1500 TBGB 0095')).toBe('TBGB0095');
+    });
+
     it('does not invent a code out of ordinary words', () => {
       expect(extractTitheNumber('offering oct 2026')).toBeNull();
       expect(extractTitheNumber('paid 20000 thanks')).toBeNull();

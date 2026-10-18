@@ -27,8 +27,10 @@ import {
 
 interface ContactIndex {
   contacts: Contact[];
-  byTitheNumber: Map<string, Contact>;
-  byPhone: Map<string, Contact>;
+  /** null marks a number two or more contacts share, which cannot identify one. */
+  byTitheNumber: Map<string, Contact | null>;
+  /** null marks a number two or more contacts share, which cannot identify one. */
+  byPhone: Map<string, Contact | null>;
   approvedContactIds: Set<number>;
 }
 
@@ -194,19 +196,31 @@ export class MatchingService {
       }),
     ]);
 
-    const byTitheNumber = new Map<string, Contact>();
-    const byPhone = new Map<string, Contact>();
+    const byTitheNumber = new Map<string, Contact | null>();
+    const byPhone = new Map<string, Contact | null>();
 
     for (const contact of contacts) {
       const titheNumber = normalizeTitheNumber(contact.titheNumber);
-      if (titheNumber && !byTitheNumber.has(titheNumber)) {
-        byTitheNumber.set(titheNumber, contact);
+      if (titheNumber) {
+        // A number on two records identifies neither. Keeping the first would
+        // attribute the gift by load order, which is what the fuzzy-name tie
+        // check already refuses to do.
+        byTitheNumber.set(
+          titheNumber,
+          byTitheNumber.has(titheNumber) ? null : contact,
+        );
       }
 
       for (const phone of contact.phones ?? []) {
         const normalized = normalizePhone(phone.value);
-        if (normalized && !byPhone.has(normalized)) {
-          byPhone.set(normalized, contact);
+        if (normalized) {
+          // A line two people share -- a household phone -- identifies
+          // neither, and a phone match auto-approves at 90, so taking the
+          // first would book the gift to whoever loaded first.
+          byPhone.set(
+            normalized,
+            byPhone.has(normalized) ? null : contact,
+          );
         }
       }
     }
@@ -261,7 +275,14 @@ export class MatchingService {
     // normalised form, so "TBG-9088" on a statement still finds "tbg9088".
     const titheNumber = this.titheNumberOf(transaction);
     if (titheNumber) {
-      const contact = contactIndex.byTitheNumber.get(titheNumber);
+      const contact = contactIndex.byTitheNumber.get(titheNumber) ?? null;
+      if (contact === null && contactIndex.byTitheNumber.has(titheNumber)) {
+        this.logger.business('log', 'Ambiguous tithe number skipped', {
+          operation: 'findMatchForTransaction',
+          resource: 'transaction',
+          metadata: { transactionId: transaction.id, titheNumber },
+        });
+      }
       if (contact) {
         const historical = hasHistoricalMatch(contact.id);
         return {
@@ -309,8 +330,17 @@ export class MatchingService {
     ]) {
       const normalized = normalizePhone(candidate);
       const contact = normalized
-        ? contactIndex.byPhone.get(normalized)
-        : undefined;
+        ? (contactIndex.byPhone.get(normalized) ?? null)
+        : null;
+
+      if (contact === null && normalized && contactIndex.byPhone.has(normalized)) {
+        this.logger.business('log', 'Ambiguous phone match skipped', {
+          operation: 'findMatchForTransaction',
+          resource: 'transaction',
+          metadata: { transactionId: transaction.id, phone: normalized },
+        });
+        continue;
+      }
 
       if (contact) {
         const historical = hasHistoricalMatch(contact.id);
@@ -332,14 +362,16 @@ export class MatchingService {
     // falls back to the statement's own name when it matches nobody, because
     // the extractor reads any two plain words as a name.
     const namesToTry = [
-      extractPersonName(transaction.narration),
-      transaction.senderName,
-    ].filter((name): name is string => !!name);
+      { name: extractPersonName(transaction.narration), fromNarration: true },
+      { name: transaction.senderName, fromNarration: false },
+    ].filter(
+      (entry): entry is { name: string; fromNarration: boolean } => !!entry.name,
+    );
 
     if (namesToTry.length > 0) {
       const contacts = contactIndex.contacts;
 
-      for (const nameToMatch of namesToTry) {
+      for (const { name: nameToMatch, fromNarration } of namesToTry) {
         let bestMatch: MatchCandidate | null = null;
         let tiedCount = 0;
 
@@ -390,6 +422,11 @@ export class MatchingService {
               candidates: tiedCount,
             },
           });
+          // An ambiguous narration name stops the search rather than falling
+          // through to the account holder: the narration is the better signal
+          // precisely because givers send on other people's phones, so the
+          // fallback would attribute the gift to the wrong person.
+          if (fromNarration) return null;
           continue;
         }
 
@@ -526,6 +563,13 @@ export class MatchingService {
 
           await this.matchRepository.save(match);
           matched++;
+
+          // A contact approved earlier in this same sweep counts as history
+          // for the rows after it. Without this the second gift from one
+          // person in an import scores lower than the first.
+          if (match.status === MatchStatus.APPROVED) {
+            contactIndex.approvedContactIds.add(matchResult.contact.id);
+          }
         }
       } catch (error) {
         errors.push(`Transaction ${transaction.id}: ${error.message}`);

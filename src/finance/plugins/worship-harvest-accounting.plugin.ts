@@ -50,8 +50,16 @@ export class WorshipHarvestAccountingPlugin
     transaction: Transaction,
     match: ReconciliationMatch | null,
   ): Promise<AccountingSalesReceipt> {
-    // Null for offertory: collected in the room, so there is nobody to match.
-    const contactId = match?.contact?.id ?? null;
+    // Collected giving belongs to the room, not to whoever a narration
+    // happened to match, so a match on one of these rows is ignored. The
+    // customer then comes from the category, and campus and class fall back
+    // to the mother group the same way they do for any giverless row.
+    const categoryKey = resolveTransactionCategory(transaction.category);
+    const collected = this.categoryRoutingService.isCollected(
+      categoryKey,
+      transaction.externalItemName,
+    );
+    const contactId = collected ? null : (match?.contact?.id ?? null);
     // Both repositories below are plain, untenanted repositories, so every
     // lookup has to carry the tenant itself. Without it a crafted id could read
     // another church's contact or account.
@@ -117,7 +125,6 @@ export class WorshipHarvestAccountingPlugin
       : null;
 
     // ── Transaction category → QBO Item ─────────────────────────────────────
-    const categoryKey = resolveTransactionCategory(transaction.category);
     const itemMapping = await this.mappingService.lookupByInternal({
       system: SYSTEM,
       internalReferenceType: 'GIVING_CATEGORY',
@@ -127,18 +134,20 @@ export class WorshipHarvestAccountingPlugin
 
     // ── Category + currency → standing QBO Customer ─────────────────────────
     const currency = account?.currency ?? DEFAULT_CURRENCY;
-    const collected = this.categoryRoutingService.isCollected(
-      categoryKey,
-      transaction.externalItemName,
-    );
     // Offerings book against their own income item, chosen by currency.
     const categoryItem = await this.categoryRoutingService.resolveGivingItem(
-      categoryKey,
+      collected
+        ? this.categoryRoutingService.collectedCategoryKey(categoryKey)
+        : categoryKey,
       currency,
     );
+    // Same key as the item and the customer: a collected tithe deposits
+    // where offertory deposits, not where a giver's tithe would.
     const categoryDeposit =
       await this.categoryRoutingService.resolveDepositAccount(
-        categoryKey,
+        collected
+          ? this.categoryRoutingService.collectedCategoryKey(categoryKey)
+          : categoryKey,
         currency,
       );
 

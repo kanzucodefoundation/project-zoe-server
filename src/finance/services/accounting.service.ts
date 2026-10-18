@@ -278,7 +278,9 @@ export class AccountingService {
     const contactId = match?.contact?.id ?? null;
 
     const categoryItem = await this.categoryRoutingService.resolveGivingItem(
-      categoryKey,
+      collected
+        ? this.categoryRoutingService.collectedCategoryKey(categoryKey)
+        : categoryKey,
       txn.account?.currency,
     );
     if (categoryItem.kind === 'unconfigured' && !txn.externalItemId) {
@@ -336,7 +338,7 @@ export class AccountingService {
     if (collected) {
       const mappedDeposit =
         await this.categoryRoutingService.resolveDepositAccount(
-          categoryKey,
+          this.categoryRoutingService.collectedCategoryKey(categoryKey),
           txn.account?.currency,
         );
       if (mappedDeposit.externalAccountId) {
@@ -781,16 +783,20 @@ export class AccountingService {
     const accountId = txn.account?.id ?? (txn as any).accountId;
 
     const match = await this.getApprovedMatch(transactionId);
-    const setupCategoryItem =
-      await this.categoryRoutingService.resolveGivingItem(
-        categoryKey,
-        txn.account?.currency,
-      );
-
     const collected = this.categoryRoutingService.isCollected(
       categoryKey,
       txn.externalItemName,
     );
+    // Collected giving books against the offertory item, not the giver's
+    // category, so a collected tithe must not resolve the tithe item.
+    const itemCategoryKey = collected
+      ? this.categoryRoutingService.collectedCategoryKey(categoryKey)
+      : categoryKey;
+    const setupCategoryItem =
+      await this.categoryRoutingService.resolveGivingItem(
+        itemCategoryKey,
+        txn.account?.currency,
+      );
     const categoryCustomer = collected
       ? await this.categoryRoutingService.resolveCategoryCustomer(
           categoryKey,
@@ -1022,7 +1028,7 @@ export class AccountingService {
         .map((a) => ({ id: String(a.Id), name: a.Name }));
       const mappedDeposit =
         await this.categoryRoutingService.resolveDepositAccount(
-          categoryKey,
+          this.categoryRoutingService.collectedCategoryKey(categoryKey),
           txn.account?.currency,
         );
       // Also offered when a mapping exists but QuickBooks will not accept it,

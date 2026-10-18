@@ -81,7 +81,11 @@ export const reportingWeekStart = (isoDate: string): string | null => {
  * Statements are extracted weekly, and the week's funds are disbursed to
  * locations once that week closes. A gift imported in a later reporting week
  * than its own would land in a week that has already been paid out, so it is
- * booked on the Monday that opens the following week instead of its own date.
+ * booked on the Monday of the week it was found in instead of its own date.
+ *
+ * The week it was found in, rather than the one after its own: a gift
+ * surfacing six weeks late would otherwise be booked into a week that has
+ * itself long since been disbursed, which is the problem this avoids.
  */
 export const resolvePostingDate = (
   transactionDate: Date | string,
@@ -99,8 +103,7 @@ export const resolvePostingDate = (
     return transactionIso;
   }
 
-  const nextWeek = parseIsoDate(transactionWeek);
-  return nextWeek ? formatUtcDate(addDays(nextWeek, 7)) : transactionIso;
+  return importWeek;
 };
 
 export const isPostingDateDeferred = (

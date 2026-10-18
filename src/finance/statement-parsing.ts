@@ -92,6 +92,10 @@ const TITHE_CODE_SPACED = /\b([a-z]{2,6})[\s\-_.]+(\d{3,6})\b/gi;
 const NOT_TITHE_PREFIX = new Set([
   'ugx', 'shs', 'ush', 'usd', 'kes', 'tzs', 'rwf',
   'tel', 'phone', 'no', 'num', 'ref', 'id', 'acc', 'mtn', 'tn',
+  // Money labels. These reach the space-separated rule in upper case often
+  // enough ("AMOUNT 50000") that the upper-case test alone would read them
+  // as a code; the lookup is lower-cased, so one entry covers either casing.
+  'amount', 'amt', 'total', 'bal', 'balance', 'fee', 'charge', 'cash',
 ]);
 
 /**
