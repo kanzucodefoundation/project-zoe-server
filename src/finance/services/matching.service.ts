@@ -335,6 +335,10 @@ export class MatchingService {
             candidates: payees.size,
           },
         });
+        // Same reason the ambiguous tithe number stops: continuing reaches
+        // the contact-phone strategy, which can return a third person who
+        // merely lists this number, at 90 and auto-approved.
+        return null;
       }
 
       const paymentMethod = payees.size === 1 ? paymentMethods[0] : null;
@@ -371,6 +375,10 @@ export class MatchingService {
           resource: 'transaction',
           metadata: { transactionId: transaction.id, phone: normalized },
         });
+        // `continue`, not `return null`, unlike the two guards above. What
+        // follows a shared phone is the name written in the message, which
+        // names a person rather than an account -- a better signal, not a
+        // weaker one, so it is allowed to decide.
         continue;
       }
 

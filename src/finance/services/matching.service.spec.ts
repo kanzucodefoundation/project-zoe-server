@@ -429,6 +429,31 @@ describe('MatchingService — suggestions', () => {
       expect(candidate?.contact.id).toBe(71);
     });
 
+    it('does not fall through to contact phone when payment methods are ambiguous', async () => {
+      // A third person lists the same number, uniquely, so contact-phone
+      // matching would hand back a 90 and auto-approve to the wrong giver.
+      withRoster([
+        { id: 81, person: { firstName: 'A', lastName: 'One' } },
+        { id: 82, person: { firstName: 'B', lastName: 'Two' } },
+        {
+          id: 83,
+          person: { firstName: 'C', lastName: 'Three' },
+          phones: [{ value: '+256700000555' }],
+        },
+      ]);
+      (service as any).paymentMethodRepository.find = jest
+        .fn()
+        .mockResolvedValue([{ contact: { id: 81 } }, { contact: { id: 82 } }]);
+
+      const candidate = await service.findMatchForTransaction({
+        id: 1,
+        senderPhoneNormalized: '+256700000555',
+        senderPhone: '+256700000555',
+      } as any);
+
+      expect(candidate).toBeNull();
+    });
+
     it('refuses a payment method two contacts registered', async () => {
       // valueNormalized is not unique, so the old findOne returned whichever
       // row came first -- at 95, which auto-approves.

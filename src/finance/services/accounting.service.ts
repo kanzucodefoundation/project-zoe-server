@@ -356,7 +356,9 @@ export class AccountingService {
               chosen.Name
             }" is a ${type} account, and QuickBooks only accepts ${QBO_DEPOSITABLE_ACCOUNT_TYPES.join(
               ' or ',
-            )} as a deposit account. Pick a bank account for ${categoryKey} ${
+            )} as a deposit account. Pick a bank account for ${this.categoryRoutingService.collectedCategoryKey(
+              categoryKey,
+            )} ${
               mappedDeposit.currency
             }; the income side is set by the giving item, not the deposit.`,
           });
@@ -1061,7 +1063,7 @@ export class AccountingService {
           creatable: false,
           ...this.suggestCategoryCurrencyOption(
             depositOptions,
-            categoryKey,
+            itemCategoryKey,
             mappedDeposit.currency,
           ),
         });
@@ -1085,7 +1087,7 @@ export class AccountingService {
         creatable: false,
         ...this.suggestCategoryCurrencyOption(
           items.data.map((i) => ({ id: String(i.Id), name: i.Name })),
-          categoryKey,
+          itemCategoryKey,
           setupCategoryItem.currency,
         ),
       });
