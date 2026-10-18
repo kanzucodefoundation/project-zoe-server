@@ -633,6 +633,31 @@ describe('AccountingService — posting a batch', () => {
       expect(blocker?.message).toMatch(/Income/);
     });
 
+    it('blocks posting when the deposit account can no longer be read', async () => {
+      // Letting this through only moves the failure to Intuit, as a 6000.
+      qbService.getQboAccounts.mockRejectedValue(new Error('QuickBooks down'));
+
+      const { ready, blockers } = await service.preflight(1);
+
+      expect(ready).toBe(false);
+      expect(
+        blockers.some((b) => b.code === 'QBO_ACCOUNTS_UNAVAILABLE'),
+      ).toBe(true);
+    });
+
+    it('blocks posting when the mapped deposit account has been deleted', async () => {
+      qbService.getQboAccounts.mockResolvedValue([
+        { Id: '12', Name: 'MoMo UGX', AccountType: 'Bank' },
+      ]);
+
+      const { ready, blockers } = await service.preflight(1);
+
+      expect(ready).toBe(false);
+      expect(
+        blockers.some((b) => b.code === 'CATEGORY_CURRENCY_DEPOSIT_MISSING'),
+      ).toBe(true);
+    });
+
     it('refuses to save a deposit account it could not verify', async () => {
       repos.contact.findOne.mockResolvedValue({ id: 1 });
       qbService.getQboAccounts.mockRejectedValue(new Error('QuickBooks down'));

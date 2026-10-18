@@ -277,16 +277,21 @@ export class AccountingService {
 
     const contactId = match?.contact?.id ?? null;
 
+    // The key resolution actually reads, which is what setup stores the
+    // mapping under. Messages name it too, or the operator is told to map a
+    // category that is not the one being looked up.
+    const itemCategoryKey = collected
+      ? this.categoryRoutingService.collectedCategoryKey(categoryKey)
+      : categoryKey;
+
     const categoryItem = await this.categoryRoutingService.resolveGivingItem(
-      collected
-        ? this.categoryRoutingService.collectedCategoryKey(categoryKey)
-        : categoryKey,
+      itemCategoryKey,
       txn.account?.currency,
     );
     if (categoryItem.kind === 'unconfigured' && !txn.externalItemId) {
       blockers.push({
         code: 'CATEGORY_CURRENCY_ITEM_MISSING',
-        message: `${categoryKey} books against its own QuickBooks product/service per currency, and none is mapped for ${categoryItem.currency}. Pick the ${categoryItem.currency} offering item in the posting dialog.`,
+        message: `${itemCategoryKey} books against its own QuickBooks product/service per currency, and none is mapped for ${categoryItem.currency}. Pick the ${categoryItem.currency} offering item in the posting dialog.`,
       });
     }
 
@@ -338,7 +343,7 @@ export class AccountingService {
     if (collected) {
       const mappedDeposit =
         await this.categoryRoutingService.resolveDepositAccount(
-          this.categoryRoutingService.collectedCategoryKey(categoryKey),
+          itemCategoryKey,
           txn.account?.currency,
         );
       if (mappedDeposit.externalAccountId) {
@@ -349,16 +354,30 @@ export class AccountingService {
           (a) => String(a.Id) === mappedDeposit.externalAccountId,
         ) as QboAccount | undefined;
         const type = chosen?.AccountType ?? '';
-        if (chosen && !QBO_DEPOSITABLE_ACCOUNT_TYPES.includes(type)) {
+
+        // An override that cannot be verified blocks, the same way
+        // `assertDepositAccountUsable` refuses one at the moment it is picked.
+        // Letting it through only moves the failure to posting time, where it
+        // arrives as a 6000 fault from Intuit.
+        if (qboAccounts.failed) {
+          blockers.push({
+            code: 'QBO_ACCOUNTS_UNAVAILABLE',
+            message:
+              'QuickBooks accounts could not be loaded, so the deposit account set for this category cannot be verified. Try again once QuickBooks is reachable.',
+          });
+        } else if (!chosen) {
+          blockers.push({
+            code: 'CATEGORY_CURRENCY_DEPOSIT_MISSING',
+            message: `The QuickBooks deposit account set for ${itemCategoryKey} ${mappedDeposit.currency} no longer exists. Pick another in the posting dialog, or clear it to deposit where the statement was imported.`,
+          });
+        } else if (!QBO_DEPOSITABLE_ACCOUNT_TYPES.includes(type)) {
           blockers.push({
             code: 'CATEGORY_CURRENCY_DEPOSIT_INVALID',
             message: `"${
               chosen.Name
             }" is a ${type} account, and QuickBooks only accepts ${QBO_DEPOSITABLE_ACCOUNT_TYPES.join(
               ' or ',
-            )} as a deposit account. Pick a bank account for ${this.categoryRoutingService.collectedCategoryKey(
-              categoryKey,
-            )} ${
+            )} as a deposit account. Pick a bank account for ${itemCategoryKey} ${
               mappedDeposit.currency
             }; the income side is set by the giving item, not the deposit.`,
           });
