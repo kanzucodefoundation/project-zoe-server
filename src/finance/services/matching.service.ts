@@ -199,28 +199,35 @@ export class MatchingService {
     const byTitheNumber = new Map<string, Contact | null>();
     const byPhone = new Map<string, Contact | null>();
 
+    // Two *different* contacts on one key identify neither, so the key is
+    // marked ambiguous. One contact holding the same key twice -- the same
+    // number stored as "+2567..." and "07..." -- is not a collision, and
+    // marking it would stop that person matching at all.
+    const index = (
+      map: Map<string, Contact | null>,
+      key: string,
+      contact: Contact,
+    ) => {
+      if (!map.has(key)) {
+        map.set(key, contact);
+        return;
+      }
+      const held = map.get(key);
+      if (held && held.id !== contact.id) {
+        map.set(key, null);
+      }
+    };
+
     for (const contact of contacts) {
       const titheNumber = normalizeTitheNumber(contact.titheNumber);
       if (titheNumber) {
-        // A number on two records identifies neither. Keeping the first would
-        // attribute the gift by load order, which is what the fuzzy-name tie
-        // check already refuses to do.
-        byTitheNumber.set(
-          titheNumber,
-          byTitheNumber.has(titheNumber) ? null : contact,
-        );
+        index(byTitheNumber, titheNumber, contact);
       }
 
       for (const phone of contact.phones ?? []) {
         const normalized = normalizePhone(phone.value);
         if (normalized) {
-          // A line two people share -- a household phone -- identifies
-          // neither, and a phone match auto-approves at 90, so taking the
-          // first would book the gift to whoever loaded first.
-          byPhone.set(
-            normalized,
-            byPhone.has(normalized) ? null : contact,
-          );
+          index(byPhone, normalized, contact);
         }
       }
     }
@@ -282,6 +289,11 @@ export class MatchingService {
           resource: 'transaction',
           metadata: { transactionId: transaction.id, titheNumber },
         });
+        // The message named a giver we cannot tell apart. Falling through to
+        // the phone strategies would credit the account holder at 90-95 and
+        // auto-approve it, which is the same mistake the ambiguous-name
+        // branch below refuses to make.
+        return null;
       }
       if (contact) {
         const historical = hasHistoricalMatch(contact.id);
@@ -299,13 +311,33 @@ export class MatchingService {
 
     // Strategy 1: Exact phone match via ContactPaymentMethod (95% confidence)
     if (transaction.senderPhoneNormalized) {
-      const paymentMethod = await this.paymentMethodRepository.findOne({
+      // `find`, not `findOne`: the column is not unique. A household number
+      // registered by two people would otherwise return whichever row the
+      // database happened to order first, at 95 and auto-approved.
+      const paymentMethods = await this.paymentMethodRepository.find({
         where: {
           tenant: { id: tenantId },
           valueNormalized: transaction.senderPhoneNormalized,
         },
         relations: ['contact', 'contact.person'],
       });
+
+      const payees = new Set(
+        paymentMethods.map((pm) => pm.contact?.id).filter(Boolean),
+      );
+      if (payees.size > 1) {
+        this.logger.business('log', 'Ambiguous payment method skipped', {
+          operation: 'findMatchForTransaction',
+          resource: 'transaction',
+          metadata: {
+            transactionId: transaction.id,
+            phone: transaction.senderPhoneNormalized,
+            candidates: payees.size,
+          },
+        });
+      }
+
+      const paymentMethod = payees.size === 1 ? paymentMethods[0] : null;
 
       if (paymentMethod?.contact) {
         const historical = hasHistoricalMatch(paymentMethod.contact.id);

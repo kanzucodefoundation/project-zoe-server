@@ -333,6 +333,9 @@ describe('MatchingService — suggestions', () => {
       (service as any).paymentMethodRepository.findOne = jest
         .fn()
         .mockResolvedValue(null);
+      (service as any).paymentMethodRepository.find = jest
+        .fn()
+        .mockResolvedValue([]);
     };
 
     it('is matched on ahead of the account the money came from', async () => {
@@ -382,6 +385,70 @@ describe('MatchingService — suggestions', () => {
       } as any);
 
       expect(candidate?.contact.id).toBe(21);
+    });
+
+    it('does not fall through to the phone when the tithe number is ambiguous', async () => {
+      // The account holder is a real, unique phone match at 90. Without the
+      // stop, the gift would be auto-approved to them rather than to one of
+      // the two people whose tithe number was written in the message.
+      withRoster([
+        { id: 51, titheNumber: 'TBG9088', person: { firstName: 'A', lastName: 'One' } },
+        { id: 52, titheNumber: 'tbg-9088', person: { firstName: 'B', lastName: 'Two' } },
+        {
+          id: 53,
+          person: { firstName: 'Jane', lastName: 'Accountholder' },
+          phones: [{ value: '+256700000222' }],
+        },
+      ]);
+
+      const candidate = await service.findMatchForTransaction({
+        id: 1,
+        narration: 'tithe TBG9088',
+        senderPhone: '+256700000222',
+      } as any);
+
+      expect(candidate).toBeNull();
+    });
+
+    it('still matches one contact holding the same number twice', async () => {
+      // "+256700000444" and "0700000444" normalise alike. That is one person,
+      // not a collision, so it must not be treated as ambiguous.
+      withRoster([
+        {
+          id: 71,
+          person: { firstName: 'Grace', lastName: 'Nakato' },
+          phones: [{ value: '+256700000444' }, { value: '0700000444' }],
+        },
+      ]);
+
+      const candidate = await service.findMatchForTransaction({
+        id: 1,
+        senderPhone: '+256700000444',
+      } as any);
+
+      expect(candidate?.contact.id).toBe(71);
+    });
+
+    it('refuses a payment method two contacts registered', async () => {
+      // valueNormalized is not unique, so the old findOne returned whichever
+      // row came first -- at 95, which auto-approves.
+      withRoster([
+        { id: 61, person: { firstName: 'A', lastName: 'One' } },
+        { id: 62, person: { firstName: 'B', lastName: 'Two' } },
+      ]);
+      (service as any).paymentMethodRepository.find = jest
+        .fn()
+        .mockResolvedValue([
+          { contact: { id: 61 } },
+          { contact: { id: 62 } },
+        ]);
+
+      const candidate = await service.findMatchForTransaction({
+        id: 1,
+        senderPhoneNormalized: '+256700000333',
+      } as any);
+
+      expect(candidate).toBeNull();
     });
 
     it('refuses a phone line two contacts share', async () => {
@@ -488,6 +555,9 @@ describe('MatchingService — suggestions', () => {
       (service as any).paymentMethodRepository.findOne = jest
         .fn()
         .mockResolvedValue(null);
+      (service as any).paymentMethodRepository.find = jest
+        .fn()
+        .mockResolvedValue([]);
     };
 
     it('matches however the giver punctuated it', async () => {
@@ -563,6 +633,9 @@ describe('MatchingService — suggestions', () => {
       (service as any).paymentMethodRepository.findOne = jest
         .fn()
         .mockResolvedValue(null);
+      (service as any).paymentMethodRepository.find = jest
+        .fn()
+        .mockResolvedValue([]);
       const contactFind = jest.fn().mockResolvedValue([]);
       (service as any).contactRepository.find = contactFind;
 

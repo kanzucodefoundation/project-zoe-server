@@ -1042,11 +1042,14 @@ export class AccountingService {
         missingMappings.push({
           code: 'CATEGORY_CURRENCY_DEPOSIT_OPTIONAL',
           internalReferenceType: CATEGORY_CURRENCY_REFERENCE_TYPE,
+          // Saved under the key resolution reads. Writing the giver's
+          // category here would leave the offertory mapping unset, so the
+          // blocker would never clear however many times it is picked.
           internalReferenceId: categoryCurrencyKey(
-            categoryKey,
+            itemCategoryKey,
             mappedDeposit.currency,
           ),
-          internalName: `${categoryKey} deposit account (${mappedDeposit.currency}) — optional`,
+          internalName: `${itemCategoryKey} deposit account (${mappedDeposit.currency}) — optional`,
           externalReferenceType: 'ACCOUNT',
           qboOptions: [
             {
@@ -1070,10 +1073,10 @@ export class AccountingService {
         code: 'CATEGORY_CURRENCY_ITEM_MISSING',
         internalReferenceType: CATEGORY_CURRENCY_REFERENCE_TYPE,
         internalReferenceId: categoryCurrencyKey(
-          categoryKey,
+          itemCategoryKey,
           setupCategoryItem.currency,
         ),
-        internalName: `${categoryKey} (${setupCategoryItem.currency})`,
+        internalName: `${itemCategoryKey} (${setupCategoryItem.currency})`,
         externalReferenceType: 'ITEM',
         qboOptions: items.data.map((i) => ({
           id: String(i.Id),
