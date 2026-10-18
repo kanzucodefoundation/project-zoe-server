@@ -194,12 +194,21 @@ export class AccountingService {
    * pending. Left out, every offering posted stayed on the pending list for
    * good.
    */
-  private async markReconciled(txn: Transaction): Promise<void> {
-    if (txn.status === TransactionStatus.RECONCILED) {
-      return;
+  private async markReconciled(transactionId: number): Promise<void> {
+    try {
+      const txn = await this.getTransaction(transactionId);
+      if (txn.status === TransactionStatus.RECONCILED) {
+        return;
+      }
+      txn.status = TransactionStatus.RECONCILED;
+      await this.txnRepo.save(txn);
+    } catch (err) {
+      this.logger.error(
+        `Posted transaction ${transactionId} could not be marked reconciled: ${
+          (err as Error)?.message
+        }`,
+      );
     }
-    txn.status = TransactionStatus.RECONCILED;
-    await this.txnRepo.save(txn);
   }
 
   private async getApprovedMatch(
@@ -279,8 +288,20 @@ export class AccountingService {
       });
     }
 
-    // Only needed when the gift posts under the giver.
-    if (!collected) {
+    if (collected) {
+      const categoryCustomer =
+        await this.categoryRoutingService.resolveCategoryCustomer(
+          categoryKey,
+          txn.account?.currency,
+        );
+      if (!categoryCustomer.externalCustomerId) {
+        blockers.push({
+          code: 'CATEGORY_CURRENCY_CUSTOMER_MISSING',
+          message: `Collected giving books to a standing QuickBooks customer per currency, and none is mapped for ${categoryCustomer.currency}. Pick or create that customer in the posting dialog.`,
+        });
+      }
+    } else {
+      // Only needed when the gift posts under the giver.
       const customerMap = await this.mappingService.lookupByInternal({
         system: SYSTEM,
         internalReferenceType: 'CONTACT',
@@ -470,7 +491,6 @@ export class AccountingService {
       posting.externalDocumentId = qboResponse?.Id ?? null;
       posting.externalDocumentNumber = qboResponse?.DocNumber ?? null;
       posting.postedAt = new Date();
-      await this.markReconciled(txn);
     } catch (err) {
       // A failed attempt stays retryable, and the retry is safe because it
       // carries the same idempotency key as the attempt that failed. That
@@ -483,7 +503,16 @@ export class AccountingService {
         : err.message;
     }
 
-    return this.postingRepo.save(posting);
+    const saved = await this.postingRepo.save(posting);
+
+    // Deliberately after the posting is saved, and outside the try above: by
+    // this point QuickBooks holds the receipt, so a database hiccup here must
+    // leave the gift recorded as POSTED rather than rewrite it to FAILED.
+    if (saved.status === AccountingPostingStatus.POSTED) {
+      await this.markReconciled(transactionId);
+    }
+
+    return saved;
   }
 
   /**
@@ -762,6 +791,14 @@ export class AccountingService {
       categoryKey,
       txn.externalItemName,
     );
+    const categoryCustomer = collected
+      ? await this.categoryRoutingService.resolveCategoryCustomer(
+          categoryKey,
+          txn.account?.currency,
+        )
+      : null;
+    const needsCategoryCustomer =
+      !!categoryCustomer && !categoryCustomer.externalCustomerId;
     const needsCategoryCurrencyItem =
       setupCategoryItem.kind === 'unconfigured' && !txn.externalItemId;
 
@@ -842,7 +879,7 @@ export class AccountingService {
     // degrade to an explained warning rather than a 500 for the whole dialog.
     const [customers, items, accounts, departments, classes] =
       await Promise.all([
-        !collected && !customerMap
+        (!collected && !customerMap) || needsCategoryCustomer
           ? this.tryQbo<QboCustomer>(() =>
               this.qbService.getQboCustomers(tenantId),
             )
@@ -910,6 +947,45 @@ export class AccountingService {
           code: 'QBO_CUSTOMERS_UNAVAILABLE',
           message:
             'QuickBooks customers could not be loaded, so there is nothing to pick from. You can still create this giver as a new customer.',
+        });
+      }
+    }
+
+    if (needsCategoryCustomer && categoryCustomer) {
+      const customerOptions: QboOption[] = customers.data.map((c) => ({
+        id: String(c.Id),
+        name: c.DisplayName ?? c.FullyQualifiedName ?? c.CompanyName ?? c.Id,
+      }));
+      const collectedKey =
+        this.categoryRoutingService.collectedCategoryKey(categoryKey);
+      const suggestion = this.suggestCategoryCurrencyOption(
+        customerOptions,
+        collectedKey,
+        categoryCustomer.currency,
+      );
+
+      missingMappings.push({
+        code: 'CATEGORY_CURRENCY_CUSTOMER_MISSING',
+        internalReferenceType: CATEGORY_CURRENCY_REFERENCE_TYPE,
+        internalReferenceId: categoryCustomer.mappingKey,
+        internalName: `${collectedKey} (${categoryCustomer.currency}) — standing customer`,
+        externalReferenceType: 'CUSTOMER',
+        qboOptions: customerOptions,
+        // Creatable, because a company that has never booked collected giving
+        // in this currency has no such customer yet, and sending the operator
+        // to QuickBooks to add one by hand is the slower half of the job.
+        creatable: true,
+        createDefaults: {
+          displayName: `Offertory ${categoryCustomer.currency}`,
+        },
+        ...suggestion,
+      });
+
+      if (customers.failed) {
+        dataIssues.push({
+          code: 'QBO_CUSTOMERS_UNAVAILABLE',
+          message:
+            'QuickBooks customers could not be loaded, so there is nothing to pick from. You can still create the standing customer for this currency.',
         });
       }
     }
@@ -1492,13 +1568,20 @@ export class AccountingService {
         // Both halves matter. Checking only the external type would let a
         // GROUP -> CUSTOMER row create a standalone customer and map a campus
         // to it, which is not something this dialog should ever do.
-        if (
-          m.internalReferenceType !== 'CONTACT' ||
-          m.externalReferenceType !== 'CUSTOMER' ||
-          contactId === undefined
-        ) {
+        const createsGiver =
+          m.internalReferenceType === 'CONTACT' &&
+          m.externalReferenceType === 'CUSTOMER' &&
+          contactId !== undefined;
+        // The standing customer for collected giving, e.g. "Offertory UGX".
+        // It stands for the collection rather than a person, so it has no
+        // campus parent and is not a sub-customer of anything.
+        const createsStandingCustomer =
+          m.internalReferenceType === CATEGORY_CURRENCY_REFERENCE_TYPE &&
+          m.externalReferenceType === 'CUSTOMER';
+
+        if (!createsGiver && !createsStandingCustomer) {
           throw new BadRequestException(
-            `Only a giver can be created from Zoe. ${m.internalReferenceType} to ${m.externalReferenceType} must be added in QuickBooks first, then picked here.`,
+            `Only a giver or a standing customer for collected giving can be created from Zoe. ${m.internalReferenceType} to ${m.externalReferenceType} must be added in QuickBooks first, then picked here.`,
           );
         }
         if (!m.create) {
@@ -1510,7 +1593,10 @@ export class AccountingService {
         // Attach the giver to their campus in the same step. Doing this here
         // rather than asking for it separately is what keeps the dialog to one
         // decision per missing record.
-        const parent = await this.ensureLocationCustomer(tenantId, contactId);
+        const parent =
+          createsGiver && contactId !== undefined
+            ? await this.ensureLocationCustomer(tenantId, contactId)
+            : null;
 
         const created = await this.createQboCustomer(
           tenantId,
@@ -1591,10 +1677,10 @@ export class AccountingService {
   ): Record<string, any> {
     // Mappings are verified in preflight, but they can be removed in between.
     // Refuse rather than send a reference QuickBooks cannot resolve.
-    const collected = receipt.customer.postsAs === 'CATEGORY';
     const missing: string[] = [];
-    // Collected giving carries no customer at all.
-    if (!collected && !receipt.customer.externalCustomerId) {
+    // Collected giving books to the standing customer for its category and
+    // currency; either way the receipt needs a customer.
+    if (!receipt.customer.externalCustomerId) {
       missing.push('customer');
     }
     if (!receipt.depositAccount.externalAccountId)
@@ -1611,9 +1697,7 @@ export class AccountingService {
 
     const payload: Record<string, any> = {
       TxnDate: receipt.transactionDate,
-      ...(collected
-        ? {}
-        : { CustomerRef: { value: receipt.customer.externalCustomerId } }),
+      CustomerRef: { value: receipt.customer.externalCustomerId },
       DepositToAccountRef: { value: receipt.depositAccount.externalAccountId },
       Line: receipt.lineItems.map((li) => ({
         Amount: li.amount,

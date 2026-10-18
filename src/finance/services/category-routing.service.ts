@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ExternalSystemMappingService } from '../../integrations/quickbooks/external-system-mapping.service';
+import { TransactionCategory } from '../enums/transaction-category.enum';
 import {
   ACCOUNTING_SYSTEM,
   CATEGORY_CURRENCY_REFERENCE_TYPE,
@@ -127,6 +128,59 @@ export class CategoryRoutingService {
       externalItemId:
         categoryItem.externalItemId ?? categoryMappingItemId ?? null,
       externalItemName: categoryItem.externalItemName ?? categoryKey,
+    };
+  }
+
+  /**
+   * The category a collected gift books under, whatever its own category says.
+   *
+   * A YXP or children's church collection carries no category keyword and so
+   * defaults to tithe, but the standing customer and income item it books
+   * against are the offering ones.
+   */
+  collectedCategoryKey(category: string): string {
+    return this.isCurrencyRouted(category)
+      ? category
+      : TransactionCategory.OFFERING;
+  }
+
+  /**
+   * The standing QuickBooks customer a collected gift posts to.
+   *
+   * Offertory is not anyone's gift, so it books to a customer that stands for
+   * the collection itself — "Offertory UGX" and its equivalents per currency —
+   * rather than to a person. QuickBooks keeps giving by customer, so without
+   * this the offering would carry no attribution at all.
+   */
+  async resolveCategoryCustomer(
+    category: string,
+    currency: string | null | undefined,
+  ): Promise<{
+    externalCustomerId: string | null;
+    externalCustomerName: string | null;
+    currency: string;
+    mappingKey: string;
+  }> {
+    const normalizedCurrency = (currency || DEFAULT_CURRENCY)
+      .trim()
+      .toUpperCase();
+    const mappingKey = categoryCurrencyKey(
+      this.collectedCategoryKey(category),
+      normalizedCurrency,
+    );
+
+    const exact = await this.mappingService.lookupByInternal({
+      system: ACCOUNTING_SYSTEM,
+      internalReferenceType: CATEGORY_CURRENCY_REFERENCE_TYPE,
+      internalReferenceId: mappingKey,
+      externalReferenceType: 'CUSTOMER',
+    });
+
+    return {
+      externalCustomerId: exact?.externalReferenceId ?? null,
+      externalCustomerName: exact?.externalReferenceName ?? null,
+      currency: normalizedCurrency,
+      mappingKey,
     };
   }
 

@@ -341,6 +341,7 @@ export class MatchingService {
 
       for (const nameToMatch of namesToTry) {
         let bestMatch: MatchCandidate | null = null;
+        let tiedCount = 0;
 
         for (const contact of contacts) {
           if (!contact.person) continue;
@@ -368,8 +369,28 @@ export class MatchingService {
                   historicalBonus: historical,
                 },
               };
+              tiedCount = 1;
+            } else if (confidenceScore === bestMatch.confidenceScore) {
+              tiedCount += 1;
             }
           }
+        }
+
+        // Two contacts the name fits equally well is not a match, it is a
+        // question for a person. Common names tie constantly across a roster
+        // of thousands, and taking the first would attribute the gift by load
+        // order.
+        if (bestMatch && tiedCount > 1) {
+          this.logger.business('log', 'Ambiguous name match skipped', {
+            operation: 'findMatchForTransaction',
+            resource: 'transaction',
+            metadata: {
+              transactionId: transaction.id,
+              name: nameToMatch,
+              candidates: tiedCount,
+            },
+          });
+          continue;
         }
 
         if (bestMatch) {

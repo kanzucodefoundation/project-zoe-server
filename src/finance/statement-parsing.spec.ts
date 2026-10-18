@@ -154,6 +154,20 @@ describe('statement message parsing', () => {
       expect(extractTitheNumber('offering 15000')).toBeNull();
     });
 
+    it('reads a labelled number before any separated candidate', () => {
+      // "number", "amount" and "for" are ordinary words, not code prefixes.
+      expect(extractTitheNumber('tithe number 4471')).toBe('4471');
+      // "tithe amount 50000" states an amount, so no identifier is read.
+      expect(extractTitheNumber('tithe amount 50000')).toBeNull();
+      expect(extractTitheNumber('John 5000 tithe no 4471')).toBe('4471');
+    });
+
+    it('does not invent a code out of ordinary words', () => {
+      expect(extractTitheNumber('offering oct 2026')).toBeNull();
+      expect(extractTitheNumber('paid 20000 thanks')).toBeNull();
+      expect(extractTitheNumber('John 5000')).toBeNull();
+    });
+
     it('looks past a leading amount to the code behind it', () => {
       expect(extractTitheNumber('ugx 5000 TBG 9088')).toBe('TBG9088');
       expect(extractTitheNumber('tel 0772123456 tbgb_0095')).toBe('TBGB0095');

@@ -13,6 +13,8 @@ describe('WorshipHarvestAccountingPlugin — who the receipt is booked to', () =
   let plugin: WorshipHarvestAccountingPlugin;
   let routing: {
     isCollected: jest.Mock;
+    resolveCategoryCustomer: jest.Mock;
+    collectedCategoryKey: jest.Mock;
     resolveGivingItem: jest.Mock;
     resolveDepositAccount: jest.Mock;
     resolveLineItem: CategoryRoutingService['resolveLineItem'];
@@ -42,6 +44,13 @@ describe('WorshipHarvestAccountingPlugin — who the receipt is booked to', () =
   beforeEach(async () => {
     routing = {
       isCollected: jest.fn().mockReturnValue(false),
+      resolveCategoryCustomer: jest.fn().mockResolvedValue({
+        externalCustomerId: '77',
+        externalCustomerName: 'Offertory UGX',
+        currency: 'UGX',
+        mappingKey: 'OFFERING:UGX',
+      }),
+      collectedCategoryKey: jest.fn(() => 'OFFERING'),
       resolveGivingItem: jest.fn().mockResolvedValue({
         kind: 'giver',
         externalItemId: null,
@@ -137,7 +146,7 @@ describe('WorshipHarvestAccountingPlugin — who the receipt is booked to', () =
     expect(receipt.depositAccount.externalAccountId).toBe('other');
   });
 
-  it('gives offertory no customer at all', async () => {
+  it('books offertory to the standing customer for its currency', async () => {
     asCollected();
 
     const receipt = await plugin.buildSalesReceipt(
@@ -146,7 +155,26 @@ describe('WorshipHarvestAccountingPlugin — who the receipt is booked to', () =
     );
 
     expect(receipt.customer.postsAs).toBe('CATEGORY');
+    expect(receipt.customer.externalCustomerId).toBe('77');
+    expect(receipt.customer.externalCustomerName).toBe('Offertory UGX');
+  });
+
+  it('falls back to no customer when no standing one is mapped', async () => {
+    asCollected();
+    routing.resolveCategoryCustomer.mockResolvedValue({
+      externalCustomerId: null,
+      externalCustomerName: null,
+      currency: 'UGX',
+      mappingKey: 'OFFERING:UGX',
+    });
+
+    const receipt = await plugin.buildSalesReceipt(
+      transaction(TransactionCategory.OFFERING),
+      null,
+    );
+
     expect(receipt.customer.externalCustomerId).toBeNull();
+    expect(receipt.customer.contactName).toBe('Collected offering');
   });
 
   it('keeps every giver name off a collected receipt', async () => {
@@ -157,7 +185,8 @@ describe('WorshipHarvestAccountingPlugin — who the receipt is booked to', () =
       match,
     );
 
-    expect(receipt.customer.contactName).toBe('Collected offering');
+    expect(receipt.customer.contactName).toBe('Offertory UGX');
+    expect(receipt.customer.contactName).not.toMatch(/Nabugere|Isaac/);
     expect(receipt.lineItems[0].description).not.toMatch(/Nabugere|Isaac/);
   });
 
@@ -235,6 +264,13 @@ describe('WorshipHarvestAccountingPlugin — which offering item and which date'
     const real = new CategoryRoutingService({} as any);
     routing = {
       isCollected: jest.fn().mockReturnValue(true),
+      resolveCategoryCustomer: jest.fn().mockResolvedValue({
+        externalCustomerId: '77',
+        externalCustomerName: 'Offertory UGX',
+        currency: 'UGX',
+        mappingKey: 'OFFERING:UGX',
+      }),
+      collectedCategoryKey: jest.fn(() => 'OFFERING'),
       resolveGivingItem: jest.fn().mockResolvedValue({
         kind: 'category',
         externalItemId: '91',

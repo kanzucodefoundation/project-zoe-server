@@ -274,8 +274,10 @@ export class QuickBooksService {
     const key = this.referenceCacheKey(tenantId, entity);
     const cached = this.referenceCache.get(key);
 
+    // Each caller gets its own array: callers sort and filter these lists, and
+    // handing out the cached one lets one caller reorder what the next reads.
     if (cached && cached.expiresAt > Date.now()) {
-      return cached.rows as Promise<T[]>;
+      return [...((await cached.rows) as T[])];
     }
 
     const rows = this.qboQueryAll<T>(tenantId, entity).catch((err) => {
@@ -288,7 +290,7 @@ export class QuickBooksService {
       rows,
     });
 
-    return rows;
+    return [...(await rows)];
   }
 
   /**
@@ -362,19 +364,27 @@ export class QuickBooksService {
     this.requestGates.set(tenantId, gate);
 
     if (gate.active >= QBO_MAX_CONCURRENT_REQUESTS) {
+      // Waits for a slot to be handed over, which leaves `active` untouched:
+      // the count already includes the slot this request is inheriting.
       await new Promise<void>((resolve) => gate.waiting.push(resolve));
+    } else {
+      gate.active += 1;
     }
 
-    gate.active += 1;
     try {
       return await run();
     } finally {
-      gate.active -= 1;
       const next = gate.waiting.shift();
       if (next) {
+        // Pass the slot straight to the waiter. Releasing it first would let a
+        // request arriving in between take it as well, putting the tenant over
+        // the budget this gate exists to hold.
         next();
-      } else if (gate.active === 0) {
-        this.requestGates.delete(tenantId);
+      } else {
+        gate.active -= 1;
+        if (gate.active === 0) {
+          this.requestGates.delete(tenantId);
+        }
       }
     }
   }

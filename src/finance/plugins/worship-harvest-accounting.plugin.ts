@@ -142,6 +142,13 @@ export class WorshipHarvestAccountingPlugin
         currency,
       );
 
+    const categoryCustomer = collected
+      ? await this.categoryRoutingService.resolveCategoryCustomer(
+          categoryKey,
+          currency,
+        )
+      : null;
+
     const amount = Number(transaction.amount);
     const statementDate = toIsoDate(transaction.transactionDate);
     const txnDate = resolvePostingDate(
@@ -165,16 +172,17 @@ export class WorshipHarvestAccountingPlugin
       customer: {
         contactId,
         contactName: collected
-          ? 'Collected offering'
+          ? categoryCustomer?.externalCustomerName ?? 'Collected offering'
           : contact
           ? getPersonFullName(contact.person) ?? `Contact ${contactId}`
           : transaction.senderName ?? `Contact ${contactId}`,
-        // Offertory carries no customer at all — it is not anyone's gift.
         externalCustomerId: collected
-          ? null
+          ? categoryCustomer?.externalCustomerId ?? null
           : customerMapping?.externalReferenceId ?? null,
         postsAs: collected ? 'CATEGORY' : 'GIVER',
-        externalCustomerName: null,
+        externalCustomerName: collected
+          ? categoryCustomer?.externalCustomerName ?? null
+          : null,
       },
       depositAccount: {
         financialAccountId: account?.id ?? null,

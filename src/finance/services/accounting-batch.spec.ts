@@ -3,6 +3,7 @@ import { BadRequestException } from '@nestjs/common';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { AccountingService } from './accounting.service';
 import Transaction from '../entities/transaction.entity';
+import { TransactionStatus } from '../enums/transaction-status.enum';
 import ReconciliationMatch from '../entities/reconciliation-match.entity';
 import FinancialAccount from '../entities/financial-account.entity';
 import Contact from '../../crm/entities/contact.entity';
@@ -62,7 +63,7 @@ describe('AccountingService — posting a batch', () => {
     mapping = { lookupByInternal: jest.fn(), upsert: jest.fn() };
 
     repos = {
-      txn: { findOne: jest.fn() },
+      txn: { findOne: jest.fn(), save: jest.fn((row) => row) },
       match: { findOne: jest.fn().mockResolvedValue(null) },
       posting: {
         findOne: jest.fn(),
@@ -115,6 +116,13 @@ describe('AccountingService — posting a batch', () => {
           provide: CategoryRoutingService,
           useValue: {
             isCollected: jest.fn().mockReturnValue(false),
+            resolveCategoryCustomer: jest.fn().mockResolvedValue({
+              externalCustomerId: '77',
+              externalCustomerName: 'Offertory UGX',
+              currency: 'UGX',
+              mappingKey: 'OFFERING:UGX',
+            }),
+            collectedCategoryKey: jest.fn(() => 'OFFERING'),
             resolveDepositAccount: jest
               .fn()
               .mockResolvedValue({ externalAccountId: null, currency: 'UGX' }),
@@ -438,6 +446,28 @@ describe('AccountingService — posting a batch', () => {
       const posting = await service.post(1, 7);
 
       expect(posting.status).toBe(AccountingPostingStatus.FAILED);
+    });
+
+    it('takes a posted transaction off the pending list', async () => {
+      qbService.postSalesReceipt.mockResolvedValue({ Id: '99' });
+
+      await service.post(1, 7);
+
+      expect(repos.txn.save).toHaveBeenCalledWith(
+        expect.objectContaining({ status: TransactionStatus.RECONCILED }),
+      );
+    });
+
+    it('keeps a receipt QuickBooks accepted marked posted when the status write fails', async () => {
+      qbService.postSalesReceipt.mockResolvedValue({ Id: '99' });
+      repos.txn.save.mockRejectedValue(new Error('deadlock detected'));
+
+      const posting = await service.post(1, 7);
+
+      // The gift is in QuickBooks. Reporting it as FAILED because a status
+      // write lost a race would send an operator to post it a second time.
+      expect(posting.status).toBe(AccountingPostingStatus.POSTED);
+      expect(posting.externalDocumentId).toBe('99');
     });
 
     it('records a timeout as failed too, since the key makes the retry safe', async () => {

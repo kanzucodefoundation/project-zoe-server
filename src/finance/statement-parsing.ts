@@ -105,9 +105,23 @@ const CATEGORY_WORDS = new Set(
   ).filter((word) => word.length >= 2),
 );
 
-const isTithePrefix = (prefix: string): boolean => {
+/**
+ * Whether a separated candidate is really a code rather than two ordinary
+ * words that happen to sit together.
+ *
+ * No denylist can cover every word a sender might type in front of a number —
+ * "tithe amount 50000", "offering oct 2026", "John 5000" are all prose. A code
+ * written with a dash, underscore or dot is unambiguous ("TBG-9088",
+ * "tbgb_0095"). Separated only by a space, it is accepted just when the prefix
+ * is upper-case, which is how codes are written and prose is not.
+ */
+const isTitheCandidate = (prefix: string, candidate: string): boolean => {
   const word = prefix.toLowerCase();
-  return !NOT_TITHE_PREFIX.has(word) && !CATEGORY_WORDS.has(word);
+  if (NOT_TITHE_PREFIX.has(word) || CATEGORY_WORDS.has(word)) {
+    return false;
+  }
+  const spaceSeparated = /\s/.test(candidate);
+  return !spaceSeparated || prefix === prefix.toUpperCase();
 };
 
 /** A tithe number written as digits with an explicit label. */
@@ -188,6 +202,13 @@ export const extractTitheNumber = (text?: string | null): string | null => {
   const joined = text.match(TITHE_CODE) ?? text.match(TITHE_CODE_LOOSE);
   if (joined) return joined[1].toUpperCase();
 
+  // An explicit label is read before any separated candidate. "tithe number
+  // 4471" is how people label a tithe number, and treating "number" as a
+  // letter prefix produced NUMBER4471 — a code nobody holds, losing the
+  // strongest match signal there is.
+  const labelled = text.match(TITHE_LABELLED);
+  if (labelled) return labelled[1];
+
   // Every separated candidate is considered, not just the first: "ugx 5000 TBG
   // 9088" leads with an amount, and stopping there would miss the real code.
   TITHE_CODE_SPACED.lastIndex = 0;
@@ -196,13 +217,10 @@ export const extractTitheNumber = (text?: string | null): string | null => {
     spaced;
     spaced = TITHE_CODE_SPACED.exec(text)
   ) {
-    if (isTithePrefix(spaced[1])) {
+    if (isTitheCandidate(spaced[1], spaced[0])) {
       return `${spaced[1]}${spaced[2]}`.toUpperCase();
     }
   }
-
-  const labelled = text.match(TITHE_LABELLED);
-  if (labelled) return labelled[1];
 
   return null;
 };

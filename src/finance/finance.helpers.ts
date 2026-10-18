@@ -92,14 +92,26 @@ function tokenSimilarity(a: string, b: string): number {
 const TOKEN_MATCH_THRESHOLD = 0.8;
 
 /**
+ * The most a single shared token may score.
+ *
+ * "JOHN" against "John Okello" agrees on everything "JOHN" says, and they are
+ * still two different people. One token of agreement is a hint, never a match.
+ */
+const SINGLE_TOKEN_CEILING = 0.5;
+
+/**
  * Similarity between two personal names, 0 to 1.
  *
  * Compared token by token and order-insensitively, because statements name
  * people in whatever order and depth they like: "AYIKORU ELAINE" and "Elaine
  * Keziah Ayikoru" are the same giver, and whole-string distance scores them
- * barely above unrelated. Scoring is against the shorter name, so a missing
- * middle name costs nothing, and every token of the shorter name must be
- * accounted for before the score can be high.
+ * barely above unrelated.
+ *
+ * Scored in both directions and averaged. Measuring only how much of the
+ * shorter name was accounted for gives a perfect score to any name contained
+ * in the other, so "JOHN" matched "John Okello" outright and a gift could be
+ * attributed to the wrong person's giving statement. Averaging means a missing
+ * middle name costs a little, while an extra surname costs a lot.
  */
 export function calculateNameSimilarity(
   name1: string | null | undefined,
@@ -121,6 +133,7 @@ export function calculateNameSimilarity(
 
   const unmatched = [...longer];
   let total = 0;
+  let matched = 0;
 
   for (const token of shorter) {
     let bestScore = 0;
@@ -137,10 +150,12 @@ export function calculateNameSimilarity(
     if (bestIndex >= 0 && bestScore >= TOKEN_MATCH_THRESHOLD) {
       unmatched.splice(bestIndex, 1);
       total += bestScore;
+      matched += 1;
     }
   }
 
-  return total / shorter.length;
+  const score = (total / shorter.length + total / longer.length) / 2;
+  return matched < 2 ? Math.min(score, SINGLE_TOKEN_CEILING) : score;
 }
 
 /**
