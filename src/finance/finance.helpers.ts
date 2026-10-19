@@ -65,13 +65,53 @@ export function normalizePhone(
   return cleaned;
 }
 
+/** Comparable form of a tithe number: "tbg 9088" and "TBG-9088" are one code. */
+export function normalizeTitheNumber(
+  value: string | null | undefined,
+): string | null {
+  const normalized = (value ?? '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  return normalized.length >= 4 ? normalized : null;
+}
+
+function nameTokens(value: string): string[] {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z\s]/g, ' ')
+    .split(/\s+/)
+    .filter((token) => token.length > 1);
+}
+
+function tokenSimilarity(a: string, b: string): number {
+  if (a === b) {
+    return 1;
+  }
+  const longest = Math.max(a.length, b.length);
+  return longest === 0 ? 1 : 1 - levenshteinDistance(a, b) / longest;
+}
+
+const TOKEN_MATCH_THRESHOLD = 0.8;
+
 /**
- * Calculates the similarity between two names using Levenshtein distance
- * Returns a value between 0 and 1, where 1 is an exact match
+ * The most a single shared token may score.
  *
- * @param name1 - First name to compare
- * @param name2 - Second name to compare
- * @returns Similarity score between 0 and 1
+ * "JOHN" against "John Okello" agrees on everything "JOHN" says, and they are
+ * still two different people. One token of agreement is a hint, never a match.
+ */
+const SINGLE_TOKEN_CEILING = 0.5;
+
+/**
+ * Similarity between two personal names, 0 to 1.
+ *
+ * Compared token by token and order-insensitively, because statements name
+ * people in whatever order and depth they like: "AYIKORU ELAINE" and "Elaine
+ * Keziah Ayikoru" are the same giver, and whole-string distance scores them
+ * barely above unrelated.
+ *
+ * Scored in both directions and averaged. Measuring only how much of the
+ * shorter name was accounted for gives a perfect score to any name contained
+ * in the other, so "JOHN" matched "John Okello" outright and a gift could be
+ * attributed to the wrong person's giving statement. Averaging means a missing
+ * middle name costs a little, while an extra surname costs a lot.
  */
 export function calculateNameSimilarity(
   name1: string | null | undefined,
@@ -81,22 +121,41 @@ export function calculateNameSimilarity(
     return 0;
   }
 
-  // Normalize names: lowercase and remove extra whitespace
-  const normalized1 = name1.toLowerCase().trim().replace(/\s+/g, ' ');
-  const normalized2 = name2.toLowerCase().trim().replace(/\s+/g, ' ');
+  const tokens1 = nameTokens(name1);
+  const tokens2 = nameTokens(name2);
 
-  if (normalized1 === normalized2) {
-    return 1;
+  if (tokens1.length === 0 || tokens2.length === 0) {
+    return 0;
   }
 
-  const distance = levenshteinDistance(normalized1, normalized2);
-  const maxLength = Math.max(normalized1.length, normalized2.length);
+  const [shorter, longer] =
+    tokens1.length <= tokens2.length ? [tokens1, tokens2] : [tokens2, tokens1];
 
-  if (maxLength === 0) {
-    return 1;
+  const unmatched = [...longer];
+  let total = 0;
+  let matched = 0;
+
+  for (const token of shorter) {
+    let bestScore = 0;
+    let bestIndex = -1;
+
+    unmatched.forEach((candidate, index) => {
+      const score = tokenSimilarity(token, candidate);
+      if (score > bestScore) {
+        bestScore = score;
+        bestIndex = index;
+      }
+    });
+
+    if (bestIndex >= 0 && bestScore >= TOKEN_MATCH_THRESHOLD) {
+      unmatched.splice(bestIndex, 1);
+      total += bestScore;
+      matched += 1;
+    }
   }
 
-  return 1 - distance / maxLength;
+  const score = (total / shorter.length + total / longer.length) / 2;
+  return matched < 2 ? Math.min(score, SINGLE_TOKEN_CEILING) : score;
 }
 
 /**

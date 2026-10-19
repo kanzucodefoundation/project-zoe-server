@@ -21,7 +21,10 @@ export interface AccountingSalesReceiptLineItem {
 
 export interface AccountingSalesReceipt {
   transactionId: number;
+  /** The date the receipt posts under, which a late import defers. */
   transactionDate: string;
+  /** The date on the statement, kept so a deferred posting is explainable. */
+  statementDate: string;
   referenceNumber: string | null;
   customer: {
     contactId: number;

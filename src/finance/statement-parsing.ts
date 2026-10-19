@@ -82,9 +82,55 @@ const TITHE_CODE = /\b([a-z]{2,6}\d{3,6})\b/i;
 /** The same code when it is jammed against other text, e.g. "TBGB0416(Imbazo)". */
 const TITHE_CODE_LOOSE = /([a-z]{2,6}\d{3,6})/i;
 
+/** The same code written with a separator, e.g. "TBG-9088" or "TBG 9088". */
+const TITHE_CODE_SPACED = /\b([a-z]{2,6})[\s\-_.]+(\d{3,6})\b/gi;
+
+/**
+ * Letter runs that sit in front of a number without naming a giver, so
+ * "UGX 5000" and "tel 0772..." are not read as codes.
+ */
+const NOT_TITHE_PREFIX = new Set([
+  'ugx', 'shs', 'ush', 'usd', 'kes', 'tzs', 'rwf',
+  'tel', 'phone', 'no', 'num', 'ref', 'id', 'acc', 'mtn', 'tn',
+  // Money labels. These reach the space-separated rule in upper case often
+  // enough ("AMOUNT 50000") that the upper-case test alone would read them
+  // as a code; the lookup is lower-cased, so one entry covers either casing.
+  'amount', 'amt', 'total', 'bal', 'balance', 'fee', 'charge', 'cash',
+]);
+
+/**
+ * A category word is never a tithe prefix: "tithe 4471" and "gift 20000" name
+ * what the money is for and, in the first case, label the digits that follow.
+ * Reading either as a letter code produces an identifier no contact holds.
+ */
+const CATEGORY_WORDS = new Set(
+  CATEGORY_KEYWORDS.flatMap(({ keywords }) =>
+    keywords.flatMap((keyword) => keyword.split(/[^a-z]+/i)),
+  ).filter((word) => word.length >= 2),
+);
+
+/**
+ * Whether a separated candidate is really a code rather than two ordinary
+ * words that happen to sit together.
+ *
+ * No denylist can cover every word a sender might type in front of a number —
+ * "tithe amount 50000", "offering oct 2026", "John 5000" are all prose. A code
+ * written with a dash, underscore or dot is unambiguous ("TBG-9088",
+ * "tbgb_0095"). Separated only by a space, it is accepted just when the prefix
+ * is upper-case, which is how codes are written and prose is not.
+ */
+const isTitheCandidate = (prefix: string, candidate: string): boolean => {
+  const word = prefix.toLowerCase();
+  if (NOT_TITHE_PREFIX.has(word) || CATEGORY_WORDS.has(word)) {
+    return false;
+  }
+  const spaceSeparated = /\s/.test(candidate);
+  return !spaceSeparated || prefix === prefix.toUpperCase();
+};
+
 /** A tithe number written as digits with an explicit label. */
 const TITHE_LABELLED =
-  /(?:tithe\s*(?:no|number|num|#)?|tn|#)\s*[:\-.]?\s*(\d{3,10})\b/i;
+  /(?:tithes?\s*(?:no|number|num|#)?|tn|#)\s*[:\-.]?\s*(\d{3,10})\b/i;
 
 /**
  * A campus code standing on its own, e.g. "WHEBCT tithe". Only usable when the
@@ -157,11 +203,28 @@ export const detectCategory = (
 export const extractTitheNumber = (text?: string | null): string | null => {
   if (!text) return null;
 
-  const code = text.match(TITHE_CODE) ?? text.match(TITHE_CODE_LOOSE);
-  if (code) return code[1].toUpperCase();
+  const joined = text.match(TITHE_CODE) ?? text.match(TITHE_CODE_LOOSE);
+  if (joined) return joined[1].toUpperCase();
 
+  // An explicit label is read before any separated candidate. "tithe number
+  // 4471" is how people label a tithe number, and treating "number" as a
+  // letter prefix produced NUMBER4471 — a code nobody holds, losing the
+  // strongest match signal there is.
   const labelled = text.match(TITHE_LABELLED);
   if (labelled) return labelled[1];
+
+  // Every separated candidate is considered, not just the first: "ugx 5000 TBG
+  // 9088" leads with an amount, and stopping there would miss the real code.
+  TITHE_CODE_SPACED.lastIndex = 0;
+  for (
+    let spaced = TITHE_CODE_SPACED.exec(text);
+    spaced;
+    spaced = TITHE_CODE_SPACED.exec(text)
+  ) {
+    if (isTitheCandidate(spaced[1], spaced[0])) {
+      return `${spaced[1]}${spaced[2]}`.toUpperCase();
+    }
+  }
 
   return null;
 };

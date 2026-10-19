@@ -134,6 +134,54 @@ describe('statement message parsing', () => {
       expect(extractTitheNumber('#307 offering')).toBe('307');
     });
 
+    it('reads a code the giver separated', () => {
+      expect(extractTitheNumber('tithe TBG-9088')).toBe('TBG9088');
+      expect(extractTitheNumber('TBG 9088')).toBe('TBG9088');
+      expect(extractTitheNumber('tbgb_0095 offering')).toBe('TBGB0095');
+    });
+
+    it('does not read an amount or a phone label as a code', () => {
+      expect(extractTitheNumber('ugx 5000')).toBeNull();
+      expect(extractTitheNumber('tel 0772123456')).toBeNull();
+    });
+
+    it('does not read a category word as a letter prefix', () => {
+      // "tithe 4471" labels the digits; TITHE4471 is an identifier no contact
+      // holds, so reading it that way loses the match entirely.
+      expect(extractTitheNumber('tithe 4471')).toBe('4471');
+      expect(extractTitheNumber('tithes 307')).toBe('307');
+      expect(extractTitheNumber('gift 20000')).toBeNull();
+      expect(extractTitheNumber('offering 15000')).toBeNull();
+    });
+
+    it('reads a labelled number before any separated candidate', () => {
+      // "number", "amount" and "for" are ordinary words, not code prefixes.
+      expect(extractTitheNumber('tithe number 4471')).toBe('4471');
+      // "tithe amount 50000" states an amount, so no identifier is read.
+      expect(extractTitheNumber('tithe amount 50000')).toBeNull();
+      expect(extractTitheNumber('John 5000 tithe no 4471')).toBe('4471');
+    });
+
+    it('reads past an upper-case money label to the real code', () => {
+      // Upper case is what separates a code from prose, so a shouted money
+      // label would otherwise be read as one.
+      expect(extractTitheNumber('AMOUNT 50000')).toBeNull();
+      expect(extractTitheNumber('AMOUNT 50000 TBG 9088')).toBe('TBG9088');
+      expect(extractTitheNumber('TOTAL 20000')).toBeNull();
+      expect(extractTitheNumber('BALANCE 1500 TBGB 0095')).toBe('TBGB0095');
+    });
+
+    it('does not invent a code out of ordinary words', () => {
+      expect(extractTitheNumber('offering oct 2026')).toBeNull();
+      expect(extractTitheNumber('paid 20000 thanks')).toBeNull();
+      expect(extractTitheNumber('John 5000')).toBeNull();
+    });
+
+    it('looks past a leading amount to the code behind it', () => {
+      expect(extractTitheNumber('ugx 5000 TBG 9088')).toBe('TBG9088');
+      expect(extractTitheNumber('tel 0772123456 tbgb_0095')).toBe('TBGB0095');
+    });
+
     it('returns null when there is no identifier', () => {
       expect(extractTitheNumber('tithe')).toBeNull();
       expect(extractTitheNumber('Arua WH')).toBeNull();

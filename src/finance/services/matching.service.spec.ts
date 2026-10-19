@@ -11,7 +11,6 @@ import Transaction from '../entities/transaction.entity';
 import ReconciliationMatch from '../entities/reconciliation-match.entity';
 import ContactPaymentMethod from '../entities/contact-payment-method.entity';
 import Contact from '../../crm/entities/contact.entity';
-import Phone from '../../crm/entities/phone.entity';
 
 describe('MatchingService — suggestions', () => {
   let service: MatchingService;
@@ -21,10 +20,15 @@ describe('MatchingService — suggestions', () => {
   beforeEach(async () => {
     mockRepositories = {
       transaction: { findOne: jest.fn() },
-      match: { find: jest.fn(), findOne: jest.fn() },
+      match: {
+        find: jest.fn().mockResolvedValue([]),
+        findOne: jest.fn(),
+      },
       paymentMethod: { find: jest.fn() },
-      contact: { find: jest.fn(), findOne: jest.fn() },
-      phone: { find: jest.fn() },
+      contact: {
+        find: jest.fn().mockResolvedValue([]),
+        findOne: jest.fn(),
+      },
     };
 
     const mockConnection: Partial<Connection> = {
@@ -34,7 +38,6 @@ describe('MatchingService — suggestions', () => {
         if (entity === ContactPaymentMethod)
           return mockRepositories.paymentMethod;
         if (entity === Contact) return mockRepositories.contact;
-        if (entity === Phone) return mockRepositories.phone;
         return {};
       }) as any,
     };
@@ -322,22 +325,23 @@ describe('MatchingService — suggestions', () => {
   });
 
   describe('the name in the message', () => {
-    it('is matched on ahead of the account the money came from', async () => {
-      const repo = (service as any).contactRepository;
-      repo.find = jest.fn().mockResolvedValue([
-        {
-          id: 7,
-          person: { firstName: 'Isaac', lastName: 'Wakweyika' },
-        },
-      ]);
+    const withRoster = (contacts: any[]) => {
+      (service as any).contactRepository.find = jest
+        .fn()
+        .mockResolvedValue(contacts);
       (service as any).matchRepository.find = jest.fn().mockResolvedValue([]);
       (service as any).paymentMethodRepository.findOne = jest
         .fn()
         .mockResolvedValue(null);
-      (service as any).contactRepository.findOne = jest
+      (service as any).paymentMethodRepository.find = jest
         .fn()
-        .mockResolvedValue(null);
-      (service as any).phoneRepository.find = jest.fn().mockResolvedValue([]);
+        .mockResolvedValue([]);
+    };
+
+    it('is matched on ahead of the account the money came from', async () => {
+      withRoster([
+        { id: 7, person: { firstName: 'Isaac', lastName: 'Wakweyika' } },
+      ]);
 
       const candidate = await service.findMatchForTransaction({
         id: 1,
@@ -349,21 +353,170 @@ describe('MatchingService — suggestions', () => {
       expect(candidate?.matchCriteria.method).toBe('fuzzy_name');
     });
 
-    it('falls back to the statement name when the message names nobody', async () => {
-      const repo = (service as any).contactRepository;
-      repo.find = jest
+    it('stops rather than charging the account holder when the message name ties', async () => {
+      // Two Grace Nakatos fit the narration equally well. Falling through to
+      // senderName would book the gift to whoever owns the phone.
+      withRoster([
+        { id: 11, person: { firstName: 'Grace', lastName: 'Nakato' } },
+        { id: 12, person: { firstName: 'Grace', lastName: 'Nakato' } },
+        { id: 13, person: { firstName: 'Jane', lastName: 'Accountholder' } },
+      ]);
+
+      const candidate = await service.findMatchForTransaction({
+        id: 1,
+        senderName: 'Jane Accountholder',
+        narration: 'grace nakato tithe',
+      } as any);
+
+      expect(candidate).toBeNull();
+    });
+
+    it('still falls back to the statement name when the tie is on that name', async () => {
+      // The narration names nobody, so senderName is the only candidate and
+      // the fallback must still run.
+      withRoster([
+        { id: 21, person: { firstName: 'Church', lastName: 'Account' } },
+      ]);
+
+      const candidate = await service.findMatchForTransaction({
+        id: 1,
+        senderName: 'Church Account',
+        narration: 'ugx 5000',
+      } as any);
+
+      expect(candidate?.contact.id).toBe(21);
+    });
+
+    it('does not fall through to the phone when the tithe number is ambiguous', async () => {
+      // The account holder is a real, unique phone match at 90. Without the
+      // stop, the gift would be auto-approved to them rather than to one of
+      // the two people whose tithe number was written in the message.
+      withRoster([
+        { id: 51, titheNumber: 'TBG9088', person: { firstName: 'A', lastName: 'One' } },
+        { id: 52, titheNumber: 'tbg-9088', person: { firstName: 'B', lastName: 'Two' } },
+        {
+          id: 53,
+          person: { firstName: 'Jane', lastName: 'Accountholder' },
+          phones: [{ value: '+256700000222' }],
+        },
+      ]);
+
+      const candidate = await service.findMatchForTransaction({
+        id: 1,
+        narration: 'tithe TBG9088',
+        senderPhone: '+256700000222',
+      } as any);
+
+      expect(candidate).toBeNull();
+    });
+
+    it('still matches one contact holding the same number twice', async () => {
+      // "+256700000444" and "0700000444" normalise alike. That is one person,
+      // not a collision, so it must not be treated as ambiguous.
+      withRoster([
+        {
+          id: 71,
+          person: { firstName: 'Grace', lastName: 'Nakato' },
+          phones: [{ value: '+256700000444' }, { value: '0700000444' }],
+        },
+      ]);
+
+      const candidate = await service.findMatchForTransaction({
+        id: 1,
+        senderPhone: '+256700000444',
+      } as any);
+
+      expect(candidate?.contact.id).toBe(71);
+    });
+
+    it('does not fall through to contact phone when payment methods are ambiguous', async () => {
+      // A third person lists the same number, uniquely, so contact-phone
+      // matching would hand back a 90 and auto-approve to the wrong giver.
+      withRoster([
+        { id: 81, person: { firstName: 'A', lastName: 'One' } },
+        { id: 82, person: { firstName: 'B', lastName: 'Two' } },
+        {
+          id: 83,
+          person: { firstName: 'C', lastName: 'Three' },
+          phones: [{ value: '+256700000555' }],
+        },
+      ]);
+      (service as any).paymentMethodRepository.find = jest
+        .fn()
+        .mockResolvedValue([{ contact: { id: 81 } }, { contact: { id: 82 } }]);
+
+      const candidate = await service.findMatchForTransaction({
+        id: 1,
+        senderPhoneNormalized: '+256700000555',
+        senderPhone: '+256700000555',
+      } as any);
+
+      expect(candidate).toBeNull();
+    });
+
+    it('refuses a payment method two contacts registered', async () => {
+      // valueNormalized is not unique, so the old findOne returned whichever
+      // row came first -- at 95, which auto-approves.
+      withRoster([
+        { id: 61, person: { firstName: 'A', lastName: 'One' } },
+        { id: 62, person: { firstName: 'B', lastName: 'Two' } },
+      ]);
+      (service as any).paymentMethodRepository.find = jest
         .fn()
         .mockResolvedValue([
-          { id: 9, person: { firstName: 'Church', lastName: 'Account' } },
+          { contact: { id: 61 } },
+          { contact: { id: 62 } },
         ]);
-      (service as any).matchRepository.find = jest.fn().mockResolvedValue([]);
-      (service as any).paymentMethodRepository.findOne = jest
-        .fn()
-        .mockResolvedValue(null);
-      (service as any).contactRepository.findOne = jest
-        .fn()
-        .mockResolvedValue(null);
-      (service as any).phoneRepository.find = jest.fn().mockResolvedValue([]);
+
+      const candidate = await service.findMatchForTransaction({
+        id: 1,
+        senderPhoneNormalized: '+256700000333',
+      } as any);
+
+      expect(candidate).toBeNull();
+    });
+
+    it('refuses a phone line two contacts share', async () => {
+      // A household line identifies neither, and a phone match auto-approves.
+      withRoster([
+        {
+          id: 41,
+          person: { firstName: 'A', lastName: 'One' },
+          phones: [{ value: '+256700000111' }],
+        },
+        {
+          id: 42,
+          person: { firstName: 'B', lastName: 'Two' },
+          phones: [{ value: '0700000111' }],
+        },
+      ]);
+
+      const candidate = await service.findMatchForTransaction({
+        id: 1,
+        senderPhone: '+256700000111',
+      } as any);
+
+      expect(candidate).toBeNull();
+    });
+
+    it('refuses a tithe number two contacts share', async () => {
+      withRoster([
+        { id: 31, titheNumber: 'TBG9088', person: { firstName: 'A', lastName: 'One' } },
+        { id: 32, titheNumber: 'tbg-9088', person: { firstName: 'B', lastName: 'Two' } },
+      ]);
+
+      const candidate = await service.findMatchForTransaction({
+        id: 1,
+        narration: 'tithe TBG9088',
+      } as any);
+
+      expect(candidate).toBeNull();
+    });
+
+    it('falls back to the statement name when the message names nobody', async () => {
+      withRoster([
+        { id: 9, person: { firstName: 'Church', lastName: 'Account' } },
+      ]);
 
       const candidate = await service.findMatchForTransaction({
         id: 1,
@@ -372,6 +525,148 @@ describe('MatchingService — suggestions', () => {
       } as any);
 
       expect(candidate?.contact.id).toBe(9);
+    });
+
+    it('matches a name the statement wrote in a different order', async () => {
+      withRoster([
+        {
+          id: 11,
+          person: {
+            firstName: 'Elaine',
+            middleName: 'Keziah',
+            lastName: 'Ayikoru',
+          },
+        },
+      ]);
+
+      const candidate = await service.findMatchForTransaction({
+        id: 1,
+        senderName: 'AYIKORU ELAINE',
+      } as any);
+
+      expect(candidate?.contact.id).toBe(11);
+      expect(candidate?.matchCriteria.method).toBe('fuzzy_name');
+    });
+
+    it('considers every contact, not an arbitrary first slice', async () => {
+      const roster = Array.from({ length: 900 }, (_, i) => ({
+        id: i + 1,
+        person: { firstName: `Member${i + 1}`, lastName: 'Filler' },
+      }));
+      roster.push({
+        id: 901,
+        person: { firstName: 'Shammah', lastName: 'Arinaitwe' },
+      });
+      withRoster(roster);
+
+      const candidate = await service.findMatchForTransaction({
+        id: 1,
+        senderName: 'Shammah Arinaitwe',
+      } as any);
+
+      expect(candidate?.contact.id).toBe(901);
+      expect(
+        (service as any).contactRepository.find.mock.calls[0][0].take,
+      ).toBeUndefined();
+    });
+  });
+
+  describe('the tithe number in the message', () => {
+    const withTitheRoster = (contacts: any[]) => {
+      (service as any).contactRepository.find = jest
+        .fn()
+        .mockResolvedValue(contacts);
+      (service as any).matchRepository.find = jest.fn().mockResolvedValue([]);
+      (service as any).paymentMethodRepository.findOne = jest
+        .fn()
+        .mockResolvedValue(null);
+      (service as any).paymentMethodRepository.find = jest
+        .fn()
+        .mockResolvedValue([]);
+    };
+
+    it('matches however the giver punctuated it', async () => {
+      withTitheRoster([
+        {
+          id: 21,
+          titheNumber: 'tbg9088',
+          person: { firstName: 'Joshua', lastName: 'Nabugere' },
+        },
+      ]);
+
+      const candidate = await service.findMatchForTransaction({
+        id: 1,
+        narration: 'tithe TBG-9088',
+      } as any);
+
+      expect(candidate?.contact.id).toBe(21);
+      expect(candidate?.matchCriteria.method).toBe('tithe_number');
+      expect(candidate?.confidenceScore).toBe(98);
+    });
+
+    it('reads the number the importer already parsed out', async () => {
+      withTitheRoster([
+        {
+          id: 22,
+          titheNumber: 'TBGB0095',
+          person: { firstName: 'Patricia', lastName: 'Nandera' },
+        },
+      ]);
+
+      const candidate = await service.findMatchForTransaction({
+        id: 1,
+        narration: 'offering',
+        rawData: { titheNumber: 'TBGB0095' },
+      } as any);
+
+      expect(candidate?.contact.id).toBe(22);
+      expect(candidate?.matchCriteria.method).toBe('tithe_number');
+    });
+
+    it('does not match a tithe number nobody holds', async () => {
+      withTitheRoster([
+        {
+          id: 23,
+          titheNumber: 'TBGB0095',
+          person: { firstName: 'Patricia', lastName: 'Nandera' },
+        },
+      ]);
+
+      const candidate = await service.findMatchForTransaction({
+        id: 1,
+        narration: 'tithe TBGB9999',
+      } as any);
+
+      expect(candidate).toBeNull();
+    });
+  });
+
+  describe('sweeping a batch', () => {
+    it('loads the contact roster once for the whole sweep', async () => {
+      (service as any).transactionRepository.find = jest
+        .fn()
+        .mockResolvedValue([
+          { id: 1, senderName: 'A One', account: { id: 1 } },
+          { id: 2, senderName: 'B Two', account: { id: 1 } },
+          { id: 3, senderName: 'C Three', account: { id: 1 } },
+        ]);
+      (service as any).matchRepository.findOne = jest
+        .fn()
+        .mockResolvedValue(null);
+      (service as any).matchRepository.find = jest.fn().mockResolvedValue([]);
+      (service as any).matchRepository.save = jest.fn();
+      (service as any).paymentMethodRepository.findOne = jest
+        .fn()
+        .mockResolvedValue(null);
+      (service as any).paymentMethodRepository.find = jest
+        .fn()
+        .mockResolvedValue([]);
+      const contactFind = jest.fn().mockResolvedValue([]);
+      (service as any).contactRepository.find = contactFind;
+
+      await service.runMatching(undefined, 60);
+
+      expect(contactFind).toHaveBeenCalledTimes(1);
     });
   });
 });

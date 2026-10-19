@@ -32,6 +32,63 @@ describe('CategoryRoutingService', () => {
     expect(service.isCurrencyRouted('ARISE_BUILD')).toBe(false);
   });
 
+  /**
+   * Every offertory is collected in the room, but only a message naming the
+   * word reaches the OFFERING category: a YXP or children's church collection
+   * defaults to tithe, and "thanksgiving" reads as a donation.
+   */
+  it('treats any offertory item as collected whatever its category', () => {
+    expect(service.isCollected('TITHE', 'Offertory - YXP')).toBe(true);
+    expect(service.isCollected('TITHE', "Offertory - Children's Church")).toBe(
+      true,
+    );
+    expect(service.isCollected('DONATION', 'Offertory - Thanksgiving')).toBe(
+      true,
+    );
+    expect(service.isCollected('OFFERING', null)).toBe(true);
+  });
+
+  it('still requires a giver for giving a person made themselves', () => {
+    expect(service.isCollected('TITHE', 'Tithes')).toBe(false);
+    expect(service.isCollected('TITHE', null)).toBe(false);
+    expect(service.isCollected('ARISE_BUILD', 'Arise and Build')).toBe(false);
+    expect(service.isCollected('DONATION', 'Donations')).toBe(false);
+  });
+
+  it('books a collected gift under the offering category', () => {
+    expect(service.collectedCategoryKey('TITHE')).toBe('OFFERING');
+    expect(service.collectedCategoryKey('DONATION')).toBe('OFFERING');
+    expect(service.collectedCategoryKey('OFFERING')).toBe('OFFERING');
+  });
+
+  it('resolves the standing customer for collected giving', async () => {
+    mapping.lookupByInternal.mockResolvedValueOnce({
+      externalReferenceId: '77',
+      externalReferenceName: 'Offertory UGX',
+    });
+
+    const result = await service.resolveCategoryCustomer('OFFERING', 'ugx');
+
+    expect(result.externalCustomerId).toBe('77');
+    expect(result.externalCustomerName).toBe('Offertory UGX');
+    expect(result.mappingKey).toBe('OFFERING:UGX');
+    expect(mapping.lookupByInternal).toHaveBeenCalledWith(
+      expect.objectContaining({
+        internalReferenceId: 'OFFERING:UGX',
+        externalReferenceType: 'CUSTOMER',
+      }),
+    );
+  });
+
+  it('reports no standing customer when none is mapped', async () => {
+    mapping.lookupByInternal.mockResolvedValueOnce(null);
+
+    const result = await service.resolveCategoryCustomer('TITHE', 'USD');
+
+    expect(result.externalCustomerId).toBeNull();
+    expect(result.mappingKey).toBe('OFFERING:USD');
+  });
+
   it('leaves tithe on its own category item', async () => {
     const result = await service.resolveGivingItem('TITHE', 'UGX');
 

@@ -16,6 +16,7 @@ import { TenantContext } from '../../shared/tenant/tenant-context';
 import { resolveTransactionCategory } from '../enums/transaction-category.enum';
 import { CategoryRoutingService } from '../services/category-routing.service';
 import { DEFAULT_CURRENCY } from '../constants/accounting-mapping.constants';
+import { resolvePostingDate, toIsoDate } from '../posting-date';
 
 const SYSTEM = 'QUICKBOOKS';
 
@@ -49,8 +50,16 @@ export class WorshipHarvestAccountingPlugin
     transaction: Transaction,
     match: ReconciliationMatch | null,
   ): Promise<AccountingSalesReceipt> {
-    // Null for offertory: collected in the room, so there is nobody to match.
-    const contactId = match?.contact?.id ?? null;
+    // Collected giving belongs to the room, not to whoever a narration
+    // happened to match, so a match on one of these rows is ignored. The
+    // customer then comes from the category, and campus and class fall back
+    // to the mother group the same way they do for any giverless row.
+    const categoryKey = resolveTransactionCategory(transaction.category);
+    const collected = this.categoryRoutingService.isCollected(
+      categoryKey,
+      transaction.externalItemName,
+    );
+    const contactId = collected ? null : (match?.contact?.id ?? null);
     // Both repositories below are plain, untenanted repositories, so every
     // lookup has to carry the tenant itself. Without it a crafted id could read
     // another church's contact or account.
@@ -116,7 +125,6 @@ export class WorshipHarvestAccountingPlugin
       : null;
 
     // ── Transaction category → QBO Item ─────────────────────────────────────
-    const categoryKey = resolveTransactionCategory(transaction.category);
     const itemMapping = await this.mappingService.lookupByInternal({
       system: SYSTEM,
       internalReferenceType: 'GIVING_CATEGORY',
@@ -126,41 +134,64 @@ export class WorshipHarvestAccountingPlugin
 
     // ── Category + currency → standing QBO Customer ─────────────────────────
     const currency = account?.currency ?? DEFAULT_CURRENCY;
-    const collected = this.categoryRoutingService.isCurrencyRouted(categoryKey);
     // Offerings book against their own income item, chosen by currency.
     const categoryItem = await this.categoryRoutingService.resolveGivingItem(
-      categoryKey,
+      collected
+        ? this.categoryRoutingService.collectedCategoryKey(categoryKey)
+        : categoryKey,
       currency,
     );
+    // Same key as the item and the customer: a collected tithe deposits
+    // where offertory deposits, not where a giver's tithe would.
     const categoryDeposit =
       await this.categoryRoutingService.resolveDepositAccount(
-        categoryKey,
+        collected
+          ? this.categoryRoutingService.collectedCategoryKey(categoryKey)
+          : categoryKey,
         currency,
       );
 
+    const categoryCustomer = collected
+      ? await this.categoryRoutingService.resolveCategoryCustomer(
+          categoryKey,
+          currency,
+        )
+      : null;
+
     const amount = Number(transaction.amount);
-    const txnDate =
-      transaction.transactionDate instanceof Date
-        ? transaction.transactionDate.toISOString().slice(0, 10)
-        : String(transaction.transactionDate);
+    const statementDate = toIsoDate(transaction.transactionDate);
+    const txnDate = resolvePostingDate(
+      transaction.transactionDate,
+      transaction.createdAt,
+    );
+
+    const lineItem = this.categoryRoutingService.resolveLineItem(
+      categoryItem,
+      transaction.externalItemId,
+      transaction.externalItemName,
+      itemMapping?.externalReferenceId,
+      categoryKey,
+    );
 
     return {
       transactionId: transaction.id,
       transactionDate: txnDate,
+      statementDate,
       referenceNumber: transaction.externalReference ?? null,
       customer: {
         contactId,
         contactName: collected
-          ? 'Collected offering'
+          ? categoryCustomer?.externalCustomerName ?? 'Collected offering'
           : contact
           ? getPersonFullName(contact.person) ?? `Contact ${contactId}`
           : transaction.senderName ?? `Contact ${contactId}`,
-        // Offertory carries no customer at all — it is not anyone's gift.
         externalCustomerId: collected
-          ? null
+          ? categoryCustomer?.externalCustomerId ?? null
           : customerMapping?.externalReferenceId ?? null,
         postsAs: collected ? 'CATEGORY' : 'GIVER',
-        externalCustomerName: null,
+        externalCustomerName: collected
+          ? categoryCustomer?.externalCustomerName ?? null
+          : null,
       },
       depositAccount: {
         financialAccountId: account?.id ?? null,
@@ -181,17 +212,8 @@ export class WorshipHarvestAccountingPlugin
           : null,
       lineItems: [
         {
-          category:
-            categoryItem.externalItemName ??
-            transaction.externalItemName ??
-            categoryKey,
-          // A statement that named a specific product/service books against it;
-          // the category mapping is only the fallback.
-          externalItemId:
-            categoryItem.externalItemId ??
-            transaction.externalItemId ??
-            itemMapping?.externalReferenceId ??
-            null,
+          category: lineItem.externalItemName,
+          externalItemId: lineItem.externalItemId,
           description: collected
             ? `${categoryKey} ${txnDate}`
             : `${categoryKey} — ${

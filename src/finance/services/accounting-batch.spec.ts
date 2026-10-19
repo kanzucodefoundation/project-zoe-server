@@ -3,6 +3,7 @@ import { BadRequestException } from '@nestjs/common';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { AccountingService } from './accounting.service';
 import Transaction from '../entities/transaction.entity';
+import { TransactionStatus } from '../enums/transaction-status.enum';
 import ReconciliationMatch from '../entities/reconciliation-match.entity';
 import FinancialAccount from '../entities/financial-account.entity';
 import Contact from '../../crm/entities/contact.entity';
@@ -62,7 +63,7 @@ describe('AccountingService — posting a batch', () => {
     mapping = { lookupByInternal: jest.fn(), upsert: jest.fn() };
 
     repos = {
-      txn: { findOne: jest.fn() },
+      txn: { findOne: jest.fn(), save: jest.fn((row) => row) },
       match: { findOne: jest.fn().mockResolvedValue(null) },
       posting: {
         findOne: jest.fn(),
@@ -114,7 +115,14 @@ describe('AccountingService — posting a batch', () => {
           // offertory work.
           provide: CategoryRoutingService,
           useValue: {
-            isCurrencyRouted: jest.fn().mockReturnValue(false),
+            isCollected: jest.fn().mockReturnValue(false),
+            resolveCategoryCustomer: jest.fn().mockResolvedValue({
+              externalCustomerId: '77',
+              externalCustomerName: 'Offertory UGX',
+              currency: 'UGX',
+              mappingKey: 'OFFERING:UGX',
+            }),
+            collectedCategoryKey: jest.fn(() => 'OFFERING'),
             resolveDepositAccount: jest
               .fn()
               .mockResolvedValue({ externalAccountId: null, currency: 'UGX' }),
@@ -440,6 +448,28 @@ describe('AccountingService — posting a batch', () => {
       expect(posting.status).toBe(AccountingPostingStatus.FAILED);
     });
 
+    it('takes a posted transaction off the pending list', async () => {
+      qbService.postSalesReceipt.mockResolvedValue({ Id: '99' });
+
+      await service.post(1, 7);
+
+      expect(repos.txn.save).toHaveBeenCalledWith(
+        expect.objectContaining({ status: TransactionStatus.RECONCILED }),
+      );
+    });
+
+    it('keeps a receipt QuickBooks accepted marked posted when the status write fails', async () => {
+      qbService.postSalesReceipt.mockResolvedValue({ Id: '99' });
+      repos.txn.save.mockRejectedValue(new Error('deadlock detected'));
+
+      const posting = await service.post(1, 7);
+
+      // The gift is in QuickBooks. Reporting it as FAILED because a status
+      // write lost a race would send an operator to post it a second time.
+      expect(posting.status).toBe(AccountingPostingStatus.POSTED);
+      expect(posting.externalDocumentId).toBe('99');
+    });
+
     it('records a timeout as failed too, since the key makes the retry safe', async () => {
       qbService.postSalesReceipt.mockRejectedValue(
         Object.assign(new Error('timeout of 30000ms exceeded'), {
@@ -471,7 +501,7 @@ describe('AccountingService — posting a batch', () => {
 
     it('does not ask for an approved match', async () => {
       const routing = (service as any).categoryRoutingService;
-      routing.isCurrencyRouted.mockReturnValue(true);
+      routing.isCollected.mockReturnValue(true);
       routing.resolveGivingItem.mockResolvedValue({
         kind: 'category',
         externalItemId: '91',
@@ -489,7 +519,7 @@ describe('AccountingService — posting a batch', () => {
 
     it('asks for the item, not a giver, when the currency is unmapped', async () => {
       const routing = (service as any).categoryRoutingService;
-      routing.isCurrencyRouted.mockReturnValue(true);
+      routing.isCollected.mockReturnValue(true);
       routing.resolveGivingItem.mockResolvedValue({
         kind: 'unconfigured',
         externalItemId: null,
@@ -508,7 +538,7 @@ describe('AccountingService — posting a batch', () => {
 
     it('does not also demand the legacy category item mapping', async () => {
       const routing = (service as any).categoryRoutingService;
-      routing.isCurrencyRouted.mockReturnValue(true);
+      routing.isCollected.mockReturnValue(true);
       routing.resolveGivingItem.mockResolvedValue({
         kind: 'category',
         externalItemId: '31',
@@ -575,7 +605,7 @@ describe('AccountingService — posting a batch', () => {
       mapping.lookupByInternal.mockResolvedValue({ externalReferenceId: 'x' });
 
       const routing = (service as any).categoryRoutingService;
-      routing.isCurrencyRouted.mockReturnValue(true);
+      routing.isCollected.mockReturnValue(true);
       routing.resolveGivingItem.mockResolvedValue({
         kind: 'category',
         externalItemId: '31',
@@ -601,6 +631,31 @@ describe('AccountingService — posting a batch', () => {
 
       expect(blocker?.message).toMatch(/YXP Offertory/);
       expect(blocker?.message).toMatch(/Income/);
+    });
+
+    it('blocks posting when the deposit account can no longer be read', async () => {
+      // Letting this through only moves the failure to Intuit, as a 6000.
+      qbService.getQboAccounts.mockRejectedValue(new Error('QuickBooks down'));
+
+      const { ready, blockers } = await service.preflight(1);
+
+      expect(ready).toBe(false);
+      expect(
+        blockers.some((b) => b.code === 'QBO_ACCOUNTS_UNAVAILABLE'),
+      ).toBe(true);
+    });
+
+    it('blocks posting when the mapped deposit account has been deleted', async () => {
+      qbService.getQboAccounts.mockResolvedValue([
+        { Id: '12', Name: 'MoMo UGX', AccountType: 'Bank' },
+      ]);
+
+      const { ready, blockers } = await service.preflight(1);
+
+      expect(ready).toBe(false);
+      expect(
+        blockers.some((b) => b.code === 'CATEGORY_CURRENCY_DEPOSIT_MISSING'),
+      ).toBe(true);
     });
 
     it('refuses to save a deposit account it could not verify', async () => {
