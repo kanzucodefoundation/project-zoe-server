@@ -105,6 +105,31 @@ describe('QuickBooksService — reference data', () => {
     await expect(service.getQboItems(1)).resolves.toHaveLength(1);
   });
 
+  it('a failing read does not evict the entry that replaced it', async () => {
+    // The first read is still in flight when a customer write clears the
+    // cache and a second read caches its own result. The first then fails;
+    // it must not take the second read's entry with it.
+    let failFirst: (err: Error) => void = () => undefined;
+    const query = jest
+      .fn()
+      .mockImplementationOnce(
+        () => new Promise((_resolve, reject) => (failFirst = reject)),
+      )
+      .mockResolvedValue([{ Id: '9' }]);
+    (service as any).qboQuery = query;
+
+    const inFlight = service.getQboItems(1).catch(() => 'failed');
+    (service as any).invalidateReferenceCache(1);
+    await service.getQboItems(1);
+
+    failFirst(new Error('QuickBooks down'));
+    await inFlight;
+
+    // Served from the entry the second read stored, so no third query.
+    await expect(service.getQboItems(1)).resolves.toHaveLength(1);
+    expect(query).toHaveBeenCalledTimes(2);
+  });
+
   it('follows every page of a company larger than one page', async () => {
     const query = stubQuery([page(1000), page(1000), page(7)]);
 

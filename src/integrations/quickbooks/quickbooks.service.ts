@@ -280,15 +280,25 @@ export class QuickBooksService {
       return [...((await cached.rows) as T[])];
     }
 
+    // Declared first so the rejection handler can check identity: between
+    // this request starting and failing, a customer write may have invalidated
+    // the cache and a later read stored its own entry. Deleting by key alone
+    // would throw that replacement away and send every later read back to
+    // QuickBooks, against a request budget this cache exists to protect.
+    let entry: { expiresAt: number; rows: Promise<unknown[]> } | undefined;
+
     const rows = this.qboQueryAll<T>(tenantId, entity).catch((err) => {
-      this.referenceCache.delete(key);
+      if (entry && this.referenceCache.get(key) === entry) {
+        this.referenceCache.delete(key);
+      }
       throw err;
     });
 
-    this.referenceCache.set(key, {
+    entry = {
       expiresAt: Date.now() + QBO_REFERENCE_CACHE_TTL_MS,
       rows,
-    });
+    };
+    this.referenceCache.set(key, entry);
 
     return [...(await rows)];
   }
