@@ -280,27 +280,38 @@ export class QuickBooksService {
       return [...((await cached.rows) as T[])];
     }
 
-    // Declared first so the rejection handler can check identity: between
-    // this request starting and failing, a customer write may have invalidated
-    // the cache and a later read stored its own entry. Deleting by key alone
-    // would throw that replacement away and send every later read back to
-    // QuickBooks, against a request budget this cache exists to protect.
-    let entry: { expiresAt: number; rows: Promise<unknown[]> } | undefined;
-
-    const rows = this.qboQueryAll<T>(tenantId, entity).catch((err) => {
-      if (entry && this.referenceCache.get(key) === entry) {
-        this.referenceCache.delete(key);
+    // Entries that have aged out are dropped here, including ones for tenants
+    // that never came back, whose settled promise would otherwise hold its
+    // whole list for the life of the process. Eviction waits for the next miss
+    // on any key rather than firing at the TTL, because a timer would need
+    // module-teardown cleanup to avoid holding the process open.
+    const now = Date.now();
+    for (const [staleKey, staleEntry] of this.referenceCache) {
+      if (staleEntry.expiresAt <= now) {
+        this.referenceCache.delete(staleKey);
       }
-      throw err;
-    });
+    }
 
-    entry = {
-      expiresAt: Date.now() + QBO_REFERENCE_CACHE_TTL_MS,
-      rows,
+    const query = this.qboQueryAll<T>(tenantId, entity);
+
+    // The rejection handler checks identity, not just the key: between this
+    // request starting and failing, a customer write may have invalidated the
+    // cache and a later read stored its own entry. Deleting by key alone would
+    // throw that replacement away and send every later read back to
+    // QuickBooks, against a request budget this cache exists to protect.
+    const entry = {
+      expiresAt: now + QBO_REFERENCE_CACHE_TTL_MS,
+      rows: query.catch((err) => {
+        if (this.referenceCache.get(key) === entry) {
+          this.referenceCache.delete(key);
+        }
+        throw err;
+      }),
     };
+
     this.referenceCache.set(key, entry);
 
-    return [...(await rows)];
+    return [...((await entry.rows) as T[])];
   }
 
   /**
@@ -449,7 +460,7 @@ export class QuickBooksService {
    * Intuit's query language escapes single quotes with a backslash.
    */
   private escapeQboLiteral(value: string): string {
-    return value.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    return value.replace(/\\/g, '\\\\').replace(/'/g, '\\\'');
   }
 
   async findQboCustomerByDisplayName(

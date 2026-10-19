@@ -275,4 +275,49 @@ describe('QuickBooksService — reference data', () => {
     expect(peak).toBeLessThanOrEqual(6);
     expect(peak).toBeGreaterThan(1);
   });
+
+  // Mirrors QBO_REFERENCE_CACHE_TTL_MS in the service.
+  const ttlMs = 10 * 60 * 1000;
+
+  it('drops an aged-out entry for a tenant that never reads again', async () => {
+    stubQuery([[{ Id: '1' }]]);
+    const cache: Map<string, unknown> = (service as any).referenceCache;
+    const start = Date.now();
+    const clock = jest.spyOn(Date, 'now');
+
+    try {
+      clock.mockReturnValue(start);
+      await service.getQboCustomers(1);
+      expect([...cache.keys()]).toEqual(['1:Customer']);
+
+      // Tenant 1 never comes back. Another tenant's miss is what collects it,
+      // so its resolved row list does not sit in memory for the process life.
+      clock.mockReturnValue(start + ttlMs + 1);
+      await service.getQboCustomers(2);
+
+      expect([...cache.keys()]).toEqual(['2:Customer']);
+    } finally {
+      clock.mockRestore();
+    }
+  });
+
+  it('keeps a live entry for another tenant when one tenant misses', async () => {
+    stubQuery([[{ Id: '1' }]]);
+    const cache: Map<string, unknown> = (service as any).referenceCache;
+    const start = Date.now();
+    const clock = jest.spyOn(Date, 'now');
+
+    try {
+      clock.mockReturnValue(start);
+      await service.getQboCustomers(1);
+
+      // Still inside the TTL, so collecting must not touch it.
+      clock.mockReturnValue(start + ttlMs - 1);
+      await service.getQboCustomers(2);
+
+      expect([...cache.keys()].sort()).toEqual(['1:Customer', '2:Customer']);
+    } finally {
+      clock.mockRestore();
+    }
+  });
 });
