@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { In } from 'typeorm';
 import { getDataSourceToken } from '@nestjs/typeorm';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import ClientFriendlyException from '../../shared/exceptions/client-friendly.exception';
@@ -95,6 +96,7 @@ describe('GroupsService', () => {
 
     mockTenantAwareGroupRepo = {
       findOne: jest.fn(),
+      find: jest.fn(),
     };
     tenantAwareGroupRepoForTest = mockTenantAwareGroupRepo;
 
@@ -463,6 +465,58 @@ describe('GroupsService', () => {
 
       expect(result).toEqual([]);
       expect(mockRepositories.group.createQueryBuilder).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('findOne — child groups', () => {
+    // 1 (root)
+    // +- 2
+    // +- 3
+    //    +- 4   <- grandchild: belongs on group 3's page, not group 1's
+    beforeEach(() => {
+      mockRepositories.group.findOne.mockResolvedValue({
+        id: 1,
+        name: 'Region',
+        parentId: null,
+        category: { id: 9, name: 'Region' },
+      });
+      // Child/descendant lookups must go through the tenant-aware repository,
+      // so leave the raw repository unmocked here — a call to it would throw.
+      mockTenantAwareGroupRepo.find.mockImplementation(
+        ({ where }: any) =>
+          ({
+            1: [{ id: 2 }, { id: 3 }],
+            3: [{ id: 4 }],
+          })[where.parentId] ?? [],
+      );
+      mockRepositories.event.find.mockResolvedValue([]);
+      mockRepositories.membership.find.mockResolvedValue([]);
+      mockGroupsPermissionsService.hasPermissionForGroup.mockResolvedValue(
+        true,
+      );
+    });
+
+    it('returns only direct children, not the whole subtree', async () => {
+      const result = await service.findOne(1, true, { id: 1 });
+
+      expect(result.children).toEqual([2, 3]);
+    });
+
+    it('resolves children through the tenant-scoped repository', async () => {
+      await service.findOne(1, true, { id: 1 });
+
+      expect(mockTenantAwareGroupRepo.find).toHaveBeenCalledWith({
+        where: { parentId: 1 },
+        select: ['id'],
+      });
+      expect(mockRepositories.group.find).not.toHaveBeenCalled();
+    });
+
+    it('still rolls attendance up over the full subtree including itself', async () => {
+      await service.findOne(1, true, { id: 1 });
+
+      const eventQuery = mockRepositories.event.find.mock.calls[0][0];
+      expect(eventQuery.where.groupId).toEqual(In([1, 2, 3, 4]));
     });
   });
 });
